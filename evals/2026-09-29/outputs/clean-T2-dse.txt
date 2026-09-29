@@ -1,0 +1,19 @@
+diff --git a/synccli.py b/synccli.py
+index ae41a1e..a3760fe 100644
+--- a/synccli.py
++++ b/synccli.py
+@@ -52,7 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
++    for i in range(len(items)):
+         path, fresh = items[i]
+         if path not in seen and not fresh:
+             stale.append(path)
+
+Bug: `collect_stale` was skipping the first element (`range(1, ...)`).
+
+**Fix** — synccli.py:55, `range(1, len(items))` → `range(len(items))`.
+
+**Tests**: 6/6 OK.

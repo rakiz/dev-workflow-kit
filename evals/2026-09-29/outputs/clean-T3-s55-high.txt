@@ -1,0 +1,94 @@
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+62:def copy_file(src, dst):
+63-    """Copy src to dst, creating parent directories as needed."""
+64-    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+65-    try:
+66-        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+67-            fdst.write(fsrc.read())
+68-    except OSError:
+69-        pass  # unreadable source: skip it, next pass will retry
+70-
+71-
+72-def sync(src_root, dst_root, dry_run=False):
+73-    """Sync src_root into dst_root; return list of copied relative paths."""
+74-    src_manifest = build_manifest(src_root)
+75-    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+76-    old_manifest = {}
+77-    if os.path.exists(dst_manifest_path):
+78-        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+79-            old_manifest = json.load(f)
+80-    to_copy = changed_files(old_manifest, src_manifest)
+81-    if dry_run:
+82-        return to_copy
+83-    for rel in to_copy:
+84-        copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+85-    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+86-        json.dump(src_manifest, f, indent=2)
+87-    return to_copy
+synccli.py:1:"""synccli: synchronize a source directory into a destination using a manifest."""
+synccli.py:7:MANIFEST_NAME = ".sync_manifest.json"
+synccli.py:23:    """Return (size, mtime) for a file."""
+synccli.py:25:    return {"size": st.st_size, "mtime": st.st_mtime}
+synccli.py:28:def build_manifest(root):
+synccli.py:29:    """Build a manifest {relpath: state} for all files under root."""
+synccli.py:30:    manifest = {}
+synccli.py:32:        manifest[rel] = file_state(os.path.join(root, rel))
+synccli.py:33:    return manifest
+synccli.py:36:def changed_files(old_manifest, new_manifest):
+synccli.py:37:    """Return files whose state changed or that are new in new_manifest."""
+synccli.py:39:    for rel, state in new_manifest.items():
+synccli.py:40:        if rel not in old_manifest or old_manifest[rel] != state:
+synccli.py:74:    src_manifest = build_manifest(src_root)
+synccli.py:75:    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+synccli.py:76:    old_manifest = {}
+synccli.py:77:    if os.path.exists(dst_manifest_path):
+synccli.py:78:        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+synccli.py:79:            old_manifest = json.load(f)
+synccli.py:80:    to_copy = changed_files(old_manifest, src_manifest)
+synccli.py:85:    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+synccli.py:86:        json.dump(src_manifest, f, indent=2)
+
+Defects in `incremental.py` (commit d3394047), a single added file:
+
+1. **`filter_excluded`: mutable default argument `excluded=[]` — major.**
+   - The list is shared across all calls. Excluded paths accumulate from one call to the next.
+   - The second call therefore also returns the first call's exclusions, including for completely unrelated paths.
+   - As a result, a caller that treats the result as "what to exclude from this sync" wrongly excludes or skips files.
+   - Use `excluded=None` and create a local list instead.
+
+2. **`copy_many`: `done` contains copies that never happened — major.**
+   - `synccli.copy_file` (l.62-69) already swallows `OSError` (`pass`) and returns nothing.
+   - `copy_many` therefore adds `dst` to `done` even when the source was unreadable.
+   - The docstring promises "the list of dst paths done", which is false — a misleading API contract.
+   - A caller using `done` to update the manifest then records missing or truncated files as synced. They will never be re-copied.
+   - Silent corruption risk: `copy_file` opens `dst` in `"wb"` before reading `src`. A mid-write error leaves a truncated `dst`, which still appears in `done`.
+
+3. **`copy_many`: `except Exception: continue` — minor.**
+   - Errors other than `OSError` are swallowed without a trace, e.g. an invalid `dst` or an error from `makedirs`.
+   - The file is omitted from `done` with no way to know why. Nothing is reported back to the caller.
+   - It worsens point 2 by masking failures.
+
+4. **`filter_excluded`: comparison on the first component only, and `.sync_manifest.json` treated as a directory — minor.**
+   - `p.split(os.sep)[0]` only works if paths are relative and use `os.sep`.
+   - A `./.git/x` path, an absolute path or a path with `/` on Windows is not excluded.
+   - The name `EXCLUDE_TOP_DIRS` is misleading: it also contains a file.
+   - The only real effect is that `.git/...` and `__pycache__/...` are excluded at the root only. A `pkg/__pycache__/` stays synced.
+   - It may be intended ("TOP"), but nothing documents it.
+
+5. **`merge_manifest`: comparison by mtime alone — minor to major depending on usage.**
+   - `old[rel]["mtime"] <= state["mtime"]` ignores `size`. At equal mtime, the new state overwrites the old one even if the content differs, which remains acceptable.
+   - However, if the source file was restored or replaced by an older version (lower mtime), the manifest keeps the old state. `changed_files` (strict equality comparison) will never re-copy it.
+   - The manifest then no longer reflects reality, and the incremental sync misses that change.
+   - Keeping files deleted on the source side is consistent with "merge", but it leaves ghost entries in the manifest.
+
+6. **`merge_manifest`: no robustness against the existing manifest — minor.**
+   - A corrupted or truncated `.sync_manifest.json` (crash during the non-atomic write in `sync`) makes `json.JSONDecodeError` raise. No recovery is planned.
+   - `old[rel]["mtime"]` can raise `KeyError` or `TypeError` if an entry has an unexpected format.
+   - The result is never written to disk (pure function), so there is no risk of partial writes here.
+
+The most serious defect is #2, which combines a misleading contract with a risk of corrupted state. Next come #1 (state shared across calls) and #5.

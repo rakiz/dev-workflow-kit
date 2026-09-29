@@ -1,0 +1,22 @@
+**Stop.** Do not code this design as-is.
+
+**Major risks**
+- Full scan every 500 ms + full JSON rewrite: ~6 M `stat`/min for 50k files, even with no changes. The cycle exceeds 500 ms and the daemon does nothing but scan.
+- Manifest rewritten in place: crash, full disk or power cut = corrupted state, deletions and already-done copies undetermined on restart.
+- Direct copy into `dst`: readers see partial files; a large file blocks the whole loop.
+
+**False assumptions**
+- "mtime always changes": false (same granularity, `touch`/restore, tools that preserve dates).
+- Deletions, renames, symlinks, file↔directory, `dst` under `src`: unspecified. Ghost files, overwrites, recursion.
+- Reusing the one-shot `sync()` as a continuous engine: not proven idempotent or interruptible.
+
+**Real load**
+- Unbounded implicit queue: a burst or a generated tree never converges.
+- File modified during the copy → hybrid version marked synced if the manifest is written too early.
+- Manifest cost proportional to the number of files, not to the changes.
+
+**Change first**
+1. Watchers + a slow reconciliation scan, not a 500 ms poll.
+2. Atomic publication (temp + fsync + rename) for files and manifest.
+3. Explicit mirror semantics (delete, rename, links, forbidden topology) before any daemon code.
+4. Pipeline detection → coalescing "latest state per path" → copy, with a bounded queue.

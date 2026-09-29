@@ -1,0 +1,94 @@
+# Critique of DESIGN.md
+
+## Decisions to change first
+
+1. **JSON manifest rewritten in place, with no atomicity (the most serious).**
+   - A crash or a kill during the write leaves a truncated JSON. On restart, either the daemon crashes, or it starts from an empty state and re-copies or deletes everything.
+   - The 50k-file manifest weighs about 5 to 10 MB, and it is rewritten every 500 ms. That means SSD wear and I/O for nothing.
+   - Fix:
+     - Write to a temp file, `fsync`, then `rename`.
+     - Write only if changes occurred.
+     - Do not write on every cycle, but after a batch of changes or on a timer.
+
+2. **Full scan every 500 ms over 50k files.**
+   - False assumption: "polling is cheap". 50k `stat()` calls represent tens to hundreds of ms of CPU and I/O, and far more cold or on a network disk.
+   - This means near-permanent CPU usage, disks that never sleep and a drained battery on a laptop.
+   - The design contradicts its own profile: "a few changes per minute" means 99.9 % of scans are wasted.
+   - Fix:
+     - Use inotify/FSEvents/ReadDirectoryChangesW via a cross-platform lib (`notify` in Rust, `fsnotify` in Go, `watchdog` in Python).
+     - Keep a full reconciliation scan every N minutes, and at startup. It is indispensable anyway: watchers lose events (inotify overflow, `max_user_watches` limit).
+     - Rejecting watchers for "platform complexity" does not hold, since a lib already exists.
+     - If polling is kept, plan for a configurable interval with backoff.
+
+3. **"mtime always changes": false.**
+   - Cases that break detection:
+     - Coarse mtime resolution (FAT/exFAT 2 s, HFS+ 1 s, some NFS).
+     - Edits with restored mtime (`cp -p`, `rsync -t`, `git checkout`, build tools, `touch -r`).
+     - Write within the same second with an identical size.
+     - Clock moving backwards, or DST change on a non-UTC FS.
+   - Result: `dst` diverges silently, with no way to detect it.
+   - Fix:
+     - Compare mtime in ns, size and inode/ctime.
+     - Hash the content when mtime and size change, or when mtime is "too recent" (racy-git window).
+     - Periodic reconciliation with hashing.
+   - Rejecting hashing ("too expensive on every poll") is a false dilemma. Hashing only already-suspect files is cheap.
+
+4. **Immediate copy, without debounce, as soon as a change is seen.**
+   - Partially written files get copied: editor saves, downloads, build files, databases, `.git`.
+   - `dst` then contains truncated or inconsistent files, with no guarantee they will be properly re-copied.
+   - Fix:
+     - Wait for stability, e.g. mtime unchanged for 1 to 2 s.
+     - Copy to a temp file in `dst`, then do an atomic `rename`.
+     - Re-check mtime and size after the copy. If they changed, start over.
+
+5. **Errors: "log to stdout and continue".**
+   - An unreadable file is never retried, or retried endlessly with a log every 500 ms.
+   - The manifest may mark it as synced when it is not. The daemon claims to be in sync when it is not.
+   - Stdout is not a log channel for a daemon (no rotation, no levels, lost under launchd/systemd).
+   - Fix:
+     - Only update the manifest after a successful copy.
+     - Retry with exponential backoff.
+     - Distinguish transient errors (lock, file being written) from permanent ones (permissions).
+     - Structured logs to a file or journald.
+     - A queryable status (count of failed files).
+
+## Other risks
+
+- **Single-threaded, synchronous copy.**
+  - A large 5 GB file or a slow network link blocks all detection, contradicting "polling cheap".
+  - During the copy, the source changes and the manifest becomes stale.
+  - Separate detection and copying with a work queue and 2 to 4 workers.
+- **Deletions, renames, moves.**
+  - The design says nothing about them.
+  - A rename becomes delete + full copy, including for a 10k-file folder.
+  - There is no protection against a mass deletion, e.g. a dismounted `src` that appears empty and wipes everything in `dst`. Add a guardrail: refuse to propagate if more than X % of files disappear at once.
+- **Symlinks, permissions, special files, open/locked files (Windows), case-sensitive names.** None are mentioned.
+- **Single instance not guaranteed.** There is no lock file nor pidfile. Two `syncd` corrupt the manifest.
+- **Reusing `sync()` directly.**
+  - Check that `sync()` is a one-shot operation: it risks re-scanning or recomputing the whole tree on every call.
+  - It was probably written for manual use: it may call `exit()` on error, not be reentrant, and not accept a single path or file.
+  - To verify before approving the design.
+- **No daemon lifecycle.** Signal handling is missing (clean shutdown in the middle of overwriting the manifest), launchd/systemd integration, cold start after a long downtime and rate limiting.
+
+## Rejections to revisit
+
+- **Watchers rejected:** unjustified rejection, see point 2.
+- **Hashing rejected:** false dilemma, see point 3.
+- **SQLite rejected ("a dependency for little gain"):**
+  - The gain is real: per-file incremental updates, atomic transactions and crash recovery, for 50k rows.
+  - It solves point 1 without having to hand-implement atomicity.
+  - A dependency-free alternative is an append-only journal with periodic snapshot.
+
+## Config
+
+The poll interval must be configurable. "Invites misuse" does not hold: defaults protect, and a minimum bound is enough. In practice, people need to tune it on battery, on a NAS or for large trees.
+
+## Order of fixes
+
+1. Atomic manifest (tmp + rename, or SQLite).
+2. Atomic, stabilized copy.
+3. Detection: watcher + reconciliation, or at minimum hashing on suspect mtime/size.
+4. Error handling with retry and manifest updated only after success.
+5. Copy queue with workers.
+6. Deletions, renames and guardrail.
+7. Verify that `sync()` is reusable.

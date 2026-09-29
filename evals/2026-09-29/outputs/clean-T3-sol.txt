@@ -1,0 +1,5 @@
+- **Major — `incremental.py:23-24`**: `copy_many()` adds a destination to the list of successful copies even when `copy_file()` failed, because that function swallows `OSError`. A missing source is thus declared copied even though the destination does not exist.
+
+- **Minor — `incremental.py:10-15`**: the default argument `excluded=[]` is shared across calls. A second call may return paths excluded during the first, even though they are absent from its input.
+
+- **Minor — `incremental.py:38-39`**: `merge_manifest()` keeps the old state when a modified file carries an earlier `mtime`. The manifest then does not reflect the new state; `changed_files()` will still report this file on subsequent passes.

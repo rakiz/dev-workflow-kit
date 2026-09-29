@@ -1,0 +1,62 @@
+# Goal: JSON output mode + dry-run UX (next release)
+
+Add to synccli:
+
+1. `--json` flag: machine-readable output. Must print a single JSON object on
+   stdout: `{"copied": [...], "skipped": N, "src": ..., "dst": ...}`. Nothing
+   else may be printed to stdout in that mode. Exit code unchanged.
+2. `--dry-run` interplay: with both flags, `copied` lists what WOULD be copied.
+3. Human mode unchanged (one path per line).
+4. Tests: unit tests for the JSON shape (valid JSON, keys present, dry-run
+   semantics) added to test_synccli.py.
+
+Constraints: no new dependencies, keep Python 3.10 stdlib only, keep
+`sync()` signature stable (internal callers exist).
+# Design: continuous sync engine (v2)
+
+## Context
+
+synccli today is a manual one-shot sync. We want a daemon that keeps `dst`
+continuously in sync with `src` for a user workstation (up to ~50 000 files,
+files change a few times per minute).
+
+## Proposed design
+
+- **Detection:** a polling loop that scans the full source tree every 500 ms
+  and diffs against the manifest (simplest possible approach, no kernel APIs).
+- **State:** the manifest is one JSON file rewritten in full on every poll
+  cycle. Atomicity is not needed: the file is small and we rewrite it in place.
+- **Change detection:** mtime + size only (no content hashing). Good enough:
+  mtime always changes on edit.
+- **Copying:** on change, copy the file immediately, one file at a time.
+- **Errors:** if a file is unreadable mid-copy, log to stdout and continue.
+- **Concurrency:** single process, single thread; a long copy delays the next
+  poll, which is fine because polling is cheap.
+- **Config:** hardcode poll interval (500 ms) — configuring it invites misuse.
+
+## Rejected alternatives
+
+- inotify/FSEvents watchers: platform-specific, complex lifecycle.
+- content hashing: too expensive on every poll.
+- SQLite state: another dependency for little gain.
+
+## Rollout
+
+Ship the daemon as `syncd` in the same repo, reusing `sync()` directly.
+# synccli
+
+Small CLI that synchronizes a source directory into a destination directory
+using a manifest file (`.sync_manifest.json`).
+
+- `python3 -m synccli --help` for usage.
+- Tests: `python3 -m unittest -v`
+
+Real defects of commit `d339404` (`incremental.py`):
+
+- **Major — mutable default argument (`filter_excluded(paths, excluded=[])`).** The `[]` list is created once and shared across all calls. Since the function *appends* the excluded paths to it and returns it, a second call also returns the exclusions of all previous calls: falsely widened result on every call. Corrupted/accumulated state.
+
+- **Major — misleading contract + silent data loss in `copy_many`.** It documents "return the list of dst paths done" and does `copy_file(src, dst); done.append(dst)`. But `copy_file` (synccli.py) swallows `OSError` (`except OSError: pass`) without reporting anything. A failed copy (unreadable source, full disk on the write side…) is still counted as done in `done`: the caller believes the copy succeeded while `dst` does not exist.
+
+- **Minor — `copy_many` masks any error (`except Exception: continue`).** No log, no count, no escalation: a partially copied batch is indistinguishable from a fully successful one.
+
+- **Minor — `merge_manifest` only compares `mtime`.** `old[rel]["mtime"] <= state["mtime"]` ignores `size`, whereas `changed_files` (synccli.py) compares the full `{size, mtime}` state. A modified file with an identical `mtime` (date-preserving copy) but a different size will have its new version ignored, leaving the manifest inconsistent with the content.

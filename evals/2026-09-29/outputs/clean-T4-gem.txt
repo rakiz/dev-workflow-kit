@@ -1,0 +1,45 @@
+• Critique DESIGN.md approach Cheap-Design-Review Agent
+✓ Critique DESIGN.md approach Cheap-Design-Review Agent
+### 1. False assumptions & what will break under real load
+
+- **"Polling is cheap" (50,000 files / 500 ms):** 
+  - Traversing 50,000 entries and issuing 100,000 `stat()/s` saturates the CPU, destroys filesystem caches and degrades system performance (battery, I/O throttling, network disks).
+  - A real scan over 50k nodes often takes > 500 ms: the loop will drift immediately and run at 100% permanently.
+- **"Atomicity is not needed / file is small":**
+  - A JSON of 50,000 entries is between 3 and 8 MB.
+  - Rewriting it in place every 500 ms guarantees corruption on the first crash, forced shutdown (SIGKILL/reboot) or full disk, leaving the state unreadable at startup.
+- **"mtime always changes on edit":**
+  - False on backup restores, Git checkouts, metadata-preserving tools (`touch -r`, `tar`), or low mtime granularity (1 s on some filesystems). Two same-size modifications within the same second go unnoticed.
+- **Single-threaded blocking:**
+  - Copying a large file (e.g. a 2 GB video or archive) blocks the detection loop for seconds/minutes.
+- **Non-atomic copies & files being written:**
+  - Copying directly onto the destination exposes `dst` to truncated and corrupted files if the source file is being written when detection happens.
+- **No handling of deletions and renames:**
+  - The document covers neither deletions (`rm`) nor moves (`mv`). `dst` will become a junkyard of orphans.
+- **Log to stdout on error:**
+  - If a file is temporarily locked, the error is ignored, its mtime will no longer move, and it stays out of sync indefinitely with no retry queue.
+
+---
+
+### 2. Major risks
+
+1. **I/O storm and CPU/battery over-consumption** from a pointless permanent sweep for only a few changes per minute.
+2. **State corruption** of the manifest JSON.
+3. **Permanent silent inconsistency** (locked files never re-synced, deletions never propagated).
+
+---
+
+### 3. Decisions to change first
+
+1. **Drop raw 500 ms polling in favor of event-driven:**
+   - Use the kernel event API (`FSEvents` on macOS, `inotify` on Linux) to be notified only of real mutations.
+   - Keep a full recursive scan only at startup and as a slow periodic background task (e.g. every 15–30 min) for reconciliation.
+2. **Make writes atomic (Temp + Rename):**
+   - **Manifest:** write to a temp file (`.manifest.json.tmp`) then atomic `rename()`.
+   - **File copy:** copy into `dst/path/.tmp-xxxx` then `rename()` to `dst/path/file`.
+3. **Decouple detection from copying via a task queue (async Queue):**
+   - Fast detection pushing into a worker pool or a deduplicating queue (~1–2 s debounce to let writes finish).
+4. **Handle the full file lifecycle:**
+   - Explicitly account for deletions and renames.
+5. **Handle errors with persistence and retry:**
+   - Mark failing paths with exponential backoff instead of just "log and forget".

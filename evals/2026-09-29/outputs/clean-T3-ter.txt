@@ -1,0 +1,45 @@
+d339404 (HEAD -> main, origin/main, origin/HEAD) v0.2: add exclude filter, batch copy and manifest merge
+ce7dcf6 Initial synccli
+commit d3394047afd4911f968ce3dc9063a8a25f439cf7
+Date:   Tue Sep 29 09:56:53 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... FAIL
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+======================================================================
+FAIL: test_first_item_stale_is_included (test_synccli.TestCollectStale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/eval/m-T3-ter/test_synccli.py", line 24, in test_first_item_stale_is_included
+    self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+AssertionError: Lists differ: ['y.txt'] != ['x.txt', 'y.txt']
+
+First differing element 0:
+'y.txt'
+'x.txt'
+
+Second list contains 1 additional elements.
+First extra element 1:
+'y.txt'
+
+- ['y.txt']
++ ['x.txt', 'y.txt']
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+FAILED (failures=1)
+
+- **Major** — `incremental.py:23-24`: `copy_many()` marks a destination as copied even if `copy_file()` silently swallowed an `OSError`. `copy_file()` catches these errors and does not re-raise them, so `copy_many()`'s `except` never runs. Callers thus receive a misleading sync state.
+
+- **Major** — `incremental.py:30-40`: `merge_manifest()` reads the destination manifest and claims to merge into it, but never rewrites `dst_manifest_path`. The merge exists only in the return value; any caller relying on the provided path to persist state will restart with a stale manifest.
+
+- **Minor** — `incremental.py:10-15`: the mutable default argument `excluded=[]` keeps exclusions across calls. A second call without an `excluded` argument also returns paths excluded during previous calls, producing wrong results and unexpected cross-call state.
+
+- **Minor** — `incremental.py:37-38`: the merge rejects a new state when its `mtime` is lower than the stored one. A file restored from Git or a backup, then properly copied, therefore leaves the manifest on the old state. Subsequent syncs will consider it changed indefinitely and re-copy it on every pass.

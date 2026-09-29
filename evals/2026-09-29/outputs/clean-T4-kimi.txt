@@ -1,0 +1,51 @@
+I read DESIGN.md. Direct critique:
+
+## 🔴 Major risks
+
+**1. 500ms polling over 50k files will saturate the disk**
+- Full scan every 500ms = **100k stats/second** (50k × 2)
+- On a modern SSD: acceptable but needlessly aggressive
+- On HDD/NFS/network: catastrophic, will degrade system performance
+- **Real impact:** battery drain, I/O contention, unusable on a network share
+
+**2. Manifest JSON rewritten every 500ms = guaranteed corruption**
+- "Atomicity not needed because small" = **false** — 50k JSON entries ≈ 5-10 MB
+- In-place rewrite without fsync + crash/power loss = unrecoverably truncated file
+- **Consequence:** mandatory full resync (minutes of scanning), loss of state
+- Even without a crash, constant rewriting wears out the SSD needlessly
+
+**3. mtime alone is insufficient**
+- Some editors preserve mtime (vim with `backupcopy=yes`, rsync `--times`)
+- Restored copies, git checkout, some build tools → unchanged mtime, different content
+- **Result:** silent desync, exactly what a sync engine must NEVER do
+
+## ⚠️ False assumptions
+
+| Assumption | Reality |
+|-----------|---------|
+| "polling is cheap" | 100k syscalls/sec is never cheap |
+| "file is small" | 50k entries ≠ small |
+| "mtime always changes on edit" | False, see above |
+| "long copy delays poll, which is fine" | Creates an unbounded backlog — if dst is slow (network), the queue explodes |
+
+## 💥 What breaks under real load
+
+1. **First startup:** 50k files × 500ms = initial sync delay of several hours if dst is slow
+2. **Large file being written:** copy of a partial file, dst receives a corrupted file
+3. **Infinite loop:** if dst is inside src (classic user config), the daemon triggers on its own writes
+4. **File deletion:** the design says nothing — probably never propagated, dst accumulates orphan files
+
+## 🎯 Decisions to change (priority)
+
+| Priority | Current decision | Minimal alternative |
+|----------|-------------------|----------------------|
+| P0 | 500ms polling | 5s polling + inotify/FSEvents as accelerator (pure polling fallback) |
+| P0 | JSON rewritten in place | JSON + atomic rename (write tmp, fsync, rename) |
+| P1 | mtime alone | mtime + size + ctime (catches more cases) + periodic hash (1/100 cycles) |
+| P1 | No deletion handling | Propagate deletes, or explicitly document that this is a one-way append-only sync |
+| P2 | Hardcoded interval | Expose in config with a 5s default — the user who wants 500ms owns it |
+| P2 | Single-thread | At minimum, async copy with a bounded queue (100 files max) |
+
+## Summary
+
+This design is **a toy, not production**. It works for 500 files, it collapses at 50k. The three P0 changes (less aggressive polling, atomic manifest, more robust detection) are cheap to implement and prevent guaranteed crashes in real conditions.

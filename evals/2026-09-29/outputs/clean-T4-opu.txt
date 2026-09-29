@@ -1,0 +1,48 @@
+## Critique of DESIGN.md
+
+### Major risks (to change first)
+
+1. **Manifest rewritten in place, with no atomicity.** This is the worst point. A crash, a kill or a full disk during the write leaves a truncated JSON. On restart, either the daemon crashes, or it believes the manifest is empty and re-copies or deletes everything. For 50k entries the file is several MB, so it is not "small". At minimum: write to a temp file, `fsync`, then `rename`. And only write it if changes occurred, not on every 500 ms cycle.
+
+2. **Full scan every 500 ms over 50k files.** That's about 100k `stat`/s continuously: CPU and I/O busy permanently, battery drained on a laptop, disk cache polluted. On a network or slow volume, a scan exceeds 500 ms and the loop never stops. All that for "a few changes per minute". Pure polling does not hold at this size.
+   → Use watchers (FSEvents/inotify/ReadDirectoryChangesW via a lib like `notify`/`watchdog`) for detection, plus a slow full rescan (every 5 to 15 min) to catch missed events. Rejecting watchers on complexity grounds is the wrong tradeoff.
+
+3. **Copying files being written.** An editor, a build or a download writes a file; the poll sees it and copies it halfway. `dst` then ends up with a corrupted file, and since mtime and size no longer move, it will never be re-copied.
+   → A debounce/quiescence is needed (file stable for N seconds), copy to `dst/.tmp` then atomic `rename`, and re-check mtime and size after the copy.
+
+4. **Manifest updated after a failed copy.** If a file is unreadable, the error is logged, then the manifest is updated anyway. If that happens, the file is **never retried again**: silent loss. Only successes should enter the manifest, and failures should be retried with backoff. Logging to stdout from a daemon goes nowhere: a real log file or the system journal is needed, with a visible error counter.
+
+### False assumptions
+
+- **"mtime always changes on edit".** False in several cases:
+  - 1 to 2 s granularity (FAT/exFAT, some network mounts);
+  - tools that preserve mtime (`cp -p`, `rsync -t`, `tar x`, `git checkout`);
+  - clock moving backwards;
+  - file replaced with the same size and the same mtime.
+
+  inode and ctime must be added to the key. Hashing is not needed on every poll, only when in doubt or during the periodic rescan.
+- **"Polling is cheap".** True for 500 files, false for 50k every 500 ms.
+- **"A long copy delaying the poll is acceptable".** A 4 GB video blocks the whole sync for several minutes. And the file may be modified while being copied (see point 3).
+
+### What will break under real load
+
+- **Bursts** (`git checkout`, `npm install`, archive extraction): thousands of sequential copies, a manifest rewritten in a loop, exploding latency. Changes must be batched.
+- **Deletions and renames**: not mentioned. A rename treated as delete plus create re-copies the whole file; a renamed folder re-copies the whole subtree. And what is the deletion policy in `dst`? A partial scan or a dismounted `src` (USB key, NFS) can look like "everything was deleted". A guardrail is needed: refuse to propagate if more than X % of the tree disappears at once.
+- **Two daemon instances** writing the same manifest: corruption. A lockfile is needed.
+- **Symlinks, permissions, special files, link cycles**: unspecified.
+
+### Other decisions to revisit
+
+- **Hardcoded interval**: it will become necessary to configure it (laptop on battery, network mount). A reasonable default with a floor is enough against misuse.
+- **Rejecting SQLite**: for 50k entries with incremental updates and atomicity, SQLite (in the Python stdlib) solves precisely points 1 and 4. Rejecting it for "one more dependency" is a bad calculation. At minimum: JSON with atomic writes, and only when changes occurred.
+- **"Reuse `sync()` directly"**: first verify that `sync()` copies atomically, does not update state on failure, and can handle a single file. A function designed for one-shot use often does a full scan on every call, which would bring back problem 2.
+
+### Priority order
+
+1. Atomic manifest write, with a lockfile.
+2. Atomic copy (temp then `rename`), plus debounce and re-check after the copy.
+3. Do not record failures in the manifest, retry, real logging.
+4. Watchers and a slow rescan instead of the 500 ms poll.
+5. Deletion policy with a guardrail against a missing `src`.
+6. Enriched change key (inode and ctime), hash only at rescan.
+7. Copies off the detection thread, with a work queue.

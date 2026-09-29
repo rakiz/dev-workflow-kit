@@ -1,0 +1,44 @@
+**Verdict: not to be implemented as-is. Decisions to change, by priority:**
+
+1. **Manifest rewritten in place, with no atomicity (the worst).** A crash or a kill mid-write leaves a truncated JSON. On restart, the manifest is unreadable: either the daemon crashes, or it starts from scratch and wrongly re-copies or deletes. A full rewrite every 500 ms on 50k entries also means ~5–10 MB of continuous I/O, which wears out the SSD.
+   → Write to a temp file, then `fsync` and `rename`. Persist only if changes occurred. Better: SQLite or an append-only journal.
+
+2. **Full scan every 500 ms.** 50k `stat` calls take about 0.3 to 1 s cold. On a network disk or HDD, it is far longer. The cycle therefore exceeds the interval, which means permanently saturated CPU and I/O, a polluted disk cache and a drained battery. The "polling cheap" assumption is false.
+   → Use inotify/FSEvents (or a cross-platform library like `notify` or `fsnotify`), with a rare full rescan (every few minutes) as a safety net. Rejecting watchers for "complexity" means choosing a worse complexity elsewhere. If you keep polling, the interval must be configurable and adaptive (backoff).
+
+3. **mtime + size "always sufficient" is false.**
+   - mtime granularity: 1–2 s on FAT/exFAT, and sometimes on NFS.
+   - `touch -d`, `rsync -t`, git checkout and backup restores preserve or reset the old mtime.
+   - An edit that keeps the same size within the same second goes unnoticed.
+   - A modified clock also causes missed changes.
+   Result: silent divergences.
+   → Compare mtime in ns, size, inode and ctime. Hash only when the metadata is ambiguous, and add a hash check during the slow rescan. Rejecting hashing "on every poll" only applies to that naive usage.
+
+4. **Immediate copy of a file being written.** Editors, compilers and downloads write in several steps. Copying right away yields a truncated or inconsistent file in `dst`, and the file is not re-copied as long as mtime and size no longer change.
+   → Debounce (a few seconds without modification). Copy to a temp file, then atomic `rename`. Re-check mtime and size after the copy and start over if they changed.
+
+5. **Errors: log to stdout then move on.** The file is neither retried nor marked as failed. Depending on whether the manifest is updated or not, the file is either lost forever or considered synced when it is not. Full disk, permissions and locked files are all silent. A daemon has no usable stdout.
+   → Retry queue with backoff, "failed" state in the manifest, structured logs to a file or journald, and a `status` command. Never mark a file as synced before the copy is validated.
+
+6. **Single-threaded with blocking copy.** A large file (VM, multi-GB video) blocks detection for minutes. Changes pile up, copied files are stale and there is no catch-up. "Polling cheap, so it's fine" therefore no longer holds.
+   → Separate detection and copying: a task queue with a worker pool, deduplicated by path.
+
+7. **Cases not handled by the design:**
+   - **Deletions and renames:** the design does not mention them. A rename is treated as delete + full copy. Deletion behavior must be defined: propagate, or not?
+   - **Symlinks, permissions, special files.**
+   - **Two `syncd` instances** on the same manifest: a file or PID lock is needed.
+   - **Clean shutdown (SIGTERM):** to be defined.
+   - **Sync loop** if `dst` sits inside `src`.
+   - **CPU/battery consumption** on a user machine.
+
+8. **Hardcoded config "to avoid misuse".** You will be unable to test or tune in production. Add at minimum an environment variable or a flag.
+
+9. **Rollout: reusing `sync()` directly.** `sync()` is designed for a one-shot: probably global state, no error recovery, and it assumes a full tree. Verify before committing to the design. A test plan with fault injection is also needed: crash mid-write, full disk, file modified during the copy.
+
+**False assumptions to fix in the doc:**
+- "The lib is small, so no atomicity needed": size has nothing to do with atomicity.
+- "mtime always changes": see point 3.
+- "Polling is cheap": see point 2.
+- "SQLite = a dependency for little gain": it is precisely what fixes points 1 and 5 at the same time.
+
+**Minimal viable proposal:** event watcher + slow periodic rescan, state in SQLite (or an atomic journal), copy via temp file + rename with debounce, parallel workers, retries with backoff and configurable intervals.

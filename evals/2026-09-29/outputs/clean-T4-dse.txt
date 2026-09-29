@@ -1,0 +1,30 @@
+## Major risks
+
+**1. The JSON manifest rewritten in place every cycle will corrupt state.**
+At 50,000 entries the JSON is ~5 MB, rewritten 2×/s → ~10 MB/s, ~850 GB/day of SSD writes. Worse: "atomicity not needed" is false. A kill/crash/OOM during the rewrite leaves a truncated JSON → on restart, either the parse fails (dead daemon) or the manifest is empty/partial → everything seen as "new" (mass re-copy) or "deleted" (mass deletion on `dst`). Fix: temp file + atomic `rename()`, and a snapshot never mutated in place.
+
+**2. `mtime + size` misses changes.**
+The "mtime always changes" assumption is false: 1 s granularity on many filesystems (edit within the same second), same-size changes, editors/tools that preserve mtime (rsync, tar, git checkout, `touch -r`), rename/move. Without hash or ctime, these cases slip through silently. At minimum: `mtime + size + ctime + inode`, and handle the "mtime unchanged but content changed" case.
+
+**3. Full scan every 500 ms: the cost is not "cheap".**
+50,000 `stat()` at 2/s = 100,000 stat/s permanently. On a local SSD it holds (~0.1–0.2 s/scan), but on a network FS/slow mount, a scan never finishes within 500 ms → a continuous stat loop that saturates I/O and battery. The fixed 500 ms is pointless if a scan takes 2 s.
+
+**4. Full scan AND single-threaded copy block each other.**
+"a long copy delays the next poll, which is OK": false. Copying a 2 GB file blocks detection the whole time → unbounded detection latency, changes piling up. Detection and transfer must be decoupled (at minimum a separate copy worker).
+
+## False assumptions
+
+- "mtime always changes" → no (see #2).
+- "manifest is small" → 5 MB × 2/s, no.
+- "polling cheap" → not for 50k files on network/slow storage.
+- "atomicity not needed" → this is the design's most destructive failure.
+- **Not covered: deletions.** The design only describes copying "on change". What is done with a file deleted from `src`? Nothing is written → files leak on `dst`. A decision to be made explicitly (propagate or not).
+
+## Decisions to change first
+
+1. **Manifest: atomic replace + incremental format.** Atomic `rename()`; ideally an append-only journal or SQLite (yes, the dependency is worth the cost here — the "little gain" argument is false against 850 GB/day).
+2. **Detection: OS watchers (FSEvents/inotify) + a rare periodic reconciliation scan** (e.g. 10 min) as a safety net. Pure polling is the wrong axis: keep the safety net, not the 500 ms loop.
+3. **Decouple detection / copy / errors**: copy to temp + atomic `rename` on the `dst` side (otherwise readers see half-written files), a dedicated worker, retry with backoff (otherwise log-spam on a persistent error).
+4. **State key = inode+ctime+size+mtime**, not mtime+size alone.
+5. **Define delete/rename/conflict behavior**, symlinks, permissions, special files.
+6. **Do not reuse the full-tree `sync()` as the incremental engine**: if `sync()` re-walks everything, every change triggers an O(N) redundant with the manifest → two sources of truth. Factor out the "copy one file" primitive and keep a single state logic.

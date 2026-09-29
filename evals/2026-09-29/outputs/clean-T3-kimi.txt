@@ -1,0 +1,39 @@
+from incremental import filter_excluded
+# mutable default bug
+a = filter_excluded(['.git/config', 'src/main.py'])
+print('call1:', a)
+b = filter_excluded(['x.txt', '__pycache__/c.pyc'])
+print('call2:', b)
+# manifest in EXCLUDE_TOP_DIRS: check top-level '.sync_manifest.json'
+print(filter_excluded(['.sync_manifest.json'], []))
+print(filter_excluded(['sub/.git/config'], []))
+"
+call1: ['.git/config']
+call2: ['.git/config', '__pycache__/c.pyc']
+['.sync_manifest.json']
+[]
+
+I reviewed commit `d339404` ("v0.2: add exclude filter, batch copy and manifest merge"), which adds `incremental.py` (40 lines, 3 functions) building on `synccli.py`. I also executed the code to confirm the behaviors. Here are the **real defects only**:
+
+## Major
+
+**1. `filter_excluded` — mutable default argument (`excluded=[]`): state leaks between calls**
+The default list is shared across all calls that do not pass `excluded`. Verified by execution: the 2nd call `filter_excluded(['x.txt', '__pycache__/c.pyc'])` returns `['.git/config', '__pycache__/c.pyc']` — the 1st call's result leaked into the 2nd. Under repeated use (incremental sync loop), paths from earlier runs accumulate in the result → files are wrongly excluded or reported as excluded even though they are not even part of the current batch. This is corrupted state by construction.
+
+**2. `copy_many` — `except Exception: continue` silently masks failures, the manifest can lie**
+Any error (full disk, permission, `dst` inside a read-only directory, `KeyboardInterrupt` barely excluded…) is swallowed without a log. The caller receives `done` and has **no way** to distinguish "file skipped because unchanged" from "copy failed". If the result is then used to update the manifest (that is the module's purpose: `merge_manifest` right next to it), the manifest will record as synced files that never were → **silent data loss** on the next pass (the source file will be considered up to date and never copied again). `synccli.py`'s `copy_file` already swallows `OSError` internally, so this extra layer makes the failure totally invisible.
+
+## Minor
+
+**3. `filter_excluded` — only tests the first segment (`p.split(os.sep)[0]`)**
+`sub/.git/config` is **not** excluded (verified by execution) even though a nested `.git` should be excluded just like a root `.git`. The filter is inconsistent: it excludes by top-level directory name, not by directory name plain and simple — misleading behavior for a function named `filter_excluded` whose set is called `EXCLUDE_TOP_DIRS` (arguably the name says so, but the "exclude .git from sync" intent is betrayed for any nested repo).
+
+**4. `merge_manifest` — comparing on `mtime` alone can keep a stale state**
+The rule `old[rel]["mtime"] <= state["mtime"]` keeps the **old** state when mtimes are equal, even if content/size differ (e.g. a clock reset to the same value, or two writes within the same mtime granularity). The merged manifest can therefore contain a `size`/`mtime` matching neither of the two realities — the "merge of the most recent states" contract is not honored in the equality case.
+
+**5. `merge_manifest` — `KeyError` if an old-manifest entry has no `mtime` key**
+The destination manifest is a JSON file on disk, editable/corruptible. `old[rel]["mtime"]` raises `KeyError` on a malformed old entry or one written by an earlier version, failing the whole merge instead of treating the entry as "to be replaced".
+
+---
+
+*Not counted (nits): naming, docstrings, style.*

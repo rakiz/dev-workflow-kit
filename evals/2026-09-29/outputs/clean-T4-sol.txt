@@ -1,0 +1,8 @@
+**I would not green-light the implementation as-is.** The main risk is declaring files synced when they are not.
+
+1. **Fix the success semantics first.** `sync()` ignores copy errors and then still records the source state in the manifest (`synccli.py:66–86`). A failure or a partial copy may therefore never be retried. Only successful copies should be recorded, and each destination file should be published via a temp file followed by an atomic rename.
+2. **Reassess the cost of the cycle.** With 50,000 files, a full scan every 500 ms means up to 100,000 `stat`/s, plus sorting and rewriting the JSON. That is not "cheap" on a workstation, especially on a network disk. Measure first, then plan for a configurable interval with spaced-out scans, or a watcher with periodic reconciliation.
+3. **Define what "in sync" means.** `changed_files()` does not detect deletions (`synccli.py:36–42`): files erased from `src` will remain in `dst`. Their fate must be decided explicitly before promising a mirror.
+4. **Do not assume mtime always changes.** A modification can preserve size and mtime (restore, a tool that preserves dates, filesystem granularity). At minimum plan for periodic content checks, or document this limitation.
+
+Finally, reusing `sync()` directly also inherits the non-atomic manifest rewrite: a shutdown mid-write can leave the JSON unreadable on restart. A write-to-temp followed by a rename is required.

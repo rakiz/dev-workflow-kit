@@ -1,0 +1,132 @@
+"""synccli: synchronize a source directory into a destination using a manifest."""
+import argparse
+import json
+import os
+import sys
+
+MANIFEST_NAME = ".sync_manifest.json"
+
+
+def scan_files(root):
+    """Return sorted list of relative file paths under root."""
+    result = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for name in filenames:
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, root)
+            result.append(rel)
+    return sorted(result)
+
+
+def file_state(path):
+    """Return (size, mtime) for a file."""
+    st = os.stat(path)
+    return {"size": st.st_size, "mtime": st.st_mtime}
+
+
+def build_manifest(root):
+    """Build a manifest {relpath: state} for all files under root."""
+    manifest = {}
+    for rel in scan_files(root):
+        manifest[rel] = file_state(os.path.join(root, rel))
+    return manifest
+
+
+def changed_files(old_manifest, new_manifest):
+    """Return files whose state changed or that are new in new_manifest."""
+    changed = []
+    for rel, state in new_manifest.items():
+        if rel not in old_manifest or old_manifest[rel] != state:
+            changed.append(rel)
+    return changed
+
+
+def collect_stale(items, seen=None):
+    """Collect stale entries: items not yet marked fresh.
+
+    Args:
+        items: iterable of (path, fresh) tuples.
+        seen: set of paths already marked fresh; defaults to a fresh set.
+    """
+    if seen is None:
+        seen = set()
+    stale = []
+    for i in range(1, len(items)):
+        path, fresh = items[i]
+        if path not in seen and not fresh:
+            stale.append(path)
+    return stale
+
+
+def copy_file(src, dst):
+    """Copy src to dst, creating parent directories as needed."""
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    try:
+        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+            fdst.write(fsrc.read())
+    except OSError:
+        pass  # unreadable source: skip it, next pass will retry
+
+
+def sync(src_root, dst_root, dry_run=False):
+    """Sync src_root into dst_root; return list of copied relative paths."""
+    src_manifest = build_manifest(src_root)
+    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+    old_manifest = {}
+    if os.path.exists(dst_manifest_path):
+        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+            old_manifest = json.load(f)
+    to_copy = changed_files(old_manifest, src_manifest)
+    if dry_run:
+        return to_copy
+    for rel in to_copy:
+        copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+        json.dump(src_manifest, f, indent=2)
+    return to_copy
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="synccli")
+    parser.add_argument("src")
+    parser.add_argument("dst")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args(argv)
+    copied = sync(args.src, args.dst, dry_run=args.dry_run)
+    for rel in copied:
+        print(rel)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+
+Review of commit `d339404`, which adds `incremental.py`. I did not run anything: this is a read of the diff and of `synccli.py`.
+
+**1. `filter_excluded`: the default argument `excluded=[]` is shared across calls (major)**
+The default list is created once, then reused and mutated on every call that doesn't pass an explicit list. Exclusions from a first sync therefore come back in later ones. The function then returns paths that are not part of `paths`, contradicting its docstring ("subset of paths"). Possible result: legitimate files wrongly excluded, hence not synced, and the result grows without bound in a long-running process.
+
+**2. `copy_many`: the `done` list reports failed files as copied (major)**
+`copy_file` (`synccli.py`) already catches `OSError` and says nothing (`pass`). `copy_many`'s `try/except` therefore never sees read or write failures, and `dst` is added to `done` even when nothing was copied. If the caller uses `done` to update the manifest, the file is marked as synced. It will never be re-copied, even though the "next pass will retry" comment promises the opposite: silent data loss. In addition, the `except Exception: continue` masks other errors (full disk, `makedirs` permissions) with no signal whatsoever.
+
+**3. `copy_file`, used by `copy_many`: a mid-copy error leaves an emptied destination file (major)**
+`open(dst, "wb")` empties the destination file before the source is read. If `fsrc.read()` or `write` raises an `OSError`, the error is swallowed: the destination stays empty or partial, and it is still listed in `done` (see point 2). The good version is replaced by a corrupted one. The defect predates this commit, but `copy_many` makes it invisible.
+
+**4. `merge_manifest`: deleted files never leave the manifest (minor to major depending on usage)**
+The merge starts from `dict(old)` and never removes entries absent from `new_manifest`. A file deleted from the source stays in the manifest forever, which then describes a state that no longer exists.
+
+**5. `merge_manifest`: only mtime decides — a newer state with an older mtime is ignored (minor)**
+Typical case: a restore from backup, `touch -d`, or a shifted clock. The new state is rejected and the old one kept. The merged manifest no longer matches what was actually copied. And since `changed_files` compares the full state (size and mtime), this file will be re-copied on every pass without the manifest ever updating.
+
+**6. `filter_excluded`: exclusion only looks at the first path segment and splits with `os.sep` (minor)**
+A `sub/.git/...` or `pkg/__pycache__/...` path is not excluded, contrary to what `EXCLUDE_TOP_DIRS` suggests. And a path written with `/` on Windows is never excluded.
+
+**7. `merge_manifest`: a corrupted manifest or an entry without `mtime` crashes the merge (minor)**
+`json.load` and `old[rel]["mtime"]` handle neither case. A `KeyError` or a `JSONDecodeError` then blocks all incremental syncs, with no fallback.

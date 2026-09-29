@@ -1,0 +1,76 @@
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... FAIL
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+======================================================================
+FAIL: test_first_item_stale_is_included (test_synccli.TestCollectStale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/eval/r-t1-glm/test_synccli.py", line 24, in test_first_item_stale_is_included
+    self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+AssertionError: Lists differ: ['y.txt'] != ['x.txt', 'y.txt']
+
+First differing element 0:
+'y.txt'
+'x.txt'
+
+Second list contains 1 additional elements.
+First extra element 1:
+'y.txt'
+
+- ['y.txt']
++ ['x.txt', 'y.txt']
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+FAILED (failures=1)
+Python 3.10.11
+
+Plan established from GOAL.md, README.md, the code (`synccli.py`, `incremental.py`, `test_synccli.py`) and the actual state of the repo. Key observation: `sync()` already exposes `dry_run` (synccli.py:72) and returns the `to_copy` list without writing to `dst` — most of the work therefore lives in `main()`. ⚠️ Red baseline: `test_first_item_stale_is_included` already fails (off-by-one `range(1, ...)` in `collect_stale`, synccli.py:55) — must be addressed, otherwise every "green suite" criterion is skewed.
+
+---
+
+## Task 1 — Exploration: callers of `sync()` and stdout emission points
+- **Objective**: inventory all internal callers of `sync()` (signature constraint), all `print`/stdout writes, and list plausible definitions of `skipped` (GOAL.md does not specify it).
+- **Files**: none (read-only). Report in text.
+- **Agent**: `explore`
+- **Risks**: low; missing a caller would create a false constraint.
+- **Acceptance**: report listing the call sites (`main()` synccli.py:96, tests, `incremental.py` which only imports `copy_file`) + an argued recommendation for `skipped` (e.g. `len(scan_files(src)) − len(copied)`).
+
+## Task 2 — Design arbitration: `skipped` semantics and JSON contract
+- **Objective**: decide before any code: (a) definition of `skipped` (scanned files not copied?); (b) `src`/`dst` in the JSON = raw args or absolute paths; (c) `copied` = successful or attempted copies (because `copy_file` swallows OSError, synccli.py:68 — pre-existing behavior); (d) confirmation that JSON goes to stdout and argparse errors to stderr.
+- **Files**: none (text verdict, to be recorded in the brief of task 3).
+- **Agent**: `design-review`
+- **Risks**: an undecided ambiguity = implementation inconsistent with the tests.
+- **Acceptance**: a written, unambiguous decision for each of the 4 points.
+
+## Task 3 — Implementation `--json` + tests
+- **Objective**: add `--json` to `main()`; output = a single JSON object on stdout `{"copied": [...], "skipped": N, "src": ..., "dst": ...}`; nothing else on stdout; exit code unchanged (0); human mode intact; dry-run interplay comes free via `sync(dry_run=True)`. Signature of `sync()` unchanged. Fix `collect_stale` along the way (loop starting at 0) — otherwise the suite stays red and T4's criterion is unverifiable.
+- **Files**: modify `synccli.py` (only `main()` + `collect_stale`), `test_synccli.py` (new test class: valid JSON, keys present, `copied` = expected list in dry-run **without** creating files or a manifest in dst, human mode unchanged).
+- **Agent**: `cheap-code` (impl)
+- **Risks**: stdout pollution (residual print); `skipped` miscounted (counting dst files instead of src); mutating dst in dry-run; trying to change `sync()` instead of composing in `main()`.
+- **Acceptance** (commands):
+  - `python3 -m synccli src dst --json | python3 -m json.tool` → single object, 4 keys;
+  - dry-run+json: `copied` non-empty **and** `dst` stays empty, no `.sync_manifest.json`;
+  - without `--json`: output identical to the current one (one path per line);
+  - `python3 -m unittest -v` → 0 fail (incl. the repaired `collect_stale` test).
+
+## Task 4 — Mandatory review of the diff
+- **Objective**: independent review of T3's diff (stdout contract, `skipped` counting, no dry-run mutation, `sync()` stability, stdlib-only).
+- **Files**: none created; possible return to `synccli.py`/`test_synccli.py`.
+- **Agent**: `cheap-review`; escalate to `strong-code` only on a major finding.
+- **Risks**: same-model blind spot if the reviewer reused the impl context — hence a fresh instance.
+- **Acceptance**: findings classified minor/major; zero unresolved major; `python3 -m unittest -v` green after any touch-up.
+
+## Task 5 — Final check (light)
+- **Objective**: end-to-end acceptance by the orchestrator: scenarios clean/with changes/dry-run, both modes, exit code 0 everywhere.
+- **Files**: none.
+- **Agent**: orchestrator (no agent).
+- **Risks**: none.
+- **Acceptance**: the 4 T3 commands replayed on a tmpdir + green suite.
+
+Out of scope (flagged, not planned): `incremental.py.filter_excluded` has a mutable-argument defect and is called nowhere — no impact on this release.

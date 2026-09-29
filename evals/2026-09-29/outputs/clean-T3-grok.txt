@@ -1,0 +1,8 @@
+Let me check the intended contract for these helpers.
+**Major** — `filter_excluded` (`incremental.py:10`) has a mutable default argument (`excluded=[]`) and accumulates into it. The docstring says "return the subset of paths that must be excluded", but the return value is an accumulator shared across calls: a second call also returns the first call's exclusions. Corrupted state, not a pure filter.
+
+**Major** — `copy_many` (`incremental.py:18`) swallows any `Exception` and continues. `copy_file` opens the destination in `"wb"` before reading the source: a mid-write error leaves a truncated file, and the pair is neither reported nor in `done`. The caller may believe the batch is consistent while some destinations are half-written.
+
+**Major** — `merge_manifest` (`incremental.py:30`) persists nothing. The docstring says "Merge new file states into the destination manifest", but the function merely returns a dict. A caller trusting the name/docstring believes the destination manifest is up to date; it is not.
+
+**Minor** — the merge only ever keeps the `new_manifest` keys, with older ones ignored, and never removes a key absent from the new manifest. A file deleted at the source stays "present" in the merged state, so it will never be re-synced as a deletion.

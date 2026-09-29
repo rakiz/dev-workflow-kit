@@ -1,0 +1,30 @@
+{
+  "impl":          { "model": "fireworks-ai/accounts/fireworks/models/glm-5p3-flash", "family_hint": "glm", "variant": "none" },
+  "review":        { "model": "github-copilot/gemini-3.8-flash",                       "family_hint": "gemini", "variant": "low" },
+  "explore":       { "model": "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash", "family_hint": "deepseek" },
+  "design-review": { "model": "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash", "family_hint": "deepseek" },
+  "deep":          { "model": "github-copilot/claude-opus-5.5",                       "family_hint": "claude" },
+  "global": {
+    "cheap-code":                { "model": "fireworks-ai/accounts/fireworks/models/glm-5p3-flash",        "family_hint": "glm",    "variant": "none" },
+    "cheap-review":              { "model": "github-copilot/gemini-3.8-flash",                             "family_hint": "gemini", "variant": "low" },
+    "cheap-mech":                { "model": "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash",  "family_hint": "deepseek" },
+    "cheap-design":              { "model": "fireworks-ai/accounts/fireworks/models/glm-5p3-flash",        "family_hint": "glm",    "variant": "none" },
+    "cheap-design-review":       { "model": "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash",  "family_hint": "deepseek" },
+
+    "strong-code":               { "model": "github-copilot/claude-sonnet-5.5", "family_hint": "claude", "variant": "high" },
+    "strong-code-alternative":   { "model": "github-copilot/gpt-6-sol",         "family_hint": "gpt",    "variant": "xhigh" },
+    "strong-code-alternative2":  { "model": "github-copilot/claude-opus-5.5",   "family_hint": "claude" },
+
+    "strong-review":               { "model": "fireworks-ai/accounts/fireworks/models/glm-5p3-flash", "family_hint": "glm",    "variant": "high" },
+    "strong-review-alternative":   { "model": "github-copilot/claude-sonnet-5.5",                     "family_hint": "claude", "variant": "medium" },
+    "strong-review-alternative2":  { "model": "github-copilot/grok-4.7",                              "family_hint": "xai" },
+
+    "strong-design":               { "model": "github-copilot/claude-sonnet-5.5", "family_hint": "claude", "variant": "high" },
+    "strong-design-alternative":   { "model": "github-copilot/gpt-6-sol",         "family_hint": "gpt" },
+    "strong-design-alternative2":  { "model": "github-copilot/claude-opus-5.5",   "family_hint": "claude" },
+
+    "strong-design-review":               { "model": "github-copilot/gpt-6-sol",         "family_hint": "gpt" },
+    "strong-design-review-alternative":   { "model": "github-copilot/claude-sonnet-5.5", "family_hint": "claude", "variant": "medium" },
+    "strong-design-review-alternative2":  { "model": "github-copilot/grok-4.7",          "family_hint": "xai" }
+  }
+}

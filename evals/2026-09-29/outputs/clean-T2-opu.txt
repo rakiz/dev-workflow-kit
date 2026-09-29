@@ -1,0 +1,60 @@
+diff --git a/synccli.py b/synccli.py
+index ae41a1e..f5a8c75 100644
+--- a/synccli.py
++++ b/synccli.py
+@@ -52,8 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
+-        path, fresh = items[i]
++    for path, fresh in items:
+         if path not in seen and not fresh:
+             stale.append(path)
+     return stale
+ M synccli.py
+?? __pycache__/
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+OK
+
+It's fixed and the 6 tests pass. The `test_synccli.py` file was not modified.
+
+**Cause:** in `collect_stale` (`synccli.py:55`), the loop `for i in range(1, len(items))` started at index 1. The first element was therefore never examined, and `test_first_item_stale_is_included` got `['y.txt']` instead of `['x.txt', 'y.txt']`.
+
+**Fix:** the loop now iterates over `items` directly, from first to last element. It also accepts any iterable, as the docstring indicates, and no longer only a list. Per your rules, the edit was delegated to `cheap-mech`. I did not run a `cheap-review` pass: I checked the one-line diff myself and re-ran the suite.
+
+```diff
+--- a/synccli.py
++++ b/synccli.py
+@@ -52,8 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
+-        path, fresh = items[i]
++    for path, fresh in items:
+         if path not in seen and not fresh:
+             stale.append(path)
+     return stale
+```
+
+**Final result of `python3 -m unittest -v`:**
+```
+test_first_item_stale_is_included ... ok
+test_fresh_items_skipped ... ok
+test_seen_is_respected ... ok
+test_scan_sorted_relative ... ok
+test_second_sync_is_noop ... ok
+test_sync_copies_and_writes_manifest ... ok
+Ran 6 tests in 0.005s
+OK
+```

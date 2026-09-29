@@ -1,0 +1,70 @@
+**Verdict: do not implement as-is. Five decisions need to change.**
+
+**Priority 1: the manifest JSON rewritten in place, with no atomicity**
+- For 50,000 entries, the JSON weighs several MB. It is rewritten every 500 ms, i.e. about 10 MB/s of continuous disk writes.
+- A crash or a kill during the write leaves a truncated file. On restart, the manifest is unreadable or empty, so everything looks new: full re-copy, or worse, wrongful deletions.
+- "The file is small" is false at this scale.
+- To do:
+  - write to a temp file, `fsync`, then `rename`;
+  - write only if changes occurred;
+  - move to SQLite (or an append-only journal) if the file count grows.
+- Rejecting SQLite ("one more dependency") is poorly weighed. It brings transactional and incremental writes.
+
+**Priority 2: the full scan every 500 ms**
+- 50,000 `stat` calls every 500 ms means 100,000 stats/s continuously. It consumes CPU and I/O, drains a laptop battery and evicts the disk cache. On a network disk or a hard drive, a scan can take more than 500 ms.
+- "Polling is cheap" is false. The scan can exceed the interval, and cycles pile up or drift.
+- To do:
+  - use inotify/FSEvents/ReadDirectoryChangesW, via a cross-platform library (`notify`, `fsnotify`, `watchdog`) instead of writing everything yourself;
+  - keep a low-frequency full scan (e.g. every 5 to 10 minutes) as a safety net, because watchers lose events (overflow);
+  - if polling stays, make the interval adaptive and never run two scans at once.
+- The argument "the watch APIs are too complex" does not hold given these libraries exist.
+
+**Priority 3: detection by mtime + size only**
+- "mtime always changes on every edit" is false. The problematic cases:
+  - coarse mtime resolution (FAT/exFAT at 2 s, some NFS);
+  - `touch -r`, restore and build tools that preserve mtime;
+  - two edits in the same tick with the same size.
+- The consequence is silent corruption: `dst` diverges with no signal whatsoever.
+- Another consequence: a file modified during the copy is not detected.
+- To do:
+  - compare mtime in nanoseconds, size and inode;
+  - hash only when in doubt (recent mtime, close to the scan instant);
+  - re-stat after the copy to detect an in-flight modification.
+- Rejecting hashing is correct if applied on every poll. It is not if applied only to suspect files.
+
+**Priority 4: immediate copy, one file at a time, in the poll thread**
+- Reading files being written (editor saves, compilations, large files) produces partial or inconsistent copies.
+- A single large copy, e.g. a 10 GB VM, blocks the whole poll for minutes. "Long copy delays polling, which is fine" is false: detection stops and syncing falls behind.
+- A `dst` in an intermediate state can be observed.
+- To do:
+  - group changes with a debounce, e.g. 1 to 2 s of stability before copying;
+  - copy to a temp file, then `rename`;
+  - separate detection (thread or task) from copying (queue + worker pool);
+  - handle large files separately.
+
+**Priority 5: errors logged to stdout then ignored**
+- An unreadable file is never retried, unless its mtime changes. It stays divergent indefinitely.
+- A daemon with no error state and no metrics gives a false impression of sync.
+- Errors go to stdout, with no level, and disappear when the daemon runs detached.
+- To do:
+  - mark the file "dirty" in the manifest and retry it with backoff;
+  - send logs to stderr or to a structured file;
+  - expose a status (count of failed files, age of the last successful sync).
+
+**Secondary points**
+- **Hardcoded poll interval:** not defensible. A single value cannot suit both a local SSD, an NFS and a laptop on battery. Add at minimum an environment variable or a flag, with 500 ms as the default.
+- **Cases not handled by the design:**
+  - deletions and renames (renaming a folder = re-copy everything?);
+  - symbolic links;
+  - a dismounted or empty source, which could cause a mass deletion in `dst`;
+  - starting two `syncd` instances;
+  - signal handling and clean shutdown.
+- **Reusing `sync()` directly:** this function is probably designed for one-shot use. It is not necessarily reentrant, probably does not do atomic copies, and may assume fresh state on every call. `sync()` must be audited before relying on it.
+- **Missing from the document:** no measurable success criteria (max latency, max idle CPU), no test strategy (crash mid-write, file modified during the copy, a 50,000-file tree).
+
+**Recommended order of action**
+1. Make writes atomic (manifest and copied files).
+2. Separate detection from copying, with a debounce.
+3. Move to a watcher, with an occasional catch-up full scan.
+4. Strengthen change detection.
+5. Add retries and an error status.

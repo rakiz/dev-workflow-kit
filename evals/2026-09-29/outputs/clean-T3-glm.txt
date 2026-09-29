@@ -1,0 +1,40 @@
+1:"""synccli: synchronize a source directory into a destination using a manifest."""
+7:MANIFEST_NAME = ".sync_manifest.json"
+23:    """Return (size, mtime) for a file."""
+25:    return {"size": st.st_size, "mtime": st.st_mtime}
+28:def build_manifest(root):
+29:    """Build a manifest {relpath: state} for all files under root."""
+30:    manifest = {}
+32:        manifest[rel] = file_state(os.path.join(root, rel))
+33:    return manifest
+36:def changed_files(old_manifest, new_manifest):
+37:    """Return files whose state changed or that are new in new_manifest."""
+39:    for rel, state in new_manifest.items():
+40:        if rel not in old_manifest or old_manifest[rel] != state:
+62:def copy_file(src, dst):
+74:    src_manifest = build_manifest(src_root)
+75:    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+76:    old_manifest = {}
+77:    if os.path.exists(dst_manifest_path):
+78:        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+79:            old_manifest = json.load(f)
+80:    to_copy = changed_files(old_manifest, src_manifest)
+85:    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+86:        json.dump(src_manifest, f, indent=2)
+
+## Review of commit `d339404` (v0.2, `incremental.py`)
+
+**1. Major — `filter_excluded`: mutable default argument (`excluded=[]`)**
+The same list object is reused across calls: the 2nd call `filter_excluded(paths)` returns the 1st call's results **plus** the new ones. The exclusion set is silently corrupted → already-excluded paths come back out, and depending on the caller, legitimate files may be excluded from sync (silent sync loss).
+
+**2. Major — `copy_many`: total absorption of copy errors**
+`except Exception: continue` swallows any failure (full disk, permission, interruption mid-write). A partially written `dst` stays on disk **corrupted**, does not appear in `done`, and nothing is reported to the caller: the sync looks successful. Silent data loss.
+
+**3. Minor — `filter_excluded`: filters no absolute paths**
+`p.split(os.sep)[0]` on an absolute path (`/home/…/.git/x`) yields `""` as the first component, never `.git` → the exclusion becomes a silent no-op as soon as an absolute path goes through it.
+
+**4. Minor — `merge_manifest`: deletions no longer propagate (regression vs v0.1)**
+In v0.1, `sync` writes the whole `src_manifest`: a deleted file disappears from the manifest. With the merge, any entry absent from `new_manifest` is kept (`merged = dict(old)` + additions only) → the manifest only grows, files deleted at the source stay listed and are never detected as deleted at the destination.
+
+**5. Minor — `merge_manifest`: misleading contract**
+The parameter name and the docstring ("Merge new file states **into the destination manifest**") suggest that `dst_manifest_path` is updated, but the function never writes the file — it returns `merged` without persisting it. A caller relying on the contract will never have an up-to-date manifest.

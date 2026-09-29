@@ -1,0 +1,25 @@
+Critique of DESIGN.md (with the current code in hand):
+
+## Risk #1 — "Atomicity not needed" is false, and it is the doc's worst point
+`sync()` writes the manifest with `open(..., "w")` (synccli.py:85): truncate-then-write. A crash or kill of the daemon mid-write = truncated JSON, and the next `json.load` (synccli.py:79) has **no try/except** → the daemon dies and never restarts cleanly. At a 500 ms cadence you rewrite the file 7,200×/h: the corruption window will be hit. Mandatory fix before any line of code: write-to-temp + `os.replace()` (atomic, 2 lines) + tolerate a corrupted manifest at load time (start from scratch).
+
+## False assumptions
+- **"Polling is cheap"** — not at 50k files. A full scan = 100k `stat()`/s; cold on macOS, a scan of 50k files far exceeds 500 ms → the loop never keeps up with its own cadence. Measure the scan time and plan for a shortcut (pruning by directory mtime) or an adaptive interval.
+- **"mtime always changes on edit"** — false: `cp -p`/archive restore preserves mtime+size → invisible change. Rare but real.
+- **"Manifest small"** — with `indent=2` (synccli.py:86) and 50k entries, that's ~5-10 MB rewritten **every 500 ms even if nothing changed**. That kills the "polling cheap" promise and prevents the machine from going to sleep.
+
+## What breaks under real load
+- **Deletions unhandled**: `changed_files()` (synccli.py:36-42) only sees new/modified files. A file deleted from `src` stays in `dst` forever — a "continuous sync" daemon that accumulates ghost files does not fulfill its contract. The doc must define deletion semantics.
+- **Burst without backpressure**: a `git checkout` or a build = 10k modified files → serial copying for several minutes, no poll during that time, then a full re-scan. A batch cap + re-poll between batches is needed.
+- **Copying files mid-write** (torn copy): self-heals on the next poll via mtime, but wasted read/write on large files — a stability check (mtime unchanged since the scan) would be cheap.
+
+## Decisions to change, by priority
+1. **Atomic manifest write + tolerant loading** (blocking, above).
+2. **Write the manifest only if `to_copy` is non-empty**, and drop `indent=2`. Trivial in `sync()`, and without it the design does not hold.
+3. **Define deletions** (propagate? log?) — to be decided in the doc, not in the code.
+4. **"Reuse `sync()` directly" needs qualification**: the repo already contains a divergent path (`merge_manifest` in incremental.py:30, based on max mtime) and a buggy helper (`collect_stale` starts at index 1, synccli.py:55). The design must say which one is canonical, otherwise syncd will mix the two states.
+
+## OK as-is
+Rejecting inotify/FSEvents (portability, lifecycle): defensible for a workstation tool. mtime+size as a filter: good tradeoff vs hashing. Single-threaded: acceptable *if* copies are bounded (see backpressure).
+
+Minor point: "log to stdout" for a daemon — stdout is usually detached, and GOAL.md mandates "nothing else on stdout" in `--json` mode. Logging to stderr or a file right away is free.

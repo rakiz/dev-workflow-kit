@@ -1,0 +1,120 @@
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... FAIL
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+======================================================================
+FAIL: test_first_item_stale_is_included (test_synccli.TestCollectStale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/eval/m-T1-dse/test_synccli.py", line 24, in test_first_item_stale_is_included
+    self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+AssertionError: Lists differ: ['y.txt'] != ['x.txt', 'y.txt']
+
+First differing element 0:
+'y.txt'
+'x.txt'
+
+Second list contains 1 additional elements.
+First extra element 1:
+'y.txt'
+
+- ['y.txt']
++ ['x.txt', 'y.txt']
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+FAILED (failures=1)
+
+Baseline read. Important point: the test suite **already fails** before any modification (`TestCollectStale.test_first_item_stale_is_included`) — to be treated as a noise risk, outside GOAL scope.
+
+---
+
+# Orchestrated execution plan — JSON output mode + dry-run UX
+
+## Global constraints (reminder, verifiable)
+- Python 3.10 stdlib only, no new dependency.
+- Signature of `sync()` **stable** → `sync(src_root, dst_root, dry_run=False) -> list[str]`.
+- With `--json`, **stdout = a single JSON object**, nothing else. `argparse` and errors go to stderr.
+- Human mode unchanged (one line per path).
+
+---
+
+## T0 — Establish the baseline (explore)
+- **Objective**: confirm the starting state, map the call sites of `sync()` (internal/external) and the current semantics of `dry_run`.
+- **Files**: read-only of `synccli.py`, `incremental.py`, `test_synccli.py`, `DESIGN.md`.
+- **Agent**: `explore`.
+- **Risks**: `incremental.py` imports `copy_file` and has mutable-argument defects (`excluded=[]`); `collect_stale` has a bounds bug (index 0 skipped) → red test. Do not widen the GOAL scope; only flag them.
+- **Acceptance criterion**: report listing (a) callers of `sync()`, (b) callers of `copy_file`, (c) the exact result of `python3 -m unittest -v` (6 tests, 1 documented pre-existing failure).
+
+## T1 — Settle the data contract (design-review)
+- **Objective**: freeze the semantics of the 4 keys `{"copied", "skipped", "src", "dst"}` and the strategy to produce `skipped` **without changing the signature of `sync()`**.
+- **Decision to validate**:
+  - `copied`: sorted list of copied relative paths (or "to be copied" in dry-run).
+  - `skipped`: integer = source files **not copied** (`len(src_manifest) - len(copied)`). To confirm: do files deleted on the src side count? (old-only manifest entries not counted).
+  - `src`/`dst`: values as passed in argv.
+  - Implementation: extract an internal helper (e.g. `_sync_plan(src, dst) -> (copied, skipped)`); `sync()` stays a wrapper returning `copied` (stable signature).
+- **Files**: `DESIGN.md` (read); no writes.
+- **Agent**: `design-review`.
+- **Risks**: "skipped" ambiguity undefined by GOAL.md → source of brittle tests. Choose explicitly and record it.
+- **Acceptance criterion**: a dated spec paragraph: exact definition of each key + type + key order + dry-run behavior. No code modification.
+
+## T2 — Implement `--json` and the helper (impl)
+- **Objective**: add `--json`, produce the single JSON object, preserve the human mode, preserve `sync()`.
+- **Files**:
+  - `synccli.py`: `parser.add_argument("--json", action="store_true")`; single `json.dumps(...)` output branch via `sys.stdout.write`; internal helper for `copied`/`skipped`.
+  - `test_synccli.py`: **created/extended** in T3 (separate step) — T2 is limited to prod code.
+- **Agent**: `cheap-code` (impl).
+- **Risks**:
+  - Print nothing else on stdout (no debug print; error message on stderr).
+  - Do not write the manifest in dry-run (current behavior already correct — do not break it).
+  - Do not change the signature of `sync()`; check `incremental.py` which imports `copy_file` (do not break the import).
+  - Valid JSON: `json.dumps` with `ensure_ascii` and no `indent` (single-line object) — to be settled in T1.
+- **Acceptance criterion**: `python3 -m synccli <src> <dst> --json` emits exactly one line parsable by `json.loads`, with the 4 keys; `--json --dry-run` lists the files "to be copied"; mode without `--json`: one line per path, identical to before.
+
+## T3 — Unit tests (impl, mechanical)
+- **Objective**: add the JSON tests required by GOAL.md §4.
+- **Files**: `test_synccli.py`.
+- **Agent**: `cheap-mech` (small, well-scoped) or `cheap-code`.
+- **Cases to cover**:
+  1. `--json` → `json.loads(stdout)` succeeds; keys `copied`,`skipped`,`src`,`dst` present; correct types.
+  2. `copied` reflects the real state; `skipped` correct after a second run (0 copied, skipped = total).
+  3. `--json --dry-run` → `copied` = files to copy, manifest not written, destination unmodified.
+  4. stdout strictly JSON (no other output) — ideally capture stdout via `contextlib.redirect_stdout` and `assert` that it is a single object.
+- **Risks**: do not break the existing tests; do not fix the red test of T0 in this batch (separate decision).
+- **Acceptance criterion**: `python3 -m unittest -v` → all new tests pass; only T0's pre-existing failure remains (or it is handled explicitly in T3bis).
+
+### T3bis (optional, explicit decision) — red `collect_stale`
+- **Objective**: decide whether to fix the pre-existing bug (index 0) or leave it. Outside GOAL.
+- **Agent**: `cheap-code` then `cheap-review`.
+- **Criterion**: decision recorded; if fixed, green suite; otherwise, failure documented as debt.
+
+## T4 — Adversarial review (review)
+- **Objective**: review the diff of `synccli.py` + `test_synccli.py` against the GOAL constraints.
+- **Files**: read-only.
+- **Agent**: `cheap-review`.
+- **Checklist**: signature `sync()` unchanged; no dependency added; stdout strictly JSON; exit code unchanged; dry-run writes nothing; tests actually verifying (not tautological).
+- **Risks**: stdout leakage (warnings), multi-line JSON, ill-defined `skipped`.
+- **Acceptance criterion**: verdict classified minor/major; each minor finding sent back to the T2 instance via `task_id`; a major → escalate to `strong-code`.
+
+## T5 — Final check (heavy review, on request)
+- **Objective**: final audit against the GOAL criteria before merge.
+- **Agent**: `strong-review` (or `strong-review-alternative` if `strong-code` produced most of the work).
+- **Acceptance criterion**: GOAL checklist 1→4 checked, proof = test output + a real `json.loads` executed, zero deviation outside the documented T3bis debt.
+
+---
+
+## Order & dependencies
+`T0 → T1 → T2 → T3 →(T3bis)→ T4 → T5`
+
+## Cross-cutting risks
+1. **`skipped` unspecified by GOAL** → T1 decision mandatory, otherwise brittle tests.
+2. **Signature `sync()`**: any attempt at an enriched return breaks it; use an internal helper.
+3. **stdout pollution** with `--json` (the main trap).
+4. **Pre-existing test noise** (`collect_stale`) that can mask a regression.
+5. **`--dry-run` + manifest**: write nothing (current behavior to be locked by tests).
+
+No modifications applied: plan only. Next action if you approve: launch T0 (`explore`).

@@ -1,0 +1,31 @@
+**Decision: do not implement as-is.**
+
+1. **Full 500 ms polling will not hold the load.**  
+   With 50,000 files, that is about 100,000 `stat`/second continuously, before the copies and manifest rewrites. A large copy blocks the next scan and latency becomes unpredictable.  
+   **Change:** native watcher + periodic reconciliation scan, or adaptive/configurable polling with backoff.
+
+2. **The manifest can be corrupted.**  
+   An in-place JSON rewrite leaves a truncated file after a crash, out-of-space condition or forced shutdown. Small size does not protect integrity.  
+   **Change:** write to a temp file then atomic rename, with state reconstruction if the manifest is unreadable.
+
+3. **The destination will expose incomplete files.**  
+   Copying directly into `dst` lets consumers read a partially written file. A source modified during the copy can produce an inconsistent version.  
+   **Change:** copy to a temp file in `dst`, verify, then replace atomically; requeue files modified during the copy.
+
+4. **`mtime + size` misses real changes.**  
+   `mtime` does not "always change" in a usable way: insufficient resolution, restored/preserved timestamps, different content of the same size.  
+   **Change:** define the expected guarantee. For reliability, hash only ambiguous or flagged candidates, never the whole tree on every scan.
+
+5. **The mirror semantics are incomplete.**  
+   Deletions, renames, file/directory changes, symlinks, permissions, exclusions, and nested source/destination are not defined. These cases will happen in normal use.  
+   **Change:** specify these rules before the code and test the full convergence of `dst`.
+
+6. **Error handling does not heal state.**  
+   A stdout log with no retry, status or persistent debt leaves `dst` stale indefinitely.  
+   **Change:** deduplicated work queue, retries with backoff, structured errors, manifest updated only after successful publication.
+
+7. **Reusing `sync()` directly is a risky assumption.**  
+   A one-shot may have outputs, terminal errors or initializations incompatible with a daemon.  
+   **Change:** extract an idempotent sync core shared by `sync` and `syncd`.
+
+Priority: define the mirror semantics, make publication/manifest atomic, then replace fixed polling with event-driven detection with reconciliation.

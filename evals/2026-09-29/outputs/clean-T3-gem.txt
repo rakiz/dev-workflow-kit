@@ -1,0 +1,70 @@
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+
+Here is the review of the defects found in the last commit (`incremental.py`):
+
+1. **`filter_excluded`: Mutable default argument (`excluded=[]`)**
+   - **Severity: Major**
+   - **Defect:** The `excluded` list is instantiated only once at module load. Successive calls to `filter_excluded(paths)` accumulate previous calls' exclusions into the same list, corrupting later results. If a list is passed explicitly, it is mutated as an unexpected side effect.
+
+2. **`copy_many`: Misleading API contract on copy failure**
+   - **Severity: Major**
+   - **Defect:** `copy_file` already silently catches `OSError` (`except OSError: pass`). Consequently, no exception is raised on an I/O failure (missing source file, permissions, etc.), the `try/except Exception` block of `copy_many` catches nothing and `done.append(dst)` is executed systematically. The function reports as successfully copied files whose copy failed.
+
+3. **`merge_manifest`: Misleading API contract / no disk persistence**
+   - **Severity: Major**
+   - **Defect:** The function takes `dst_manifest_path` as a parameter and documents *"Merge new file states into the destination manifest"*, but never writes the result to the target file. The manifest on disk is unchanged after the call.
+
+4. **`merge_manifest`: Deleted files kept and rollbacks rejected**
+   - **Severity: Major**
+   - **Defect:** 
+     - `merged` is initialized with `dict(old)`. Any file deleted from the source (absent from `new_manifest`) is kept forever in the merged manifest (ghost state).
+     - The condition `old[rel]["mtime"] <= state["mtime"]` silently ignores files whose modification date is earlier (e.g. rollback, backup restore), keeping a stale state.
+
+5. **`filter_excluded`: Fragile path detection (`p.split(os.sep)[0]`)**
+   - **Severity: Minor**
+   - **Defect:** The split handles neither paths prefixed with `./` (the first element is `"."`), nor absolute paths (the first element is empty), nor `/` slashes on Windows, and ignores excluded directories (`__pycache__`, `.git`) located in subfolders.

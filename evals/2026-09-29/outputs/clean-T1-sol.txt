@@ -1,0 +1,12 @@
+## Execution Plan
+
+The scope is the JSON mode of the CLI described in `GOAL.md`. `DESIGN.md` concerns a future sync daemon and is not part of this delivery.
+
+| Order | Agent | Objective and files | Risks | Verifiable acceptance criterion |
+|---|---|---|---|---|
+| 1 | **explore** | Establish the baseline behavior of `synccli.py` and `test_synccli.py`, with no modifications. In particular, note the value returned by `sync()`, the computation of unchanged files, and the initial state of the tests. | Attributing a pre-existing failure to the new feature: the test `test_first_item_stale_is_included` already appears incompatible with `collect_stale()`. | Report of the current behavior and the result of `python3 -m unittest -v`, with pre-existing failures identified. |
+| 2 | **design-review** | Validate before coding the contract of `skipped` and how to compute it without changing the signature of `sync()`. Proposal: the number of source files present but absent from `copied`, including in dry-run. No files to modify. | `sync()` only returns the paths to copy; a poorly placed count could alter the human output or redo the work with a different state. | Explicit contract for the four flag combinations, including the case where a second sync copies nothing. |
+| 3 | **impl** | Modify `synccli.py` to add `--json` and emit exactly one JSON object on stdout; keep `sync(src_root, dst_root, dry_run=False)`, its exit code, and the human display. Add tests to `test_synccli.py` covering structure, `skipped`, dry-run mode, and stdout output. Document the flags in `README.md`. | Stray output in JSON; writes to the destination with `--dry-run`; regression of the "one path per line" format. | The tests decode **all** of stdout as a single object, check the `copied`, `skipped`, `src`, `dst` keys, confirm the paths that would be copied and the absence of writes in dry-run, then check the human mode. No dependencies added. |
+| 4 | **review** | Review the diff of `synccli.py`, `test_synccli.py` and `README.md`, then run `python3 -m unittest -v` and check `python3 -m synccli --help`. | Confusing a regression with the initial failure noted in step 1; missing a difference between CLI output and the return value of `sync()`. | No new failures relative to the initial state; `GOAL.md` requirements verified across the four `--json` / `--dry-run` combinations. Any discrepancy found goes back to **impl**, then returns to **review**. |
+
+No modifications applied.

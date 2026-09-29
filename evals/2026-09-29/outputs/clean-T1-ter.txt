@@ -1,0 +1,56 @@
+**Execution Plan**
+
+1. **Establish the baseline behavior**
+   - **Agent:** `explore`
+   - **Objective:** Check the current state with `python3 -m unittest -v`, identify the existing affected tests and confirm the CLI integration point (`synccli.main`).
+   - **Files:** no files modified; inspection of `synccli.py` and `test_synccli.py`.
+   - **Risks:** the current suite seems to contain a failure independent of the JSON work: `collect_stale()` starts at index `1`, while the tests expect the first element to be included. It must be explicitly classified as either a pre-existing defect or a minimal fix required for a green run.
+   - **Acceptance criterion:** suite result documented, with the precise list of pre-existing failures and a scope recommendation.
+
+2. **Fix the JSON output contract before implementation**
+   - **Agent:** `design-review`
+   - **Objective:** Validate the details not fully specified by `GOAL.md`, without changing the contract of `sync()`:
+     - `copied` is the ordered list of relative paths actually selected for copying;
+     - with `--dry-run --json`, `copied` represents the paths that would be copied;
+     - `skipped` is the number of unchanged source files, i.e. `len(src_manifest) - len(copied)`;
+     - `src` and `dst` reflect the values received by the CLI, with no unrequested normalization;
+     - a single `json.dumps(...)` serialization is written to stdout, and argparse errors stay on stderr.
+   - **Files:** no files modified; analysis of `GOAL.md`, `synccli.py` and `test_synccli.py`.
+   - **Risks:** an ambiguous meaning of `skipped` could produce an unreliable machine API; modifying `sync()` to return metadata would break internal callers.
+   - **Acceptance criterion:** a written, unambiguous decision on the four keys, their types, list ordering and strict compatibility with `sync(src_root, dst_root, dry_run=False)`.
+
+3. **Implement the JSON mode and its test coverage**
+   - **Agent:** `impl`
+   - **Objective:** Add `--json` to the CLI while keeping the human mode unchanged and the signature of `sync()` stable.
+   - **Files to modify:**
+     - `synccli.py`: add the `--json` argument, build the summary from data already available in `main()`, write exactly one JSON object to stdout when that mode is active, keep one line per path otherwise.
+     - `test_synccli.py`: add tests capturing CLI stdout output to verify:
+       - valid JSON;
+       - presence and types of the `copied`, `skipped`, `src`, `dst` keys;
+       - the copied paths and the skipped count;
+       - `--dry-run --json` lists the candidate files but creates neither destination files nor a manifest;
+       - the human output remains one line per path.
+     - If step 1 confirms the `collect_stale` defect, fix it in `synccli.py` as a minimal repair required for the suite to pass, without changing its API.
+   - **Risks:**
+     - writing auxiliary messages to stdout would invalidate the JSON contract;
+     - a test that only calls `sync()` would not check the real behavior of the parser and `main()`;
+     - a pre-existing defect fix must stay isolated and justified, not turn into a rewrite.
+   - **Verifiable acceptance criterion:**
+     - `python3 -m unittest -v` passes;
+     - `python3 -m synccli --json <src> <dst>` emits exactly one JSON object on stdout;
+     - `python3 -m synccli --dry-run --json <src> <dst>` writes nothing into `<dst>`;
+     - `python3 -m synccli <src> <dst>` keeps the relative path lines, with no JSON;
+     - no third-party dependency added and no signature change to `sync()`.
+
+4. **Review the diff and run the regression check**
+   - **Agent:** `review`
+   - **Objective:** Examine the implementation against the requirements of `GOAL.md`, with attention to the stdout contract, the absence of human-mode regression and the stability of the internal API.
+   - **Files:** review of `synccli.py` and `test_synccli.py`; no modifications by default.
+   - **Risks:**
+     - the JSON could be valid but contain wrong data on a second sync;
+     - `dry-run` could accidentally create the destination directory or the manifest;
+     - the possible `collect_stale()` fix could be forgotten or scope-creeped.
+   - **Verifiable acceptance criterion:**
+     - no major finding;
+     - the test commands defined in step 3 pass;
+     - review confirming that stdout contains exclusively the JSON document in `--json` mode, and that the behavior without the flag is unchanged.

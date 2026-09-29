@@ -1,0 +1,103 @@
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+FAILED (failures=1)
+
+# Execution Plan: `--json` + dry-run (GOAL.md)
+
+I read GOAL.md, README.md, `synccli.py`, `test_synccli.py`, `incremental.py` and DESIGN.md, and ran the tests once. No file was modified.
+
+## Points to settle before coding
+
+1. **`skipped` is defined nowhere.** The simplest assumption: the number of source files that did not change (`len(src_manifest) - len(copied)`). This choice must be confirmed.
+2. **`sync()` only returns the `to_copy` list.** It does not give the total number of scanned files. But GOAL.md forbids changing its signature. A new helper is needed, and `sync()` builds on it without changing its behavior.
+3. **`copy_file` silently ignores `OSError`** (`synccli.py:68`). As a result, `copied` may list files that were not copied. The JSON passes that lie on to machines. It is a known risk, but it is out of GOAL.md's scope.
+4. **One test already fails:** 1 test out of 6 (`test_first_item_stale_is_included`). The cause is `collect_stale`, which starts at `range(1, …)`. It is unrelated to the requirement, but a "all tests pass" criterion would be impossible to meet.
+5. **Paths use `os.sep`.** On Windows, `copied` would contain `\`. A decision is needed: keep the native format or normalize to POSIX.
+
+(DESIGN.md and `incremental.py` concern other workstreams: the v2 daemon and a commit review. They are out of scope, with a single link: the planned daemon would reuse `sync()`, which confirms its signature must stay stable.)
+
+## Ordered tasks
+
+### T0 — Map the callers and set the starting point
+- **Objective:** list who calls `sync()`, `main()` and `copy_file`, and note the current test state (5 passing, 1 known failure).
+- **Files:** none (read-only).
+- **Agent:** `explore`.
+- **Risks:** callers of `sync()` may exist outside the repo ("internal callers" in GOAL.md). They will not be seen.
+- **Criterion:** a report listing the callers and the result of `python3 -m unittest -v` before any change.
+
+### T1 — Validate the design
+- **Objective:** settle the 5 points above. Proposal:
+  - a new helper `plan_sync(src, dst) -> (to_copy, src_manifest)`;
+  - `sync()` calls it internally, with the same signature and the same return;
+  - `main()` uses `plan_sync` and its own computations to produce the JSON;
+  - `skipped = total - len(copied)`;
+  - `src` and `dst` in the JSON = the arguments exactly as the user passed them;
+  - `json.dumps` on a single line, output to stdout only.
+- **Files:** none.
+- **Agent:** `design-review` (`cheap-design-review`).
+- **Risks:**
+  - A wrong choice for `skipped` breaks the public contract at launch.
+  - Copying twice (once in `plan_sync`, once in `sync`) would be a mistake.
+  - Planning happens before the copy. If files change in between, there is a small inconsistency, acceptable here.
+- **Criterion:** a written decision for each of the 5 points, and the signature of `sync()` remains unchanged.
+
+### T2 — Implement `--json`
+- **Objective:**
+  - add the `--json` flag to argparse;
+  - in JSON mode, do a single `print(json.dumps({...}))` with the keys `copied`, `skipped`, `src`, `dst`;
+  - with `--dry-run`, `copied` lists what would be copied;
+  - the human mode stays exactly the same;
+  - the return code stays 0;
+  - no other `print` to stdout in this mode.
+- **Files:** `synccli.py` (`main`, plus the helper chosen in T1).
+- **Agent:** `impl` (`cheap-code`).
+- **Risks:**
+  - a residual or future `print` pollutes stdout;
+  - the argparse `--help` code is not affected;
+  - errors (corrupted manifest, `json.load` raising) go to stderr via the traceback, which is acceptable, but should be documented;
+  - a name conflict between the variable `json` and the `json` module.
+- **Criterion:**
+  - `python3 -m synccli SRC DST --json | python3 -c "import json,sys; json.load(sys.stdin)"` succeeds;
+  - the output without `--json` is byte-for-byte identical to before;
+  - `git diff` shows no change to the `def sync(` line.
+
+### T3 — Write the JSON unit tests
+- **Objective:** in `test_synccli.py`, add a `TestJsonOutput` class that calls `main([...])` and captures stdout with `contextlib.redirect_stdout` (standard library only). It verifies:
+  - that the entire output is valid JSON and a single object;
+  - that the keys are exactly `{copied, skipped, src, dst}` and correctly typed;
+  - that with `--dry-run --json`, `copied` lists the expected files, `dst` receives neither files nor a manifest, and `skipped` is right;
+  - that a second run gives `copied == []` and `skipped == N`;
+  - that the human mode keeps one line per path;
+  - that the return code is 0.
+- **Files:** `test_synccli.py`.
+- **Agent:** `impl` (`cheap-code`, the same instance as T2 via `task_id`).
+- **Risks:**
+  - brittle tests on key order or path separator;
+  - temp directories never cleaned up (use `addCleanup`).
+- **Criterion:** the new tests pass. Only the already-known failure remains (or no failure, if T5 is handled).
+
+### T4 — Review
+- **Objective:** review the diff of T2 and T3 checking: that nothing else goes to stdout, that `sync()` is stable, that no dependency is added, that the code stays Python 3.10-compatible, and that dry-run neither creates nor writes anything.
+- **Files:** none.
+- **Agent:** `review` (`cheap-review`). A minor defect goes back to the same `cheap-code` instance. A major defect escalates to `strong-code`.
+- **Risks:** the review does not test launching via `python3 -m`.
+- **Criterion:** a report with no major defect. The reviewer replays the commands of T2 and T3 and gets the expected result.
+
+### T5 — Fix `collect_stale` (optional, to be validated)
+- **Objective:** replace `range(1, …)` with an iteration over all elements so the existing test passes again.
+- **Files:** `synccli.py`.
+- **Agent:** `impl` (`cheap-mech`), then `review` (`cheap-review`).
+- **Risks:** it is out of GOAL.md's scope, so it should be done in a separate commit.
+- **Criterion:** `python3 -m unittest -v` shows 0 failures.
+
+### T6 — Update the README (optional)
+- **Objective:** document `--json`, the output schema and the meaning of `skipped`.
+- **Files:** `README.md`.
+- **Agent:** `impl` (`cheap-mech`).
+- **Risks:** the doc may diverge from the decision made in T1.
+- **Criterion:** the schema written in the README matches exactly the keys verified in T3.
+
+**Order:** T0 → T1 → T2 → T3 → T4, then T5 and T6 in parallel if you approve them.
+
+**Out of scope:** surfacing the errors of `copy_file` (point 3). I recommend opening a separate ticket, because the JSON makes that defect more serious.

@@ -1,0 +1,61 @@
+Here is the ordered execution plan to meet the requirements of `GOAL.md`:
+
+---
+
+### **Task 1: Technical scoping and CLI interface design**
+* **Objective**: Validate the metric computation strategy (notably `skipped`), the handling of output streams (strict stdout exclusivity for the JSON) and the strict preservation of the existing `sync(src_root, dst_root, dry_run=False)` signature.
+* **Files to create/modify**: None (analysis and design validation).
+* **Pipeline agent**: `design-review`
+* **Risks**: 
+  - Inadvertently changing the signature or return type of `sync()`, breaking internal callers.
+  - Wrong computation of `skipped` (e.g. mismatch between scanned total and unmodified items).
+* **Verifiable acceptance criterion**: 
+  - Settled specification: `skipped` computed (e.g. `len(scan_files(src)) - len(copied)` or via the source manifest) without touching `sync()`.
+  - Exact dictionary format validated: `{"copied": list[str], "skipped": int, "src": str, "dst": str}`.
+
+---
+
+### **Task 2: Implementation of the `--json` flag and output formatting**
+* **Objective**: Add the `--json` flag in `argparse`, orchestrate the building of the result object and serialize strict JSON to `stdout` without changing the default-mode behavior or the `sync()` function.
+* **Files to create/modify**: 
+  - `synccli.py` (modification)
+* **Pipeline agent**: `impl`
+* **Risks**: 
+  - Stray logs or prints polluting `stdout` in JSON mode.
+  - Regression of the default human mode (`one path per line`).
+  - Bad interaction between `--json` and `--dry-run`.
+* **Verifiable acceptance criterion**: 
+  - `python3 -m synccli <src> <dst> --json` produces on `stdout` a single line/string deserializable by `json.loads()`, containing exactly the 4 required keys.
+  - `python3 -m synccli <src> <dst>` (without `--json`) keeps displaying one path per line.
+
+---
+
+### **Task 3: Implementation of the unit tests**
+* **Objective**: Add a dedicated unit test suite covering JSON mode, the combination with `--dry-run`, and the stability of the human mode.
+* **Files to create/modify**: 
+  - `test_synccli.py` (modification)
+* **Pipeline agent**: `impl`
+* **Risks**: 
+  - Incomplete tests omitting to check that no extra text is emitted on `stdout`.
+  - Missing test on the actual values when using `--json --dry-run` together.
+* **Verifiable acceptance criterion**: 
+  - `python3 -m unittest -v` runs successfully (0 failures).
+  - Presence of tests verifying:
+    1. JSON validity and schema compliance (`copied`, `skipped`, `src`, `dst`).
+    2. Behavior of `copied` with `--dry-run --json` (files planned with no physical copy on disk).
+    3. Preservation of the exit code (0 on success).
+
+---
+
+### **Task 4: Compliance review and constraint validation**
+* **Objective**: Audit the implementation and tests against all the project constraints.
+* **Files to create/modify**: None (read-only review).
+* **Pipeline agent**: `review`
+* **Risks**: 
+  - Introduction of a third-party external dependency.
+  - Python 3.10 incompatibility.
+  - Invisible alteration of the public API of `sync()`.
+* **Verifiable acceptance criterion**: 
+  - `git diff` confirms the signature of `sync()` is unchanged.
+  - No external dependency added (stdlib only).
+  - 100% of existing and new tests pass.
