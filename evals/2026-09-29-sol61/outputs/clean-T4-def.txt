@@ -1,0 +1,15 @@
+**Change the persistence and copy contracts before building the daemon.** The proposed load is modest in changes, but expensive in repeated scanning—and reusing `sync()` directly introduces correctness failures.
+
+1. **Failed copies become permanently “synced.”** `copy_file()` suppresses `OSError`, then `sync()` saves the entire source manifest anyway (`synccli.py:62–86`). An unchanged failed file will never retry, contrary to the comment. **Change first:** return explicit copy outcomes, record only successfully applied versions, and retain failed work with bounded retry/backoff.
+
+2. **In-place writes can corrupt both state and destination files.** A crash during JSON rewrite leaves an unreadable manifest; opening a destination with `"wb"` truncates its previous contents before copying succeeds. Small files do not make writes atomic. **Change:** write temporary files and atomically replace completed outputs and manifests; define restart recovery and the required durability guarantees.
+
+3. **The polling budget is unproven and likely wasteful.** At 50,000 files every 500 ms, the target implies roughly **100,000 file-state checks/sec**, plus directory traversal, sorting, JSON serialization, and full manifest writes—even when nothing changes. Slow disks, network mounts, and antivirus amplify this. **Change:** benchmark at target scale, make the interval configurable/adaptive, and persist state only when it changes. Watchers with periodic reconciliation can follow if measurements justify them.
+
+4. **`mtime + size` is a heuristic, not a correctness guarantee.** Timestamp-preserving tools and same-size edits can evade detection. Files can also change between scanning and copying, producing inconsistent output. **Change:** explicitly choose best-effort versus verified synchronization; use selective hashing/reconciliation and pre/post-copy validation with retries. Hashing need not happen on every poll.
+
+5. **Large copies block convergence and can exhaust memory.** The existing implementation reads the whole file into memory (`synccli.py:67`); a multi-GB file can kill the daemon. Sequential copying also delays detection and every later file. **Change:** stream bounded chunks, separate detection from a bounded copy queue, and coalesce repeated changes per path.
+
+6. **“In sync” lacks essential semantics.** Existing `sync()` never deletes removed files and excludes hidden directories. Destination edits/deletions are not repaired because comparison uses the saved source manifest, not actual destination state. **Change:** define deletion, rename, hidden-file, symlink, and destination-ownership behavior before promising continuous synchronization.
+
+**Recommended order:** fix success tracking and atomic publication → define synchronization semantics → measure scanning costs and choose scheduling. SQLite and watchers are optional; reliable state transitions are foundational.

@@ -15,7 +15,7 @@ case $TASK in
   T3) PROMPT=$PROMPT_T3 ;; T4) PROMPT=$PROMPT_T4 ;;
   *) echo "unknown task: $TASK" >&2; exit 1 ;;
 esac
-TAG=$(echo "$MODEL" | tr '/. ' '---' )$([ -n "$VARIANT" ] && echo "-$VARIANT")
+TAG="$(echo "$MODEL" | tr '/. ' '---')${VARIANT:+-$VARIANT}"
 cp -R "$EVAL_DIR/synccli-eval-repo" "$WORK"
 # The fixture ships as plain files (no .git — history stripped on purpose).
 # Recreate the exact 2-commit history the tasks expect: baseline without

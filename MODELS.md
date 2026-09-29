@@ -143,12 +143,12 @@ Two rules bind the whole grid:
 |---|---|---|---|---|
 | design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` sol | `strong-design-alternative2` opus |
 | design-review | `cheap-design-review` deepseek | `strong-design-review` sol | `strong-design-review-alternative` s5.5 `medium` | `strong-design-review-alternative2` grok |
-| code (impl) | `cheap-code` glm `none` | `strong-code` s5.5 `high` | `strong-code-alternative` sol `xhigh` | `strong-code-alternative2` opus |
+| code (impl) | `cheap-code` glm `none` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` gemini `low` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` grok |
 | orchestration | session default model: glm (the user's configured default model) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
-Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash.
+Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash.
 
 Escalation semantics: rung N+1 is invoked only when rung N failed, stalled or
 expressed doubt — never speculatively. The `-alternative2` rung is the step
@@ -184,7 +184,7 @@ by review); review floors at **`low`** (cheap-review — same 3/3 catch rate as
 default effort at a quarter of the cost); strong rungs pinned to the eval's
 best effort — **`high`** for strong-code/strong-design (s5.5) and
 strong-review (glm), **`medium`** for the s5.5 review/design-review
-alternatives, **`xhigh`** for strong-code-alternative (sol). Claude models
+alternatives. Claude models
 never run `low` in a code-reading role (eval: it skips reading code and
 hallucinates structure) and never `xhigh`/`max` on bulk tasks (cost converges
 with opus, no quality gain). Beware: descending effort on opus via

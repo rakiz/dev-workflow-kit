@@ -1,0 +1,79 @@
+## Execution plan
+
+The next release adds `--json` while preserving human output, exit behavior, and `sync(src_root, dst_root, dry_run=False)`. Use Python 3.10’s standard library only.
+
+Repository observations:
+- `main()` currently prints the paths returned by `sync()`.
+- `sync()` already returns would-be-copied paths during a dry run.
+- `skipped` is not defined precisely in `GOAL.md`; settle its meaning before implementation.
+- By inspection, `collect_stale()` skips the first item, so an existing test appears to fail independently of this feature.
+- `DESIGN.md` describes a separate daemon proposal; it is not the design for this release.
+
+### 1. Establish the baseline and trace output behavior
+**Agent:** `explore`
+
+- **Objective:** Identify callers of `sync()`, all CLI output paths, existing dry-run behavior, and baseline test failures.
+- **Files:** Read `synccli.py`, `incremental.py`, `test_synccli.py`, `GOAL.md`, and `README.md`; create/modify none.
+- **Risks:** Confusing an existing failure with a feature regression; overlooking callers that depend on the returned list.
+- **Acceptance criterion:** Deliver a caller/output inventory and results from `python3 -m unittest -v`, including whether the first-item `collect_stale()` test fails. Record existing signature, return behavior, and CLI exit behavior.
+
+### 2. Review and settle the JSON contract
+**Agent:** `design-review`  
+**Depends on:** Task 1
+
+- **Objective:** Approve a minimal implementation approach and resolve output semantics.
+- **Files:** Read `GOAL.md`, `synccli.py`, and `test_synccli.py`; create/modify none. Return the decision as text.
+- **Proposed contract:**
+  - `copied`: the existing list returned by `sync()`, including planned paths in dry-run mode.
+  - `skipped`: the number of source files unchanged according to the manifest comparison.
+  - `src` and `dst`: the supplied CLI argument strings.
+  - A successful JSON-mode invocation emits one JSON object, followed by an optional newline.
+  - Error diagnostics retain existing behavior; no new stdout diagnostics.
+- **Risks:** Counting unchanged files incorrectly; rescanning the source inconsistently; treating suppressed copy errors as a newly defined “skipped” category. The current copying code does not reliably report failures.
+- **Acceptance criterion:** Explicit approval of field types, counting rules, path representation, and error/help behavior. The approach preserves both the signature and list-return contract of `sync()` without introducing dependencies.
+
+### 3. Implement JSON output and regression tests
+**Agent:** `impl`  
+**Depends on:** Task 2
+
+- **Objective:** Add `--json`, branch CLI rendering, and obtain the skipped count using the approved approach.
+- **Files:** Modify `synccli.py` and `test_synccli.py`; no new files expected.
+- **Risks:** Extra stdout output, changed human output, dry-run filesystem writes, duplicated scanning, or altered internal-caller behavior.
+- **Acceptance criterion:** New tests demonstrate:
+  1. Entire captured stdout parses with `json.loads()` as one object.
+  2. Keys are exactly `copied`, `skipped`, `src`, and `dst`, with the approved types and values.
+  3. Initial sync, unchanged second sync, and a mixed changed/unchanged source produce correct counts.
+  4. `--json --dry-run` lists planned copies without creating or changing destination files or the manifest.
+  5. Human mode still emits one relative path per line, including human dry-run mode.
+  6. Successful `main()` calls still return `0`; `sync()` retains its signature and list return.
+  
+  All new tests pass, and the baseline suite has no additional failures.
+
+### 4. Review implementation and test coverage
+**Agent:** `review`  
+**Depends on:** Task 3
+
+- **Objective:** Independently verify conformance to the approved contract and inspect regression coverage.
+- **Files:** Read the diff in `synccli.py` and `test_synccli.py`; create/modify none.
+- **Risks:** Tests that merely mirror implementation, weak dry-run checks, or hidden changes to sync semantics.
+- **Acceptance criterion:** Review confirms Python 3.10 compatibility, standard-library-only dependencies, stdout isolation, API compatibility, and meaningful tests. Return actionable findings with severity; all blocking findings must be resolved before release.
+
+### 5. Address findings and document usage
+**Agent:** `impl`  
+**Depends on:** Task 4
+
+- **Objective:** Resolve review findings and document the new CLI contract.
+- **Files:** Modify `README.md`; modify `synccli.py` and `test_synccli.py` only where findings require it.
+- **Risks:** Documentation implying that dry-run copies files or that `skipped` counts copy failures.
+- **Acceptance criterion:** README includes normal JSON and JSON dry-run examples, field meanings, and the existing test command. Review findings are resolved and relevant tests pass again after code changes.
+
+### 6. Run the final release gate
+**Agent:** `review`  
+**Depends on:** Task 5
+
+- **Objective:** Verify the final diff, documentation, and observable CLI behavior.
+- **Files:** Read `synccli.py`, `test_synccli.py`, and `README.md`; create/modify none.
+- **Risks:** Reporting the suite as green despite a known baseline failure, or accepting changes outside the release scope.
+- **Acceptance criterion:** Run `python3 -m unittest -v` and CLI smoke checks for human, JSON, and combined JSON/dry-run modes. Confirm documentation matches output and there are no new failures or unresolved blocking findings. If the existing `collect_stale()` failure remains, report it explicitly as a baseline release blocker requiring a separately scoped fix.
+
+No files were modified.
