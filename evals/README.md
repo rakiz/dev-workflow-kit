@@ -17,6 +17,12 @@ release.
 - `2026-09-29/` — the eval (final results in `RESULTS.md`, scored responses in
   `outputs/` — only a subset of the runs is archived there: 35 of 45, the rest
   live in the opencode session DB).
+- `2026-09-29-sol61/` — release-day eval of `gpt-6.1-sol` vs the incumbent
+  `gpt-6-sol` (same protocol, 4 tasks): strictly better-or-equal at the same
+  price — the 3 sol slots bumped (`RESULTS.md`).
+- `2026-09-30-deepseek-effort/` — deepseek-v4p1-flash re-baseline after a
+  Fireworks effort-mapping fix (default effort = new `high`); keep-default
+  decision, results in `RESULTS.md`.
 
 ## The 4 tasks
 
