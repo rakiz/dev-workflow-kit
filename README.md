@@ -4,6 +4,10 @@ Reusable development workflow kit for [opencode](https://opencode.ai) projects (
 
 A project adopts the kit via `git clone` + `init.sh`. Each project keeps its own config (`dev-workflow.json`) and diverges freely: everything is **copied**, never symlinked.
 
+## Releasing (kit maintainers)
+
+Bump the root `VERSION` file and the git tag together — `VERSION` is the single source of truth for the kit version that installs announce and that the lock file's `kit_version` records (no git-describe fallback: the kit can be copied without `.git`).
+
 ## Quick start
 
 ### A. New project (empty or near-empty repo)
@@ -25,7 +29,7 @@ What the install actually puts in the project:
 - `dev-workflow.json` (project root) — your config: pre-commit checks + paths of the workflow files;
 - `TODO.md`, `INPROGRESS.md`, `CHANGELOG.md`, `SPEC.md`, `CONVENTIONS.md` (project root) — starter skeletons, to fill in;
 - `RULES.md` (project root) — **opt-in** safety/robustness rules skeleton (JPL's Power of 10-inspired), not installed by default: pass `--with-rules` or answer the interactive y/N prompt (see the Installation table);
-- `.opencode/.dev-workflow-kit-lock.json` — sync baseline (kit body hashes + injected models/variants, plus the rule/convention prefix hashes) used by `init.sh --update`; commit it (see "Updating").
+- `.opencode/.dev-workflow-kit-lock.json` — sync baseline (kit body hashes + injected models/variants, plus the rule/convention prefix hashes) used by `init.sh --update`; it also records `kit_version`, the kit release last synced — compare it to the kit's `VERSION` file to tell whether an update is needed: `jq .kit_version .opencode/.dev-workflow-kit-lock.json`. Commit it (see "Updating").
 
 ### B. Existing project (already has code, maybe its own conventions or hook)
 
@@ -141,7 +145,7 @@ The script locates the kit by its own location (`dirname "$0"`); the target is t
 | `templates/TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md`, `CONVENTIONS.md` | project root | copied **only if absent** |
 | `templates/RULES.md` | project root | **opt-in** — copied **only if absent** with `--with-rules`, or via an interactive y/N prompt when a TTY is available; otherwise skipped (copy it manually to opt in) |
 
-**Every** successful install also writes/updates the lock file when `jq` and `shasum` are available; otherwise the install succeeds without one (warning only) and the next `--update` bootstraps conservatively. It is generated, not copied from the kit; commit it to the project's repo.
+**Every** successful install also writes/updates the lock file when `jq` and `shasum` are available; otherwise the install succeeds without one (warning only) and the next `--update` bootstraps conservatively. It is generated, not copied from the kit; commit it to the project's repo. Every successful sync stamps the kit's current `VERSION` into the lock's `kit_version` field.
 
 ## Global roster
 
@@ -240,9 +244,9 @@ Re-running `init.sh` on the project (no flags needed):
 
 ### `init.sh --update` (kit-managed files, lock-driven)
 
-`init.sh --update /path/to/project` (or run from inside the project) synchronizes the **kit-managed** files — the agents, the skill, the pre-commit hook, and the `model:`/`variant:` frontmatter defaults — using the lock file at `.opencode/.dev-workflow-kit-lock.json` to tell files you never touched apart from files you customized. With `--global` (`--update --global`), the same lock-driven sync applies to the session roster (agents only) in the opencode config directory, against its own lock file:
+`init.sh --update /path/to/project` (or run from inside the project) synchronizes the **kit-managed** files — the agents, the skill, the pre-commit hook, and the `model:`/`variant:` frontmatter defaults — using the lock file at `.opencode/.dev-workflow-kit-lock.json` to tell files you never touched apart from files you customized. It announces the version comparison up front (`kit vX — project last synced at vY`; a pre-versioning lock reads "last sync unknown") and closes with `now at vX` (something was synced) or `already at vX`. With `--global` (`--update --global`), the same lock-driven sync applies to the session roster (agents only) in the opencode config directory, against its own lock file:
 
-- the lock file records, for every kit-managed file, the kit content last synced (a body hash — for `CONVENTIONS.md`/`RULES.md`, the hash of the kit-managed prefix ending at `## Project rules`) and the model/variant last injected. It is created automatically by **both plain install and `--update`** — commit it to the project's repo so updates are deterministic across machines and CI;
+- the lock file records, for every kit-managed file, the kit content last synced (a body hash — for `CONVENTIONS.md`/`RULES.md`, the hash of the kit-managed prefix ending at `## Project rules`), the model/variant last injected, and the kit release last synced (`kit_version`, stamped on every successful sync — compare it against the kit's `VERSION` file to tell whether an update is available). It is created automatically by **both plain install and `--update`** — commit it to the project's repo so updates are deterministic across machines and CI;
 - a file **untouched since the last sync** is auto-updated to the kit's current version, and its model/variant defaults are refreshed to the current `models.json` values;
 - a **locally customized** file is **never overwritten**: the kit's current version is written next to it as `<file>.dev-workflow-kit-new` for a manual merge, with a warning. A hand-set `model:` line is kept as-is (a neutral "kept" note, not a warning — picking your own model is expected, deliberate behavior); it stays yours even when `models.json` changes later. The same applies to a hand-set `variant:` line: a variant that differs from the last kit-injected value is treated as yours — kept, and never clobbered by a later `models.json` change (not even when the model itself is refreshed);
 - **`CONVENTIONS.md`, `RULES.md` and `CONVENTIONS.cpp.md` follow the same "ours vs theirs" sync as the agents** — they are kit-authored content, kept up to date automatically as long as you use them unmodified; the moment you edit one, it is frozen (never auto-overwritten) and the kit's current version is offered as a `.dev-workflow-kit-new` sibling for a manual merge. For `CONVENTIONS.md` and `RULES.md` this comparison **splits at the `## Project rules` heading**: only the kit-authored part above and including that line is compared and replaced; the project-specific rules you append below it are 100% yours — never touched, and never even considered when deciding whether the kit part was customized. `CONVENTIONS.cpp.md` has no user-append zone, so it is compared and replaced whole-file. These three files are also **never auto-created by `--update`**: a `RULES.md` you declined at install (or a `CONVENTIONS.cpp.md` you never manually copied) stays absent — the file must already exist, via `--with-rules`, a plain install, or a manual copy;

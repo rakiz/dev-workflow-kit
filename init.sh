@@ -171,6 +171,25 @@ updated_model=()
 up_to_date=()
 manual_merge=()
 kept_model=()
+
+# Kit version: the VERSION file at the kit root is the single source of truth
+# (release gesture: bump it together with the git tag — README, "Releasing").
+# No git-describe fallback: the kit can be copied without .git. Read once,
+# whitespace-trimmed, characters restricted to what a version can contain
+# (safe to embed in the lock's JSON); missing/empty/unexpected content ->
+# empty KIT_VERSION + warning, non-fatal — same degradation philosophy as the
+# lock's jq/shasum, echoes then read "unknown version".
+KIT_VERSION=""
+if [[ -f "$KIT_DIR/VERSION" ]]; then
+  _kv_line=""
+  read -r _kv_line < "$KIT_DIR/VERSION" 2>/dev/null || true
+  _kv_line="${_kv_line//[[:space:]]/}"
+  if [[ "$_kv_line" =~ ^[0-9A-Za-z._-]+$ ]]; then
+    KIT_VERSION="$_kv_line"
+  fi
+fi
+[[ -n "$KIT_VERSION" ]] || warnings+=("kit VERSION file missing, empty or malformed ($KIT_DIR/VERSION) — this run reports an unknown version")
+
 # Agent source/destination and lock path per mode: in global mode the
 # destination IS the opencode config directory (agents land directly in
 # $TARGET/agent/, no .opencode/ level) and the lock file sits at its root;
@@ -486,6 +505,12 @@ warn_shadowed_agents() {
 # --update; read by --update. Shape (jq dynamic-key upserts — one level of
 # nesting per file, no flat-key gymnastics needed):
 #   { "version": 1,
+#     "kit_version": "0.1.0",        <- the KIT RELEASE last synced (stamped
+#                                       by every lock write, from the kit's
+#                                       VERSION file; absent = pre-versioning
+#                                       lock / unknown VERSION) — NOT to be
+#                                       confused with "version", the LOCK
+#                                       FORMAT version (schema of this file)
 #     "files": {
 #       "agent/impl.md": { "body_sha256": "<kit source body hash at sync
 #                           time, model:/variant: lines stripped>",
@@ -511,6 +536,7 @@ warn_shadowed_agents() {
 # new to baseline.
 LOCK_OK=0
 LOCK_WARNED=""
+LOCK_WRITTEN=0
 
 # lock_init : make sure the lock file exists and is valid before any lock
 # write. Soft-fails (warning + return 1): both modes degrade to conservative
@@ -527,8 +553,12 @@ lock_init() {
     return 1
   fi
   tmp="$(mktemp)" || { warnings+=("could not create a temp file for the lock file"); return 1; }
-  if printf '{ "version": 1, "files": {} }\n' > "$tmp" && mkdir -p "$(dirname "$LOCK_FILE")" && mv "$tmp" "$LOCK_FILE"; then
+  # Created WITH the current kit_version stamped ("" when the VERSION file is
+  # missing — the field is then simply absent, same as a pre-versioning lock).
+  if jq -n --arg kv "$KIT_VERSION" '{ version: 1, files: {} } + (if $kv != "" then { kit_version: $kv } else {} end)' > "$tmp" \
+      && mkdir -p "$(dirname "$LOCK_FILE")" && mv "$tmp" "$LOCK_FILE"; then
     LOCK_OK=1
+    LOCK_WRITTEN=1
     return 0
   fi
   rm -f "$tmp"
@@ -558,7 +588,12 @@ lock_set() {
   [[ $LOCK_OK -eq 1 ]] || return 0
   local tmp
   tmp="$(mktemp)" || { [[ -n "$LOCK_WARNED" ]] || { warnings+=("could not create a temp file for the lock file"); LOCK_WARNED=1; }; return 1; }
-  if jq --arg f "$1" --arg k "$2" --arg v "$3" '.files[$f][$k] = $v' "$LOCK_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$LOCK_FILE"; then
+  # Every lock write also stamps kit_version (when known), so the field
+  # converges to the version of the last successful sync.
+  if jq --arg f "$1" --arg k "$2" --arg v "$3" --arg kv "$KIT_VERSION" \
+      '.files[$f][$k] = $v | (if $kv != "" then .kit_version = $kv else . end)' "$LOCK_FILE" > "$tmp" 2>/dev/null \
+      && mv "$tmp" "$LOCK_FILE"; then
+    LOCK_WRITTEN=1
     return 0
   fi
   rm -f "$tmp"
@@ -976,6 +1011,22 @@ if [[ $UPDATE -eq 1 ]]; then
     echo "init: --update requires jq and shasum (lock-file mechanism)." >&2
     exit 1
   fi
+  # Version comparison up front (informational, never a prompt). The lock's
+  # kit_version is read BEFORE lock_init: on a bootstrap (no lock yet) the
+  # file created below must not be mistaken for a previous sync's version.
+  # A pre-versioning lock (no kit_version key) reads as "unknown", never an
+  # error.
+  LOCK_KIT_VERSION=""
+  [[ -f "$LOCK_FILE" ]] && LOCK_KIT_VERSION="$(jq -r '.kit_version // ""' "$LOCK_FILE" 2>/dev/null || true)"
+  if [[ -n "$KIT_VERSION" && -n "$LOCK_KIT_VERSION" ]]; then
+    echo "kit v$KIT_VERSION — project last synced at v$LOCK_KIT_VERSION"
+  elif [[ -n "$KIT_VERSION" ]]; then
+    echo "kit v$KIT_VERSION — pre-versioning lock: last sync unknown"
+  elif [[ -n "$LOCK_KIT_VERSION" ]]; then
+    echo "kit version unknown (VERSION file missing) — project last synced at v$LOCK_KIT_VERSION"
+  else
+    echo "kit version unknown (VERSION file missing) — pre-versioning lock: last sync unknown"
+  fi
   lock_init || true
   MODELS_OK=1
   [[ -f "$KIT_DIR/models.json" ]] || { MODELS_OK=0; warnings+=("kit models.json not found — model/variant defaults not refreshed"); }
@@ -1027,6 +1078,18 @@ if [[ $UPDATE -eq 1 ]]; then
   if [[ ${#warnings[@]} -gt 0 ]]; then
     echo "WARNING:"
     printf '  ! %s\n' "${warnings[@]}"
+  fi
+  # Closing version line: "now at" when this run synced at least one file or
+  # rewrote the lock (baselines, model records, bootstrap creation);
+  # "already at" otherwise.
+  if [[ -n "$KIT_VERSION" ]]; then
+    if [[ ${#updated_body[@]} -gt 0 || ${#updated_model[@]} -gt 0 || ${#copied[@]} -gt 0 || $LOCK_WRITTEN -eq 1 ]]; then
+      echo "now at v$KIT_VERSION"
+    else
+      echo "already at v$KIT_VERSION"
+    fi
+  else
+    echo "kit version unknown (VERSION file missing)"
   fi
   if [[ $GLOBAL_MODE -eq 1 ]]; then
     echo "Done. Global roster synced into $TARGET (lock: ${LOCK_FILE#$TARGET/})."
@@ -1230,6 +1293,11 @@ if [[ $GLOBAL_MODE -eq 1 ]]; then
   echo "=== dev-workflow-kit: global roster installed into $TARGET ==="
 else
   echo "=== dev-workflow-kit: installed into $TARGET ==="
+fi
+if [[ -n "$KIT_VERSION" ]]; then
+  echo "dev-workflow-kit $KIT_VERSION installed"
+else
+  echo "dev-workflow-kit installed (unknown version — VERSION file missing)"
 fi
 if [[ ${#copied[@]} -gt 0 ]]; then
   echo "Copied:"
