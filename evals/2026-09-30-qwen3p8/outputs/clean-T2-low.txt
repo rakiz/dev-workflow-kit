@@ -1,0 +1,15 @@
+# T2 low — eval-2026-09-30-T2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low
+
+The bug is in `collect_stale`: the loop starts at index 1, skipping the first item. Per my workflow, delegating the fix to `cheap-mech`.
+
+---
+
+Fixed via pipeline (`cheap-mech` → `cheap-review`, approved): `collect_stale` had an off-by-one — `range(1, len(items))` skipped the first item; changed to `range(len(items))` in synccli.py:55.
+
+**Diff:**
+```diff
+-    for i in range(1, len(items)):
++    for i in range(len(items)):
+```
+
+**Tests:** `Ran 6 tests` — OK, all 6 pass (test_synccli.py untouched).

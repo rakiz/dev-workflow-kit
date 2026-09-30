@@ -1,0 +1,11 @@
+# T3 medium — eval-2026-09-30-T3-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium
+
+**Defects in `incremental.py` (HEAD):**
+
+1. **Major — `filter_excluded` mutable default argument** (`excluded=[]`, incremental.py:10). The default list persists across calls: a second call without an explicit `excluded` returns the *first* call's results appended to the new ones. Any caller relying on the default gets corrupted (ever-growing) output; state accumulates for the process lifetime.
+
+2. **Major — `copy_many` reports failures as done** (incremental.py:19-27). `synccli.copy_file` swallows `OSError` internally and never raises for an unreadable source/failed write (synccli.py:69-75), so the `try/except` in `copy_many` almost never triggers — `dst` is appended to `done` even when nothing was copied. The documented contract ("return the list of dst paths done") is false: callers that mark these as synced (e.g. feed them into a manifest update) will silently skip those files forever — data loss.
+
+3. **Minor — `merge_manifest` never persists the merged manifest** (incremental.py:30-40). The name and docstring ("Merge new file states *into the destination manifest*") plus reading `dst_manifest_path` strongly imply the file is updated, but the function only returns a dict. A caller trusting the contract ends up with a stale on-disk manifest (repeated re-copies, or lost merge work if the return value is ignored).
+
+Non-defect noted: `merge_manifest` raises `KeyError` on an old entry lacking `"mtime"`, but manifests written by `synccli` always include it, so it's only a schema assumption, not a live bug.

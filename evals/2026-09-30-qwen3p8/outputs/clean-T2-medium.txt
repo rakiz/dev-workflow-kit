@@ -1,0 +1,24 @@
+# T2 medium — eval-2026-09-30-T2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium
+
+Bug found: `collect_stale` loops `range(1, len(items))`, skipping the first item. Delegating the fix to `cheap-mech` per pipeline policy.
+
+---
+
+Fix (via cheap-mech, reviewed clean by cheap-review): `collect_stale` had an off-by-one — `range(1, len(items))` skipped the first item.
+
+```diff
+--- a/synccli.py
++++ b/synccli.py
+@@ -52,8 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
+-        path, fresh = items[i]
++    for path, fresh in items:
+         if path not in seen and not fresh:
+             stale.append(path)
+     return stale
+```
+
+Final results: 6 tests, all OK (`test_synccli.py` untouched).

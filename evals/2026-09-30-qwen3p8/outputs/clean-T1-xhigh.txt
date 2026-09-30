@@ -1,0 +1,43 @@
+# T1 xhigh — eval-2026-09-30-T1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh
+
+## Execution plan — `--json` + dry-run UX
+
+**Baseline facts already gathered** (read-only): `sync(src_root, dst_root, dry_run=False)` returns the to-copy list and early-returns on dry-run without writing the manifest (synccli.py:72); `copy_file` silently swallows `OSError` (synccli.py:68) so copy failures are currently unobservable; `incremental.py` imports `copy_file` (its return value is ignored there); test suite currently runs with **1 pre-existing failure** (`test_first_item_stale_is_included` — `collect_stale` skips index 0 via `range(1, ...)`, synccli.py:55), unrelated to GOAL.
+
+---
+
+**Task 1 — Freeze the JSON contract (design-review)**
+- **Objective:** resolve the ambiguities GOAL.md leaves open: (a) semantics of `skipped` — files whose copy failed (requires making `copy_file`'s failure observable, e.g. additive bool return, which is safe for `incremental.py`) vs. count of unchanged files; (b) `skipped` under `--dry-run` (failures are undetectable without copying → must be 0); (c) whether `src`/`dst` echo argv verbatim or are normalized; (d) scope decision on the pre-existing red test (separate mechanical fix vs. documented known failure) so it never masks a regression from this release.
+- **Files:** none (report-only).
+- **Agent:** cheap-design-review (escalate to strong-design-review only if it flags real architectural doubt).
+- **Risks:** wrong `skipped` semantics → contract rework after code exists; touching `copy_file` could ripple into `incremental.copy_many` if done as a signature change rather than additive return.
+- **Acceptance criterion:** written contract fixing all four points (exact key set `copied/skipped/src/dst`, dry-run values, src/dst form, `copy_file` change shape, red-test disposition).
+
+**Task 2 — Implement `--json` + dry-run interplay (impl)**
+- **Objective:** add `--json` argparse flag; emit exactly one JSON object on stdout and nothing else in that mode; `--dry-run --json` reports would-copy list; human mode untouched; `sync()` signature unchanged.
+- **Files:** modify `synccli.py`.
+- **Agent:** cheap-code (fresh session with autonomous brief built from Task 1's contract).
+- **Risks:** stray stdout pollution in JSON mode (low today — `copy_file` is silent, argparse errors go to stderr); dry-run must not write the manifest (already guaranteed by the early return, but a refactor could break it).
+- **Acceptance criterion:** `python3 -m synccli S D --json` stdout is exactly one `json.loads`-able object with keys `copied`, `skipped`, `src`, `dst`, exit code 0; with `--dry-run`, D unchanged and no `.sync_manifest.json` created; without `--json`, output byte-identical to current behavior.
+
+**Task 3 — Unit tests for JSON shape (impl)**
+- **Objective:** tests in `test_synccli.py`: stdout parses as JSON; exact key set present; `copied` matches `sync()` result; dry-run semantics (nothing copied, no manifest); human mode unchanged. Stdlib only (`unittest`, `tempfile`, `contextlib.redirect_stdout`).
+- **Files:** modify `test_synccli.py`.
+- **Agent:** cheap-code — reuse Task 2's instance via `task_id` (small follow-on, context already warm).
+- **Risks:** tests capturing stderr noise or asserting implementation details; forgetting the negative test (no manifest on dry-run).
+- **Acceptance criterion:** ≥4 new test methods exist and pass via `python3 -m unittest -v`, each asserting a distinct GOAL clause.
+
+**Task 4 — Review the full diff (review)**
+- **Objective:** verify GOAL compliance: stdout purity, exact JSON contract from Task 1, `sync()` signature stable, no new dependencies, `incremental.py` unaffected, tests genuinely assert the contract.
+- **Files:** none (read-only).
+- **Agent:** cheap-review; minor findings → back to Task 2/3 instance via `task_id`; major findings → escalate strong-code.
+- **Risks:** reviewer rubber-stamps a `skipped` semantics that diverges from the Task 1 contract.
+- **Acceptance criterion:** verdict with findings classified; zero unresolved major findings.
+
+**Task 5 — Verification & close (impl instance / mech)**
+- **Objective:** run `python3 -m unittest -v`; confirm no new failures vs. baseline; apply the Task 1 red-test disposition (if "fix": trivial one-line `range` correction → cheap-mech; if "known failure": documented in review report).
+- **Files:** possibly `synccli.py` (only if Task 1 chose the fix).
+- **Agent:** Task 2/3 cheap-code instance (or cheap-mech for the one-line fix).
+- **Acceptance criterion:** suite output shows all new JSON tests green and failure count ≤ baseline (1, or 0 if fixed) — diff of test results vs. baseline recorded.
+
+**Out-of-scope observations** (report to user, do not act): `collect_stale` off-by-one (synccli.py:55), `filter_excluded` mutable default arg (incremental.py:10), and DESIGN.md's daemon plan logging errors to **stdout** — which will collide with `--json` purity when `syncd` lands; flag for the v2 design.

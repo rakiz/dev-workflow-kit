@@ -1,0 +1,47 @@
+# T1 medium — eval-2026-09-30-T1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium
+
+# Execution plan — `--json` + `--dry-run` for synccli
+
+## Task 1 — Codebase recon
+- **Objective**: Map current output paths in `synccli.py` (every `print`/stdout write in `sync()` and CLI layer), how `--dry-run` flows, and what `incremental.py` consumes from `sync()` (the "internal callers" the GOAL says must keep the signature stable).
+- **Files**: read-only — `synccli.py`, `incremental.py`, `test_synccli.py`.
+- **Agent**: `explore`.
+- **Risks**: Missing a stdout write site (violates "nothing else on stdout in JSON mode"); missing an internal caller whose signature expectations differ.
+- **Acceptance**: A written inventory: every stdout write site with file:line, `sync()` signature + all call sites, existing test conventions in `test_synccli.py`.
+
+## Task 2 — Design review of the JSON-mode approach
+- **Objective**: Settle how JSON mode threads through without breaking `sync()`'s signature: return a result structure from `sync()` vs. print-side flag; where JSON serialization lives (CLI edge, not inside `sync()`); dry-run semantics (`copied` = would-copy list, nothing actually copied); ensure human mode is byte-identical.
+- **Files**: none (design note only).
+- **Agent**: `design-review` (cheap-design-review; escalate to strong-design only if the signature constraint proves thorny).
+- **Risks**: Overengineering a 3-key JSON; leaking prints from `incremental.py` into JSON mode; changing `sync()` signature by accident.
+- **Acceptance**: A design decision stating exactly (a) `sync()` signature unchanged, (b) which layer emits JSON, (c) how non-JSON stdout noise is suppressed in JSON mode.
+
+## Task 3 — Implementation: `--json` flag + dry-run interplay
+- **Objective**: Add `--json` argparse flag; emit exactly one JSON object `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` to stdout and nothing else when set; with `--dry-run`, `copied` lists would-be copies; human mode (one path per line) untouched; exit codes unchanged; stdlib only (`json`).
+- **Files**: modify `synccli.py` (and `incremental.py` only if Task 1 shows it prints to stdout in the sync path).
+- **Agent**: `cheap-code` (implementation).
+- **Risks**: Log/progress prints leaking to stdout in JSON mode (send them to stderr or suppress); `skipped` counted wrong in dry-run; touching `sync()` signature.
+- **Acceptance**: `python3 -m synccli SRC DST --json` output parses with `json.loads()` and has exactly the four keys; no other stdout bytes; `--json --dry-run` leaves the destination unmodified while listing planned copies.
+
+## Task 4 — Implementation: unit tests
+- **Objective**: Add tests to `test_synccli.py`: valid JSON parse, exact key set, `copied` contents for a real copy, dry-run semantics (files not copied but listed, `skipped` correct), human-mode regression (one path per line).
+- **Files**: modify `test_synccli.py`.
+- **Agent**: `cheap-code` (same session/task_id as Task 3 — small follow-up with shared context).
+- **Risks**: Tests coupled to tmpdir leakage; not asserting "nothing else on stdout" (the strictest GOAL requirement).
+- **Acceptance**: `python3 -m unittest -v` passes, including new tests that capture stdout and assert strict JSON-object-only output.
+
+## Task 5 — Review of the full diff
+- **Objective**: Verify diff against GOAL.md line by line: JSON shape, stdout purity, dry-run interplay, human mode unchanged, signature stable, no new deps, Python 3.10 stdlib only.
+- **Files**: review-only — `synccli.py`, `incremental.py`, `test_synccli.py`, `test_synccli.py` diff.
+- **Agent**: `cheap-review` (mandatory, no exception). Minor findings → back to the same `cheap-code` task_id; major → `strong-code`.
+- **Risks**: Reviewer missing a stray print reachable only on error paths; dry-run + JSON edge case (empty src) untested.
+- **Acceptance**: Review verdict clean, or all minor findings fixed and re-verified.
+
+## Task 6 — Final verification
+- **Objective**: Run the README-documented command `python3 -m unittest -v` plus a manual smoke: `--json`, `--json --dry-run`, and human mode on a temp fixture.
+- **Files**: none.
+- **Agent**: orchestrator (bash), or `cheap-mech` if a trivial fix is needed.
+- **Risks**: Environment Python < 3.10 masking a syntax/stdlib issue.
+- **Acceptance**: All tests green; smoke runs produce exactly one JSON object in JSON mode and one path per line in human mode.
+
+Ordering rationale: 1 → 2 de-risks the signature constraint before code exists; 3 → 4 share one cheap-code session (small, related); 5 → 6 are the mandatory independent check.

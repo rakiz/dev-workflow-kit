@@ -1,0 +1,9 @@
+# T3 low — eval-2026-09-30-T3-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low
+
+**Defects in `incremental.py` (commit e32af7d):**
+
+1. **Major — mutable default in `filter_excluded`** (incremental.py:10): `excluded=[]` is shared across calls. The second and later calls return previously accumulated paths plus new ones, so callers get an exclusion set containing files they never passed in — those files are silently skipped from sync (data loss at the destination).
+
+2. **Major — `copy_many` reports failed copies as done** (incremental.py:18-27): `copy_file` swallows `OSError` and never raises (synccli.py:68-73 — and it truncates `dst` before reading, so a failed copy can even leave a corrupted/partial `dst`). So `done.append(dst)` runs unconditionally, and the `except Exception: continue` arm is effectively dead. A caller that updates the manifest from the returned "done" list marks never-copied files as synced — silent data loss plus corrupted manifest state; the docstring contract ("dst paths done") is misleading.
+
+3. **Minor — `merge_manifest` can raise `KeyError`** (incremental.py:38): `old[rel]["mtime"]` assumes every existing entry has an `mtime` key; a manifest entry lacking it (older/foreign manifest format) crashes the merge instead of being handled like a missing entry.

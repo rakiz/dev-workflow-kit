@@ -1,0 +1,5 @@
+# T3 medium — eval-2026-09-30-T3-fireworks-ai-accounts-fireworks-models-nemotron-lightning-3p5-30b-a3b-medium
+
+- `copy_many` silently swallows exceptions from `copy_file`, causing files that fail to copy to be omitted from the returned list while the caller may assume success → **data loss**, severity **major**.  
+- `filter_excluded` uses a mutable default argument `excluded=[]`, so the same list object is shared across calls when the argument is omitted → **unexpected state mutation**, severity **minor**.  
+- `merge_manifest` assumes every manifest entry contains an `"mtime"` key; missing the key raises `KeyError`, potentially crashing the merge → **runtime crash**, severity **minor**.

@@ -1,0 +1,23 @@
+# T4 medium — eval-2026-09-30-T4-fireworks-ai-accounts-fireworks-models-nemotron-lightning-3p5-30b-a3b-medium
+
+**Critique of DESIGN.md:**
+
+**Major risks & wrong assumptions:**
+
+1. **Polling 50K files every 500ms is expensive.** At least 2 stat syscalls/file = ~100K syscalls/sec. Each poll may block ~100ms, meaning the loop barely runs and CPU is pegged.
+
+2. **Full manifest rewrite every poll** = 200+ JSON file writes/sec. I/O pressure, potential partial reads, and the JSON file itself becomes a bottleneck/lock contended point.
+
+3. **mtime + size only is fragile.** Editors may batch writes (mtime stale), network filesystems have coarse granularity, and mtime doesn't detect content-equal changes (e.g., some editors rewrite with same mtime).
+
+4. **Single-threaded copy blocks the poll loop.** A single large file copy (100MB+) delays subsequent scans by seconds, making sync lag behind real-time changes.
+
+5. **No atomicity guarantee on manifest rewrite.** "Rewrite in place" creates a window where readers see partial/corrupted JSON, especially with concurrent access.
+
+**Decisions to change first:**
+- Replace polling with FSEvents/inotify (platform-specific but necessary for performance)
+- Use content hashing (at minimum for changed-files detection; or switch to event-driven)
+- Make manifest atomic (write to temp + rename) and consider streaming/partial updates
+- Add multi-threaded/async copying so poll loop isn't blocked
+- Make poll interval configurable with sane defaults
+- Add proper error handling / crash recovery for sync state

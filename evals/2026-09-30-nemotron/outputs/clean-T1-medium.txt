@@ -1,0 +1,14 @@
+# T1 medium — eval-2026-09-30-T1-fireworks-ai-accounts-fireworks-models-nemotron-lightning-3p5-30b-a3b-medium
+
+**Execution plan (ordered tasks)**  
+
+| # | Objective | Files to create / modify | Pipeline agent(s) | Risks | Verifiable acceptance criterion |
+|---|-----------|--------------------------|-------------------|-------|---------------------------------|
+| 1 | **Explore codebase** – locate `sync()` entry point, current output format, argument parsing, and test file. | – (research only) | **explore** | May miss internal callers → later re‑work. | List of relevant modules/functions and their file paths. |
+| 2 | **Add `--json` flag** – extend CLI argument parser, make `sync()` emit a single JSON object on stdout when flag is set: `{"copied": [...], "skipped": N, "src": …, "dst": …}`. Nothing else to stdout in this mode; exit code preserved. | `synccli/__main__.py` (or equivalent), `synccli/__init__.py` (if needed) | **impl** | Forgetting to suppress other stdout prints → test failure. | Running `python3 -m synccli --json <src> <dst>` produces exactly one JSON line and exit code unchanged. |
+| 3 | **Implement `--dry-run` interplay** – when both `--json` and `--dry-run` are given, `copied` list should contain the paths that *would* be copied (no actual file movement). Human‑readable mode remains one path per line. | Same files as #2; add conditional logic for dry‑run. | **impl** | Incorrect list when both flags present → user confusion. | `python3 -m synccli --json --dry-run <src> <dst>` outputs JSON with `copied` containing the placeholder paths; no files actually written. |
+| 4 | **Keep human mode unchanged** – verify that default (no flags) still prints one path per line. | – (review existing code) | **review** | Accidental regression of human output format. | `python3 -m synccli <src> <dst>` still prints each copied path on its own line. |
+| 5 | **Add unit tests for JSON shape** – write/extend `test_synccli.py` with tests that: <br>• parse the JSON output and assert keys `copied`, `skipped`, `src`, `dst` exist; <br>• verify dry‑run semantics (`copied` reflects would‑be copy); <br>• ensure no extra stdout in `--json` mode. | `test_synccli.py` (add/modify test functions) | **impl** (test code) → **review** (test quality) | Test may become brittle if JSON format changes. | All tests in `test_synccli.py` pass via `python3 -m unittest -v`. |
+| 6 | **Run full test suite** – execute `python3 -m unittest -v` to confirm no regressions. | – | **review** (suite run) | Existing tests may fail for unrelated reasons. | All tests pass (exit code 0). |
+
+The plan respects the constraints: Python 3.10 stdlib only, no new dependencies, `sync()` signature unchanged, and only the described modifications are made.

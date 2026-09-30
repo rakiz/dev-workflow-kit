@@ -1,0 +1,26 @@
+# T2 medium — eval-2026-09-30-T2-fireworks-ai-accounts-fireworks-models-nemotron-lightning-3p5-30b-a3b-medium
+
+The bug is in `collect_stale` at `synccli.py:55`. The loop starts at `range(1, len(items))` instead of `range(0, len(items))`, so the first item (index 0) is never checked.
+
+Fix:
+
+---
+
+All 6 tests pass. 
+
+**Fix:** Changed `range(1, len(items))` to `range(0, len(items))` in `collect_stale` at `synccli.py:55`, so the first item (index 0) is properly checked for stale status.
+
+**Diff:**
+```diff
+@@ -54,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
++    for i in range(0, len(items)):
+         path, fresh = items[i]
+         if path not in seen and not fresh:
+             stale.append(path)
+```
+
+**Final test results:** 6/6 passed.

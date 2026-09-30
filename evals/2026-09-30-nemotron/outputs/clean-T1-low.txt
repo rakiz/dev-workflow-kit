@@ -1,0 +1,42 @@
+# T1 low — eval-2026-09-30-T1-fireworks-ai-accounts-fireworks-models-nemotron-lightning-3p5-30b-a3b-low
+
+Now I have a clear picture of the codebase. Here's the execution plan:
+
+**Task 1: Add `--json` CLI argument to argparse**
+- **Objective**: Add `--json` flag to the argument parser in `synccli.main()`
+- **Files**: `synccli.py` — add `parser.add_argument("--json", action="store_true")`
+- **Agent**: `impl`
+- **Risks**: Minimal — simple flag addition; must ensure it doesn't break existing `--dry-run` interaction
+- **Acceptance criterion**: `--json` flag parsed successfully without errors
+
+**Task 2: Implement JSON output mode in `main()`**
+- **Objective**: When `--json` is set, compute `copied`/`skipped`/`src`/`dst` and print single JSON object on stdout; suppress per-line path output. `skipped` counts files already up-to-date (present in both manifests with matching state). With `--dry-run` + `--json`, `copied` lists what would be copied.
+- **Files**: `synccli.py` — modify `main()` to branch on `args.json`, compute `skipped` pre-sync, print `json.dumps({"copied": to_copy, "skipped": skipped, "src": args.src, "dst": args.dst})` vs per-line print
+- **Agent**: `impl`
+- **Risks**: Ensuring zero extra text printed to stdout in JSON mode; `skipped` computation consistency
+- **Acceptance criterion**: `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` is the only content on stdout; exit code 0 unchanged
+
+**Task 3: Add JSON-shape tests to `test_synccli.py`**
+- **Objective**: Add unit tests validating JSON output format (valid JSON, all keys present), dry-run semantics with `--json`, and human mode unchanged
+- **Files**: `test_synccli.py` — add test class/methods using `unittest` with temp dirs, asserting `json.loads(output)` succeeds and has required keys; test `--json --dry-run` produces `copied` with expected entries
+- **Agent**: `impl`
+- **Risks**: Tests must not break existing `TestScanFiles`, `TestCollectStale`, `TestSync` suites
+- **Acceptance criterion**: All existing tests pass + new JSON-shape tests pass
+
+**Task 4: Run full test suite to verify no regressions**
+- **Objective**: Execute `python3 -m unittest -v` to confirm everything works
+- **Files**: None (bash execution)
+- **Agent**: `explore`
+- **Risks**: None if Tasks 1-3 correct
+- **Acceptance criterion**: All tests pass (including new JSON tests)
+
+---
+
+The execution plan is complete. Here's a summary of the 4 ordered tasks:
+
+1. **Add `--json` CLI argument** to `argparse` in `synccli.py:91` — simple `store_true` flag
+2. **Implement JSON output mode** in `main()` — when `--json` set, compute `skipped` (files already up-to-date), print `json.dumps({"copied": to_copy, "skipped": skipped, "src": args.src, "dst": args.dst})` and suppress per-line output; `--dry-run` + `--json` shows what would be copied
+3. **Add JSON-shape tests** to `test_synccli.py` — validate JSON output keys, valid JSON parsing, and dry-run semantics
+4. **Run full test suite** with `python3 -m unittest -v` to confirm zero regressions
+
+All existing constraints respected: Python 3.10 stdlib only, no new deps, `sync()` signature stable, human mode unchanged when `--json` absent.

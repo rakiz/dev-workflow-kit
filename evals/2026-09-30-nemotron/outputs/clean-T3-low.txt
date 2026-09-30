@@ -1,0 +1,10 @@
+# T3 low — eval-2026-09-30-T3-fireworks-ai-accounts-fireworks-models-nemotron-lightning-3p5-30b-a3b-low
+
+Based on the last commit (`git show HEAD`), here are the real defects found:
+
+| Severity | Defect | Location |
+|---|---|---|
+| **major** | `copy_many` silently swallows all exceptions via `except Exception: continue`, hiding copy failures and risking silent data loss/incomplete sync | `incremental.py:15-17` |
+| **minor** | `filter_excluded` uses mutable default argument `excluded=[]`, causing the list to accumulate across calls and leading to incorrect exclusion behavior | `incremental.py:6` |
+
+The `merge_manifest` function's `<=` mtime comparison is a design choice (newer-or-equal semantics), not a defect.

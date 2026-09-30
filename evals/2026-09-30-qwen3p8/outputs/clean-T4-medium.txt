@@ -1,0 +1,16 @@
+# T4 medium — eval-2026-09-30-T4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium
+
+**Verdict: don't build this as written — three load-bearing assumptions are factually wrong about the code being reused.**
+
+**Major, fix first:**
+1. **`sync()` can't be the daemon engine.** Deletions/renames never propagate (`changed_files()` only walks the new manifest, synccli.py:36) — `dst` grows orphans forever. Failed copies are recorded as synced (synccli.py:62 catches OSError → `pass`, then synccli.py:85 writes the manifest unconditionally), so failures are *never retried* — silent permanent divergence. Build a real daemon engine; keep `sync()` as a CLI wrapper (GOAL.md requires signature stability).
+2. **"Atomicity not needed" is false.** In-place `json.dump` mid-crash leaves truncated JSON the daemon can't load; at 50k entries the manifest is ~5 MB rewritten twice per second. Use temp + `os.replace` + fsync. The SQLite rejection is factually wrong — `sqlite3` is stdlib, and gives crash-safety + incremental updates free.
+3. **500 ms full-tree scan at 50k files isn't "cheap."** walk+stat+sort+5 MB JSON serialize ≈ 0.3–1 s/cycle in CPython → saturates a core on an idle tree, can't hold 500 ms. And "long copy delays poll, fine" is inverted: one multi-GB file stalls all detection; `copy_file` reads whole files into RAM (OOM) and copies non-atomically (torn files, marked synced). Decouple detection from copying (worker + queue), stream in chunks, temp+rename per file, interval multi-second/configurable.
+
+**Wrong assumptions:**
+- "mtime always changes on edit" — false: rsync/tar/git checkout/some editors preserve mtimes; `st_mtime` is float *seconds* (use `st_mtime_ns`). Same-size edits inside granularity are silently missed.
+- The hashing rejection is a strawman: hash-on-mtime-change (verify suspects only) is cheap and closes the gap.
+
+**Also missing:** single-instance locking (two daemons corrupt one manifest), daemon lifecycle (startup reconciliation, signals, backoff — stdout is wrong for a daemon), permissions/exec bits lost, symlinks mishandled, `__pycache__` gets synced (`EXCLUDE_TOP_DIRS` exists but `sync()` never uses it).
+
+**Order:** #1 and #2 first (silent data loss/corruption), then #3 (architecture), then detection (#4); locking/interval fold into the rewrite.

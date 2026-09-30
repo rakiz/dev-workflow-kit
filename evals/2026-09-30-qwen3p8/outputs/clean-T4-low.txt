@@ -1,0 +1,18 @@
+# T4 low — eval-2026-09-30-T4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low
+
+**Verdict: don't build it as written.** Polling daemon is fine at this scale; three decisions are correctness/data-loss class.
+
+**Major risks (wrong assumptions):**
+
+1. **"Atomicity is not needed" is false.** `open("w")` truncates; crash mid-write → empty/corrupt manifest → daemon dies or recopies everything, deletion state lost. Also ~5 MB rewritten every 500 ms ≈ **~0.9 TB/day** of identical writes (battery/SSD/NFS killer). Fix: keep manifest in memory, persist via temp+fsync+`os.replace` **only when dirty** (changes are a few/min, not 2/s).
+2. **"Log and continue" isn't even true of the code being reused.** `copy_file()` swallows all `OSError` silently, and `sync()` writes the manifest unconditionally — a failed copy is recorded as synced and **never retried**. ENOSPC → total silent divergence. Fix: never advance manifest state on failure; retry with backoff; durable logging (a daemon's stdout goes nowhere); halt/alert on fatal errors.
+3. **Deletions/renames are invisible.** `changed_files()` iterates the new manifest only — src deletes never propagate; renames duplicate. Missing core feature for a "keep in sync" tool. Fix: explicit removal pass over old−new, guarded against src-unmounted mass delete.
+4. **500 ms budget is unmeetable.** Per cycle: 50k `os.stat` + ~5 MB JSON load + dump ≈ 0.4–0.9 s warm, seconds on cold cache/network FS → permanent busy loop. "Hardcoded interval, configuring invites misuse" is backwards. Fix: seconds-scale, configurable/adaptive interval with real sleep.
+5. **Non-atomic dst writes.** `"wb"` truncates the good file first; failed copy destroys previously-good dst; `fsrc.read()` loads whole files into RAM. Fix: chunked stream to temp + `os.replace`, re-stat src after copy (TOCTOU).
+6. **Single-threaded copy stalls detection** — a git checkout burst leaves the daemon permanently behind. Fix: decouple scan from a bounded copy queue.
+7. **"mtime always changes on edit" is false** — `rsync -a`, `cp -p`, tar/unzip, 1 s granularity on some FS. Fix: keep mtime+size fast path, hash on change-confirmation (not every poll — the design conflated the two).
+8. **Reusing one-shot `sync()` doesn't fit a daemon** — stateless full-scan/full-rewrite per cycle re-pays all the above; no single-instance lock (two daemons race on the shared manifest). Fix: extract a stateful engine, make `sync()` a wrapper; reuse `scan_files`/`file_state`, not the orchestration.
+
+**Change first:** (1) atomic dirty-only manifest persistence → (2) error semantics → (3) deletion pass → (4) temp+rename streamed copies → (5) scan/copy decoupling → (6) configurable interval → (7) engine extraction + flock.
+
+Also noted: `collect_stale` has an off-by-one its test papers over, and no test covers failed copy/deletion/corrupt manifest — fix before building on it.

@@ -1,0 +1,31 @@
+# T4 xhigh — eval-2026-09-30-T4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh
+
+**Verdict: stop — redesign detection + state before coding.** Review grounded in the actual code (claims reproduced/measured):
+
+**Major risks**
+1. **Manifest crash-unsafe** — `sync()` truncates-in-place (synccli.py:85) and reload is unguarded (synccli.py:78): a crash mid-write → uncaught `JSONDecodeError`, daemon won't restart.
+2. **Silent permanent divergence** — `copy_file` swallows `OSError` (synccli.py:68), yet `sync()` records the file as synced anyway: a failed copy is never retried, `dst` misses it forever (reproduced).
+3. **Deletions/renames never propagate** — `changed_files` only scans new keys (synccli.py:36-42); orphans accumulate in `dst`, contradicting DESIGN.md:6 "mirror".
+4. **500 ms is physically impossible** — measured no-op cycle over 50k files: **1.36 s** (manifest 3.68 MB). The loop is really "as fast as it can", saturating a core; ~230-640 GB/day of identical JSON rewritten.
+5. **Non-atomic dst writes + torn copies** — `open(dst,"wb")` truncates immediately (synccli.py:66); whole-file `read()` can copy a mid-save file; whole-file read also OOMs on one huge file.
+
+**Wrong assumptions**
+- "mtime always changes on edit" — false: `cp -p`/rsync/archives preserve it; 1-2 s mtime granularity (HFS+/SMB/NFS) hides same-size edits.
+- "Atomicity not needed, file is small" — it's 3.68 MB at scale, and the failure is a hard crash.
+- "Polling is cheap" — refuted by measurement above.
+- "Errors logged and skipped" — nothing is logged; error laundered into success.
+- "Reuse `sync()` directly" — its signature/behavior (no deletes, unconditional rewrite, no failure accounting) can't support the daemon; and those fixes collide with the pending `--json`/`--dry-run` work in GOAL.md.
+- Existing code is already red: `collect_stale` drops the first item (synccli.py:55, committed test fails), `filter_excluded` mutable default (incremental.py:10), and `sync()` never applies excludes → `node_modules` churn synced every cycle.
+
+**Rejected alternatives don't hold**
+- Hashing: straw man — hash only files whose size+mtime changed (cheap, fixes the false negatives).
+- SQLite: factually wrong — `sqlite3` is stdlib (GOAL.md:13 permits it).
+- Watchers: right tool at this scale; the standard "watcher + slow-poll fallback" was never considered.
+
+**Change first (minimal set)**
+1. Atomic manifest: temp + `os.replace`; guard load with fallback `{}` → resync; rewrite only when changed.
+2. FSEvents watcher + 2-5 s polling fallback; drop the 500 ms full-tree poll (or ≥2 s interval + `os.scandir`, no `relpath`/`sorted`).
+3. Atomic dst copy (temp + rename); track per-file copy success; retry failures next cycle.
+4. Define mirror semantics: delete `dst` entries for vanished `src` files.
+5. Logs to stderr (stdout is JSON-only per GOAL.md:5-7); wire in excludes; size guard on reads.
+6. Before any code: fix the failing `collect_stale` test and decide how `sync()` changes coexist with the `--json`/`--dry-run` work.

@@ -1,0 +1,37 @@
+# T1 low — eval-2026-09-30-T1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low
+
+# Execution plan — `--json` + `--dry-run` UX (GOAL.md)
+
+Context gathered (read-only): `synccli.py:90` `main()` prints one path/line; `sync()` (`synccli.py:72`) already supports `dry_run` and returns the copied list; `copy_file` (`synccli.py:62`) **silently swallows OSError**, so "copied" can contain files that actually failed. `DESIGN.md` (v2 daemon) is out of scope. Pre-existing bugs (`collect_stale` skips index 0, `incremental.filter_excluded` mutable default) are out of scope — do not touch.
+
+---
+
+**Task 1 — Settle the JSON contract (design-review)**
+- Objective: decide the one underspecified point: what `"skipped": N` means, given `copy_file` swallows failures and `sync()`'s signature must stay stable. Options: (a) `skipped` = files that changed but failed to copy (requires `copy_file` to return a bool — internal, allowed); (b) `skipped` = 0 placeholder. Also confirm: JSON goes to stdout only, errors/diagnostics to stderr, exit code unchanged.
+- Files: none (decision recorded in the task brief for impl).
+- Agent: design-review (cheap-design-review; escalate to strong-design-review only if it contests the contract).
+- Risks: choosing (a) changes observable behavior of `sync()`'s return value for internal callers (`incremental.py` imports only `copy_file`, so blast radius is tiny); choosing (b) ships a permanently-0 key.
+- Acceptance: a written one-paragraph contract (semantics of `copied`/`skipped` under `--dry-run` and failure) that impl can follow verbatim.
+
+**Task 2 — Implement `--json` (impl)**
+- Objective: add `--json` flag to `main()`; emit exactly one JSON object `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` to stdout; nothing else on stdout in that mode; human mode byte-identical; `--dry-run` + `--json` lists what *would* be copied; `sync()` signature unchanged; stdlib only.
+- Files: modify `synccli.py` (and `copy_file` return value only if Task 1 chose option (a)).
+- Agent: impl (cheap-code), briefed with Task 1's contract.
+- Risks: accidental stdout pollution (argparse errors, tracebacks) breaking machine consumers; `--dry-run` path returning before manifest write must not alter JSON shape; temptation to "fix" unrelated bugs — forbidden.
+- Acceptance: `python3 -m synccli SRC DST --json | python3 -m json.tool` parses and shows exactly the 4 keys; second run with both flags yields `copied` = same list, nothing written to DST; human-mode output unchanged.
+
+**Task 3 — Unit tests (impl, same `task_id` as Task 2)**
+- Objective: add tests to `test_synccli.py`: stdout is valid JSON with the 4 keys; `copied` content correct; dry-run semantics (nothing copied, manifest not written, `copied` lists candidates); human mode regression (one path per line).
+- Files: modify `test_synccli.py`.
+- Agent: impl (reuse Task 2's cheap-code session — small delta, context already loaded).
+- Risks: tests capturing stdout must not mask real failures; tmpdir-based tests must stay isolated from existing `TestSync`.
+- Acceptance: `python3 -m unittest -v` fully green, including all pre-existing tests.
+
+**Task 4 — Review (review)**
+- Objective: mandatory read-only review of the full diff: contract conformance, stdout purity, no signature change to `sync()`, no new deps, no out-of-scope edits.
+- Files: none (reviews diff of `synccli.py`, `test_synccli.py`).
+- Agent: review (cheap-review). Minor findings → back to Task 2/3's cheap-code via `task_id`; major findings → escalate to strong-code.
+- Risks: reviewer rubber-stamping a `skipped` value inconsistent with Task 1's contract.
+- Acceptance: review verdict with zero unresolved major findings; `python3 -m unittest -v` green at final HEAD.
+
+No repo modifications were made — plan only.

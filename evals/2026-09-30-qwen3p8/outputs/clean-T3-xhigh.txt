@@ -1,0 +1,17 @@
+# T3 xhigh — eval-2026-09-30-T3-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh
+
+Reviewed `git show HEAD` (adds `incremental.py`) against the v0.1 code it builds on; each defect below verified by running it.
+
+**Major**
+
+1. **Mutable default accumulator in `filter_excluded`** — incremental.py:10. `excluded=[]` is created once at def time and shared by every call. Verified: call 1 with `[".git/config", "src/a.py"]` returns `['.git/config']`; call 2 with `["docs/b.md"]` (nothing excludable) still returns `['.git/config']`. Exclusions accumulate across calls/batches, so callers acting on the result silently drop the wrong files from sync — corrupted cross-call state and lost syncs.
+
+2. **`copy_many` reports failed copies as "done"** — incremental.py:18–27. The docstring promises "the list of dst paths done", but `synccli.copy_file` (synccli.py:62–69) swallows every `OSError` and returns `None`, so the `try/except` never fires for real failures (missing source, permissions, disk full) and `done.append(dst)` runs unconditionally. Verified: copying a nonexistent src returns the dst in `done` while the dst doesn't exist. Any caller that updates the manifest from `done` records un-copied files as synced, so they're never retried — silent, permanent data loss at the destination. (The `except Exception: continue` is effectively dead code for the common failure modes and discards genuine errors with no log.)
+
+**Minor**
+
+3. **`merge_manifest` never prunes deleted files** — incremental.py:36–38. Merging only adds/updates; entries for files that vanished from the source stay forever. Verified: `gone.txt` survives the merge. The manifest grows unboundedly and increasingly misrepresents what's actually synced.
+
+4. **`merge_manifest` can't converge when a source mtime regresses** — incremental.py:37. The `old[rel]["mtime"] <= state["mtime"]` rule keeps the older-but-higher-mtime entry when src's mtime moves backwards (restore from backup, clock fix, `rsync -t`). Verified: src at mtime 50 is rejected in favor of stored mtime 100. Since `changed_files` compares full state, the file is re-copied on every subsequent pass forever and the manifest never reflects the actual synced state.
+
+5. **`filter_excluded` name contradicts its contract** — incremental.py:10–11. The name reads as "filter out the excluded ones" (return what remains); it actually returns the excluded subset, per the docstring. A caller trusting the name gets the exact inverse — syncing only `.git`/`__pycache__` content. Misleading API contract, easy to use backwards.

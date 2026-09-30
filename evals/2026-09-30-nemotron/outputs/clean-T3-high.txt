@@ -1,0 +1,5 @@
+# T3 high — eval-2026-09-30-T3-fireworks-ai-accounts-fireworks-models-nemotron-lightning-3p5-30b-a3b-high
+
+- **`filter_excluded`** – mutable default argument `excluded=[]` causes accumulated exclusions across calls. **Severity: minor**  
+- **`copy_many`** – silently swallows all exceptions and returns only successful copies, risking data loss for failed transfers. **Severity: major**  
+- **`merge_manifest`** – assumes every entry has an `"mtime"` key (can raise `KeyError`) and uses `<=` comparison that overwrites existing entries with equal mtime, potentially discarding older state. **Severity: minor**

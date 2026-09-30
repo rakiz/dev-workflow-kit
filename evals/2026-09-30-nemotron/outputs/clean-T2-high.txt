@@ -1,0 +1,17 @@
+# T2 high — eval-2026-09-30-T2-fireworks-ai-accounts-fireworks-models-nemotron-lightning-3p5-30b-a3b-high
+
+The bug is in `collect_stale` at line 55: `for i in range(1, len(items))` starts at index 1, skipping the first item. It should start at index 0.
+
+---
+
+All 6 tests pass. Here's the fix:
+
+**Diff** (synccli.py:55):
+```diff
+-    for i in range(1, len(items)):
++    for i in range(0, len(items)):
+```
+
+**Root cause**: `collect_stale` iterated from index 1, skipping the first item in the list. This caused `test_first_item_stale_is_included` to return only `["y.txt"]` instead of `["x.txt", "y.txt"]` when given `[("x.txt", False), ("y.txt", False)]`.
+
+**Final test results**: All 6 tests pass (OK).
