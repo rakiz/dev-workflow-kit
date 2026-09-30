@@ -149,13 +149,26 @@ Two rules bind the whole grid:
 | Function \ tier | cheap | strong | alternative | alternative2 |
 |---|---|---|---|---|
 | design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` sol | `strong-design-alternative2` opus |
-| design-review | `cheap-design-review` deepseek | `strong-design-review` sol | `strong-design-review-alternative` s5.5 `medium` | `strong-design-review-alternative2` grok |
+| design-review | `cheap-design-review` deepseek | `strong-design-review` sol | `strong-design-review-alternative` s5.5 `medium` | `strong-design-review-alternative2` pro `high` |
 | code (impl) | `cheap-code` glm `none` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
-| code-review | `cheap-review` gemini `low` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` grok |
+| code-review | `cheap-review` gemini `low` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
 | orchestration | session default model: glm (the user's configured default model) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
-Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash.
+Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash, qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro.
+
+Eval 2026-09-30 addendum — qwen and pro join as the 7th/8th families
+(`evals/2026-09-30-qwen3p8/`, `evals/2026-09-30-deepseek-v4-pro/`): qwen
+`xhigh` is the best review ever measured here (3/3 seeded + 2 bonus defects,
+each proven by executed snippets, $0.151 — grok's 3/3+2 without proofs was
+$0.200); pro `high` matches qwen-tier design-review (10/10 seeded flaw
+categories at `none`/`high`, $0.047–0.058 vs grok's $0.085). Effort facts:
+qwen `xhigh` pays for itself on review/T1 only; pro `max` never pays
+(shallower T4 than `none` at equal price). Both models kept while
+accessible; **grok is the documented fallback for both `alternative2`
+rungs**: MongoDB's managed-settings draft (`10gen/mongocode`) whitelists pro
+but not qwen, so when the managed layer lands on a machine,
+swap `strong-review-alternative2` back to grok.
 
 Escalation semantics: rung N+1 is invoked only when rung N failed, stalled or
 expressed doubt — never speculatively. Invoke rung N+1 with rung N's output

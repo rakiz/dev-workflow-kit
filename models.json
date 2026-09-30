@@ -17,7 +17,7 @@
 
     "strong-review":               { "model": "fireworks-ai/accounts/fireworks/models/glm-5p3-flash", "family_hint": "glm",    "variant": "high" },
     "strong-review-alternative":   { "model": "github-copilot/claude-sonnet-5.5",                     "family_hint": "claude", "variant": "medium" },
-    "strong-review-alternative2":  { "model": "github-copilot/grok-4.7",                              "family_hint": "xai" },
+    "strong-review-alternative2":  { "model": "fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b", "family_hint": "qwen", "variant": "xhigh" },
 
     "strong-design":               { "model": "github-copilot/claude-sonnet-5.5", "family_hint": "claude", "variant": "high" },
     "strong-design-alternative":   { "model": "github-copilot/gpt-6.1-sol",       "family_hint": "gpt" },
@@ -25,6 +25,6 @@
 
     "strong-design-review":               { "model": "github-copilot/gpt-6.1-sol",       "family_hint": "gpt" },
     "strong-design-review-alternative":   { "model": "github-copilot/claude-sonnet-5.5", "family_hint": "claude", "variant": "medium" },
-    "strong-design-review-alternative2":  { "model": "github-copilot/grok-4.7",          "family_hint": "xai" }
+    "strong-design-review-alternative2":  { "model": "grove-misc/fw-deepseek-v4-pro",          "family_hint": "deepseek", "variant": "high" }
   }
 }

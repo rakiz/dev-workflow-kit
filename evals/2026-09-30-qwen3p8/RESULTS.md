@@ -51,17 +51,11 @@ design-review tier; qwen `xhigh` review beats grok's rung ($0.151 vs
 $0.200, same 3/3+2, with executed proofs); T4 beats every rung measured
 including opus. Not a bulk candidate: $2/$6 is 30–40x deepseek.
 
-## Decision (proposed)
+## Decision (applied 2026-09-30)
 
-`models.json` unchanged by default — this is a **strong-rung upgrade
-opportunity**, the user decides:
-
-- **Replace grok as `strong-review-alternative2` with qwen `xhigh`** — same
-  3/3+2 catch rate at $0.151 vs $0.200, proof-by-execution, and a fresh 7th
-  family (qwen) for cross-lineage depth.
-- **Replace grok as `strong-design-review-alternative2` with qwen
-  (`medium` or `xhigh`)** — 10/10 categories at $0.058–0.074 vs grok's
-  tier-1 at $0.085, measured load figures.
-- Not bulk, not orchestration-default (xhigh only at escalation price).
-- Revisit trigger: none needed — model is stable; re-eval only on a new
-  release (qwen3p9 / max tier).
+**Applied:** qwen `xhigh` takes `strong-review-alternative2` (grok →
+documented fallback). The design-review-alternative2 rung went to
+`fw-deepseek-v4-pro` instead (same T4 tier, cheaper, whitelisted) — the user
+explicitly kept qwen in the roster while it remains accessible, accepting
+the managed-whitelist risk: when the managed layer lands, swap back to grok
+(one `models.json` edit).
