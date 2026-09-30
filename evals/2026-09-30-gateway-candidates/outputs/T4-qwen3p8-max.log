@@ -1,0 +1,49 @@
+[0m
+> build · accounts/fireworks/models/qwen3p8-max
+[0m
+[0m$ [0mrtk ls -la && rtk ls .opencode/agent 2>/dev/null || rtk ls .opencode 2>/dev/null
+755  .git/
+644  DESIGN.md  1.3K
+644  GOAL.md  657B
+644  README.md  210B
+644  incremental.py  1.1K
+644  synccli.py  3.1K
+644  test_synccli.py  1.8K
+[0m
+[0m✱ [0mGlob "DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m→ [0mRead synccli.py
+[0m→ [0mRead incremental.py
+[0m→ [0mRead test_synccli.py
+[0m• [0mDesign review of DESIGN.md[90m Cheap-Design-Review Agent[0m
+[0m✓ [0mDesign review of DESIGN.md[90m Cheap-Design-Review Agent[0m
+Design review complete (verified against the actual code, with measurements and reproductions — no files touched). **Verdict: stop, fix the design before writing `syncd`.**
+
+## Blockers / wrong assumptions
+
+1. **"Next pass will retry" is false — silent data loss.** `copy_file` swallows `OSError` (synccli.py:68-69), and `sync()` then writes the *full* src manifest regardless of which copies succeeded (synccli.py:85-86). Reproduced: a failed copy is recorded as synced and **never retried**. This is the daemon's load-bearing error path (DESIGN.md:18).
+2. **Non-atomic manifest is a real hazard, not a non-issue.** Size is irrelevant: `"w"` truncates, a kill mid-dump leaves torn JSON, and startup's bare `json.load` (synccli.py:78-79) has no handler → daemon won't start. Fix is one line (`tmp` + `os.replace`).
+3. **The 500 ms interval is fiction.** Measured on a 50k-file tree: scan = **1.26 s**, manifest = **3.9 MB**, so the loop period is ~1.4 s and pegs a core at ~100%, forever (DESIGN.md:11,19).
+4. **"mtime always changes on edit" is false.** `cp -p`/rsync/tar restore mtimes; same-size edits within mtime granularity are invisible. A permanently missed change is the worst failure for a sync daemon (DESIGN.md:15).
+5. **Deletions never propagate** — `changed_files` only sees new/changed keys (synccli.py:39-41); dst orphans stay forever. "Continuously in sync" is undefined without this.
+6. **"Log and continue" contradicts the code it reuses**: `copy_file` doesn't log (`pass`), and `os.makedirs` is *outside* the try (synccli.py:64) → daemon crash on dst dir errors. Also `fdst.write(fsrc.read())` loads whole files into RAM — a 4 GB file = 4 GB RSS, and `MemoryError` escapes the handler.
+
+## Breaks under real load
+
+- ~7.9 MB/s manifest rewrite churn at intended 2 Hz (SSD wear; re-upload storm if dst is Dropbox/iCloud-synced).
+- No debounce + in-place dst writes → consumers read truncated files while a writer is active; one FIFO in src hangs the single thread forever.
+- No single-instance lock: two daemons corrupt the manifest.
+- Rejected-alternatives reasoning is hand-wavy: `sqlite3` **is** stdlib (DESIGN.md:27 is factually wrong), and nobody proposes hashing all 50k files — only hash candidates whose (size,mtime) changed, which is the only backstop for #4.
+- Reuse base is shaky: `collect_stale` skips index 0 and its own test currently **fails** (`python3 -m unittest` → FAILED).
+
+## Change first, in order
+
+1. Manifest: atomic write + guarded load with rebuild-on-corruption.
+2. Record **only successfully copied** files in the manifest (makes retry actually true); `copy_file` returns success and logs; move `makedirs` inside the guard.
+3. Stream copies (`shutil.copyfile`), copy via temp+rename so dst never shows partial files.
+4. Detection: keep (size,mtime) as filter, **hash candidates only**; define deletion propagation.
+5. Interval: floor at `max(configured, measured scan)`, default seconds not 500 ms; add lockfile.
+6. Rollout: don't "reuse `sync()` directly" — split into `plan_changes()` / `apply_changes()` and keep `sync()` as a thin wrapper (signature stable per GOAL.md).
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-11800 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

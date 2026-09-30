@@ -1,0 +1,88 @@
+[0m
+> build · accounts/fireworks/models/qwen3p8-max
+[0m
+[0m$ [0mgit show HEAD --stat && git show HEAD
+commit a8773308a1ab7a2eb01acad349c76e1322151922
+Author: eval <eval@example.com>
+Date:   Wed Sep 30 18:54:53 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+commit a8773308a1ab7a2eb01acad349c76e1322151922
+Author: eval <eval@example.com>
+Date:   Wed Sep 30 18:54:53 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mls; git log --oneline -5
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+a877330 v0.2: add exclude filter, batch copy and manifest merge
+1a6fc6b Initial synccli
+[0m
+[0m✱ [0mGlob "**/synccli*"[90m 1 match[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead incremental.py
+**Defects in `a877330` (incremental.py):**
+
+1. **`filter_excluded` mutable default argument — major.** `excluded=[]` (incremental.py:10) is created once at def time; every call without an explicit list appends into the same shared list. A second call returns the first call's exclusions plus its own — cross-call state corruption.
+
+2. **`copy_many` reports failed copies as done — major.** `synccli.copy_file` swallows `OSError` internally (`pass`, synccli.py:68-69), so a failed copy never raises; the `try/except` in incremental.py:22-26 never fires and `dst` is appended to `done` anyway. The return value ("dst paths done", i.e. successfully copied) is false for unreadable sources. If the caller updates the manifest from `done` (the obvious use), those files are recorded as synced but were never copied, and subsequent incremental syncs skip them — silent data loss.
+
+3. **`merge_manifest` keeps stale state when mtime goes backward — minor.** incremental.py:38 adopts a new state only if `old[rel]["mtime"] <= state["mtime"]`. A genuine content change with an older mtime (rollback/restore, clock skew) is dropped from the merged manifest, so the manifest misrepresents the destination. (Partly self-healing because `changed_files` compares full state, but the merged manifest itself is wrong.)
+
+4. **`merge_manifest` `KeyError` on entries lacking `"mtime"` — minor.** `old[rel]["mtime"]` (incremental.py:38) crashes on a legacy/hand-edited/corrupt destination manifest, unlike `changed_files`, which tolerates any state shape.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-11038 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

@@ -1,0 +1,70 @@
+[0m
+> build · fw-glm-5.3
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m
+[0m$ [0mls -R . | head -30; wc -l synccli/*.py 2>/dev/null || wc -l *.py
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+zsh:1: no matches found: synccli/*.py
+      40 incremental.py
+     103 synccli.py
+      55 test_synccli.py
+     198 total
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead incremental.py
+# Execution plan — synccli `--json` + dry-run UX
+
+Design pre-note (drives Task 1): `sync()` must keep its signature, and it returns only the copied list. `skipped` (unchanged files) must therefore be derived in `main()` — e.g. `skipped = len(build_manifest(src)) - len(copied)` — or via a tiny helper, without touching `sync()`.
+
+---
+
+**Task 1 — Design the JSON-mode output contract** (agent: `cheap-design`, reviewed by `cheap-design-review`)
+- Objective: decide the exact mechanics — how `skipped` is computed without changing `sync()`; single-line vs indented `json.dumps`; guarantee of stdout purity in `--json` mode; treatment of unreadable files (which `copy_file` silently skips); `copied` = relative paths (consistent with human mode).
+- Files: none (design note appended to GOAL.md only if the team wants it recorded).
+- Risks: ambiguity of `skipped` (unchanged vs failed copies) — GOAL.md doesn't define it; must be pinned before coding. Stdout pollution if any code path prints per-file progress.
+- Acceptance: short written decision covering all points above, validated by review; no code yet.
+
+**Task 2 — Explore existing surface & internal callers** (agent: `explore`)
+- Objective: confirm all internal callers of `sync()` (`incremental.py`, tests, `__main__`) and every `print`/stdout write in the codebase, so JSON mode can't leak extra output.
+- Files: read-only — synccli.py, incremental.py, test_synccli.py.
+- Risks: low; purely informational, but protects against breaking internal callers.
+- Acceptance: a list of every caller of `sync()` and every stdout write site with `file:line`.
+
+**Task 3 — Implement `--json` mode** (agent: `cheap-code`)
+- Objective: add `--json` flag to `main()`; in that mode print exactly one JSON object `{"copied": [...], "skipped": N, "src": <src>, "dst": <dst>}` via `json.dumps` + single `print`, exit code unchanged; human mode untouched; `sync()` signature unchanged; stdlib only.
+- Files to modify: synccli.py (argparse + output branch, ~10 lines in `main()`).
+- Risks: computing `skipped` by re-scanning `src` (extra walk) — acceptable at this scale; printing anything else to stdout in JSON mode; argparse help text drift.
+- Acceptance: `python3 -m synccli --json SRC DST` on a temp tree emits exactly one parseable JSON line with all four keys and nothing else on stdout; `python3 -m synccli SRC DST` still prints one path per line; `python3 -m synccli --help` shows the flag.
+
+**Task 4 — Implement `--dry-run` + `--json` interplay** (agent: `cheap-code`, same session as Task 3 via `task_id`)
+- Objective: with both flags, `copied` lists would-be copies and no file/manifest is written (already guaranteed by `sync()`'s dry-run path — verify, don't duplicate); `skipped` semantics identical to real run.
+- Files to modify: synccli.py (only if the dry-run branch needs wiring; likely zero extra code beyond Task 3).
+- Risks: dry-run re-scanning `src` twice; accidentally writing the manifest in dry-run (regression).
+- Acceptance: `--dry-run --json` returns the would-copy list while `find DST -name .sync_manifest.json` shows no manifest created/modified and dst tree is empty of copied files.
+
+**Task 5 — Unit tests** (agent: `cheap-code`, same session)
+- Objective: extend test_synccli.py with tests: (a) valid JSON parse, (b) all four keys present, (c) `copied` matches changed files, (d) dry-run JSON lists would-be copies and writes nothing, (e) human mode output unchanged, (f) stdout contains only the JSON object.
+- Files to modify: test_synccli.py (new test class/methods, unittest style per README).
+- Risks: tests using `print`-capture of `main()` vs calling `sync()` directly — must go through `main(argv)` to test the CLI surface; temp-dir cleanup.
+- Acceptance: `python3 -m unittest -v` passes fully (old + new tests), no skipped tests.
+
+**Task 6 — Review the diff** (agent: `cheap-review`)
+- Objective: mandatory relecture of Tasks 3–5 output: stdout purity, signature stability, stdlib-only, Python 3.10 compat.
+- Risks it checks: JSON emitted before/after other output; `skipped` off-by-one; regression in human mode.
+- Acceptance: review finds zero major issues, or minors fixed (by resuming Task 3 session) and re-reviewed.
+
+**Task 7 — Final audit** (agent: `strong-review-alternative`)
+- Objective: independent-lineage audit of the whole change against GOAL.md's 4 points + constraints before merge.
+- Files: none modified (read-only; escalates findings back if any).
+- Acceptance: GOAL.md checklist ticked point-by-point; `python3 -m unittest -v` green.
+
+Sequencing: 1 ∥ 2 → (3+4+5 one cheap-code session) → 6 → 7. No edits made in this response.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-94486 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

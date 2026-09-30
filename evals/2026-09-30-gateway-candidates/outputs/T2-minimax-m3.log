@@ -1,0 +1,113 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3
+[0m
+[0m$ [0mls -la
+total 48
+drwxr-xr-x@    9 sebastien.mendez  staff     288 Sep 30 19:00 .
+drwx------@ 8531 sebastien.mendez  staff  272992 Sep 30 19:00 ..
+drwxr-xr-x@   13 sebastien.mendez  staff     416 Sep 30 19:00 .git
+-rw-r--r--@    1 sebastien.mendez  staff    1317 Sep 30 19:00 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff     657 Sep 30 19:00 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff    1157 Sep 30 19:00 incremental.py
+-rw-r--r--@    1 sebastien.mendez  staff     210 Sep 30 19:00 README.md
+-rw-r--r--@    1 sebastien.mendez  staff    3172 Sep 30 19:00 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff    1834 Sep 30 19:00 test_synccli.py
+[0m
+[0m→ [0mRead README.md
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead incremental.py
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... FAIL
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+======================================================================
+FAIL: test_first_item_stale_is_included (test_synccli.TestCollectStale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-15275/test_synccli.py", line 24, in test_first_item_stale_is_included
+    self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+AssertionError: Lists differ: ['y.txt'] != ['x.txt', 'y.txt']
+
+First differing element 0:
+'y.txt'
+'x.txt'
+
+Second list contains 1 additional elements.
+First extra element 1:
+'y.txt'
+
+- ['y.txt']
++ ['x.txt', 'y.txt']
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+FAILED (failures=1)
+[0m
+Found it — `collect_stale` uses `range(1, len(items))`, which skips the first item, but `test_first_item_stale_is_included` expects the first item to be included.
+[0m← [0mEdit synccli.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-15275/synccli.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-15275/synccli.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-15275/synccli.py
+@@ -51,9 +51,9 @@
+ """
+ if seen is None:
+     seen = set()
+ stale = []
+-for i in range(1, len(items)):
++for i in range(len(items)):
+     path, fresh = items[i]
+     if path not in seen and not fresh:
+         stale.append(path)
+ return stale
+
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+[0m
+[0m$ [0mgit diff
+diff --git a/synccli.py b/synccli.py
+index ae41a1e..a3760fe 100644
+--- a/synccli.py
++++ b/synccli.py
+@@ -52,7 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
++    for i in range(len(items)):
+         path, fresh = items[i]
+         if path not in seen and not fresh:
+             stale.append(path)
+[0m
+All 6 tests pass.
+
+**Fix** (`synccli.py:55`): `collect_stale` iterated from index 1, silently dropping the first entry. The docstring says "items not yet marked fresh" with no first-skip — `range(1, len(items))` was the off-by-one bug.
+
+**Diff**:
+```diff
+-    for i in range(1, len(items)):
++    for i in range(len(items)):
+```
+
+**Final results**: `Ran 6 tests in 0.004s — OK` (all pass).
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-15275 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

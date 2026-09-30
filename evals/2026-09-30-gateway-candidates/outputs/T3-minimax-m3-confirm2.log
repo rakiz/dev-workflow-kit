@@ -1,0 +1,84 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3
+[0m
+[0m$ [0mgit show HEAD
+commit 5885fe1b74e0a8ad188c0d3257cfe4bc0543165e
+Author: eval <eval@example.com>
+Date:   Wed Sep 30 19:06:32 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mls -la
+total 48
+drwxr-xr-x@    9 sebastien.mendez  staff     288 Sep 30 19:06 .
+drwx------@ 8550 sebastien.mendez  staff  273600 Sep 30 19:06 ..
+drwxr-xr-x@   13 sebastien.mendez  staff     416 Sep 30 19:06 .git
+-rw-r--r--@    1 sebastien.mendez  staff    1317 Sep 30 19:06 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff     657 Sep 30 19:06 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff    1157 Sep 30 19:06 incremental.py
+-rw-r--r--@    1 sebastien.mendez  staff     210 Sep 30 19:06 README.md
+-rw-r--r--@    1 sebastien.mendez  staff    3172 Sep 30 19:06 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff    1834 Sep 30 19:06 test_synccli.py
+[0m
+[0m→ [0mRead synccli.py
+5 defects:
+
+**MAJOR** — `merge_manifest` never writes to disk. Name + docstring ("merge … into the destination manifest") imply persistence, but the function only reads `dst_manifest_path` and returns a dict — the file is never updated. Callers that assume the file is updated will silently lose data.
+
+**MAJOR** — `merge_manifest` keeps stale entries from `old`. It only iterates `new_manifest.items()` and never removes keys missing from `new_manifest`. Deleted-from-source files keep their old `{size, mtime}` in the merged manifest → corrupted state on subsequent compares (phantom file presence).
+
+**MAJOR** — `filter_excluded` uses a mutable default argument (`excluded=[]`). The list is shared across calls: a second call without an explicit `excluded` argument will see entries left over from the first call, yielding wrong exclusion output.
+
+**MAJOR** — `filter_excluded` only matches on the first path segment (`p.split(os.sep)[0] in EXCLUDE_TOP_DIRS`). A path like `pkg/__pycache__/x.py` is NOT excluded, because the first segment is `pkg`, not `__pycache__`. Identified as "exclude top dirs" but doesn't actually exclude nested occurrences.
+
+Wait — that's the top-dir design, debatable. Let me flag the more clearly broken one:
+
+**MAJOR** — `copy_many` returns "done" paths that may not actually be copied. `synccli.copy_file` already swallows `OSError` silently, so on the most common failure (unreadable source / unwritable dest) `copy_file` returns normally and `copy_many` appends `dst` to `done` anyway. The returned list conflates "copy attempted" with "copy succeeded" — misleading API contract; data loss is invisible to callers.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-23213 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

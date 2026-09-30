@@ -1,0 +1,235 @@
+[0m
+> build · gpt-6-luna
+[0m
+[0m# [0mTodos
+[•] Inspect the last commit and affected code paths
+[ ] Validate potential defects against surrounding code and tests
+[ ] Report only confirmed defects with severity
+[0m
+[0m$ [0mgit show --stat --oneline HEAD && git show --format=fuller --no-ext-diff --find-renames HEAD
+2ac6af2 v0.2: add exclude filter, batch copy and manifest merge
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+commit 2ac6af2ad4ab0a8bfd509ff68cfaf7401af5a921
+Author:     eval <eval@example.com>
+AuthorDate: Wed Sep 30 18:46:58 2026 +0200
+Commit:     eval <eval@example.com>
+CommitDate: Wed Sep 30 18:46:58 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mgit status --short && git log --oneline -10
+2ac6af2 v0.2: add exclude filter, batch copy and manifest merge
+5a280a8 Initial synccli
+[0m
+[0m✱ [0mGlob "**/*"[90m 6 matches[0m
+[0m✱ [0mGrep "manifest|filter_excluded|copy_many|copy_file|mtime"[90m 37 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead README.md
+[0m→ [0mRead GOAL.md
+[0m
+[0m$ [0mgit show HEAD^:synccli.py && git diff HEAD^ HEAD --check
+"""synccli: synchronize a source directory into a destination using a manifest."""
+import argparse
+import json
+import os
+import sys
+
+MANIFEST_NAME = ".sync_manifest.json"
+
+
+def scan_files(root):
+    """Return sorted list of relative file paths under root."""
+    result = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for name in filenames:
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, root)
+            result.append(rel)
+    return sorted(result)
+
+
+def file_state(path):
+    """Return (size, mtime) for a file."""
+    st = os.stat(path)
+    return {"size": st.st_size, "mtime": st.st_mtime}
+
+
+def build_manifest(root):
+    """Build a manifest {relpath: state} for all files under root."""
+    manifest = {}
+    for rel in scan_files(root):
+        manifest[rel] = file_state(os.path.join(root, rel))
+    return manifest
+
+
+def changed_files(old_manifest, new_manifest):
+    """Return files whose state changed or that are new in new_manifest."""
+    changed = []
+    for rel, state in new_manifest.items():
+        if rel not in old_manifest or old_manifest[rel] != state:
+            changed.append(rel)
+    return changed
+
+
+def collect_stale(items, seen=None):
+    """Collect stale entries: items not yet marked fresh.
+
+    Args:
+        items: iterable of (path, fresh) tuples.
+        seen: set of paths already marked fresh; defaults to a fresh set.
+    """
+    if seen is None:
+        seen = set()
+    stale = []
+    for i in range(1, len(items)):
+        path, fresh = items[i]
+        if path not in seen and not fresh:
+            stale.append(path)
+    return stale
+
+
+def copy_file(src, dst):
+    """Copy src to dst, creating parent directories as needed."""
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    try:
+        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+            fdst.write(fsrc.read())
+    except OSError:
+        pass  # unreadable source: skip it, next pass will retry
+
+
+def sync(src_root, dst_root, dry_run=False):
+    """Sync src_root into dst_root; return list of copied relative paths."""
+    src_manifest = build_manifest(src_root)
+    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+    old_manifest = {}
+    if os.path.exists(dst_manifest_path):
+        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+            old_manifest = json.load(f)
+    to_copy = changed_files(old_manifest, src_manifest)
+    if dry_run:
+        return to_copy
+    for rel in to_copy:
+        copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+        json.dump(src_manifest, f, indent=2)
+    return to_copy
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="synccli")
+    parser.add_argument("src")
+    parser.add_argument("dst")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args(argv)
+    copied = sync(args.src, args.dst, dry_run=args.dry_run)
+    for rel in copied:
+        print(rel)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+[0m
+[0m# [0mTodos
+[✓] Inspect the last commit and affected code paths
+[•] Validate potential defects against surrounding code and tests
+[ ] Report only confirmed defects with severity
+[0m
+[0m$ [0mpython3 -m unittest -v && python3 -c 'import incremental, tempfile, os; print(incremental.filter_excluded([".git/a"])); print(incremental.filter_excluded(["ok.txt"])); d=tempfile.mkdtemp(); print(incremental.copy_many([(os.path.join(d,"missing"), os.path.join(d,"out"))]))'
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... FAIL
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+======================================================================
+FAIL: test_first_item_stale_is_included (test_synccli.TestCollectStale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-92585/test_synccli.py", line 24, in test_first_item_stale_is_included
+    self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+AssertionError: Lists differ: ['y.txt'] != ['x.txt', 'y.txt']
+
+First differing element 0:
+'y.txt'
+'x.txt'
+
+Second list contains 1 additional elements.
+First extra element 1:
+'y.txt'
+
+- ['y.txt']
++ ['x.txt', 'y.txt']
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+FAILED (failures=1)
+[0m
+[0m$ [0mpython3 -c 'import incremental, tempfile, os; print(incremental.filter_excluded([".git/a"])); print(incremental.filter_excluded(["ok.txt"])); d=tempfile.mkdtemp(); print(incremental.copy_many([(os.path.join(d,"missing"), os.path.join(d,"out"))]))'
+['.git/a']
+['.git/a']
+['/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpwst9cefx/out']
+[0m
+[0m# [0mTodos
+[✓] Inspect the last commit and affected code paths
+[✓] Validate potential defects against surrounding code and tests
+[✓] Report only confirmed defects with severity
+[0m
+- **Major — `incremental.py:21–26`:** `copy_many()` reports a destination as done even when the copy failed. `synccli.copy_file()` swallows `OSError`, so a missing or unreadable source still returns normally and gets appended to `done`. A caller relying on this result may mark an uncopied file complete and skip retrying it.
+
+- **Minor — `incremental.py:10`:** `filter_excluded()` uses a mutable default list. Excluded paths from one call persist into later calls, so a later call can return paths that weren’t among its inputs.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-92585 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

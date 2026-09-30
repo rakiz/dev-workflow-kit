@@ -1,0 +1,48 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3
+[0m
+[0m→ [0mRead DESIGN.md
+## DATA/state model (most urgent)
+
+**One-JSON-file-rewritten-every-poll is the load-bearing mistake.**
+At 50k entries × 2 polls/sec you're serializing, writing, and fsync'ing the entire manifest constantly — even when nothing changed. SSD wear, CPU jitter, and (worst) contention with your own copy I/O. And "atomicity not needed" is wrong: a crash mid-rewrite destroys the manifest → next start does a full cold rescan AND has no way to tell a partial-write from a real delete. Rewrite to a temp file + rename, or use SQLite with WAL. At minimum, append-only journal so the cost is proportional to actual change volume, not to file count × poll rate.
+
+## Detection
+
+**"mtime always changes on edit" is False.** Real tools that bite you:
+- `git checkout`, `tar -x`, `cp -p`, `unzip` → preserve mtime
+- Editors writing via tmp+rename (most do)
+- `touch`, `--preserve-timestamp` downloads, OneDrive/iCloud writes
+- FSes with 1s/2s mtime resolution → two writes in the same second are indistinguishable; with a 500ms poll cadence you'll see them as one event and lose the second
+
+Use `(mtime, size, inode, ctime)` as a tuple. For (mtime==previous AND size==previous) ambiguities on small files, fall back to a cheap partial hash (xxh3 on first 64KB, ~nanoseconds). Add dev/inode so delete+recreate of the same path isn't missed.
+
+**500ms full-tree poll is too coarse AND too frequent at once.** Too coarse to catch sub-second edits cleanly; too frequent to amortize anything at 50k files. Make interval configurable (`SYNCD_POLL_MS` env at minimum), and back off after a no-change cycle.
+
+## Loop architecture
+
+**Scanner and copier cannot share a thread.** A single 200MB first-time copy stalls the next scan by hundreds of ms → changes during that window get batched into one or missed depending on mtime resolution. Split: scanner → bounded queue → N copier workers (or async I/O). Quote:
+
+> *polling is cheap, fine that a long copy delays the next poll*
+
+This is exactly backwards under load. The scan is expensive at 50k; the copy is what blocks it.
+
+## Errors
+
+**"log and continue" silently corrupts dst.** A mid-copy read error leaves a partial file that the next scan then sees as "exists, size=X" — the user sees a truncated file and no warning. Quarantine partials (`.staging/` + rename on complete), retry-with-backoff for transient errors, surface a separate failure list. Distinguish "unreadable now" from "permanently broken."
+
+## Config & rollout
+
+**Hardcoding 500ms "to prevent misuse" is anti-engineering.** No one will use a daemon they cannot tune. At least env-overridable default; better is adaptive (back off when scans are slow or low churn).
+
+**`syncd reusing sync()` skips the refactor.** If `sync()` walks-and-copies synchronously today, calling it from a daemon gives you "background script," not streaming. Either make `sync()` an iterator the daemon drives, or factor out a shared scanner/applier that both call.
+
+## Priority order — fix before code
+
+1. Replace whole-file manifest rewrite with journal/SQLite-or-rename.
+2. Stronger signature: `(mtime, size, inode, ctime)` + partial-hash fallback for small files.
+3. Split scanner/applier with a bounded queue; configurable worker count.
+4. Quarantine + retry on copy errors (no silent partial files).
+5. Configurable poll interval, env-driven at minimum.
+6. Make `sync()` stream-friendly instead of having `syncd` bolt on top of a one-shot.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-17390 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

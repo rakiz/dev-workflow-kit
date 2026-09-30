@@ -1,0 +1,12 @@
+[0m
+> build · grok-4-20-reasoning
+[0m
+[0m→ [0mRead DESIGN.md
+[0m• [0mCritique sync v2 design in DESIGN.md before coding[90m Cheap-Design-Review Agent[0m
+[0m✓ [0mCritique sync v2 design in DESIGN.md before coding[90m Cheap-Design-Review Agent[0m
+**Major risks:** 50k-file JSON manifest rewrite every 500ms = 6-10MB/s disk IO + CPU (not "small"); full poll not cheap (100k stats/s); mtime unreliable (1s granularity, renames, NFS); no delete/rename handling; torn copies OOM on GB files; swallowed errors retry forever.
+
+**Wrong assumptions:** polling cheap/no kernel APIs; manifest in-place safe; sync() reusable; 500ms hardcoded good.
+
+**Change first:** atomic temp+replace state (or SQLite stdlib); FSEvents + stability window; decouple detect/copy with workers; explicit delete semantics + config; redesign core before code. STOP & redesign.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-2715 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

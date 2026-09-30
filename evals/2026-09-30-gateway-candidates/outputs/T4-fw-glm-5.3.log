@@ -1,0 +1,30 @@
+[0m
+> build · fw-glm-5.3
+[0m
+[0m→ [0mRead DESIGN.md
+Read it. Critique, before any code:
+
+**Wrong assumptions**
+
+1. **"mtime always changes on edit" — false.** `git checkout`, `rsync -a`, unzip, and same-second edits can produce content changes with identical mtime+size. Many filesystems still have 1s mtime granularity — your 500 ms poll is faster than your change signal. You will silently miss changes.
+2. **"Polling is cheap" — false at your scale.** Full stat of 50k files every 500 ms = ~100k stats/sec sustained, plus rebuilding a 50k-entry diff in memory each cycle. That's real CPU/IO on a workstation, plus it defeats disk sleep.
+3. **"Manifest is small" — false.** 50k entries as JSON is multiple MB, serialized and rewritten 2×/sec. That's megabytes/sec of SSD writes and noticeable CPU — for a manifest that changes by ~1 entry most cycles.
+
+**What breaks under real load**
+
+- **Deletions are never propagated** — not mentioned at all. `dst` only grows. This alone makes it not a sync engine.
+- **Non-atomic in-place manifest rewrite**: a crash mid-write corrupts your only state. Then the daemon either re-copies everything or misses everything. "Atomicity is not needed" is the most wrong line in the doc.
+- **Torn copies**: file changes mid-copy → corrupt dst, and mtime-only detection may never trigger a re-copy. Copy to temp + rename (you already need this for the manifest too).
+- **Error handling**: "log to stdout" in a daemon means lost logs; no retry, no error state, one unreadable file in a hot loop = error spam every 500 ms forever.
+- **Latency cascade**: a large copy stalls polling (self-acknowledged); under burst (build output, `git checkout` of a big branch) you fall minutes behind with no backpressure or coalescing.
+- **No renames detection**: temp-file editors (atomic save pattern) cause delete+recreate churn per save.
+
+**Decisions to change first**
+
+1. **Detection → OS events** (FSEvents/kqueue/inotify) with polling only as fallback. The "platform-specific complexity" you rejected is ~100 lines and eliminates the constant-scan cost. The rejected-alternatives section is the weakest part of the doc.
+2. **State → append-only journal or SQLite, written atomically** (temp+rename at minimum). Rewriting full JSON on a timer is the biggest resource bug in the design.
+3. **Add deletion/rename propagation** — decide the semantics before code.
+4. **Copy: temp+rename, retry with backoff, cap in-flight work, coalesce bursts** (e.g. debounce 1–2s per file).
+
+What's fine: single-threaded, no hashing on the hot path (hash only on ambiguous mtime), reusing `sync()`. Config hardcoding is defensible for v1.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-98472 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

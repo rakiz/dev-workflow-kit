@@ -1,0 +1,83 @@
+[0m
+> build · fw-glm-5.3
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1 | tail -40
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... FAIL
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+======================================================================
+FAIL: test_first_item_stale_is_included (test_synccli.TestCollectStale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-95871/test_synccli.py", line 24, in test_first_item_stale_is_included
+    self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+AssertionError: Lists differ: ['y.txt'] != ['x.txt', 'y.txt']
+
+First differing element 0:
+'y.txt'
+'x.txt'
+
+Second list contains 1 additional elements.
+First extra element 1:
+'y.txt'
+
+- ['y.txt']
++ ['x.txt', 'y.txt']
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+FAILED (failures=1)
+[0m
+[0m→ [0mRead synccli.py
+[0m
+[0m← [0mEdit synccli.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-95871/synccli.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-95871/synccli.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-95871/synccli.py
+@@ -51,9 +51,9 @@
+ """
+ if seen is None:
+     seen = set()
+ stale = []
+-for i in range(1, len(items)):
++for i in range(0, len(items)):
+     path, fresh = items[i]
+     if path not in seen and not fresh:
+         stale.append(path)
+ return stale
+
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1 | tail -12 && git diff
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+diff --git a/synccli.py b/synccli.py
+index ae41a1e..7d463f5 100644
+--- a/synccli.py
++++ b/synccli.py
+@@ -52,7 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
++    for i in range(0, len(items)):
+         path, fresh = items[i]
+         if path not in seen and not fresh:
+             stale.append(path)
+[0m
+All 6 tests pass. The bug: `collect_stale` started its loop at index 1, skipping the first item (synccli.py:55) — changed to `range(0, len(items))`.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-95871 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

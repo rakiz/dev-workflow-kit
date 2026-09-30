@@ -1,0 +1,96 @@
+[0m
+> build · fw-glm-5.3
+[0m
+[0m$ [0mgit show HEAD --stat && git log -1 --format='%H %s'
+commit 5d8fcc5abd9ff50db1f8feacaf58147ce5b641b7
+Author: eval <eval@example.com>
+Date:   Wed Sep 30 18:49:11 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+5d8fcc5abd9ff50db1f8feacaf58147ce5b641b7 v0.2: add exclude filter, batch copy and manifest merge
+[0m
+[0m$ [0mgit show HEAD
+commit 5d8fcc5abd9ff50db1f8feacaf58147ce5b641b7
+Author: eval <eval@example.com>
+Date:   Wed Sep 30 18:49:11 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mls; git log --oneline | head
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+5d8fcc5 v0.2: add exclude filter, batch copy and manifest merge
+3e94070 Initial synccli
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead test_synccli.py
+Review of HEAD (`5d8fcc5`, adds `incremental.py`):
+
+**1. Major — `copy_many` reports failed copies as done (silent data loss, misleading contract).**
+`copy_file` (synccli.py:66-69) swallows `OSError` and returns normally on failure, so `copy_many`'s `try/except` never fires and `dst` is appended to `done` even when nothing was copied (incremental.py:21-24). The returned "done" list is a lie for any unreadable/unwritable file, and failures are invisible — the caller believes the batch succeeded.
+
+**2. Major — mutable default argument in `filter_excluded` (state leaks across calls).**
+`excluded=[]` (incremental.py:11) is shared across invocations: a second call returns the first call's results again plus duplicates. E.g. `filter_excluded(a)` then `filter_excluded(b)` reports `a`'s paths as excluded from `b`. Wrong output for any repeated/batched use.
+
+**3. Minor — `merge_manifest` never converges when dst mtime is newer.**
+When the destination entry's mtime is greater than the source's (independent edit of the dst file, or clock skew), the old entry is kept (incremental.py:38-39). The manifest then no longer matches the source state, so `changed_files` flags the file on every subsequent sync → permanent re-copy loop; the merge silently preserves a state the copy step contradicts.
+
+**4. Minor — `merge_manifest` name/docstring imply it updates the destination manifest, but it only returns a dict** (never writes `dst_manifest_path`); callers relying on the docstring will see no persisted change. Contract ambiguity rather than corruption.
+
+(Noted but out of scope for this commit: `copy_file`'s silent `OSError: pass` in synccli.py:69 is the root enabler of defect 1 and predates this commit.)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-96596 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

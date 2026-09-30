@@ -1,0 +1,49 @@
+[0m
+> build · grok-4-20-reasoning
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+**Execution Plan**
+
+**Task 1**  
+Objective: Map current CLI parsing, output paths, dry-run handling, sync() contract, and test structure.  
+Files to create/modify: (none - read-only)  
+Pipeline agent: explore  
+Risks: Overlooking internal callers of sync() or stdout interleaving.  
+Verifiable acceptance criterion: Returns list of key functions/files with exact output sites and test coverage gaps (grep-able).
+
+**Task 2**  
+Objective: Review JSON shape, flag integration strategy, dry-run semantics, and stdlib-only constraints while keeping sync() signature stable.  
+Files to create/modify: (none)  
+Pipeline agent: design-review  
+Risks: stdout pollution in JSON mode or breaking existing human-mode formatting.  
+Verifiable acceptance criterion: Written approval with zero major findings and explicit confirmation on stable signature + exact JSON schema.
+
+**Task 3**  
+Objective: Add --json flag (and interplay with --dry-run) to argument parser; route mode without changing sync().  
+Files to create/modify: synccli/__main__.py (or primary CLI entrypoint)  
+Pipeline agent: impl  
+Risks: Argparse conflicts or unintended output during flag parsing.  
+Verifiable acceptance criterion: `python -m synccli --help` shows both flags; `--json` produces valid single-object JSON (no other stdout); unit test passes.
+
+**Task 4**  
+Objective: Implement conditional JSON output (`{"copied": [...], "skipped": N, "src": ..., "dst": ...}`) with correct dry-run population.  
+Files to create/modify: synccli/__main__.py + core sync logic file  
+Pipeline agent: impl  
+Risks: Extra prints leaking to stdout or incorrect dry-run copied list.  
+Verifiable acceptance criterion: JSON exactly matches spec for both normal and dry-run; human mode unchanged; `test_synccli.py` JSON shape tests pass.
+
+**Task 5**  
+Objective: Add unit tests verifying JSON validity, required keys, dry-run semantics.  
+Files to create/modify: test_synccli.py  
+Pipeline agent: impl  
+Risks: Incomplete coverage of edge cases (empty dirs, manifest errors).  
+Verifiable acceptance criterion: `python -m unittest test_synccli.py -v` passes all new + existing tests; JSON tests assert exact structure and dry-run behavior.
+
+**Task 6**  
+Objective: Final verification of full feature (both modes, no regressions, constraints met).  
+Files to create/modify: (all modified files)  
+Pipeline agent: review  
+Risks: Regression in non-JSON path or Python 3.10 compatibility.  
+Verifiable acceptance criterion: All tests green, `--json` produces clean single JSON object only, human output unchanged, no new deps, sync() signature identical.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-99626 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

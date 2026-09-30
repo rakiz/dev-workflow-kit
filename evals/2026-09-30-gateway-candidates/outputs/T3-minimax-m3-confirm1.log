@@ -1,0 +1,82 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3
+[0m
+[0m$ [0mgit show HEAD
+commit ce08ee3f998bcfd3997bc78c51ea35f8218d28ae
+Author: eval <eval@example.com>
+Date:   Wed Sep 30 19:05:49 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mgit log --oneline -20 && echo "---" && git show HEAD --stat
+ce08ee3 v0.2: add exclude filter, batch copy and manifest merge
+2199f2b Initial synccli
+---
+commit ce08ee3f998bcfd3997bc78c51ea35f8218d28ae
+Author: eval <eval@example.com>
+Date:   Wed Sep 30 19:05:49 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+[0m
+[0m✱ [0mGrep "def copy_file"[90m in . · 1 match[0m
+[0m→ [0mRead synccli.py[90m [offset=55, limit=30][0m
+Real defects in `incremental.py` (v0.2):
+
+**Major**
+1. `copy_many` (line 22-29): `except Exception: continue` swallows every failure. Caller only ever sees the successful `done` list and has no signal about partial failures — silent data loss / corrupted sync state.
+2. `filter_excluded` (line 12): mutable default argument `excluded=[]` is shared across calls. Excluded paths leak from one invocation into the next, producing corrupted filter state.
+
+**Minor**
+3. `merge_manifest` (line 39): `old[rel]["mtime"]` raises `KeyError` when a manifest entry lacks `mtime` (older schema, hand edit, partial write). Crashes the merge instead of degrading — corrupted-state step on the path of reading/persisting the manifest.
+4. `merge_manifest` (line 36): no guard for an existing-but-empty/corrupt manifest file — `json.load` propagates `JSONDecodeError`. Minor robustness, but on the same read path as #3.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-21766 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

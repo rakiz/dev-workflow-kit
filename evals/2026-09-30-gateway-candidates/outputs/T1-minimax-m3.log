@@ -1,0 +1,114 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3
+[0m
+[0m$ [0mls -la
+total 48
+drwxr-xr-x@    9 sebastien.mendez  staff     288 Sep 30 18:59 .
+drwx------@ 8529 sebastien.mendez  staff  272928 Sep 30 18:59 ..
+drwxr-xr-x@   13 sebastien.mendez  staff     416 Sep 30 18:59 .git
+-rw-r--r--@    1 sebastien.mendez  staff    1317 Sep 30 18:59 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff     657 Sep 30 18:59 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff    1157 Sep 30 18:59 incremental.py
+-rw-r--r--@    1 sebastien.mendez  staff     210 Sep 30 18:59 README.md
+-rw-r--r--@    1 sebastien.mendez  staff    3172 Sep 30 18:59 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff    1834 Sep 30 18:59 test_synccli.py
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead incremental.py
+[0m→ [0mRead test_synccli.py
+# Orchestration plan — JSON output mode + dry-run UX
+
+Repo state accepted as read: `GOAL.md`, `README.md`, `synccli.py` (sync already `--dry-run`-aware via `sync(src_root, dst_root, dry_run=False)`, human output is one path per line), `DESIGN.md` (v2 continuous daemon — out of scope for this goal), `incremental.py` (imports `copy_file` from synccli only — does not constrain changes here), `test_synccli.py` (covers scan, `collect_stale`, sync happy path; no JSON coverage).
+
+Plan ordered top-to-bottom. No edits made.
+
+---
+
+### T1. Recon — confirm assumptions before designing
+
+- **Objective:** verify, on disk, every assumption the implementation will rest on: (a) `sync()` return value, (b) what (if anything) prints to stdout beyond `main()`'s path loop, (c) internal callers of `sync()`/`main()` that constrain shape, (d) behavior of `--dry-run` today, (e) cross-platform path-joining in `scan_files` and tests.
+- **Files:** `synccli.py`, `incremental.py`, `test_synccli.py` (re-read only).
+- **Agent:** `explore`.
+- **Risks:** missing an internal caller that depends on `sync()`'s return shape (manifest `incremental.py` writes? anything else?). Stdout pollution from a future import path we miss.
+- **Acceptance:** a short factual report listing: every code path that writes to stdout; every call site of `sync()`; the exact tuple/user-visible surfaces of `main()` today; whether `--dry-run` writes the destination manifest (it must not).
+
+---
+
+### T2. Design review — settle the JSON contract
+
+- **Objective:** decide, before any code, four questions the GOAL leaves implicit: (1) definition of `skipped` (most safely: count of attempted items for which `copy_file` silently no-op'd, i.e. failed copies — currently `0` unless we instrument `copy_file`; alternative is `len(to_copy) - len(copied)` if we change `sync()` to surface that — but `sync()` signature must stay stable, so the choice is a thin internal helper vs. instrumenting `copy_file`); (2) where diagnostics go when `--json` is set (must be stderr; never stdout); (3) flag ordering and combination semantics of `--json --dry-run` (output identical in shape; `copied` = what WOULD be copied); (4) how to keep human mode byte-identical to today (one path per line, no trailing extras).
+- **Files:** none modified; produces an approach note that the implementer will follow.
+- **Agent:** `cheap-design-review`.
+- **Risks:** picking a `skipped` definition that forces `sync()`'s return type to change (violates GOAL constraint). Picking a stdout-vs-stderr rule that's inconsistent with today's silent `pass` in `copy_file`.
+- **Acceptance:** written agreement on (1)–(4) above, with one chosen path per question and a concrete plan for how the skipped counter is computed **without** changing `sync()`'s signature.
+
+---
+
+### T3. Implement — main() gains `--json`
+
+- **Objective:** add `--json` argparse flag, emit `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` as the **only** stdout write in JSON mode. Human mode unchanged byte-for-byte. `--dry-run --json` is supported. `sync()` signature untouched. Stdlib only.
+- **Files:** `synccli.py` (`main()` plus a small private helper for the JSON result; possibly a thin wrapper around `sync()` so we can compute `skipped` without changing `sync()`'s contract — decided in T2).
+- **Agent:** `cheap-code`.
+- **Risks:** leaking a warning/log/debug line to stdout in JSON mode (would break contract). Forgetting to flush or accidentally appending a newline after the JSON object that consumers tolerate but the spec says "single JSON object". Accidentally emitting src/dst as the strings the user typed rather than the resolved absolutes — spec is ambiguous ("src": ..., "dst": ...); decide and document. Changing `main()`'s exit path (must return 0 today, stay that way).
+- **Acceptance:** 
+  - `python3 synccli.py src dst --json` prints exactly one JSON object parseable by `json.loads`, and that parse has keys `copied` (list of str), `skipped` (int), `src` (str), `dst` (str).
+  - `python3 synccli.py src dst` (no flags) prints exactly the same per-line output it prints today on a `--help`-then-run smoke test (golden compare).
+  - `python3 synccli.py src dst --json --dry-run` does not write `.sync_manifest.json` under `dst`, and lists the files that *would* be copied under `copied`.
+  - `python3 synccli.py src dst --dry-run` (no `--json`) behaves as today.
+  - No new top-level imports beyond stdlib.
+
+---
+
+### T4. Implement — JSON tests
+
+- **Objective:** unit-test the JSON shape, keys, dry-run semantics, stdout purity, and human-mode non-regression.
+- **Files:** `test_synccli.py` (append `TestJsonMode` class; new `setUp/tearDown` style mirroring existing `TestSync`).
+- **Agent:** `cheap-code`.
+- **Risks:** tests that don't actually capture stdout (relying on return value of `main()` and missing a stray `print`); tests that assert `skipped == 0` without first establishing the T2 definition and silently anchoring the wrong contract; flaky mtime tests colliding with the existing manifest path (existing tests already handle this; reuse the pattern).
+- **Acceptance:**
+  - `test_json_shape`: capture stdout of `main([src, dst, "--json"])`, assert it round-trips through `json.loads` to an object with all four required keys and `copied` is a list of `str`.
+  - `test_json_dry_run`: same with `--json --dry-run`; assert no `.sync_manifest.json` written in `dst` (use `os.listdir`); assert `copied` contains the files that were modified in `src`.
+  - `test_json_stdout_is_pure`: assert stdout, in JSON mode, is exactly `len(obj)+1` bytes (no trailing log lines, no leading banner).
+  - `test_human_mode_untouched`: no flags → stdout is the joined-by-newline list of copied paths, exactly one entry per line, no JSON, no extra decorations.
+  - `python3 -m unittest -v` passes on the whole file.
+
+---
+
+### T5. Review — cheap-review pass on the diff
+
+- **Objective:** independent re-read of the T3+T4 changes; classify findings minor/major.
+- **Files:** `synccli.py`, `test_synccli.py` (read-only).
+- **Agent:** `cheap-review` (mandatory; do not skip even with a short diff — matches `RTK.md` rules).
+- **Risks:** reviewer approves a stdout leak that the human-mode test wouldn't catch because it only checks the no-flag path.
+- **Acceptance:** verdict with zero major findings; minor findings (if any) dispatched back via a fresh `cheap-code` turn on the same `task_id` with the reviewer's quoted reference.
+
+---
+
+### T6. (Conditional) Apply minor-review fixes
+
+- **Objective:** fix every minor item raised in T5.
+- **Files:** `synccli.py`, `test_synccli.py`.
+- **Agent:** `cheap-code` (resumed on the same `task_id` as T3 — has the context).
+- **Risks:** widening scope past the reviewer's minor items.
+- **Acceptance:** `python3 -m unittest -v` green; reviewer items all addressed with line refs.
+
+---
+
+### Cross-cutting guardrails (apply across all tasks)
+
+- `sync(src_root, dst_root, dry_run=False)` signature: never modified. If T2 needs more return information, wrap (don't change) it.
+- `--json` mode writes one and only one thing to stdout: a JSON object.
+- All diagnostics, warnings, and errors in JSON mode → stderr.
+- Human mode → byte-identical to current behavior for any non-dry-run, non-flag invocation.
+- No new dependencies; Python 3.10 stdlib only.
+- No comment additions unless explicitly requested (per global rules).
+
+---
+
+### Suggested phase boundary
+
+If T1–T5 land clean and the task ends here, a natural `/compact` message would read: *"JSON output mode landed in synccli.py + tests; ongoing daemon work (DESIGN.md, incremental.py, syncd) untouched. Next phase: daemon rollout per DESIGN.md §Rollout."* — pointing forward, not back.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-14797 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

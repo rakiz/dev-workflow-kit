@@ -1,0 +1,27 @@
+[0m
+> build · gpt-6-luna
+[0m
+[0m✱ [0mGlob "DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+[0m✱ [0mGlob "**/*"[90m in . · 6 matches[0m
+[0m✱ [0mGrep "sync\(|manifest|poll|watch"[90m in . · 43 matches[0m
+[0m→ [0mRead synccli.py
+[0m✗ [0mRead /private/var/folders/k0/m1pgz3y90k34xd8h1b4td8h1b4tdkqw0000gp/T/synccli-eval-93843/incremental.py failed
+[91m[1mError: [0mFile not found: /private/var/folders/k0/m1pgz3y90k34xd8h1b4td8h1b4tdkqw0000gp/T/synccli-eval-93843/incremental.py
+[0m✗ [0mRead /private/var/folders/k0/m1pgz3y90k34xd8h1b4td8h1b4tdkqw0000gp/T/synccli-eval-93843/GOAL.md failed
+[91m[1mError: [0mFile not found: /private/var/folders/k0/m1pgz3y90k34xd8h1b4td8h1b4tdkqw0000gp/T/synccli-eval-93843/GOAL.md
+[0m→ [0mRead incremental.py
+[0m→ [0mRead GOAL.md
+**Don’t ship this design as written.** At 50,000 files, a full scan every 500 ms means roughly 100,000 file checks per second, plus repeated manifest serialization and writes. That won’t be reliably “cheap,” especially on slower or networked disks.
+
+Change these decisions first:
+
+- **Detection:** Replace the unconditional full-tree scan with filesystem events plus periodic reconciliation, or use an adaptive scan interval. A fixed 500 ms interval is not a credible load assumption.
+- **Manifest durability:** A 50,000-entry JSON file is not “small.” Rewriting it in place every poll risks corruption on interruption and creates substantial write churn. Write atomically, and update state only after a successful copy.
+- **Change detection:** `mtime + size` can miss same-size edits when timestamps are preserved or have coarse resolution. Use higher-resolution timestamps and define when content hashing or reconciliation is required.
+- **Copy correctness:** `sync()` records source state even when `copy_file()` fails—`copy_file()` swallows `OSError`—so failures may never be retried. It also writes directly to the destination and reads the entire file into memory. Copy to a temporary file, verify success, then atomically replace; retain failed work for retry.
+- **Backpressure and races:** A slow or large copy blocks scans; a burst of changes can build an unbounded delay. Use a bounded work queue and workers, and guard against copying a file while it is still being written.
+- **Daemon operation:** Define retry/backoff, persistent error reporting, shutdown behavior, and how multiple `syncd` instances are prevented from racing on the same destination.
+
+The biggest mistaken assumptions are that full scans and manifest writes every 500 ms are cheap, and that reusing `sync()` makes a continuous engine reliable without changing its failure and copy semantics.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-93843 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

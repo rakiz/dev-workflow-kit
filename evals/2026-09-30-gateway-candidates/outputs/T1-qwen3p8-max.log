@@ -1,0 +1,117 @@
+[0m
+> build · accounts/fireworks/models/qwen3p8-max
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m
+[0m$ [0mrtk ls -R . | head -50
+hooks/
+info/
+logs/
+objects/
+refs/
+refs/
+heads/
+0e/
+26/
+58/
+76/
+8c/
+8d/
+ae/
+ba/
+info/
+pack/
+heads/
+tags/
+DESIGN.md  1.3K
+GOAL.md  657B
+README.md  210B
+incremental.py  1.1K
+synccli.py  3.1K
+test_synccli.py  1.8K
+COMMIT_EDITMSG  56B
+HEAD  21B
+config  137B
+description  73B
+index  521B
+opencode  40B
+applypatch-msg.sample  478B
+commit-msg.sample  896B
+fsmonitor-watchman.sample  4.6K
+post-update.sample  189B
+pre-applypatch.sample  424B
+pre-commit.sample  1.6K
+pre-merge-commit.sample  416B
+pre-push.sample  1.3K
+pre-rebase.sample  4.8K
+pre-receive.sample  544B
+prepare-commit-msg.sample  1.5K
+push-to-checkout.sample  2.7K
+sendemail-validate.sample  2.3K
+update.sample  3.6K
+exclude  240B
+HEAD  344B
+main  344B
+dfeeca32d7cffa8e6b365ca3dbcff235de4a50  164B
+178e71238555b03b5039400f30819b438e76fb  126B
+[0m
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead incremental.py
+# Execution plan — GOAL.md (`--json` + dry-run UX)
+
+Scope note: DESIGN.md (v2 daemon) is a separate initiative — out of scope here. Key facts grounding the plan: `sync()` (synccli.py:72) already supports `dry_run`; `copy_file` (synccli.py:62) silently swallows `OSError`, so "skipped" has no data source today; `incremental.py` imports `copy_file` (internal caller → signature constraint is real).
+
+---
+
+**T1 — Baseline & caller map**
+- Objective: confirm green test baseline, enumerate all callers/importers of `sync()`/`copy_file()` (`incremental.py`, `__main__` path), and inventory every `print`/stdout write that could pollute JSON mode.
+- Files: none (read-only).
+- Agent: `explore`.
+- Risks: missing a hidden caller would let impl break the "signature stable" constraint.
+- Acceptance: report lists every caller of `sync`/`copy_file` with file:line, plus baseline `python3 -m unittest -v` result (currently 6 tests, all pass).
+
+**T2 — Pin the JSON contract (micro-design)**
+- Objective: decide the one real design question: semantics of `skipped` given `copy_file` swallows errors — options: (a) main recomputes failures by checking dst existence after sync, (b) `copy_file` returns bool + `sync()` gains an optional kwarg (default preserves behavior), (c) skipped = count of failed copies, `0` under `--dry-run` (nothing attempted). Also fix: dry-run+json → `copied` = would-copy list; all diagnostics to stderr; exit code unchanged; key order irrelevant.
+- Files: none (or a short section appended to DESIGN.md only if user approves; default: return as text).
+- Agent: `cheap-design`.
+- Risks: option (b) edges toward violating "signature stable"; option (a) miscounts if a dst file pre-existed.
+- Acceptance: written contract states, unambiguously, the value of `skipped` for each of the 4 flag combinations and where errors are reported.
+
+**T3 — Design review of the contract**
+- Objective: critique T2 output against GOAL.md constraints (stdlib-only, stdout purity, signature stability) before any code exists.
+- Files: none (read-only).
+- Agent: `cheap-design-review`.
+- Risks: rubber-stamping a `skipped` definition that's untestable.
+- Acceptance: verdict issued; any major finding folded back into T2 before T4 starts.
+
+**T4 — Implement `--json`**
+- Objective: add `--json` argparse flag in `main()`; emit exactly one JSON object `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` to stdout and nothing else in that mode; `--json --dry-run` lists would-copy in `copied`; human mode byte-identical to today; `sync()` signature untouched per T2 decision; stdlib only.
+- Files: modify `synccli.py`.
+- Agent: `cheap-code` (impl).
+- Risks: stray prints/tracebacks on stdout in JSON mode; accidentally changing `sync()`'s return type and breaking `incremental.py`; manifest side effects leaking into dry-run.
+- Acceptance: `python3 -m synccli --json SRC DST | python3 -m json.tool` parses and shows exactly the 4 keys; adding `--dry-run` leaves dst untouched (no files, no manifest) while `copied` is populated; `--help` works.
+
+**T5 — Unit tests for JSON shape & dry-run semantics**
+- Objective: extend `test_synccli.py` with tests capturing `main()` stdout (e.g. `contextlib.redirect_stdout`): valid JSON, exact key set, `copied` contents, `skipped` type/value, dry-run semantics (nothing copied, manifest absent), and human-mode output unchanged (one path per line).
+- Files: modify `test_synccli.py`.
+- Agent: `cheap-code` — same instance as T4 via `task_id` (small follow-up, context already loaded).
+- Risks: tests asserting stdout purity while unittest noise leaks in; flaky mtime-based fixtures.
+- Acceptance: `python3 -m unittest -v` — all tests pass, including ≥3 new JSON tests and 1 dry-run+json test.
+
+**T6 — Mandatory review of the full diff**
+- Objective: independent read of the T4+T5 diff: stdout-purity audit, signature-stability check (grep for `sync(` callers), stdlib-only check, GOAL.md item-by-item conformance; classify findings minor/major.
+- Files: none (read-only).
+- Agent: `cheap-review`; minor findings → resume T4 instance via `task_id`; major → escalate `strong-code`.
+- Risks: reviewer misses runtime stdout pollution from exception paths (only triggers on unreadable src).
+- Acceptance: review verdict with zero unresolved major findings; after any fix round, `python3 -m unittest -v` green again.
+
+**T7 — Final verification & wrap-up**
+- Objective: orchestrator runs the README-documented suite (`python3 -m unittest -v`) and one end-to-end smoke of all 4 flag combos on temp dirs; confirm exit code 0 in all modes.
+- Files: none (no commit unless explicitly requested).
+- Agent: orchestrator (no delegation needed; no code written).
+- Risks: none material; purely mechanical.
+- Acceptance: full suite green + smoke outputs match the T2 contract table verbatim.
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-10016 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

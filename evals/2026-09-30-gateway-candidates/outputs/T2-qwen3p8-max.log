@@ -1,0 +1,101 @@
+[0m
+> build · accounts/fireworks/models/qwen3p8-max
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1 | tail -40
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... FAIL
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+======================================================================
+FAIL: test_first_item_stale_is_included (test_synccli.TestCollectStale)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-10543/test_synccli.py", line 24, in test_first_item_stale_is_included
+    self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+AssertionError: Lists differ: ['y.txt'] != ['x.txt', 'y.txt']
+
+First differing element 0:
+'y.txt'
+'x.txt'
+
+Second list contains 1 additional elements.
+First extra element 1:
+'y.txt'
+
+- ['y.txt']
++ ['x.txt', 'y.txt']
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+FAILED (failures=1)
+[0m
+[0m$ [0mls
+__pycache__
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+[0m
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead synccli.py
+[0m• [0mFix collect_stale off-by-one[90m Cheap-Mech Agent[0m
+The bug is in `collect_stale` (synccli.py:55): the loop starts at index 1, skipping the first item. Following the pipeline — dispatching `cheap-mech` for this mechanical one-line fix.
+[0m✓ [0mFix collect_stale off-by-one[90m Cheap-Mech Agent[0m
+[0m• [0mReview collect_stale fix[90m Cheap-Review Agent[0m
+Now the mandatory `cheap-review` pass:
+[0m✓ [0mReview collect_stale fix[90m Cheap-Review Agent[0m
+[0m
+[0m$ [0mgit diff
+diff --git a/synccli.py b/synccli.py
+index ae41a1e..f5a8c75 100644
+--- a/synccli.py
++++ b/synccli.py
+@@ -52,8 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
+-        path, fresh = items[i]
++    for path, fresh in items:
+         if path not in seen and not fresh:
+             stale.append(path)
+     return stale
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+OK
+[0m
+**Bug**: `collect_stale` (synccli.py:55) looped `range(1, len(items))`, skipping the first item. Fixed via `cheap-mech`, verified by `cheap-review` (verdict: OK, no other callers affected).
+
+**Diff**:
+```diff
+diff --git a/synccli.py b/synccli.py
+@@ -52,8 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
+-        path, fresh = items[i]
++    for path, fresh in items:
+         if path not in seen and not fresh:
+             stale.append(path)
+     return stale
+```
+
+**Final tests**: `Ran 6 tests in 0.006s — OK` (all 6 pass).
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-10543 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)

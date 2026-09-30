@@ -1,0 +1,98 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3
+[0m
+[0m$ [0mgit show HEAD
+commit aa3f06b6382fe19483e0288d8d288db89cd59bcc
+Author: eval <eval@example.com>
+Date:   Wed Sep 30 19:00:59 2026 +0200
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mls -la && git log --oneline -5
+total 48
+drwxr-xr-x@    9 sebastien.mendez  staff     288 Sep 30 19:00 .
+drwx------@ 8543 sebastien.mendez  staff  273376 Sep 30 19:01 ..
+drwxr-xr-x@   13 sebastien.mendez  staff     416 Sep 30 19:01 .git
+-rw-r--r--@    1 sebastien.mendez  staff    1317 Sep 30 19:00 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff     657 Sep 30 19:00 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff    1157 Sep 30 19:00 incremental.py
+-rw-r--r--@    1 sebastien.mendez  staff     210 Sep 30 19:00 README.md
+-rw-r--r--@    1 sebastien.mendez  staff    3172 Sep 30 19:00 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff    1834 Sep 30 19:00 test_synccli.py
+aa3f06b v0.2: add exclude filter, batch copy and manifest merge
+4d54b13 Initial synccli
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+Defects in commit aa3f06b (`incremental.py`):
+
+**Major**
+
+1. **`merge_manifest` never persists the result.** Name + `dst_manifest_path` arg imply it writes the merge back to disk; it only returns a dict. Any caller that drops the return value (or expects the file to be updated) silently keeps the old on-disk manifest.
+
+2. **Manifest grows unboundedly with deletions.** `merged = dict(old)` followed by only `add / overwrite` — entries for files removed from `src` are never evicted. Combined with `changed_files` ("rel not in old or old != state"), removed source files are never detected and never deleted on `dst`. Stale state / silent divergence between manifest and filesystem on the destination.
+
+3. **`copy_many` reports `done` for failures (silent data loss / misleading API).** Two compounded issues:
+   - `except Exception: continue` swallows every error, including `TypeError`/`AttributeError` from malformed inputs.
+   - `copy_file` in `synccli.py` already swallows `OSError` and returns no signal, so `copy_many` happily appends `dst` for unreadable sources.
+   If a caller merges this `done` list into the manifest (defect #2's perpetuating path), the manifest claims files are copied that weren't.
+
+4. **`filter_excluded` mutable default arg.** `excluded=[]` is shared across calls; successive invocations without an explicit `excluded` accumulate the previous run's exclusions.
+
+**Minor**
+
+5. **`filter_excluded` only matches top segment.** `p.split(os.sep)[0]` excludes only top-level `.git`/`__pycache__`/`.sync_manifest.json`. Nested dirs like `pkg/.git/HEAD` or `pkg/__pycache__/foo.pyc` slip through. Misleading: the constant is named `EXCLUDE_TOP_DIRS` but the helper's docstring just says "exclude from sync" with no scoping caveat.
+
+6. **`merge_manifest` has no error handling.** A corrupt/truncated prior manifest (from a crashed previous run) raises `json.JSONDecodeError` and aborts the whole sync; no fallback or recovery.
+
+7. **`merge_manifest` `KeyError` on schema drift.** `old[rel]["mtime"]` blows up if any prior entry lacks `mtime` (e.g. a hand-edited or older-schema manifest).
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//synccli-eval-16068 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title above)
