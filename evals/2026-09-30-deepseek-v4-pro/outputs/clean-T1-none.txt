@@ -1,0 +1,102 @@
+# T1 none — eval-2026-09-30-T1-grove-misc-fw-deepseek-v4-pro-none
+
+Here is the execution plan.
+
+---
+
+## Execution Plan: `--json` + `--dry-run` interplay for synccli
+
+### Task 1 — IMPLEMENTATION: Add `--json` flag and JSON output logic
+
+**Objective:** Add `--json` flag to argparse, plus the JSON output logic: collect data from `sync()`, compute skipped count, print the required JSON object to stdout (and nothing else when `--json` is set).
+
+**Files to modify:**
+
+| File | Change |
+|---|---|
+| `synccli.py` | Add `--json` flag to `parser.add_argument` in `main()`. In the output section, branch on `args.json`: if true, build and print `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` via `json.dump`; else keep existing one-path-per-line loop. `sync()` signature stays unchanged — JSON payload assembly happens in `main()` after `sync()` returns. |
+
+**Skipped count strategy:** `skipped` = `len(src_manifest) - len(copied)`. Access the src manifest without changing `sync()`'s return — call `build_manifest(args.src)` in `main()` (it already exists and is cheap). Alternatively, compute skipped inside `sync()` and return a richer structure — but GOAL.md says keep signature stable. Best path: compute it in `main()` after `sync()` by building the manifest separately (minor cost, zero risk to `sync()`).
+
+**Agent:** `cheap-code`
+
+**Risks:**
+- Low: accidentally printing newline/extra text in JSON mode (violates "nothing else may be printed").
+- Low: `build_manifest` called twice if not careful (once in `sync()`, once in `main()`). Acceptable cost; avoids changing `sync()` signature.
+
+**Acceptance criterion:** `python3 -m synccli src dst --json` prints exactly one JSON object on stdout with all required keys, exits 0, no other stdout. `--json --dry-run` prints same shape with `copied` listing what WOULD be copied.
+
+---
+
+### Task 2 — REVIEW: Review the `--json` implementation
+
+**Objective:** Read-only review of the implementation diff. Verify: no `stdout` leakage in JSON mode, correct skipped count, dry-run interplay correct, human mode unchanged, `sync()` signature preserved, no new deps, stdlib only.
+
+**Agent:** `cheap-review`
+
+**Risks:**
+- Medium: the `skipped` count could be wrong if stale-files logic interacts unexpectedly with the manifest.
+- Low: edge case — empty src directory (copied=[], skipped=0).
+
+**Acceptance criterion:** Report classifies all findings as minor/absent, or escalates majors with specific line-level references.
+
+---
+
+### Task 3 — IMPLEMENTATION: Add unit tests for JSON output
+
+**Objective:** Add test cases in `test_synccli.py` covering:
+- JSON output is valid JSON (`json.loads`).
+- All required keys present (`copied`, `skipped`, `src`, `dst`).
+- `copied` is a list of strings (or empty list).
+- `skipped` is a non-negative integer.
+- `--dry-run --json`: `copied` lists files that would be copied; no files actually copied (dst is empty after test).
+- Human mode unchanged: no regression on existing output behavior.
+
+**Files to modify:**
+
+| File | Change |
+|---|---|
+| `test_synccli.py` | New `TestJsonOutput` class (or extend existing `TestSync`) with methods testing `main()` via `argv` + `io.StringIO` stdout capture, or testing a helper that returns the JSON dict. |
+
+**Agent:** `cheap-code`
+
+**Risks:**
+- Low: no existing test pattern for capturing stdout from `main()`. Will need to introduce `contextlib.redirect_stdout` or `unittest.mock.patch("sys.stdout")`.
+- Low: `main()` currently `print()`s; need to redirect stdout to capture and assert.
+
+**Acceptance criterion:** `python3 -m unittest -v` passes all tests including new JSON tests. Coverage of the JSON shape, dry-run semantics, and human-mode non-regression.
+
+---
+
+### Task 4 — REVIEW: Review the tests
+
+**Objective:** Read-only review of the test diff. Verify: all GOAL.md requirements have at least one test, tests use correct temp directories (isolated), tests assert both positive and negative cases, no test dependencies beyond stdlib.
+
+**Agent:** `cheap-review`
+
+**Risks:**
+- Low: if tests share tempdir state improperly they could flap.
+
+**Acceptance criterion:** Report confirms test coverage is adequate for the spec, classifies findings.
+
+---
+
+### Task 5 — VERIFICATION: Run full test suite
+
+**Objective:** Execute `python3 -m unittest -v` to confirm all existing + new tests pass.
+
+**Agent:** None — you run `bash` directly.
+
+**Acceptance criterion:** All tests pass, zero failures, zero errors.
+
+---
+
+### Summary table
+
+| # | Task | Agent | Files |
+|---|------|-------|-------|
+| 1 | Implement `--json` | `cheap-code` | `synccli.py` |
+| 2 | Review impl | `cheap-review` | `synccli.py` (read-only) |
+| 3 | Write tests | `cheap-code` | `test_synccli.py` |
+| 4 | Review tests | `cheap-review` | `test_synccli.py` (read-only) |
+| 5 | Run test suite | bash | — |

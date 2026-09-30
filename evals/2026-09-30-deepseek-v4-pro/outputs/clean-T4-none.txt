@@ -1,0 +1,45 @@
+# T4 none — eval-2026-09-30-T4-grove-misc-fw-deepseek-v4-pro-none
+
+I'll read the DESIGN.md first.
+
+---
+
+Now let me understand the existing codebase to make the critique concrete.
+
+---
+
+Good. Now I have the full picture. Let me load the cheap-design-review agent.
+
+---
+
+## Critique of DESIGN.md v2 — Verdict: **STOP**
+
+The design is not viable at its own stated scale (50K files) and contains three independent **silent-data-loss** paths:
+
+### Major (fatal before code is written)
+
+1. **Failed copies permanently skipped.** `copy_file` swallows OSError, but `sync()` writes the manifest unconditionally after — the file is recorded as synced and *never retried*. Every transient error becomes permanent data loss.
+
+2. **No deletion/rename handling in a forever-running process.** `changed_files` only iterates the new manifest, so `dst` is monotonically append-only. Deleted/renamed files accumulate orphans forever.
+
+3. **Non-atomic manifest rewrite will crash the daemon.** "Atomicity is not needed" is wrong. A kill mid-write produces truncated JSON → `json.load` raises at next startup → daemon dead. One `os.replace()` after writing to `.tmp` fixes this.
+
+4. **The 500ms budget is blown at 50K — it's a busy loop, not a poll.** A warm scan of 50K files takes ~1s plus 3.25 MB JSON serialize/deserialize. The cycle never fits the interval → 100% CPU, never sleeps. The workload ("a few changes/min") is oversampled ~120×. Interval should be 2–5s.
+
+5. **"mtime always changes on edit" is false at 500ms resolution.** mtime granularity is 1s on HFS+, 2s on FAT/network mounts. Same-size edit within the same second is invisible. With 500ms polls the blind window is the exact common edit pattern.
+
+6. **No write-stability gate.** `stat` then `open` races a concurrent writer. A partially-written file that lands at the same size and mtime tick is copied corrupt and never retried. Requires `(size, mtime_ns)` stable across two consecutive scans.
+
+7. **Single-thread blocks on large files.** A multi-GB file freezes all detection for its duration. Separate scanner + copy worker needed.
+
+8. **`sync()` is the wrong unit in a loop.** Each call rebuilds the full manifest, re-reads it from disk, and rewrites it — three full passes over 50K entries per poll. A stateful in-memory core is needed.
+
+9. **Double-stats every file.** `os.walk` already stats but discards it; `file_state` re-stats → 50K redundant syscalls. Use `os.scandir` once.
+
+### Wrong rejected alternative
+
+**"SQLite = another dependency"** — `sqlite3` is stdlib. It gives atomic transactions, crash-safe state, incremental row updates, and O(1) deletes *for free*. It directly solves A2/A3/A4.
+
+### Bottom line
+
+Three silent-data-loss paths, a guaranteed startup-crash, a change detector that misses its target, and a timing model provably broken at the stated scale. These are core assumptions, not tuning. Rebuild on: (1) `sqlite3` or atomic JSON-with-dirty-flag, (2) two-way diff with deletions, (3) `dst.tmp` + `os.replace` for copies, (4) adaptive polling 2–5s with write-stability gate, (5) scanner thread + copy queue, (6) startup reconciliation.

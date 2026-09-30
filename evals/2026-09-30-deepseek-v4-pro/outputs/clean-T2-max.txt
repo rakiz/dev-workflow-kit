@@ -1,0 +1,17 @@
+# T2 max — eval-2026-09-30-T2-grove-misc-fw-deepseek-v4-pro-max
+
+The bug is on line 55: the loop starts at index 1, skipping the first item. The fix is `range(len(items))` instead of `range(1, len(items))`.
+
+---
+
+All 6 tests pass.
+
+**Diff:**
+```diff
+-    for i in range(1, len(items)):
++    for i in range(len(items)):
+```
+
+**Cause:** `collect_stale` at `synccli.py:55` started its loop at index 1 (`range(1, len(items))`), always skipping the first item. The test `test_first_item_stale_is_included` passes `[("x.txt", False), ("y.txt", False)]` and expects both to be collected, but only `"y.txt"` was returned because `"x.txt"` was never iterated.
+
+**Final result:** `Ran 6 tests in 0.004s — OK`

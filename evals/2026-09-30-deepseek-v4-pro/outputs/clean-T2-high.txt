@@ -1,0 +1,19 @@
+# T2 high — eval-2026-09-30-T2-grove-misc-fw-deepseek-v4-pro-high
+
+The bug is on line 55 of `synccli.py`: the loop in `collect_stale` starts at index 1, skipping the first item.
+
+---
+
+All 6 tests pass.
+
+**Diff:**
+```diff
+-    for i in range(1, len(items)):
++    for i in range(len(items)):
+```
+
+**Final test results:**
+```
+Ran 6 tests in 0.004s
+OK
+```

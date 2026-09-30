@@ -1,0 +1,33 @@
+# T4 max — eval-2026-09-30-T4-grove-misc-fw-deepseek-v4-pro-max
+
+## Design critique (DESIGN.md)
+
+### 1. Manifest rewrite in-place every 500 ms — **will corrupt on crash**
+
+"If the process is killed mid-write, the manifest is garbage. On restart, the daemon sees zero known state and re-copies all 50 000 files." There is no reason not to do `write(tmp) + rename`. The claim "atomicity is not needed" is outright wrong.
+
+### 2. `stat()` 50 000 files every 500 ms — **~100k syscalls/sec, not cheap**
+
+That is constant CPU, disk contention, and laptop battery drain. A single slow mount point (NFS, FUSE, dead USB drive) blocks the entire scan indefinitely. Polling is **not** cheap at this scale. The rejection of inotify/FSEvents as "complex lifecycle" is a false economy — the edge cases of a correct poller at 50k files are worse.
+
+### 3. mtime-only detection misses changes
+
+mtime has 1 s resolution on many filesystems (ext3, FAT, some NAS). Two saves within the same second, or editors that preserve mtime (vim `backupcopy=no`), produce silent data loss — the change is never synced and the manifest records the old mtime, so it's missed forever.
+
+### 4. Blocking copy delays polls — **"fine" until it isn't**
+
+A 500 MB copy takes seconds. During that window, no other file changes are detected. Worse: if the source file is being modified *during* the copy, the destination gets a torn write. No integrity check exists to detect this.
+
+### 5. Errors are fire-and-forget
+
+"Log to stdout and continue" means a transient failure (file locked, NFS hiccup) silently skips the file forever — it won't retry until its mtime changes again. No backoff, no dead-letter queue.
+
+### 6. Single-threaded sequential copy — **minutes to catch up**
+
+A `git checkout` touching 1 000 files takes `1000 × (stat + copy)` sequentially. A parallel copy or at least a work queue would recover in seconds.
+
+### Top 3 things to fix before writing code
+
+1. **Atomic manifest**: `write(tmp) + rename`. Non-negotiable.
+2. **Event-driven detection**: Add inotify/FSEvents as the primary path, polling as a periodic fallback (e.g., every 30 s). The "complex lifecycle" argument doesn't hold — libraries like `fsnotify` or `kqueue` already solve this.
+3. **Retry with backoff**: Transient errors must be retried, not silently dropped.

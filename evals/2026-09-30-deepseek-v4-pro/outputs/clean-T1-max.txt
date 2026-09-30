@@ -1,0 +1,32 @@
+# T1 max — eval-2026-09-30-T1-grove-misc-fw-deepseek-v4-pro-max
+
+## Execution Plan: `--json` flag + dry-run UX
+
+---
+
+### Task 1 — Implement `--json` flag and JSON output logic
+
+| Aspect | Detail |
+|---|---|
+| **Objective** | Add `--json` argument to `argparse`; when set, print a single JSON object `{"copied": […], "skipped": N, "src": "…", "dst": "…"}` to stdout, nothing else. Human mode (path-per-line) unchanged. `sync()` signature untouched. |
+| **Files** | `synccli.py` — modify `main()` only (~lines 88–102) |
+| **Pipeline** | `cheap-code` → `cheap-review` (re-engage same `cheap-code` instance for minor findings) |
+| **Risks** | (1) Computing `skipped` via an extra `scan_files`/`build_manifest` call duplicates work `sync()` already does — acceptable overhead, stdlib only. (2) Must not leak stray `print()` to stdout in JSON mode; stderr is fine. (3) Exit code must stay 0 on success regardless of mode. |
+| **Acceptance criterion** | `python3 -m synccli src dst --json` → valid JSON on stdout matching `{"copied", "skipped", "src", "dst"}` schema. `python3 -m synccli src dst` → unchanged one-path-per-line. `--dry-run --json` → `copied` lists would-be copies, no files written. |
+
+---
+
+### Task 2 — Write unit tests for JSON mode
+
+| Aspect | Detail |
+|---|---|
+| **Objective** | Add a test class (e.g. `TestJsonOutput`) to `test_synccli.py` covering: valid JSON shape (all 4 keys present, correct types), `--dry-run` semantics (no files actually written), human-mode no-regression. |
+| **Files** | `test_synccli.py` — append new test class |
+| **Pipeline** | `cheap-code` → `cheap-review` (re-engage same `cheap-code` instance for minor findings) |
+| **Risks** | (1) Tests must use `tempfile.mkdtemp()` (as existing tests do) for isolation. (2) Must capture `stdout` to assert JSON content — `io.StringIO` or `contextlib.redirect_stdout`. |
+| **Acceptance criterion** | `python3 -m unittest -v` passes all tests including the new JSON test class. |
+
+---
+
+**Dependencies**: Task 1 → Task 2 (tests verify the implementation).  
+**Total pipeline cost**: 2 `cheap-code` + 2 `cheap-review` invocations.

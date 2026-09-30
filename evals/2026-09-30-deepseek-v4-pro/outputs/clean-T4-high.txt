@@ -1,0 +1,27 @@
+# T4 high — eval-2026-09-30-T4-grove-misc-fw-deepseek-v4-pro-high
+
+Here are the concrete critiques, ordered by severity:
+
+### 1. Full tree scan every 500ms on 50k files will melt the machine
+50k `lstat()` calls × 2/sec = 100k syscalls/sec just for detection. On cold cache, rotational drives, or network mounts (NFS/SMB), this is catastrophic. The claim "polling is cheap" is false at this scale. Adaptive polling (slow down when idle) or OS watchers (inotify/FSEvents are not complex for a single recursive watch — libraries like `notify` wrap them trivially) are table stakes.
+
+### 2. In-place JSON overwrite loses all state on crash
+SIGKILL mid-write → truncated/corrupt manifest → daemon restarts blind and must re-sync everything. "Atomicity is not needed" is simply wrong. Fix is one line: write to tmp file + `rename()` (atomic on POSIX).
+
+### 3. Single-threaded blocking copy = indefinite staleness
+One large file (500MB video) blocks the entire daemon. "A long copy delays the next poll, which is fine" is false for a mirroring tool — all other files go stale for the duration. Needs async copy queue (thread pool or non-blocking I/O) decoupled from detection.
+
+### 4. No debouncing — thrash on bulk operations
+`git checkout` touches 500 files → 500 individual copy operations while the poll loop keeps scanning. The tool thrashes I/O on its own activity. Debounce: wait N ms of stability per file before copying, or batch changes within one poll cycle.
+
+### 5. mtime+size misses real changes
+`cp --preserve=timestamps`, `git checkout`, `tar -x` all restore original mtimes. A 100-byte file overwritten with different 100-byte content has unchanged mtime+size and won't sync. Track inode numbers at minimum (catches rename/replace); a fast partial hash of the first N bytes is a practical middle ground.
+
+### 6. No deletion propagation
+Files deleted from `src` are never mentioned. A "continuous sync" tool that only grows the destination is a copy tool, not a sync tool. This is a fundamental missing requirement.
+
+### 7. "Reusing `sync()` directly" is ambiguous and dangerous
+If `sync()` does full comparison + copy, calling it every 500ms on 50k files means every poll cycle is a full `O(n)` manifest build + diff in memory. That's the opposite of incremental.
+
+### Verdict
+This design prioritizes implementation simplicity to the point of non-viability under real load. It's a fine throwaway prototype but should not ship. The three blockers are #1 (I/O burn), #2 (state corruption), and #6 (missing deletion semantics).

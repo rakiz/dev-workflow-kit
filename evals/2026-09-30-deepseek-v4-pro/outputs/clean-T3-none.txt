@@ -1,0 +1,9 @@
+# T3 none — eval-2026-09-30-T3-grove-misc-fw-deepseek-v4-pro-none
+
+**Defects found:**
+
+1. **[Major] `filter_excluded` mutable default argument and side-effect on argument** (`incremental.py:10`): The parameter `excluded=[]` is a mutable default that persists across calls. The function appends to it and returns it — two bugs in one. After the first call, the default value accumulates permanent garbage; and since the caller receives back the same list object they passed in, subsequent calls with a different list to the same reference will produce duplicate entries. Every call is corrupted.
+
+2. **[Major] `copy_many` swallows all exceptions silently** (`incremental.py:25-26`): `except Exception: continue` discards every error — including `MemoryError`, `KeyboardInterrupt`, `SystemExit`, and non-OS errors — without logging or any indication. Files silently fail to copy; the caller gets back a subset of `done` with no way to distinguish success from failure. Data loss is invisible.
+
+3. **[Minor] `filter_excluded` checks only the first path segment** (`incremental.py:12`): `p.split(os.sep)[0]` only matches top-level directories, so `.git/` is excluded but `foo/.git/` is not. This is likely an incomplete/misleading contract since recursive traversal generates nested paths and the function name implies full-path filtering.

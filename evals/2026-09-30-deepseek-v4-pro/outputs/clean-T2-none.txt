@@ -1,0 +1,22 @@
+# T2 none — eval-2026-09-30-T2-grove-misc-fw-deepseek-v4-pro-none
+
+I'll start by running the tests and reading the source files to understand the codebase.
+
+---
+
+The bug is on line 55 of `synccli.py`: `range(1, len(items))` skips the first item (index 0). It should be `range(len(items))` or `range(0, len(items))`. The loop starts at index 1, missing `items[0]` ("x.txt").
+
+---
+
+All 6 tests pass.
+
+**Diff of the fix:**
+
+```diff
+-    for i in range(1, len(items)):
++    for i in range(len(items)):
+```
+
+The loop in `collect_stale` started at index 1 (`range(1, len(items))`), skipping the first tuple entirely. Changed to `range(len(items))` so index 0 is included.
+
+**Final test results:** 6/6 OK, no failures.

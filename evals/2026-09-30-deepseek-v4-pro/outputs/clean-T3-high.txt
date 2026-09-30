@@ -1,0 +1,5 @@
+# T3 high — eval-2026-09-30-T3-grove-misc-fw-deepseek-v4-pro-high
+
+**Minor** — `filter_excluded` mutable default `excluded=[]` (incremental.py:12). The same list instance is reused across calls; calling `filter_excluded(paths)` twice without an explicit `excluded` list silently accumulates results from the first call into the second, producing a corrupted return value.
+
+**Minor** — `copy_many` catches bare `Exception` (incremental.py:22). This swallows programming errors (TypeError, NameError, etc.) that should propagate, masking real bugs and silently dropping files while reporting no failures.

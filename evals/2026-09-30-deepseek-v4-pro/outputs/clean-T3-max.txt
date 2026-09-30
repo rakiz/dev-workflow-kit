@@ -1,0 +1,13 @@
+# T3 max — eval-2026-09-30-T3-grove-misc-fw-deepseek-v4-pro-max
+
+**Major**
+
+1. **Mutable default argument `excluded=[]`** (`incremental.py:13`) — The same list object persists across calls. Calling `filter_excluded(paths)` twice without passing `excluded` causes the second call to also contain entries from the first, silently corrupting results.
+
+2. **Silent exception swallowing** (`copy_many`, line 24) — `except Exception: continue` drops all failure information. The caller receives a `done` list that looks successful but files that failed to copy are silently lost with no error reported.
+
+**Minor**
+
+3. **Misleading return value on `filter_excluded`** — Despite the name suggesting a *filtered-out* list (which the docstring confirms), the typical convention for a `filter_*` function is to return the kept items. Callers reading just the signature will invert the logic.
+
+4. **`merge_manifest` crashes on missing `"mtime"`** (`line 38`) — `old[rel]["mtime"]` raises `KeyError` if an entry in `old` lacks the key, aborting the entire merge with a bare traceback instead of a clean merge.

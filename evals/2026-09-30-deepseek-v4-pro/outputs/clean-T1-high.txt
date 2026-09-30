@@ -1,0 +1,56 @@
+# T1 high — eval-2026-09-30-T1-grove-misc-fw-deepseek-v4-pro-high
+
+Let me explore the codebase structure first.
+
+---
+
+## Execution Plan: JSON output mode + dry-run UX
+
+### Task 1 — Add `--json` flag and JSON output mode
+
+| Field | Detail |
+|---|---|
+| **Objective** | Add `--json` argument to argparse in `main()`. When set, print a single JSON object `{"copied": [...], "skipped": N, "src": "...", "dst": "..."}` to stdout via `json.dump`. Exit code unchanged. Human mode (the `else` branch) unchanged — same `for rel in copied: print(rel)`. |
+| **Files to modify** | `synccli.py` only — ~5–10 lines changed in `main()`. No changes to `sync()`. |
+| **Agent** | `cheap-code` (implementation) |
+| **Key decisions** | Compute `skipped = len(scan_files(args.src)) - len(copied)` inside `main()`. Use `json.dump(obj, sys.stdout)` so nothing else hits stdout. The `--dry-run` interplay is zero-effort: `sync(..., dry_run=True)` already returns the would-be-copied list without side effects. |
+| **Risks** | Low — the change is purely additive in `main()`, no signature changes, no new imports beyond stdlib `json` (already imported). |
+| **Acceptance criterion** | `python3 synccli.py src/ dst/ --json` prints valid JSON to stdout with all 4 keys present. `python3 synccli.py src/ dst/` (no flag) still prints one path per line. `python3 synccli.py src/ dst/ --dry-run --json` has `copied` = would-be-copied list and writes nothing to disk (no manifest, no files). |
+
+### Task 2 — Add unit tests for JSON mode
+
+| Field | Detail |
+|---|---|
+| **Objective** | Add a `TestJsonOutput` class to `test_synccli.py` covering: (a) when `--json` is set, stdout parses as valid JSON with all 4 required keys; (b) `copied` contains the expected paths; (c) `--dry-run --json` produces same keys with no disk writes; (d) an integration-style test invoking `main(argv=[...])` with `sys.stdout` captured and `sys.exit` suppressed. |
+| **Files to modify** | `test_synccli.py` only — new class, ~30 lines. |
+| **Agent** | `cheap-code` (implementation, same instance or fresh based on diff size — small, so reuse task_id from Task 1 is fine) |
+| **Key decisions** | Capture stdout with `io.StringIO` + `contextlib.redirect_stdout` or monkeypatch `sys.stdout`. Suppress `sys.exit` by not calling `main()` if it returns int — `main` returns `0`, doesn't call `sys.exit` directly, only `__name__ == "__main__"` block does, so tests can call `main(["src", "dst", "--json"])` safely and capture stdout. |
+| **Risks** | Medium-low — must not break the 2 existing `TestSync` tests (they don't use `main`). The pre-existing `test_first_item_stale_is_included` failure is **out of scope**, don't fix it. |
+| **Acceptance criterion** | `python3 -m unittest -v` runs all tests (old + new) and the 4 JSON-specific tests pass. |
+
+### Task 3 — Review
+
+| Field | Detail |
+|---|---|
+| **Objective** | Read-only review of the combined diff (Task 1 + Task 2). Verify: no signature change to `sync()`, no new imports, JSON keys exactly as specified, no stdout leak in JSON mode, dry-run + JSON interplay correct, human mode unchanged. |
+| **Files reviewed** | `synccli.py`, `test_synccli.py` |
+| **Agent** | `cheap-review` (mandatory, different model lineage) |
+| **Risks** | None — read-only. |
+| **Acceptance criterion** | Report classifies findings as minor (send back to implementer to fix) or major (escalate to `strong-code`). No findings = green. |
+
+---
+
+### Execution order
+
+```
+Task 1 (cheap-code) → Task 2 (cheap-code, same task_id) → Task 3 (cheap-review)
+```
+
+Tasks 1 and 2 can be done in the same `cheap-code` instance because the total diff is small (~40 lines across both files). Task 3 runs after with a fresh model.
+
+### Out of scope (explicitly)
+
+- Fixing the pre-existing `test_first_item_stale_is_included` failure (not part of the goal)
+- Touching `incremental.py` or `DESIGN.md`
+- Adding a `__main__.py` to make `python3 -m synccli` work
+- Refactoring `sync()` in any way
