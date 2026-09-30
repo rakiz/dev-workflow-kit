@@ -1,14 +1,13 @@
 # INPROGRESS
 
-<!-- Current state of the running phase. Updated as work happens — tick
-     [x]/[ ] and record blockers as soon as they appear, not only before
-     commit. Resume here after any session interruption.
-     Phase done -> entry in CHANGELOG.md, then reset this file with the next
-     phase's detail (never empty, never stale). -->
+<!-- Tracks exactly ONE task — the active task's detail. Name + objective
+     referencing TODO.md; tick [x] steps as they complete, blockers as they
+     appear. Full lifecycle rules: dev-workflow skill (§1). -->
 
-## Current phase
+## Current task
 
-<!-- Name + objective (reference to the matching section of TODO.md). -->
+<!-- Name + objective (reference to the matching section of TODO.md).
+     Between two tasks: just a pointer to the next TODO.md task. -->
 
 ## Steps
 

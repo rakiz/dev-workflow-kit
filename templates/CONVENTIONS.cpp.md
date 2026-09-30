@@ -170,8 +170,8 @@ Good: `throwUserError(1234500, "query planning failed", success);`
   in multi-tenant environments where one tenant's tripwire must not kill
   everyone. When choosing `invariant()` over `tripwireAssert()`, a comment is
   required explaining why the failure is process-fatal, not just
-   operation-fatal. The same guidance applies to `UNREACHABLE` vs
-   `UNREACHABLE_TRIPWIRE`.
+  operation-fatal. The same guidance applies to `UNREACHABLE` vs
+  `UNREACHABLE_TRIPWIRE`.
 
 ## 11. Includes and license header
 
@@ -206,7 +206,3 @@ left-to-right: `void f(const T* const t); void g(U* const u);`
 
 IDL request-parsing classes SHOULD be named `CmdNameCommandRequest`; the
 corresponding response classes SHOULD be named `CmdNameCommandReply`.
-
-<!-- This file is an opt-in reference, not a standalone rules file: its
-     content should be merged into — or referenced from — the adopting
-     project's own CONVENTIONS.md, in its "Project rules" section. -->

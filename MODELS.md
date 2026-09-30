@@ -8,7 +8,7 @@ not hardcode a model anywhere else. The defaults reflect the author's providers
 
 Use this page as the yardstick when a configured model becomes unavailable and
 a replacement must be chosen: same role, comparable cost per MTok, and for
-`review` ideally a different model lineage than `impl`.
+`review` must be a different model lineage than `impl`.
 
 ## Two scopes
 
@@ -61,9 +61,14 @@ Per-task cost ladders (each rung = a quality tier up):
 
 - **Orchestration** glm $0.009 → s5.5 `high` $0.192 → opus $0.309
 - **Impl** glm $0.007 → s5.5 `high` $0.122 → opus $0.252
-- **Review** (impl = glm, cross-lineage only) gemini `low` $0.029 → s5.5
-  `medium` $0.119 → opus $0.236
-- **Design-review** deepseek $0.006 → s5.5 `medium` $0.124 → opus $0.228
+- **Review** (impl = glm, cross-lineage only) gemini `low` $0.029 → glm `high`
+  $0.008 → s5.5 `medium` $0.119 → grok $0.200 → opus $0.236
+- **Design-review** deepseek $0.006 → sol $0.074 → s5.5 `medium` $0.124 →
+  grok $0.085 (priced lower, quality tier judged higher) → opus $0.228
+
+`deepseek` re-baselined 2026-09-30 after a Fireworks effort-mapping fix
+(default effort = new `high`): $0.033 4-task, quality equal, default kept —
+`evals/2026-09-30-deepseek-effort/`.
 
 Hard-won facts worth re-reading before any swap: effort at `low` on a Claude
 model means fewer tool calls — it skips reading code and then hallucinates
@@ -134,7 +139,9 @@ Two rules bind the whole grid:
 - **Lineage**: the reviewer of a work product is never from the family of its
   producer — review rung N reviews impl rung N's output from a different
   family, and each escalation rung N is a different family than rung N-1
-  (fresh eyes on what the previous family already missed).
+  (fresh eyes on what the previous family already missed). (Exception: the
+  `-alternative` re-review rung may share the producer's family — the
+  fresh-family pass already happened at the previous rung.)
 - **Price over speed**: when two models sit in the same quality tier, the
   cheaper one takes the role (eval 2026-09-29: glm/gemini `low`/deepseek for
   bulk, claude only where depth is the point).
@@ -151,14 +158,17 @@ Two rules bind the whole grid:
 Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash.
 
 Escalation semantics: rung N+1 is invoked only when rung N failed, stalled or
-expressed doubt — never speculatively. The `-alternative2` rung is the step
-before human intervention; its output must state what a human must decide.
+expressed doubt — never speculatively. Invoke rung N+1 with rung N's output
+attached — the escalation reads what the previous rung already produced. The
+`-alternative2` rung is the step before human intervention; its output must
+state what a human must decide.
 
 Eval-backed highlights: glm `high` reviews claude diffs 3/3+4 at $0.008 (the
 grid's best deal — eligible because it reviews claude, never glm); gemini
 `low` is the review floor at $0.029 (3/3); kimi-k3 is design/impl-capable but
-2/3 as a reviewer — never a review role; terra and fable-5.1 are out (dominated
-/ too expensive). A cheap reviewer does miss things (2/3 models exist) and will
+2/3 as a reviewer — never a code-review role; design-review is scored
+separately; terra and fable-5.1 are out (dominated / too expensive). A cheap
+reviewer does miss things (2/3 models exist) and will
 not know it — protection is structural: cross-lineage pairing, small routine
 diffs, and escalation triggered by findings/tests/user, never by the
 reviewer's self-assessment.
@@ -184,11 +194,7 @@ by review); review floors at **`low`** (cheap-review — same 3/3 catch rate as
 default effort at a quarter of the cost); strong rungs pinned to the eval's
 best effort — **`high`** for strong-code/strong-design (s5.5) and
 strong-review (glm), **`medium`** for the s5.5 review/design-review
-alternatives. Claude models
-never run `low` in a code-reading role (eval: it skips reading code and
-hallucinates structure) and never `xhigh`/`max` on bulk tasks (cost converges
-with opus, no quality gain). Beware: descending effort on opus via
-github-copilot is not honored (no cost drop).
+alternatives (the eval's effort facts above apply).
 
 When a replacement model is picked through the availability menu, `init.sh`
 leaves the variant untouched — a different model may use a different effort

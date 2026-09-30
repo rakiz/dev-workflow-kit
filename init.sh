@@ -3,8 +3,8 @@
 # install.
 #
 # Usage (flags may appear in any position):
-#   1. Project mode, from the kit:     ./init.sh [--with-rules] [--update] /path/to/target-project
-#   2. Project mode, from the project: /path/to/dev-workflow-kit/init.sh [--with-rules] [--update]
+#   1. Project mode, from the kit:     ./init.sh [--with-rules] [--companions=on|off] [--update] /path/to/target-project
+#   2. Project mode, from the project: /path/to/dev-workflow-kit/init.sh [--with-rules] [--companions=on|off] [--update]
 #   3. Global mode:                    ./init.sh [--update] --global
 #
 # Default (install) behavior:
@@ -27,6 +27,16 @@
 #     opt-in by manual copy only (no flag). CONVENTIONS.md and RULES.md get
 #     a --update baseline (their `## Project rules` prefix hash) in the lock
 #     file when copied fresh or still identical.
+#   - Companions setting: auto-detected on a FRESH dev-workflow.json copy
+#     only (an existing one is never touched, in any mode); the target is
+#     scanned for source files (.git/node_modules/vendor/dist/build/.opencode
+#     excluded). Greenfield (<5 sources) or companions already in use ->
+#     enabled; sources with no companion .md -> disable recommended (y/N-style
+#     prompt with a TTY, default disable; disabled with a loud re-enable
+#     notice without one). --companions=on|off skips detection and the prompt
+#     (warning-only no-op with --global/--update). Every outcome echoes the
+#     setting, why, and the lever to change it (edit dev-workflow.json —
+#     the --companions flag only applies at first install).
 #   - .git/hooks/pre-commit: installed if absent; if a different hook
 #     exists, it is kept and the kit installs itself as
 #     pre-commit.dev-workflow-kit (merge by hand).
@@ -105,21 +115,28 @@ KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WITH_RULES=0
 UPDATE=0
 GLOBAL_MODE=0
+COMPANIONS_FLAG=""
 positionals=()
 for arg in "$@"; do
   case "$arg" in
     --with-rules) WITH_RULES=1 ;;
     --update) UPDATE=1 ;;
     --global) GLOBAL_MODE=1 ;;
+    --companions=on) COMPANIONS_FLAG=on ;;
+    --companions=off) COMPANIONS_FLAG=off ;;
+    --companions=*)
+      echo "init: --companions accepts on or off (got: '$arg')." >&2
+      exit 1
+      ;;
     -*)
-      echo "Usage: $0 [--with-rules] [--update] [--global] [/path/to/target-project]" >&2
+      echo "Usage: $0 [--with-rules] [--companions=on|off] [--update] [--global] [/path/to/target-project]" >&2
       exit 1
       ;;
     *) positionals+=("$arg") ;;
   esac
 done
 if [[ ${#positionals[@]} -gt 1 ]]; then
-  echo "Usage: $0 [--with-rules] [--update] [--global] [/path/to/target-project]" >&2
+  echo "Usage: $0 [--with-rules] [--companions=on|off] [--update] [--global] [/path/to/target-project]" >&2
   exit 1
 fi
 
@@ -176,6 +193,14 @@ elif [[ $WITH_RULES -eq 1 && $UPDATE -eq 1 ]]; then
   warnings+=("--with-rules has no effect with --update: a missing RULES.md is never created in update mode (an existing one is synced either way)")
 fi
 
+# --companions is project-mode install-only, like --with-rules: say so early
+# rather than silently ignoring it.
+if [[ -n $COMPANIONS_FLAG && $GLOBAL_MODE -eq 1 ]]; then
+  warnings+=("--companions=$COMPANIONS_FLAG has no effect with --global: the session roster has no dev-workflow.json")
+elif [[ -n $COMPANIONS_FLAG && $UPDATE -eq 1 ]]; then
+  warnings+=("--companions=$COMPANIONS_FLAG has no effect with --update: dev-workflow.json is never created or changed in update mode")
+fi
+
 # _bodies_equal FILE_A FILE_B : compare two files ignoring their `model:`
 # and `variant:` frontmatter lines — the shared normalization for every
 # kit-vs-target comparison (copy_sync, lock recording, --update).
@@ -216,6 +241,93 @@ copy_if_absent() {
     cp "$src" "$dst"
     copied+=("$label")
   fi
+}
+
+# --- Companions auto-detection (install-time, fresh dev-workflow.json only) --
+# At kit install, decide whether the companions feature should start enabled
+# or disabled in the FRESHLY COPIED dev-workflow.json. An existing
+# dev-workflow.json is project-owned and never touched (the whole step is
+# skipped). Decision table:
+#   fewer than 5 source files found (greenfield)   -> keep enabled
+#   sources found, >=1 same-named .md sibling      -> keep enabled (in use)
+#   sources found, no companion (TTY available)    -> prompt, default disable
+#   sources found, no companion (no TTY)           -> disable + loud notice
+# Scanned: files with a common source extension under the target, excluding
+# .git/, node_modules/, vendor/, dist/, build/, .opencode/. Like the lock
+# file, this step only degrades to warnings — it can never fail the install.
+
+# companions_scan TARGET : set COMPANIONS_SOURCES (source-file count) and
+# COMPANIONS_PAIRS (count of those files having a same-named .md sibling,
+# same folder). Read-only.
+companions_scan() {
+  COMPANIONS_SOURCES=0
+  COMPANIONS_PAIRS=0
+  local f base
+  while IFS= read -r -d '' f; do
+    COMPANIONS_SOURCES=$((COMPANIONS_SOURCES + 1))
+    base="${f%.*}"
+    [[ -f "$base.md" ]] && COMPANIONS_PAIRS=$((COMPANIONS_PAIRS + 1))
+  done < <(find "$1" \
+      \( -name .git -o -name node_modules -o -name vendor -o -name dist -o -name build -o -name .opencode \) -prune -o \
+      -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' \
+                 -o -name '*.hpp' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' \
+                 -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o -name '*.java' -o -name '*.rb' -o -name '*.php' \
+                 -o -name '*.swift' -o -name '*.kt' -o -name '*.kts' -o -name '*.scala' -o -name '*.cs' \
+                 -o -name '*.m' -o -name '*.mm' -o -name '*.lua' -o -name '*.dart' -o -name '*.sql' \
+                 -o -name '*.sh' -o -name '*.bash' -o -name '*.zsh' \) -print0 2>/dev/null)
+}
+
+# companions_decide : apply the decision table to the scan results and set
+# COMPANIONS_ENABLE=1|0. Pure decision + info lines / prompt; the file
+# change itself happens in companions_set_off, after the template copy.
+companions_decide() {
+  COMPANIONS_ENABLE=1
+  if (( COMPANIONS_SOURCES < 5 )); then
+    echo "  = companions: enabled — greenfield default ($COMPANIONS_SOURCES source file(s) found)"
+    echo '    change: edit "companions": { "enabled": false } in dev-workflow.json (the --companions flag only applies at first install)'
+  elif (( COMPANIONS_PAIRS > 0 )); then
+    echo "  = companions: enabled — $COMPANIONS_PAIRS companion(s) detected next to existing sources"
+    echo '    change: edit "companions": { "enabled": false } in dev-workflow.json (the --companions flag only applies at first install)'
+  elif [[ -t 0 ]]; then
+    echo "Existing codebase detected: $COMPANIONS_SOURCES source files, none with a companion .md."
+    local ans
+    read -r -p "Disable the companions feature? Recommended for a pre-existing repo — companions are a greenfield tool. [Y/n] " ans
+    case "$ans" in
+      n|N|no|No|NO)
+        echo "  = companions: enabled — user choice"
+        echo '    change: edit "companions": { "enabled": false } in dev-workflow.json (the --companions flag only applies at first install)'
+        ;;
+      *) COMPANIONS_ENABLE=0 ;;
+    esac
+  else
+    COMPANIONS_ENABLE=0
+  fi
+  return 0
+}
+
+# companions_set_off FILE : set .companions.enabled=false. jq first; when jq
+# is absent, a sed fallback on the template's exact
+# `"companions": { "enabled": true }` line. The result is parse-verified
+# (jq, else python3) and only then moved over FILE; on any failure FILE is
+# left untouched (the template, enabled: true) — never a broken JSON. The
+# caller warns.
+companions_set_off() {
+  local file="$1" tmp
+  tmp="$(mktemp)" || return 1
+  if command -v jq >/dev/null 2>&1; then
+    jq '.companions.enabled = false' "$file" > "$tmp" 2>/dev/null \
+      || { rm -f "$tmp"; return 1; }
+  else
+    sed 's/"companions": { "enabled": true }/"companions": { "enabled": false }/' "$file" > "$tmp" 2>/dev/null \
+      || { rm -f "$tmp"; return 1; }
+    grep -q '"companions": { "enabled": false }' "$tmp" || { rm -f "$tmp"; return 1; }
+    if command -v python3 >/dev/null 2>&1; then
+      python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$tmp" >/dev/null 2>&1 \
+        || { rm -f "$tmp"; return 1; }
+    fi
+  fi
+  mv "$tmp" "$file" || { rm -f "$tmp"; return 1; }
+  return 0
 }
 
 # _upsert_fm_key FILE KEY VALUE [AFTER_KEY] : replace the `KEY:` frontmatter
@@ -380,7 +492,8 @@ warn_shadowed_agents() {
 #                          "model": "<model last injected>", "variant": "..." },
 #       "skill/dev-workflow/SKILL.md": { "body_sha256": "..." },
 #       "CONVENTIONS.md": { "body_sha256": "<kit prefix hash: everything up
-#                           to and including the `## Project rules` line>" },
+#                           to and including the `## Project rules` line>
+#                           (whole-file hash when the marker is absent)" },
 #       "RULES.md": { "body_sha256": "<same prefix-hash rule>" },
 #       "CONVENTIONS.cpp.md": { "body_sha256": "<whole-file sha256>" } } }
 # body_sha256 = hash of the KIT'S SOURCE content that was last synced (not
@@ -505,9 +618,8 @@ lock_record_rules_if_synced() {
 }
 
 # sync_hook : pre-commit hook install/sync — shared by install and --update.
-# The alt-file mechanism has its own drift detection via file comparison and
-# is deliberately NOT lock-tracked (no hooks/pre-commit.sh lock entry: it
-# would be dead metadata nothing reads). Fills the shared report arrays.
+# The alt-file mechanism is deliberately NOT lock-tracked. Fills the shared
+# report arrays.
 sync_hook() {
   HOOKS_DIR="$(git -C "$TARGET" rev-parse --git-path hooks)"
   [[ "$HOOKS_DIR" = /* ]] || HOOKS_DIR="$TARGET/$HOOKS_DIR"
@@ -759,15 +871,9 @@ update_sync_managed() {
 }
 
 # --- Rule/convention files under --update ------------------------------------
-# CONVENTIONS.md, RULES.md and CONVENTIONS.cpp.md are kit-authored and
-# follow the same "ours vs theirs" contract as the agents: kept up to date
-# while used unmodified, frozen the moment they are customized. Two
-# differences: --update never CREATES them (a declined RULES.md or a never
-# manually-copied CONVENTIONS.cpp.md stays absent), and
-# CONVENTIONS.md / RULES.md split at their `## Project rules` heading — the
-# kit-managed prefix is everything up to and including that heading line,
-# the project's own appended rules below it are never touched, never even
-# considered when deciding whether the kit part was customized.
+# Same "ours vs theirs" contract as the agents (see the --update header
+# contract above). Two differences: they are never CREATED by --update, and
+# CONVENTIONS.md / RULES.md split at their `## Project rules` heading.
 
 # update_convention_split SRC DST REL : `## Project rules`-split sync for
 # CONVENTIONS.md / RULES.md. Both files must carry the marker (the caller
@@ -886,8 +992,6 @@ if [[ $UPDATE -eq 1 ]]; then
   else
     update_sync_managed "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0 ""
     sync_hook
-    # No lock baseline for the hook: sync_hook detects its drift by comparing
-    # the files directly, so a recorded hash would be dead metadata.
 
     # Kit-authored rule/convention files — same "ours vs theirs" sync as the
     # agents, for files that already exist in the target (never created).
@@ -952,10 +1056,44 @@ if [[ $GLOBAL_MODE -eq 0 ]]; then
   sync_hook
 
   # Templates + project config: only if absent
+  dw_fresh=0
+  if [[ ! -f "$TARGET/dev-workflow.json" ]]; then dw_fresh=1; fi
+  COMPANIONS_ENABLE=1
+  COMPANIONS_SOURCES=0
+  if [[ -n $COMPANIONS_FLAG && $dw_fresh -eq 0 ]]; then
+    warnings+=("--companions=$COMPANIONS_FLAG ignored: an existing dev-workflow.json was kept (the installer never overwrites it)")
+  elif [[ $dw_fresh -eq 1 && -n $COMPANIONS_FLAG ]]; then
+    # Explicit flag: detection and prompt skipped entirely.
+    if [[ $COMPANIONS_FLAG == on ]]; then COMPANIONS_ENABLE=1; else COMPANIONS_ENABLE=0; fi
+  elif [[ $dw_fresh -eq 1 ]]; then
+    # Scan the pristine target BEFORE the template copies land.
+    companions_scan "$TARGET"
+    companions_decide
+  fi
   copy_if_absent "$KIT_DIR/templates/dev-workflow.json" "$TARGET/dev-workflow.json" "dev-workflow.json"
   for t in TODO.md SPEC.md INPROGRESS.md CHANGELOG.md CONVENTIONS.md; do
     copy_if_absent "$KIT_DIR/templates/$t" "$TARGET/$t" "$t"
   done
+  # Apply a disable decision to the FRESH copy only (dw_fresh guards it — an
+  # existing dev-workflow.json is never touched, in any mode). Every outcome
+  # echoes what was configured, why, and the lever to change it.
+  if [[ $dw_fresh -eq 1 && $COMPANIONS_ENABLE -eq 0 ]]; then
+    if companions_set_off "$TARGET/dev-workflow.json"; then
+      if [[ $COMPANIONS_FLAG == off ]]; then
+        echo '  ~ companions: disabled (--companions=off)'
+      elif [[ -t 0 ]]; then
+        echo '  ~ companions: disabled — user choice'
+      else
+        echo "  ! companions: disabled — pre-existing repo ($COMPANIONS_SOURCES source file(s), no companion .md), no TTY to ask"
+      fi
+      echo '    re-enable: edit dev-workflow.json to "companions": { "enabled": true } (the --companions flag only applies at first install)'
+    else
+      warnings+=("could not set companions.enabled=false in the freshly copied dev-workflow.json — left as the template (enabled: true)")
+    fi
+  elif [[ $dw_fresh -eq 1 && $COMPANIONS_FLAG == on ]]; then
+    echo '  = companions: enabled (--companions=on)'
+    echo '    change: edit "companions": { "enabled": false } in dev-workflow.json (the --companions flag only applies at first install)'
+  fi
 
   # RULES.md is opt-in (with a flag/prompt, unlike CONVENTIONS.cpp.md
   # which stays manual-copy-only): --with-rules forces it on; with a TTY an
@@ -974,16 +1112,7 @@ if [[ $GLOBAL_MODE -eq 0 ]]; then
   fi
 fi
 
-# Model defaults + availability check — freshly copied agents only (agents
-# kept because of a local customization are the project's property, untouched).
-# Every error in this section is a warning; it can never fail the install.
-#
-# Two decoupled steps:
-#   Step A (always, needs only jq + models.json): inject each agent's default
-#   model from models.json into the freshly copied file.
-#   Step B (only if the opencode CLI is on PATH AND stdin is a TTY): check the
-#   injected model is offered by its provider and propose a replacement menu
-#   otherwise.
+# Model injection (step A) + availability check (step B) — see file header.
 if [[ ${#fresh_agents[@]} -gt 0 ]]; then
   if ! command -v jq >/dev/null 2>&1 || [[ ! -f "$KIT_DIR/models.json" ]]; then
     warnings+=("jq or kit models.json unavailable, skipping model injection and availability check for: ${fresh_agents[*]}")

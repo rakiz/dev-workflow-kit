@@ -2,7 +2,7 @@
 
 <!-- Project roadmap: one phase = one block under "Phases", sequential order.
      Each phase has a demonstrable objective (what can be shown at the end of
-     it) — no catch-all phases. Stable specs live in SPEC.md, not here. -->
+     it) — no catch-all phases. -->
 
 ## Context
 
@@ -20,5 +20,4 @@ Tasks:
 - [ ] ...
 
 Out of scope:
-
 -->

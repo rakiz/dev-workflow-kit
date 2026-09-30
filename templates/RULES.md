@@ -1,14 +1,10 @@
 # Safety rules
 
-<!-- Rules inspired by JPL's "The Power of 10: Rules for Developing
-     Safety-Critical Code" (Gerard Holzmann), generalized beyond C. They
-     apply on top of CONVENTIONS.md, which they complement: style and
-     conventions live there, safety and robustness here. A violation of a
-     rule below is never silent: it requires an explicit, reviewable
-     justification, and that justification can be accepted or refused by the
-     review step or the user — a refused deviation is blocking until fixed.
-     Read by the dev-workflow skill before writing or editing code (path:
-     workflow.rules in dev-workflow.json). -->
+<!-- Inspired by JPL's "The Power of 10" (Gerard Holzmann), generalized
+     beyond C. Complements CONVENTIONS.md: style there, safety here. Read by
+     the dev-workflow skill before writing code (workflow.rules in
+     dev-workflow.json). Violations are never silent — see Deviation
+     protocol below. -->
 
 ## R1. Simple control flow
 

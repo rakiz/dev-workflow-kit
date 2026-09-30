@@ -13,6 +13,7 @@ git clone https://github.com/rakiz/dev-workflow-kit ~/dev-workflow-kit   # once 
 cd ~/my-new-project && git init                   # if not already a git repo
 ~/dev-workflow-kit/init.sh                        # run from inside the target project
 # add --with-rules to also install RULES.md (otherwise asked interactively)
+# companions are auto-detected on fresh installs: enabled for a greenfield project or when companions are already in use, asked/disabled for an existing codebase without them (--companions=on|off to override)
 # later: ~/dev-workflow-kit/init.sh --update syncs kit changes into this project (see "Updating" below)
 ```
 
@@ -32,6 +33,7 @@ Same command — `init.sh` is idempotent and non-destructive:
 
 - it **never overwrites** an existing `dev-workflow.json`, `TODO.md`, `INPROGRESS.md`, `CHANGELOG.md`, `SPEC.md` or `CONVENTIONS.md` (nor an opt-in `RULES.md`);
 - it **never overwrites** a differing agent/skill file (treated as a local customization, warning + skip) or a differing existing pre-commit hook — the kit's hook is installed alongside as `pre-commit.dev-workflow-kit`, a file **Git does not execute**, for a manual merge.
+- on a **fresh** `dev-workflow.json` (absent before the install), the installer auto-detects existing sources and companions to enable or disable the companions feature — an existing `dev-workflow.json` is never touched (see the config section below).
 
 If the project already tracks work in a differently-named file (e.g. `ROADMAP.md` instead of `TODO.md`), edit `dev-workflow.json`'s `workflow.*` fields to point at the existing filenames — do not rename the project's files to match the kit.
 
@@ -43,7 +45,7 @@ Nothing changes about how you start opencode or which primary agent you use — 
 - **The five subagents are not invoked automatically by name.** They are available for your primary agent to delegate to via the `task` tool when appropriate: implementation work → `impl`, then a mandatory `review`; a rabbit hole needing deeper reasoning → `deep`; read-only research → `explore`; an architecture decision before writing code → `design-review`. If your primary agent doesn't naturally reach for them, ask explicitly the first few times (e.g. "use the impl agent for this, then review it").
 - **Pre-commit checks run automatically** on every `git commit` once the hook is installed — nothing to remember.
 
-Known limitation: the skill does mandate a review-agent pass before any commit (`review`, or `cheap-review` from the global roster — its "Before proposing a commit" step). However, nothing instructs a primary agent to **prefer** routing implementation work through `impl` + `review` instead of editing files directly itself — outside that commit-time pass, the subagents are described only from their own side (their frontmatter). Two pragmatic options if you want the pipeline enforced more strongly (documented, not automated): say it once at the start of a session, or add a one-line project-level `instructions` entry in the project's own `opencode.json` pointing at the skill/agents.
+Known limitation: the skill does mandate a review-agent pass before any commit (`review`, or `cheap-review` from the global roster — the skill's step 6, 'Before proposing a commit'). However, nothing instructs a primary agent to **prefer** routing implementation work through `impl` + `review` instead of editing files directly itself — outside that commit-time pass, the subagents are described only from their own side (their frontmatter). Two pragmatic options if you want the pipeline enforced more strongly (documented, not automated): say it once at the start of a session, or add a one-line project-level `instructions` entry in the project's own `opencode.json` pointing at the skill/agents.
 
 ## Security
 
@@ -92,7 +94,7 @@ dev-workflow-kit/
 │   ├── strong-review-alternative.md         #   reviews strong-code-alternative output from a different lineage, deeper re-review
 │   └── strong-review-alternative2.md        #   terminal read-only audit (fresh family)
 ├── skill/dev-workflow/      # opencode skill → .opencode/skill/dev-workflow/
-│   └── SKILL.md             #   TODO/INPROGRESS/CHANGELOG cycle, conventions, companions, commit
+│   └── SKILL.md             #   TODO/INPROGRESS/CHANGELOG cycle, conventions, companions, commit, periodic review
 ├── hooks/pre-commit.sh      # pre-commit hook driven by dev-workflow.json
 └── templates/
     ├── dev-workflow.json    # per-project config (pre-commit checks, paths, companions)
@@ -116,7 +118,7 @@ git clone https://github.com/rakiz/dev-workflow-kit
 From the kit:
 
 ```sh
-./init.sh [--with-rules] [--update] /path/to/target-project
+./init.sh [--with-rules] [--companions=on|off] [--update] /path/to/target-project
 # or, for the session-level roster (no target argument):
 ./init.sh [--update] --global
 ```
@@ -125,21 +127,21 @@ OR from the target project (both forms are equivalent):
 
 ```sh
 cd /path/to/target-project
-/path/to/dev-workflow-kit/init.sh [--with-rules] [--update]
+/path/to/dev-workflow-kit/init.sh [--with-rules] [--companions=on|off] [--update]
 ```
 
-The script locates the kit by its own location (`dirname "$0"`); the target is the optional positional argument, or the current directory if absent (the `--with-rules` and `--update` flags may appear in any position). The target project must be a git repo, otherwise it errors out. `--update` is the update mode — see [Updating](#updating-syncing-kit-changes-into-a-project); without it the script performs the plain install described below. `--global` switches to global mode — no target argument, no git requirement, different destination (see [Global roster](#global-roster)); combining it with a positional target is a clean error.
+The script locates the kit by its own location (`dirname "$0"`); the target is the optional positional argument, or the current directory if absent (the `--with-rules`, `--companions` and `--update` flags may appear in any position). The target project must be a git repo, otherwise it errors out. `--companions=on|off` forces the companions setting of a **freshly created** `dev-workflow.json`, skipping auto-detection and the interactive prompt (warning-only no-op with `--global`/`--update`). `--update` is the update mode — see [Updating](#updating-syncing-kit-changes-into-a-project); without it the script performs the plain install described below. `--global` switches to global mode — no target argument, no git requirement, different destination (see [Global roster](#global-roster)); combining it with a positional target is a clean error.
 
 | Source | Destination | Behavior |
 |---|---|---|
 | `agent/*.md` | `.opencode/agent/` | copied if absent; if present and **different** from the kit → kept + warning (local customization preserved) |
 | `skill/dev-workflow/` | `.opencode/skill/dev-workflow/` | same |
 | `hooks/pre-commit.sh` | `.git/hooks/pre-commit` | installed if absent; if a **different** hook exists → copied as `pre-commit.dev-workflow-kit`, manual merge |
-| `templates/dev-workflow.json` | project root | copied **only if absent** |
+| `templates/dev-workflow.json` | project root | copied **only if absent**; on a fresh copy the companions setting is auto-detected (`--companions=on|off` to override) |
 | `templates/TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md`, `CONVENTIONS.md` | project root | copied **only if absent** |
 | `templates/RULES.md` | project root | **opt-in** — copied **only if absent** with `--with-rules`, or via an interactive y/N prompt when a TTY is available; otherwise skipped (copy it manually to opt in) |
 
-Every successful install also writes/updates `.opencode/.dev-workflow-kit-lock.json` — the sync baseline (kit body hashes + injected model/variant per kit-managed file) that `--update` relies on. It is generated, not copied from the kit; commit it to the project's repo.
+**Every** successful install also writes/updates the lock file when `jq` and `shasum` are available; otherwise the install succeeds without one (warning only) and the next `--update` bootstraps conservatively. It is generated, not copied from the kit; commit it to the project's repo.
 
 ## Global roster
 
@@ -147,14 +149,14 @@ Every successful install also writes/updates `.opencode/.dev-workflow-kit-lock.j
 
 - **Destination**: `${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/agent/`. There is no `.opencode/` level here, unlike project mode — the config directory's `agent/` subdirectory *is* the agent directory. Set `OPENCODE_CONFIG_DIR` to target another config directory (created if absent); it is honored by `--global` only.
 - **Models** come from the `"global"` section of the kit's `models.json`, through the same injection and availability-menu machinery as project mode. The lock file is `${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/.dev-workflow-kit-lock.json` — a separate file from any project's lock, same schema, so the two scopes sync independently with `--update --global`.
-- **Migration from an inline roster**: if your `opencode.json(c)` defines agents in an inline `"agent"` block, those entries **shadow** the kit-managed files (inline config wins over agent files — the agent would keep running from the jsonc, not from the kit). `init.sh --global` detects every inline entry whose name matches a roster agent (a JSONC-aware parse, best effort) and warns insistently; it never edits the jsonc itself. Removing the inline roster entries by hand (keeping non-roster overrides like `build`/`plan`/`explore`) is the migration step that makes the kit the single source of truth again.
+- **Migration from an inline roster**: if your `opencode.json(c)` defines agents in an inline `"agent"` block, those entries **shadow** the kit-managed files (inline config wins over agent files — the agent would keep running from the jsonc, not from the kit). `init.sh --global` detects every inline entry whose name matches a roster agent (a JSONC-aware parse, best effort) and warns insistently; it never edits the jsonc itself. Removing the inline roster entries by hand (keeping non-roster overrides like `build`/`plan`) is the migration step that makes the kit the single source of truth again.
 - **Project wins**: when a name exists both globally and in a project installed by the kit, the project-level agent takes precedence in that project — this is wanted: the global roster is the fallback for projects (or ad-hoc work) without the kit's pipeline, and the roster agents' descriptions say so.
 
-Nothing project-specific is touched by `--global`: no skill, no pre-commit hook, no `dev-workflow.json`, no rule/convention files — and no git repo is required (the config directory is not one). `--with-rules` has no effect with `--global` (a warning says so).
+Nothing project-specific is touched by `--global`: no skill, no pre-commit hook, no `dev-workflow.json`, no rule/convention files — and no git repo is required (the config directory is not one). `--with-rules` and `--companions` have no effect with `--global` (a warning says so).
 
 ## Default models
 
-The kit ships default models per agent role in `models.json` (impl runs a cheap bulk model, review runs a different model lineage than impl to avoid shared blind spots, deep gets the expensive reasoning model). `init.sh` injects these into freshly copied agents — `models.json` is the single source of truth, edit it to change the defaults. Several roles also pin a reasoning-effort `variant` (some pin `none`, others `low`/`high`/`medium`/`xhigh`) — see `MODELS.md`.
+The kit ships default models per agent role in `models.json` (impl runs a cheap bulk model, review runs a different model lineage than impl to avoid shared blind spots, deep gets the expensive reasoning model). `init.sh` injects these into freshly copied agents — `models.json` is the single source of truth, edit it to change the defaults. Several roles also pin a reasoning-effort `variant` (some pin `none`, others `low`/`high`/`medium`) — see `MODELS.md`.
 
 At install time, if the `opencode` CLI is available, each freshly copied agent's model is checked against its provider's model list (`opencode models <provider>`):
 
@@ -180,8 +182,10 @@ If `opencode` is not installed, the check is skipped with a warning — the mode
 ```
 
 - `precommit.checks[]`: the pre-commit checks — see [Extending pre-commit checks](#extending-pre-commit-checks) for the full contract (`cmd` entries and builtins).
-- `companions.enabled: false`: the `companion_md_exists` builtin is skipped entirely, even if listed.
+- `companions.enabled: false`: the `companion_md_exists` builtin is skipped entirely, even if listed, and the skill creates no companion — the recommended setting when working on a pre-existing codebase you don't want to pollute with companion `.md` files (companions are a greenfield tool).
+- Fresh install: the installer auto-detects existing sources and companions and sets `companions.enabled` accordingly — companions already in use stay enabled; an existing codebase without companions is prompted about (or auto-disabled without a TTY, with a notice telling how to re-enable). `--companions=on|off` overrides the detection; an existing `dev-workflow.json` is never touched.
 - `workflow`: paths of the files used by the `dev-workflow` skill. `workflow.conventions` points at the coding-conventions file the skill reads before writing or editing code (default `CONVENTIONS.md`).
+- `workflow.spec`: points at the stable-specs file (default `SPEC.md`) the skill re-reads before any commit that could deviate from it — a necessary deviation is flagged to the user, never decided alone.
 - `workflow.rules`: points at the optional safety/robustness rules file, read alongside the conventions (default `RULES.md`, inspired by JPL's Power of 10) — a violation there always requires an explicit, reviewable justification, which the review step can refuse.
 
 ## Optional language-specific conventions
@@ -217,6 +221,7 @@ Builtin checks are implemented inside `hooks/pre-commit.sh` itself — adding a 
 Behavior (`hooks/pre-commit.sh` installed as `.git/hooks/pre-commit`):
 
 - `dev-workflow.json` missing from the root → warning, commit **accepted** (the hook does not block a repo that has not adopted the kit yet);
+- `dev-workflow.json` invalid JSON (unparseable) → clear message, commit **blocked** — a hard block, distinct from the invalid-`.precommit.checks`-type case below;
 - `.precommit.checks` of an invalid type (e.g. a string) → clear message, commit **blocked**;
 - failing `cmd` check → the check's stdout/stderr is shown, commit **blocked**;
 - `.md` companions missing from the index (missing on disk, or present but not staged) → list shown, commit **blocked**;
@@ -241,7 +246,7 @@ Re-running `init.sh` on the project (no flags needed):
 - a file **untouched since the last sync** is auto-updated to the kit's current version, and its model/variant defaults are refreshed to the current `models.json` values;
 - a **locally customized** file is **never overwritten**: the kit's current version is written next to it as `<file>.dev-workflow-kit-new` for a manual merge, with a warning. A hand-set `model:` line is kept as-is (a neutral "kept" note, not a warning — picking your own model is expected, deliberate behavior); it stays yours even when `models.json` changes later. The same applies to a hand-set `variant:` line: a variant that differs from the last kit-injected value is treated as yours — kept, and never clobbered by a later `models.json` change (not even when the model itself is refreshed);
 - **`CONVENTIONS.md`, `RULES.md` and `CONVENTIONS.cpp.md` follow the same "ours vs theirs" sync as the agents** — they are kit-authored content, kept up to date automatically as long as you use them unmodified; the moment you edit one, it is frozen (never auto-overwritten) and the kit's current version is offered as a `.dev-workflow-kit-new` sibling for a manual merge. For `CONVENTIONS.md` and `RULES.md` this comparison **splits at the `## Project rules` heading**: only the kit-authored part above and including that line is compared and replaced; the project-specific rules you append below it are 100% yours — never touched, and never even considered when deciding whether the kit part was customized. `CONVENTIONS.cpp.md` has no user-append zone, so it is compared and replaced whole-file. These three files are also **never auto-created by `--update`**: a `RULES.md` you declined at install (or a `CONVENTIONS.cpp.md` you never manually copied) stays absent — the file must already exist, via `--with-rules`, a plain install, or a manual copy;
-- the **project-state files remain permanently untouched by `--update` under all circumstances**: `dev-workflow.json`, `TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md` — not created, not overwritten, not removed, regardless of whether they are customized, absent, or deliberately never installed. They are pure project state with no kit-default content to converge toward — a guarantee that holds in every release (`--with-rules` has no effect combined with `--update` — a warning says so: an existing `RULES.md` is synced either way, and a missing one is never created in update mode);
+- the **project-state files remain permanently untouched by `--update` under all circumstances**: `dev-workflow.json`, `TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md` — not created, not overwritten, not removed, regardless of whether they are customized, absent, or deliberately never installed. They are pure project state with no kit-default content to converge toward — a guarantee that holds in every release (`--with-rules` and `--companions` have no effect combined with `--update` — a warning says so: an existing `RULES.md` is synced either way, and a missing one is never created in update mode);
 - **never prompts**: no TTY reads at all (the interactive model-availability menu is install-time only), so it is safe to run non-interactively/CI. It exits 0 unless a hard precondition fails (target not a git repo, or never initialized with the kit — `.opencode/agent/` missing);
 - the pre-commit hook keeps its own drift mechanism: an updated kit hook lands in `pre-commit.dev-workflow-kit` exactly as during an install;
 - **bootstrap**: a project initialized before the lock file existed gets a conservative first `--update` — nothing is silently clobbered. Files already matching the kit are baselined into the lock; files that diverge are treated as possibly customized (`.dev-workflow-kit-new` sibling, no overwrite). From the second `--update` on, the untouched-vs-customized distinction is exact.

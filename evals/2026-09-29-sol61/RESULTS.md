@@ -47,7 +47,4 @@ distinguish impl). The effort knob is nearly free — no reason to pay for
 ## Status
 
 - ✅ Evaluated 8 runs, archived, compared line by line with `../2026-09-29/RESULTS.md`.
-- ⬜ `models.json` still pins `gpt-6-sol` — candidate bump to `gpt-6.1-sol`
-  for its three slots (`strong-code-alternative`, `strong-design-alternative`,
-  `strong-design-review`), with `variant: xhigh` on impl now questionable
-  (def/medium sufficient). Not applied.
+- ✅ `models.json` pins `gpt-6.1-sol` in all three slots — applied.

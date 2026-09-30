@@ -1,8 +1,8 @@
 # SPEC
 
-<!-- Stable specifications: what the project IS and must do. This file changes
-     only through an explicit decision — it is the reference re-read before any
-     commit that could deviate from it. Keep each section short. -->
+<!-- Stable specifications: what the project IS and must do. Changes only
+     through an explicit decision. Keep each section short. Re-read rule:
+     dev-workflow skill (§5). -->
 
 ## Overview
 
