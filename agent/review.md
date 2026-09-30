@@ -21,4 +21,4 @@ Sort each finding:
 - **minor**: localized mistake, obvious fix -> back to impl with the expected fix.
 - **major**: risk of breakage beyond the diff, security flaw, architecture problem -> escalate to deep.
 
-Output format: one line per finding — `minor|major — file:line — problem — expected action`. If there is nothing to report, say so explicitly.
+Output format: one line per finding — `minor|major — file:line — problem — expected action`. If there is nothing to report, say so explicitly. Treat the author's report as unverified claims to check, not as the review's scope; on a re-review, close each prior finding by `file:line` and review the fix delta as new code.

@@ -22,4 +22,4 @@ Sort each finding:
 - **minor**: localized mistake, obvious fix — send back to the implementer with the expected fix.
 - **major**: risk of breakage beyond the change, security flaw, architecture problem — escalate to strong-code; strong-code-alternative only after strong-code has failed or expressed doubt.
 
-Output format: one line per finding — `minor|major — file:line — problem — expected action`. If there is nothing to report, say so explicitly.
+Output format: one line per finding — `minor|major — file:line — problem — expected action`. If there is nothing to report, say so explicitly. Treat the author's report as unverified claims to check, not as the review's scope; on a re-review, close each prior finding by `file:line` and review the fix delta as new code.

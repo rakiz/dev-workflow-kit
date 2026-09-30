@@ -20,4 +20,5 @@ Tasks:
 - [ ] ...
 
 Out of scope:
+(bounds the session: anything else = another task)
 -->

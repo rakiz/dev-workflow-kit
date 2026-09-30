@@ -16,4 +16,4 @@ Method:
 
 Update the task's INPROGRESS.md as you work — tick steps as you complete them, record blockers as they appear (per the dev-workflow skill §1).
 
-Final report (short): files changed, one line per file on what changed, points of attention for the review. Your work will be re-read by the review agent: list facts, no justification.
+Final report (short): files changed, one line per file on what changed, points of attention for the review. Your work will be re-read by the review agent: list facts, no justification. Every deliverable is stated verifiably: done yes/no, where it lives (file:line or call site), and what proves it (a test, a check, or "not verified"). No unverifiable claim ("wired", "integrated") without that triple.

@@ -3,7 +3,8 @@
 <!-- Default rules shipped with dev-workflow-kit. They always apply — even if
      this file is never customized. Extend the "Project rules" section below
      with your own (naming conventions, formatting, language-specific idioms,
-     error-handling policy, ...). The dev-workflow skill reads this file
+     error-handling policy, test robustness (tag slow/flaky tests as they are
+     introduced, don't put it off), ...). The dev-workflow skill reads this file
      before writing or editing code (path: workflow.conventions in
      dev-workflow.json). -->
 
