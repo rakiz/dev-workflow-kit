@@ -27,7 +27,7 @@ What the install actually puts in the project:
 - `.opencode/skill/dev-workflow/SKILL.md` — the skill driving the TODO → INPROGRESS → CHANGELOG cycle, the companions and the commit checks;
 - `.git/hooks/pre-commit` — the hook running the `dev-workflow.json` checks on every commit;
 - `dev-workflow.json` (project root) — your config: pre-commit checks + paths of the workflow files;
-- `TODO.md`, `INPROGRESS.md`, `CHANGELOG.md`, `SPEC.md`, `CONVENTIONS.md` (project root) — starter skeletons, to fill in;
+- `TODO.md`, `INPROGRESS.md`, `CHANGELOG.md`, `SPEC.md`, `DESIGNS.md`, `CONVENTIONS.md` (project root) — starter skeletons, to fill in;
 - `RULES.md` (project root) — **opt-in** safety/robustness rules skeleton (JPL's Power of 10-inspired), not installed by default: pass `--with-rules` or answer the interactive y/N prompt (see the Installation table);
 - `.opencode/.dev-workflow-kit-lock.json` — sync baseline (kit body hashes + injected models/variants, plus the rule/convention prefix hashes) used by `init.sh --update`; it also records `kit_version`, the kit release last synced — compare it to the kit's `VERSION` file to tell whether an update is needed: `jq .kit_version .opencode/.dev-workflow-kit-lock.json`. Commit it (see "Updating").
 
@@ -35,7 +35,7 @@ What the install actually puts in the project:
 
 Same command — `init.sh` is idempotent and non-destructive:
 
-- it **never overwrites** an existing `dev-workflow.json`, `TODO.md`, `INPROGRESS.md`, `CHANGELOG.md`, `SPEC.md` or `CONVENTIONS.md` (nor an opt-in `RULES.md`);
+- it **never overwrites** an existing `dev-workflow.json`, `TODO.md`, `INPROGRESS.md`, `CHANGELOG.md`, `SPEC.md`, `DESIGNS.md` or `CONVENTIONS.md` (nor an opt-in `RULES.md`);
 - it **never overwrites** a differing agent/skill file (treated as a local customization, warning + skip) or a differing existing pre-commit hook — the kit's hook is installed alongside as `pre-commit.dev-workflow-kit`, a file **Git does not execute**, for a manual merge.
 - on a **fresh** `dev-workflow.json` (absent before the install), the installer auto-detects existing sources and companions to enable or disable the companions feature — an existing `dev-workflow.json` is never touched (see the config section below).
 
@@ -104,6 +104,7 @@ dev-workflow-kit/
     ├── dev-workflow.json    # per-project config (pre-commit checks, paths, companions)
     ├── TODO.md              # roadmap skeleton
     ├── SPEC.md              # stable spec skeleton
+    ├── DESIGNS.md           # designs archive skeleton (as-implemented history)
     ├── INPROGRESS.md        # current-state skeleton
     ├── CHANGELOG.md         # changelog skeleton (Keep a Changelog)
     ├── CONVENTIONS.md       # default coding rules skeleton (extend per project)
@@ -142,7 +143,7 @@ The script locates the kit by its own location (`dirname "$0"`); the target is t
 | `skill/dev-workflow/` | `.opencode/skill/dev-workflow/` | same |
 | `hooks/pre-commit.sh` | `.git/hooks/pre-commit` | installed if absent; if a **different** hook exists → copied as `pre-commit.dev-workflow-kit`, manual merge |
 | `templates/dev-workflow.json` | project root | copied **only if absent**; on a fresh copy the companions setting is auto-detected (`--companions=on|off` to override) |
-| `templates/TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md`, `CONVENTIONS.md` | project root | copied **only if absent** |
+| `templates/TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md`, `DESIGNS.md`, `CONVENTIONS.md` | project root | copied **only if absent** |
 | `templates/RULES.md` | project root | **opt-in** — copied **only if absent** with `--with-rules`, or via an interactive y/N prompt when a TTY is available; otherwise skipped (copy it manually to opt in) |
 
 **Every** successful install also writes/updates the lock file when `jq` and `shasum` are available; otherwise the install succeeds without one (warning only) and the next `--update` bootstraps conservatively. It is generated, not copied from the kit; commit it to the project's repo. Every successful sync stamps the kit's current `VERSION` into the lock's `kit_version` field.
@@ -180,7 +181,7 @@ If `opencode` is not installed, the check is skipped with a warning — the mode
       { "name": "companions_exist", "builtin": "companion_md_exists", "extensions": ["cpp", "h", "ts", "tsx"] }
     ]
   },
-  "workflow": { "todo": "TODO.md", "inprogress": "INPROGRESS.md", "changelog": "CHANGELOG.md", "spec": "SPEC.md", "conventions": "CONVENTIONS.md", "rules": "RULES.md" },
+  "workflow": { "todo": "TODO.md", "inprogress": "INPROGRESS.md", "changelog": "CHANGELOG.md", "spec": "SPEC.md", "designs": "DESIGNS.md", "conventions": "CONVENTIONS.md", "rules": "RULES.md" },
   "companions": { "enabled": true }
 }
 ```
@@ -188,10 +189,11 @@ If `opencode` is not installed, the check is skipped with a warning — the mode
 - `precommit.checks[]`: the pre-commit checks — see [Extending pre-commit checks](#extending-pre-commit-checks) for the full contract (`cmd` entries and builtins).
 - `companions.enabled: false`: the `companion_md_exists` builtin is skipped entirely, even if listed, and the skill creates no companion — the recommended setting when working on a pre-existing codebase you don't want to pollute with companion `.md` files (companions are a greenfield tool).
 - Fresh install: the installer auto-detects existing sources and companions and sets `companions.enabled` accordingly — companions already in use stay enabled; an existing codebase without companions is prompted about (or auto-disabled without a TTY, with a notice telling how to re-enable). `--companions=on|off` overrides the detection; an existing `dev-workflow.json` is never touched.
-- `workflow`: paths of the files used by the `dev-workflow` skill. `workflow.conventions` points at the coding-conventions file the skill reads before writing or editing code (default `CONVENTIONS.md`).
+- `workflow`: paths of the files used by the `dev-workflow` skill. `workflow.conventions` points at the coding-conventions file the skill reads before writing or editing code (default `CONVENTIONS.md`). The optional `workflow.*` paths — `spec`, `designs`, `conventions`, `rules` — are conditional: the corresponding behavior is active only while the pointed-at file exists (delete the file or the key to turn that feature off); `todo`, `inprogress` and `changelog` are pure renames of the core cycle's files.
 - `workflow.spec`: points at the stable-specs file (default `SPEC.md`) the skill re-reads before any commit that could deviate from it — a necessary deviation is flagged to the user, never decided alone.
 - `workflow.rules`: points at the optional safety/robustness rules file, read alongside the conventions (default `RULES.md`, inspired by JPL's Power of 10) — a violation there always requires an explicit, reviewable justification, which the review step can refuse.
 
+- `workflow.designs`: points at the designs-archive file (default `DESIGNS.md`) where the skill writes one entry per completed task — the design as implemented, direction changes, rejected alternatives; a non-normative history (the SPEC stays authoritative), written at task completion before the `INPROGRESS.md` reset.
 ## Optional language-specific conventions
 
 `templates/CONVENTIONS.cpp.md` is an **opt-in** template that `init.sh` never copies at install time: unlike `RULES.md` (opt-in via `--with-rules`/prompt but still copied by `init.sh` when chosen), getting it into the project the first time is a manual copy. It is a language-specific reference (C++, and JS where noted) following a mature C++ codebase's conventions, for a project that wants them. A project that wants it copies the file into its root manually, then either references it from its own `CONVENTIONS.md`'s "Project rules" section with a one-line pointer, or appends its content directly into that section. Once it exists in the project, though, it is synced by `init.sh --update` like the other kit-authored convention files — kept up to date while untouched, frozen with a `.dev-workflow-kit-new` sibling when customized (whole-file sync; see [Updating](#updating-syncing-kit-changes-into-a-project) for the exact contract).
@@ -239,7 +241,7 @@ Behavior (`hooks/pre-commit.sh` installed as `.git/hooks/pre-commit`):
 Re-running `init.sh` on the project (no flags needed):
 
 - the **agents and the skill** are copied if absent; if they differ from the kit (local customization: edited content…), they are **never overwritten** — a warning lists the affected files, to compare/merge by hand;
-- `dev-workflow.json`, `TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md`, `CONVENTIONS.md` are **never overwritten** (nor an opt-in `RULES.md`);
+- `dev-workflow.json`, `TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md`, `DESIGNS.md`, `CONVENTIONS.md` are **never overwritten** (nor an opt-in `RULES.md`);
 - your pre-commit hook, if it exists and differs from the kit, is kept: the kit's hook lands in `pre-commit.dev-workflow-kit`, a file **Git does not execute** — the kit's hook stays inactive until the manual merge into `.git/hooks/pre-commit` is done.
 
 ### `init.sh --update` (kit-managed files, lock-driven)
@@ -250,7 +252,7 @@ Re-running `init.sh` on the project (no flags needed):
 - a file **untouched since the last sync** is auto-updated to the kit's current version, and its model/variant defaults are refreshed to the current `models.json` values;
 - a **locally customized** file is **never overwritten**: the kit's current version is written next to it as `<file>.dev-workflow-kit-new` for a manual merge, with a warning. A hand-set `model:` line is kept as-is (a neutral "kept" note, not a warning — picking your own model is expected, deliberate behavior); it stays yours even when `models.json` changes later. The same applies to a hand-set `variant:` line: a variant that differs from the last kit-injected value is treated as yours — kept, and never clobbered by a later `models.json` change (not even when the model itself is refreshed);
 - **`CONVENTIONS.md`, `RULES.md` and `CONVENTIONS.cpp.md` follow the same "ours vs theirs" sync as the agents** — they are kit-authored content, kept up to date automatically as long as you use them unmodified; the moment you edit one, it is frozen (never auto-overwritten) and the kit's current version is offered as a `.dev-workflow-kit-new` sibling for a manual merge. For `CONVENTIONS.md` and `RULES.md` this comparison **splits at the `## Project rules` heading**: only the kit-authored part above and including that line is compared and replaced; the project-specific rules you append below it are 100% yours — never touched, and never even considered when deciding whether the kit part was customized. `CONVENTIONS.cpp.md` has no user-append zone, so it is compared and replaced whole-file. These three files are also **never auto-created by `--update`**: a `RULES.md` you declined at install (or a `CONVENTIONS.cpp.md` you never manually copied) stays absent — the file must already exist, via `--with-rules`, a plain install, or a manual copy;
-- the **project-state files remain permanently untouched by `--update` under all circumstances**: `dev-workflow.json`, `TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md` — not created, not overwritten, not removed, regardless of whether they are customized, absent, or deliberately never installed. They are pure project state with no kit-default content to converge toward — a guarantee that holds in every release (`--with-rules` and `--companions` have no effect combined with `--update` — a warning says so: an existing `RULES.md` is synced either way, and a missing one is never created in update mode);
+- the **project-state files remain permanently untouched by `--update` under all circumstances**: `dev-workflow.json`, `TODO.md`, `SPEC.md`, `INPROGRESS.md`, `CHANGELOG.md`, `DESIGNS.md` — not created, not overwritten, not removed, regardless of whether they are customized, absent, or deliberately never installed. They are pure project state with no kit-default content to converge toward — a guarantee that holds in every release (`--with-rules` and `--companions` have no effect combined with `--update` — a warning says so: an existing `RULES.md` is synced either way, and a missing one is never created in update mode);
 - **never prompts**: no TTY reads at all (the interactive model-availability menu is install-time only), so it is safe to run non-interactively/CI. It exits 0 unless a hard precondition fails (target not a git repo, or never initialized with the kit — `.opencode/agent/` missing);
 - the pre-commit hook keeps its own drift mechanism: an updated kit hook lands in `pre-commit.dev-workflow-kit` exactly as during an install;
 - **bootstrap**: a project initialized before the lock file existed gets a conservative first `--update` — nothing is silently clobbered. Files already matching the kit are baselined into the lock; files that diverge are treated as possibly customized (`.dev-workflow-kit-new` sibling, no overwrite). From the second `--update` on, the untouched-vs-customized distinction is exact.

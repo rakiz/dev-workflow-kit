@@ -20,7 +20,7 @@
 #     the install. A replacement model picked through the menu never gets a
 #     guessed variant: the step-A variant is left untouched.
 #   - dev-workflow.json, TODO.md, SPEC.md, INPROGRESS.md, CHANGELOG.md,
-#     CONVENTIONS.md: copied ONLY if they do not exist yet (never overwritten).
+#     DESIGNS.md, CONVENTIONS.md: copied ONLY if they do not exist yet (never overwritten).
 #     RULES.md: OPT-IN — copied with --with-rules, or via an interactive y/N
 #     prompt when a TTY is available; otherwise skipped (copy
 #     templates/RULES.md manually to opt in). CONVENTIONS.cpp.md stays
@@ -52,7 +52,7 @@
 #     from models.json, and the three kit-authored rule/convention files
 #     CONVENTIONS.md, RULES.md and CONVENTIONS.cpp.md (see below).
 #   - Project-state files (dev-workflow.json, TODO.md, SPEC.md,
-#     INPROGRESS.md, CHANGELOG.md) are NEVER touched by --update — not
+#     INPROGRESS.md, CHANGELOG.md, DESIGNS.md) are NEVER touched by --update — not
 #     created, not overwritten, not removed — whatever their state. They
 #     are pure project-owned content with no kit default to converge
 #     toward. --with-rules has no effect combined with --update (a warning
@@ -1094,7 +1094,7 @@ if [[ $UPDATE -eq 1 ]]; then
   if [[ $GLOBAL_MODE -eq 1 ]]; then
     echo "Done. Global roster synced into $TARGET (lock: ${LOCK_FILE#$TARGET/})."
   else
-    echo "Done. Project-state files (dev-workflow.json, TODO.md, SPEC.md, INPROGRESS.md, CHANGELOG.md) are never touched by --update. Commit ${LOCK_FILE#$TARGET/} so updates stay deterministic across machines and CI."
+    echo "Done. Project-state files (dev-workflow.json, TODO.md, SPEC.md, INPROGRESS.md, CHANGELOG.md, DESIGNS.md) are never touched by --update. Commit ${LOCK_FILE#$TARGET/} so updates stay deterministic across machines and CI."
   fi
   exit 0
 fi
@@ -1134,7 +1134,7 @@ if [[ $GLOBAL_MODE -eq 0 ]]; then
     companions_decide
   fi
   copy_if_absent "$KIT_DIR/templates/dev-workflow.json" "$TARGET/dev-workflow.json" "dev-workflow.json"
-  for t in TODO.md SPEC.md INPROGRESS.md CHANGELOG.md CONVENTIONS.md; do
+  for t in TODO.md SPEC.md INPROGRESS.md CHANGELOG.md DESIGNS.md CONVENTIONS.md; do
     copy_if_absent "$KIT_DIR/templates/$t" "$TARGET/$t" "$t"
   done
   # Apply a disable decision to the FRESH copy only (dw_fresh guards it — an

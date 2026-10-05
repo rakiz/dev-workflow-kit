@@ -11,6 +11,11 @@
 
 ## Steps
 
+<!-- The first step is ALWAYS the design/planning step (mandatory, written at
+     task start) — proportional to the task: a trivial task's design can be a
+     few lines (scope, steps, acceptance criterion). Detail it progressively
+     as the design converges. -->
+
 - [ ] ...
 
 ## Blockers
