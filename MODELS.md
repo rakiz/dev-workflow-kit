@@ -4,7 +4,7 @@ Why each agent role runs the model it runs. `models.json` at the kit root is the
 single source of truth for the default models — `init.sh` injects them into the
 installed agents at install time. To change a default, edit `models.json`; do
 not hardcode a model anywhere else. The defaults reflect the author's providers
-(Fireworks, GitHub Copilot) — swap freely via `models.json`.
+(AI Gateway, Fireworks, GitHub Copilot) — swap freely via `models.json`.
 
 Use this page as the yardstick when a configured model becomes unavailable and
 a replacement must be chosen: same role, comparable cost per MTok, and for
@@ -78,7 +78,7 @@ github-copilot is not honored (no cost drop), only `xhigh` raises the price.
 
 ## Per-role rationale
 
-### impl — `fireworks-ai/.../glm-5p3-flash` (family: glm)
+### impl — `ai-gateway-misc/fw-glm-5.3-flash` (family: glm)
 
 The bulk implementer: most tokens spent in a session end up here, so this is
 where cheapness matters most. Chosen as a cheap-but-solid frontier model —
@@ -101,13 +101,13 @@ priority, `low` is the default review rung; step up to `claude-sonnet-5.5`
 `medium` (best depth/speed of the eval) for a sensitive diff, then
 `claude-opus-5.5` — never within the glm family while impl runs glm.
 
-### explore — `fireworks-ai/.../deepseek-v4p1-flash` (family: deepseek)
+### explore — `ai-gateway-misc/fw-deepseek-v4.1-flash` (family: deepseek)
 
 Read-only localization work: find symbols, trace a flow, summarize. High
 volume, low stakes, cheapest acceptable model wins. DeepSeek's cheap tier does
 this as well as models many times its price.
 
-### design-review — `fireworks-ai/.../deepseek-v4p1-flash` (family: deepseek)
+### design-review — `ai-gateway-misc/fw-deepseek-v4.1-flash` (family: deepseek)
 
 Critiques an approach before code is written. Runs rarely, and the eval
 (`evals/2026-09-29/`, task T4) showed deepseek covering the same
@@ -125,6 +125,17 @@ is affordable and worth it. Anthropic models are the natural choice here —
 the kit still avoids paying premium prices anywhere else. It runs the same
 top Claude as the global roster's strong rungs, at the model's default
 reasoning effort (no `variant`).
+
+### Provider routing (AI Gateway vs direct)
+
+`models.json` uses the AI Gateway ids for every Fireworks model the gateway
+carries (glm flash, the deepseek flashes, pro): same upstream models, ~19%
+cheaper per MTok catalog and −20% measured on a T2 run (commit 06bed70
+rationale). Exceptions: qwen stays `fireworks-ai` direct (the gateway carries
+no FW-Qwen), and the non-flash glm-5.3 was not routed (gateway catalog price
+$1.14/$3.58 — verify against `fireworks-ai` direct before ever switching it).
+Eval costs in `evals/` and `EVALS.md` keep their eval-day provider labels —
+they are historical records.
 
 ## Global roster (session agents) — the 4-tier grid
 
@@ -153,9 +164,9 @@ Two rules bind the whole grid:
 | code (impl) | `cheap-code` glm `none` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` gemini `low` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
-| orchestration | session default model: glm (the user's configured default model) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
+| orchestration | session default model: glm — the user's configured default model; recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
-Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash, qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro.
+Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro.
 
 Eval 2026-09-30 addendum — qwen and pro join as the 7th/8th families
 (`evals/2026-09-30-qwen3p8/`, `evals/2026-09-30-deepseek-v4-pro/`): qwen
