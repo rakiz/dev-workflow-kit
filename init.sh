@@ -23,8 +23,10 @@
 #     DESIGNS.md, CONVENTIONS.md: copied ONLY if they do not exist yet (never overwritten).
 #     RULES.md: OPT-IN — copied with --with-rules, or via an interactive y/N
 #     prompt when a TTY is available; otherwise skipped (copy
-#     templates/RULES.md manually to opt in). CONVENTIONS.cpp.md stays
-#     opt-in by manual copy only (no flag). CONVENTIONS.md and RULES.md get
+#     templates/RULES.md manually to opt in). CONVENTIONS.cpp.md,
+#     CONVENTIONS.cpp23.md and CONVENTIONS.python.md stay opt-in by
+#     manual copy only (no flag).
+#     CONVENTIONS.md and RULES.md get
 #     a --update baseline (their `## Project rules` prefix hash) in the lock
 #     file when copied fresh or still identical.
 #   - Companions setting: auto-detected on a FRESH dev-workflow.json copy
@@ -49,25 +51,27 @@
 # --update behavior (synchronizes an already-initialized project):
 #   - KIT-MANAGED files only: agent/*.md, skill/dev-workflow/SKILL.md, the
 #     pre-commit hook, the model:/variant: frontmatter defaults injected
-#     from models.json, and the three kit-authored rule/convention files
-#     CONVENTIONS.md, RULES.md and CONVENTIONS.cpp.md (see below).
+#     from models.json, and the five kit-authored rule/convention files
+#     CONVENTIONS.md, RULES.md, CONVENTIONS.cpp.md,
+#     CONVENTIONS.cpp23.md and CONVENTIONS.python.md (see below).
 #   - Project-state files (dev-workflow.json, TODO.md, SPEC.md,
 #     INPROGRESS.md, CHANGELOG.md, DESIGNS.md) are NEVER touched by --update — not
 #     created, not overwritten, not removed — whatever their state. They
 #     are pure project-owned content with no kit default to converge
 #     toward. --with-rules has no effect combined with --update (a warning
 #     says so).
-#   - The three rule/convention files follow the same lock-based "ours vs
+#   - The five rule/convention files follow the same lock-based "ours vs
 #     theirs" contract as the agents — kept up to date while used
 #     unmodified, frozen with a .dev-workflow-kit-new sibling the moment
 #     they are edited — but are never CREATED by --update (an absent
-#     RULES.md or CONVENTIONS.cpp.md stays absent). CONVENTIONS.md
+#     RULES.md, CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md or
+#     CONVENTIONS.python.md stays absent). CONVENTIONS.md
 #     and RULES.md are compared and replaced only above their
 #     `## Project rules` heading (the kit-managed prefix); project-specific
 #     rules appended below it are 100% the project's — never touched,
 #     never even considered when deciding whether the kit part was
-#     customized. CONVENTIONS.cpp.md is synced whole-file (no
-#     user-append zone).
+#     customized. CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md and
+#     CONVENTIONS.python.md are synced whole-file (no user-append zone).
 #   - A file whose body matches the lock's baseline (untouched since the
 #     last sync) is auto-updated to the kit's current version; a locally
 #     customized file is NEVER overwritten — the kit's current version is
@@ -523,7 +527,7 @@ warn_shadowed_agents() {
 #       "CONVENTIONS.cpp.md": { "body_sha256": "<whole-file sha256>" } } }
 # body_sha256 = hash of the KIT'S SOURCE content that was last synced (not
 # of the target): _body_hash (model:/variant: lines stripped) for agents and
-# the skill, raw prefix/file bytes for the three rule/convention files.
+# the skill, raw prefix/file bytes for the five rule/convention files.
 # The pre-commit hook has NO entry: sync_hook detects its drift by comparing
 # the files directly, so a recorded hash would be dead metadata nothing
 # reads. model/variant = what the kit last injected for that agent (recorded
@@ -633,8 +637,9 @@ lock_record_if_synced() {
 }
 
 # lock_record_rules_if_synced REL : install-mode baseline for one of the
-# three rule/convention files (CONVENTIONS.md, RULES.md — CONVENTIONS.
-# cpp.md is never copied by install so it never gets one here).
+# five rule/convention files (CONVENTIONS.md, RULES.md — CONVENTIONS.
+# cpp.md, CONVENTIONS.cpp23.md and CONVENTIONS.python.md are never
+# copied by install so they never get one here).
 # Records the kit's comparison-unit hash — the `## Project rules` prefix
 # hash for marker-bearing files, the whole-file raw hash otherwise — when
 # the target's own unit matches the kit's (freshly copied above, or still
@@ -966,7 +971,8 @@ update_convention_split() {
 }
 
 # update_convention_whole SRC DST REL : whole-file sync for
-# CONVENTIONS.cpp.md (100% kit-authored, no user-append zone — its
+# CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md and CONVENTIONS.python.md
+# (all 100% kit-authored, no user-append zone — CONVENTIONS.cpp.md's
 # closing note tells the adopting project to merge it into its own
 # CONVENTIONS.md instead) and for a CONVENTIONS.md / RULES.md without a
 # `## Project rules` marker (no reliable split point — the whole file is the
@@ -978,13 +984,13 @@ update_convention_whole() {
   [[ $BODY_CURRENT -eq 1 ]] && up_to_date+=("$rel")
 }
 
-# update_rules_conventions : the --update step for the three kit-authored
+# update_rules_conventions : the --update step for the five kit-authored
 # rule/convention files — run after the agent/skill/hook sync, before the
 # summary. Only files ALREADY present in the target are synced: --update
 # never creates any of them.
 update_rules_conventions() {
   local rel src dst
-  for rel in CONVENTIONS.md RULES.md CONVENTIONS.cpp.md; do
+  for rel in CONVENTIONS.md RULES.md CONVENTIONS.cpp.md CONVENTIONS.cpp23.md CONVENTIONS.python.md; do
     src="$KIT_DIR/templates/$rel"
     dst="$TARGET/$rel"
     [[ -f "$dst" && -f "$src" ]] || continue
@@ -1158,8 +1164,10 @@ if [[ $GLOBAL_MODE -eq 0 ]]; then
     echo '    change: edit "companions": { "enabled": false } in dev-workflow.json (the --companions flag only applies at first install)'
   fi
 
-  # RULES.md is opt-in (with a flag/prompt, unlike CONVENTIONS.cpp.md
-  # which stays manual-copy-only): --with-rules forces it on; with a TTY an
+  # RULES.md is opt-in (with a flag/prompt, unlike CONVENTIONS.cpp.md,
+  # CONVENTIONS.cpp23.md and CONVENTIONS.python.md which stay
+  # manual-copy-only): --with-rules
+  # forces it on; with a TTY an
   # interactive y/N prompt asks (default No); otherwise (CI, piped stdin) it is
   # skipped with a warning. Same copy_if_absent semantics as the other
   # templates: never overwrite.
@@ -1278,8 +1286,9 @@ if command -v jq >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
       lock_record_if_synced "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0
       # CONVENTIONS.md and RULES.md: baseline the kit-managed prefix (the
       # `## Project rules` split) when the freshly copied (or still identical)
-      # file matches the kit. CONVENTIONS.cpp.md is never copied by
-      # install, so it only ever gets a baseline from a later --update bootstrap.
+      # file matches the kit. CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md
+      # and CONVENTIONS.python.md are never copied by install, so they only
+      # ever get a baseline from a later --update bootstrap.
       lock_record_rules_if_synced "CONVENTIONS.md"
       lock_record_rules_if_synced "RULES.md"
     fi
