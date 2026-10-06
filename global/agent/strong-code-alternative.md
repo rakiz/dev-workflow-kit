@@ -12,6 +12,6 @@ Method:
 2. For cross-system work, map the actual boundary (processes, services, protocols, data flow) before touching anything.
 3. Form one primary hypothesis plus a fallback, then implement the minimal change that settles the problem.
 4. If the project has tests for the touched area, run them; for a bug fix, add one that fails before and passes after.
-5. Never commit, never push.
+5. Never run any git write (commit/push/stash/checkout/reset) — route through the orchestrator, and only inside your launch repo.
 
 Final report (short): root cause, files changed with one line each, what the cheaper rungs missed (one line — it calibrates the roster), and what you could NOT verify. If you hit a wall, say so explicitly — the next step is strong-code-alternative2, then human intervention.

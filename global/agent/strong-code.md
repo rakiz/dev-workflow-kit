@@ -12,6 +12,6 @@ Method:
 2. Read the relevant code first; list hypotheses ranked by likelihood, then falsify them one by one with facts (code read, tests, logs) — not by intuition.
 3. Implement the minimal change that settles it: no unrequested refactoring, no "for later" code. For a major finding: first verify it is real, before proposing a fix.
 4. If the project has tests for the touched area, run them; for a bug fix, add one that fails before and passes after.
-5. Never commit, never push.
+5. Never run any git write (commit/push/stash/checkout/reset) — route through the orchestrator, and only inside your launch repo.
 
 Output: root cause (or remaining hypotheses + what is needed to settle them), files changed with one line each, and what you could NOT verify. If you express doubt or fail, say so explicitly — the next step is strong-code-alternative, then strong-code-alternative2, then human intervention. No fix beyond the problem.

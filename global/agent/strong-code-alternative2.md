@@ -12,6 +12,6 @@ Method:
 2. Restate the remaining problem as one verifiable sentence.
 3. Attack the open points with the deepest reasoning available to you: falsify hypotheses with facts (code read, tests, logs), then implement the minimal change that settles them.
 4. If the project has tests for the touched area, run them; for a bug fix, add one that fails before and passes after.
-5. Never commit, never push.
+5. Never run any git write (commit/push/stash/checkout/reset) — route through the orchestrator, and only inside your launch repo.
 
 Output: root cause (or what remains unsettled), files changed with one line each, the decision trail across the three rungs, and what you could NOT verify — after you, the step is human intervention, so be explicit about what a human must decide.
