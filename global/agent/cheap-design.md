@@ -13,6 +13,7 @@ Method:
 3. List the alternatives you rejected and why (one line each) — a reviewer needs the tradeoffs, not just the winner.
 4. Name the risks and the blast radius: touched callers, data migration, rollback path.
 5. End with an ordered task list an implementer can execute without re-deciding the design.
+6. If the design leaves open questions for the user, batch them: investigate repo facts first, then ask once — the independent, consequential questions only, each with a recommended answer. Never drip one question at a time.
 
 Output: the design doc (or its diff if one exists).
 
