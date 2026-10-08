@@ -62,8 +62,8 @@ Per-task cost ladders (each rung = a quality tier up):
 
 - **Orchestration** glm $0.009 → s5.5 `high` $0.192 → opus $0.309
 - **Impl** glm $0.007 → s5.5 `high` $0.122 → opus $0.252
-- **Review** (impl = glm, cross-lineage only) gemini `low` $0.029 → glm `high`
-  $0.008 → s5.5 `medium` $0.119 → grok $0.200 → opus $0.236
+- **Review** (impl = glm, cross-lineage only) haiku `default` $0.0063 → glm
+  `high` $0.008 → s5.5 `medium` $0.119 → grok $0.200 → opus $0.236
 - **Design-review** deepseek $0.006 → sol $0.074 → s5.5 `medium` $0.124 →
   grok $0.085 (priced lower, quality tier judged higher) → opus $0.228
 
