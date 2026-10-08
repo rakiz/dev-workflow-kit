@@ -259,6 +259,17 @@ Re-running `init.sh` on the project (no flags needed):
 - the pre-commit hook keeps its own drift mechanism: an updated kit hook lands in `pre-commit.dev-workflow-kit` exactly as during an install;
 - **bootstrap**: a project initialized before the lock file existed gets a conservative first `--update` — nothing is silently clobbered. Files already matching the kit are baselined into the lock; files that diverge are treated as possibly customized (`.dev-workflow-kit-new` sibling, no overwrite). From the second `--update` on, the untouched-vs-customized distinction is exact.
 
+### Update recipe (for agents and humans)
+
+The `--update` mechanics are described above; the safe *procedure* around them is always this, whether run by a human or by an agent:
+
+1. **Commit the current state first** — the project's kit-managed files AND `.opencode/.dev-workflow-kit-lock.json` in one atomic commit. This commit is the rollback point: restoring it restores prompt files and sync baselines together.
+2. Run `init.sh --update` (add `--global` for the machine-wide roster).
+3. Read the script's output and `git diff` — customized files are flagged, never overwritten; project-state files are untouched by design.
+4. Commit the result as a second atomic commit (same pairing: prompt files + lock).
+5. **Restart OpenCode** in the project — prompt/model changes are only picked up by a fresh session.
+6. If a step goes wrong, `git revert` the pair from step 1 — never hand-patch individual kit files.
+
 ## Customizing the agents
 
 The `agent/*.md` files are standard opencode agents (frontmatter `description`, `mode`, `model`, `variant`, `permission`). The `model` line (and `variant` where configured) is injected at install time from `models.json` — change the defaults there, not in the agent files.
