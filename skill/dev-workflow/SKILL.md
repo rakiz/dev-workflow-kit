@@ -102,3 +102,10 @@ NEVER suggest `--no-verify` unless the user explicitly asks for it.
 - When a phase completes (all its tasks ticked in TODO.md) — or whenever the user asks — PROPOSE a read-only coherence & simplification review of the phase's commits (never run it automatically).
 - The review checks: docs/instructions vs actual behavior (config, hook, agents), stale or missing companions, cross-file contradictions introduced along the way, and simplification opportunities (fewer instructions at equal meaning — nothing may be lost).
 - Report findings ranked by importance with file:line; the user decides what to apply.
+- **Optional retro** — after a consequential failure or at a phase boundary, PROPOSE a retro (never run one automatically):
+  1. Inspect the previous retro's proposals: was the follow-through check (the next-task check each proposal named) actually done?
+  2. Identify the observed failure — evidence (what happened, where, expected vs actual), not vibes.
+  3. Propose **at most two** changes, each with an **owner**, **expected benefit**, and the **next-task check** that will test it. Kit-workflow proposals — anything touching this skill's own files (SKILL.md, agent prompts, `dev-workflow.json`, the hook, templates) — must be clearly marked and written as a **self-contained, extractable block** the user can copy verbatim into a fresh kit-repo session, carrying its own: target file(s), exact change, evidence, acceptance check; project-level proposals stay in the project's normal flow (the distinction is routing: kit proposals go to the user for a kit-repo session).
+  4. A legitimate **no-op retro** records why current practice is retained and what evidence would reopen it.
+  5. Mechanical mistakes (formatting, lint) route to lint/test/pre-commit config — never into new prose rules.
+- A retro only PROPOSES: it never expands the agent's authority, never silently rewrites global instructions, and applies nothing without the user's decision.
