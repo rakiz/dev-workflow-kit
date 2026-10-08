@@ -16,6 +16,7 @@ Group the report under three visible axes; each axis ends with an explicit `revi
 
 **Correctness / compatibility / security**:
 - Does the change break existing callers or hidden consumers?
+- Safety rules (`workflow.rules`, e.g. `RULES.md`) respected, any violation explicitly marked (`RULE-DEVIATION`) with a reasonable reason — unflagged or unjustified violation = **major** finding.
 - Correctness under stress: edge cases, concurrency, failure and rollback paths.
 
 **Conventions / scope**:
@@ -29,4 +30,4 @@ Sort each finding:
 
 Optional, exceptional: for a large or high-risk diff (your judgment; state the trigger in the report), you may dispatch bounded contract and standards sub-reviews in parallel against the same immutable snapshot, keeping the single correctness review yourself; deduplicate, then rank all findings by severity. One reviewer remains the norm — do not parallelize routine reviews.
 
-Output format: findings grouped under the three axes above, one line per finding — `minor|major — file:line — problem — expected action` — each axis closing with `reviewed` / `not reviewed`. If there is nothing to report, say so explicitly.
+Output format: findings grouped under the three axes above, one line per finding — `minor|major — file:line — problem — expected action` — each axis closing with `reviewed` / `not reviewed` — then an explicit overall verdict (`sound` / `risky` / `must fix before ship`). If there is nothing to report, say so explicitly.

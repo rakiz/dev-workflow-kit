@@ -55,7 +55,8 @@ Full protocol, seeded tasks, logs and per-task rankings:
 objective scoring against seeded defects). Standing decision rule that came
 out of it: **price beats speed** — when two models sit in the same quality
 tier, the cheaper one takes the role, and effort variants that keep quality
-while cutting cost are applied (review runs `low` for this reason).
+while cutting cost are applied (review runs at the cheapest effort that
+catches everything — see the review section below).
 
 Per-task cost ladders (each rung = a quality tier up):
 
@@ -86,20 +87,21 @@ strong at ordinary code tasks, weak on none of the everyday patterns. Any
 replacement must be in the same price class; a premium model here defeats the
 kit's cost goal even if it is "better".
 
-### review — `github-copilot/gemini-3.8-flash` (family: gemini, variant: low)
+### review — `github-copilot/claude-haiku-5.5` (family: claude, variant: default)
 
 The mandatory re-reader of impl's work. Deliberately a **different model
 lineage than impl**: models from the same family tend to share blind spots —
 the same misreadings, the same confident mistakes. A reviewer of a different
 lineage catches what the implementer's family systematically misses. Keep that
-property when replacing either side.
+property when replacing either side — never within the glm family while impl
+runs glm.
 
-`variant: low` comes from the 2026-09-29 eval (`evals/2026-09-29/`):
-at `low` effort gemini catches the same 3/3 seeded defects as at default
-effort for a quarter of the cost. Given the price-over-speed
-priority, `low` is the default review rung; step up to `claude-sonnet-5.5`
-`medium` (best depth/speed of the eval) for a sensitive diff, then
-`claude-opus-5.5` — never within the glm family while impl runs glm.
+The 2026-10-07 eval (`evals/2026-10-07-haiku-5.5/` if present, see `EVALS.md`)
+gave haiku `default` the review role: 3/3 seeded defects at $0.0063 per
+4-task run — far below the previous review rung's cost. Given the
+price-over-speed priority, haiku `default` is the default review rung; step
+up to `claude-sonnet-5.5` `medium` for a sensitive diff, then
+`claude-opus-5.5`.
 
 ### explore — `ai-gateway-misc/fw-deepseek-v4.1-flash` (family: deepseek)
 
@@ -114,7 +116,7 @@ Critiques an approach before code is written. Runs rarely, and the eval
 top flaw categories as models 13x its price on a seeded design doc — same
 quality tier as `gpt-5.6-terra`, at $0.006 per run. With the price-over-speed
 priority it takes the role; deepseek is also a third lineage (neither impl's
-glm nor review's gemini). For a high-stakes design, escalate the critique to
+glm nor review's claude). For a high-stakes design, escalate the critique to
 `claude-sonnet-5.5` `medium`/`high` or `claude-opus-5.5`.
 
 ### deep — `github-copilot/claude-opus-5.5` (family: claude)
@@ -163,7 +165,7 @@ Two rules bind the whole grid:
 | design-review | `cheap-design-review` deepseek | `strong-design-review` sol | `strong-design-review-alternative` s5.5 `medium` | `strong-design-review-alternative2` pro `high` |
 | code (impl) | `cheap-code` glm `none` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
-| code-review | `cheap-review` gemini `low` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
+| code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
 | orchestration | session default model: glm — the user's configured default model; recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
 Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro.
@@ -188,8 +190,8 @@ attached — the escalation reads what the previous rung already produced. The
 state what a human must decide.
 
 Eval-backed highlights: glm `high` reviews claude diffs 3/3+4 at $0.008 (the
-grid's best deal — eligible because it reviews claude, never glm); gemini
-`low` is the review floor at $0.029 (3/3); kimi-k3 is design/impl-capable but
+grid's best deal — eligible because it reviews claude, never glm); haiku 5.5
+`default` is now the review floor (eval 2026-10-07 — see `EVALS.md`); kimi-k3 is design/impl-capable but
 2/3 as a reviewer — never a code-review role; design-review is scored
 separately; terra and fable-5.1 are out (dominated / too expensive). A cheap
 reviewer does miss things (2/3 models exist) and will
@@ -214,8 +216,9 @@ agent next to the `model:` line. Roles without a `variant` entry get no
 The global roster carries its variant defaults in `models.json`'s `"global"`
 section (eval 2026-09-29): bulk rungs at **`none`** (cheap-code, cheap-design
 — routine implementation needs no reasoning budget, the misses are recovered
-by review); review floors at **`low`** (cheap-review — same 3/3 catch rate as
-default effort at a quarter of the cost); strong rungs pinned to the eval's
+by review); review floors at **`default`** (cheap-review — haiku 5.5 caught
+3/3 seeded defects at default effort in the 2026-10-07 eval, cheaper than any
+`low`-effort rung); strong rungs pinned to the eval's
 best effort — **`high`** for strong-code/strong-design (s5.5) and
 strong-review (glm), **`medium`** for the s5.5 review/design-review
 alternatives (the eval's effort facts above apply).

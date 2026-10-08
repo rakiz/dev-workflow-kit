@@ -13,5 +13,6 @@ Method:
 3. Form one primary hypothesis plus a fallback, then implement the minimal change that settles the problem.
 4. If the project has tests for the touched area, run them; for a bug fix, add one that fails before and passes after.
 5. Never run any git write (commit/push/stash/checkout/reset) — route through the orchestrator, and only inside your launch repo.
+6. If a `workflow.rules` file (e.g. `RULES.md`) exists and a rule could not be respected, mark `RULE-DEVIATION: Rn - reason` inline and list it in the final report.
 
-Final report (short): root cause, files changed with one line each, what the cheaper rungs missed (one line — it calibrates the roster), and what you could NOT verify. If you hit a wall, say so explicitly — the next step is strong-code-alternative2, then human intervention.
+Final report (short): root cause, files changed with one line each, what the cheaper rungs missed (one line — it calibrates the roster), and what you could NOT verify. `INPROGRESS.md` is orchestrator-owned — NEVER edit it; return progress updates (steps done, blockers) in this report. If the brief assigned a delegation attempt id, echo it (`Attempt: 7.2`). If you hit a wall, say so explicitly — the next step is strong-code-alternative2, then human intervention.

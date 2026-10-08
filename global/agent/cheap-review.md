@@ -16,6 +16,8 @@ Group the report under three visible axes; each axis ends with an explicit `revi
 
 **Correctness / compatibility / security**:
 - Does the change break existing callers or hidden consumers?
+- For a bug fix: red/green evidence in the report — a regression test that failed before and passes after (or a documented exception); silent absence = **major** finding.
+- Safety rules (`workflow.rules`, e.g. `RULES.md`) respected, any violation explicitly marked (`RULE-DEVIATION`) with a reasonable reason — unflagged or unjustified violation = **major** finding.
 
 **Conventions / scope**:
 - Are the project's conventions respected (style, structure, existing patterns)?

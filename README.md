@@ -68,6 +68,8 @@ dev-workflow-kit/
 ├── init.sh                  # installs the kit into a target project; --update re-syncs kit-managed files later
 ├── models.json              # default model (+ reasoning variant) per agent — single source of truth
 ├── MODELS.md                # why each default model was chosen + replacement guide
+├── EVALS.md                 # eval summary — all models ever tested, one table
+├── VERSION                  # kit version (single line)
 ├── evals/                   # model-eval protocol, results and raw outputs — see evals/README.md
 │   ├── README.md            #   protocol, the 4 tasks, scoring checklist
 │   ├── run-eval.sh          #   one run: task × model × variant in a fresh repo copy
@@ -112,6 +114,7 @@ dev-workflow-kit/
     ├── CONVENTIONS.cpp.md   # OPTIONAL C++ conventions reference — NOT copied by init.sh, opt-in (see below)
     ├── CONVENTIONS.cpp23.md  # OPTIONAL second C++ conventions (C++23: no-exceptions/std::expected, companion .md docs, hot-path discipline) — NOT copied by init.sh, opt-in (see below)
     ├── CONVENTIONS.python.md  # OPTIONAL Python conventions reference (type hints, failure postures, ruff) — NOT copied by init.sh, opt-in (see below)
+├── docs/                      # improvement plan + design-review material
 ├── .gitignore               # local scratch files (Python caches, .DS_Store)
 └── LICENSE                  # MIT
 ```

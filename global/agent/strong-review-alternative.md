@@ -16,6 +16,7 @@ Group the report under three visible axes; each axis ends with an explicit `revi
 
 **Correctness / compatibility / security**:
 - Correctness under stress: edge cases, concurrency, failure and rollback paths; trust boundaries, input handling, privilege assumptions.
+- Safety rules (`workflow.rules`, e.g. `RULES.md`) respected, any violation explicitly marked (`RULE-DEVIATION`) with a reasonable reason — unflagged or unjustified violation = **major** finding.
 
 **Conventions / scope**:
 - Project conventions; anything added beyond the task; design tradeoffs (what the chosen approach sacrifices, whether the risk is bounded) and long-term cost (maintainability, migration path, what becomes hard to change later).

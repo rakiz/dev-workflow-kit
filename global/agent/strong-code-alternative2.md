@@ -13,5 +13,6 @@ Method:
 3. Attack the open points with the deepest reasoning available to you: falsify hypotheses with facts (code read, tests, logs), then implement the minimal change that settles them.
 4. If the project has tests for the touched area, run them; for a bug fix, add one that fails before and passes after.
 5. Never run any git write (commit/push/stash/checkout/reset) — route through the orchestrator, and only inside your launch repo.
+6. If a `workflow.rules` file (e.g. `RULES.md`) exists and a rule could not be respected, mark `RULE-DEVIATION: Rn - reason` inline and list it in the output.
 
-Output: root cause (or what remains unsettled), files changed with one line each, the decision trail across the three rungs, and what you could NOT verify — after you, the step is human intervention, so be explicit about what a human must decide.
+Output: root cause (or what remains unsettled), files changed with one line each, the decision trail across the three rungs, and what you could NOT verify — after you, the step is human intervention, so be explicit about what a human must decide. `INPROGRESS.md` is orchestrator-owned — NEVER edit it; return progress updates (steps done, blockers) in this output. If the brief assigned a delegation attempt id, echo it (`Attempt: 7.2`).

@@ -13,5 +13,6 @@ Method:
 3. Implement the minimal change that settles it: no unrequested refactoring, no "for later" code. For a major finding: first verify it is real, before proposing a fix.
 4. If the project has tests for the touched area, run them; for a bug fix, add one that fails before and passes after.
 5. Never run any git write (commit/push/stash/checkout/reset) — route through the orchestrator, and only inside your launch repo.
+6. If a `workflow.rules` file (e.g. `RULES.md`) exists and a rule could not be respected, mark `RULE-DEVIATION: Rn - reason` inline and list it in the output.
 
-Output: root cause (or remaining hypotheses + what is needed to settle them), files changed with one line each, and what you could NOT verify. If you express doubt or fail, say so explicitly — the next step is strong-code-alternative, then strong-code-alternative2, then human intervention. No fix beyond the problem.
+Output: root cause (or remaining hypotheses + what is needed to settle them), files changed with one line each, and what you could NOT verify. `INPROGRESS.md` is orchestrator-owned — NEVER edit it; return progress updates (steps done, blockers) in this output. If the brief assigned a delegation attempt id, echo it (`Attempt: 7.2`). If you express doubt or fail, say so explicitly — the next step is strong-code-alternative, then strong-code-alternative2, then human intervention. No fix beyond the problem.

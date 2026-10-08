@@ -62,7 +62,7 @@ If `workflow.spec` of `dev-workflow.json` points to an existing file (e.g. `SPEC
 
 Two layers, both required:
 
-1. **Deterministic hook.** Verify (or remind the user) that the pre-commit hook passes: checks are defined in `precommit.checks[]` of `dev-workflow.json` (the template ships a disabled `tests` check plus the companions builtin — only checks with a non-empty `cmd` run). If the hook is absent or inactive (e.g. an existing hook was parked as a sibling), run the configured `precommit.checks[]` checks manually before proposing the commit.
+1. **Deterministic hook.** Verify (or remind the user) that the pre-commit hook passes: checks are defined in `precommit.checks[]` of `dev-workflow.json` (the template ships a disabled `tests` check plus the companions builtin — only checks with a non-empty `cmd` or a `builtin` run). If the hook is absent or inactive (e.g. an existing hook was parked as a sibling), run the configured `precommit.checks[]` checks manually before proposing the commit.
 2. **Semantic check (LLM).** A review-agent pass (`review`, or `cheap-review` from the global roster if installed) on the commit, not the worktree (`git show`, or the staged diff before one exists), plus the task intent (INPROGRESS.md, TODO.md, SPEC.md — for an already-closed task, also the latest DESIGNS.md entry, which captured the contract before the reset), with one question: *what might be missing?*
    - stale or missing companion `.md`;
    - missing CHANGELOG entry;
@@ -85,7 +85,7 @@ NEVER suggest `--no-verify` unless the user explicitly asks for it.
 
 - Suggest `/compact` (never run it automatically) only at **natural boundaries**: phase done and committed, completely different subject starting. Never in the middle of an active debug/refactor.
 - The suggested message talks about the **next** task: objective + existing reusable base. Never a summary of what was just done (already in git/CHANGELOG).
-- **Agent instance — resume or start fresh**: per the global AGENTS.md rule (same `task_id` instance for a small iteration on its own output; fresh instance with a complete self-contained brief for anything large or unrelated to what it did before).
+- **Agent instance — resume or start fresh**: the same `task_id` instance for a small iteration on its own output; a fresh instance with a complete self-contained brief for anything large.
 - **Reviews — always a fresh instance**: a review (code or design), first pass or re-review, never reuses an instance that authored or already judged the work; the orchestrator starts fresh and hands it the **contract** (acceptance criteria from TODO/INPROGRESS/SPEC in the orchestrator's own words, frozen decisions, rules/conventions pointers, `RULE-DEVIATION` lines), the **artifact** (diff range or doc path) and **raw evidence** (test output verbatim) — never the author's reasoning or transcript. On a re-review the brief adds the prior findings list plus the fix delta: each finding closed by `file:line`, and the delta reviewed as new code. One task = one instance for implementers and designers: resumed only for that task's own fix rounds, never across tasks.
 - **Empty report — a recovery decision, not a verdict**: a subagent that returns completed with an empty or evidence-free report is a recovery decision, not a verdict on the work — inspect the worktree and task state first; if the instance is resumable, request a factual report from it; verify the result independently; if recovery fails, escalate rather than blindly rerunning side-effecting work.
 

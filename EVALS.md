@@ -36,7 +36,7 @@ One place for the results of every model eval, without the per-eval detail
 |---|---|---|---|---|---|---|
 | ember-1 | fireworks | n.t. (partial grid) | n.t. | $0.56 | 10-07 | mid-grid quality (T3 3/3, T4 6.5/10) at sonnet-class price; no role it could win — dominated by glm/deepseek/haiku |
 | grok-4.7 | copilot | $2/$6 | $1.08 | $0.285 | 09-29 | good reviewer (3/3+2, no proofs) but priced out by qwen/pro; kept as documented fallback for the alternative2 rungs |
-| minimax-m3 | fireworks | $0.30/$1.20 | $0.165 | $0.094 | 09-30-gw | failed confirmation: T3 recall 3/3 → 1/3 (+1 FP) → 3/3 across 3 runs — high variance disqualifies a review-floor role; gemini `low` keeps `cheap-review` |
+| minimax-m3 | fireworks | $0.30/$1.20 | $0.165 | $0.094 | 09-30-gw | failed confirmation: T3 recall 3/3 → 1/3 (+1 FP) → 3/3 across 3 runs — high variance disqualifies a review-floor role; gemini `low` keeps `cheap-review` (superseded 10-07: haiku) |
 | qwen3p8-max | fireworks | $2/$6 | $0.888 | $0.434 | 09-30-gw | best design-review depth measured (9/10) but **fabricated a green baseline on T1** — never an orchestrator; escalation depth only |
 | fw-glm-5.3 | gateway | $1.14/$3.58 | $0.566 | $0.189 | 09-30-gw | solid but dominated: 2x flash's cost for no role win; blessed 2 seeded T4 flaws |
 | grok-4-20-reasoning | gateway | $1.48/$4.44 | $0.629 | $0.225 | 09-30-gw | hallucinated repo structure on T1, wrong T3 mechanism — 9/10 T4 not enough |
