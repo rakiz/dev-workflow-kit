@@ -1,12 +1,12 @@
 {
   "impl":          { "model": "ai-gateway-misc/fw-glm-5.3-flash", "family_hint": "glm", "variant": "none" },
-  "review":        { "model": "github-copilot/gemini-3.8-flash",                       "family_hint": "gemini", "variant": "low" },
+  "review":        { "model": "github-copilot/claude-haiku-5.5",                       "family_hint": "claude", "variant": "default" },
   "explore":       { "model": "ai-gateway-misc/fw-deepseek-v4.1-flash", "family_hint": "deepseek" },
   "design-review": { "model": "ai-gateway-misc/fw-deepseek-v4.1-flash", "family_hint": "deepseek" },
   "deep":          { "model": "github-copilot/claude-opus-5.5",                       "family_hint": "claude" },
   "global": {
     "cheap-code":                { "model": "ai-gateway-misc/fw-glm-5.3-flash",        "family_hint": "glm",    "variant": "none" },
-    "cheap-review":              { "model": "github-copilot/gemini-3.8-flash",                             "family_hint": "gemini", "variant": "low" },
+    "cheap-review":              { "model": "github-copilot/claude-haiku-5.5",                             "family_hint": "claude", "variant": "default" },
     "cheap-mech":                { "model": "ai-gateway-misc/fw-deepseek-v4.1-flash",  "family_hint": "deepseek" },
     "cheap-design":              { "model": "ai-gateway-misc/fw-glm-5.3-flash",        "family_hint": "glm",    "variant": "none" },
     "cheap-design-review":       { "model": "ai-gateway-misc/fw-deepseek-v4.1-flash",  "family_hint": "deepseek" },

@@ -36,10 +36,11 @@ release.
 ## To evaluate a new model (checklist)
 
 1. `models.json`: note the current models and their role.
-2. Run the matrix: the 4 tasks for the new model (at least
-   `low`/`medium`/`high` if it exposes an effort — effort drives the appetite
-   for tools, `low` skips reading code) + the 4 tasks of the incumbent model
-   to replace.
+2. Run the matrix: the 4 tasks for the new model at **every effort level it
+   exposes** (not just the classic `low`/`medium`/`high` — newer models expose
+   `xhigh`/`max`; effort drives the appetite for tools, `low` skips reading
+   code) + the 4 tasks of the incumbent model to replace. The default/no-
+   variant run also counts as a data point — record it as such.
 3. Verify T2 objectively (`python3 -m unittest` in the copy), score T3/T4
    against the lists above, judge T1 (grounding + trap detection).
 4. Extract cost/tokens/duration from the opencode DB (session titles are
@@ -47,7 +48,11 @@ release.
    standard API rate, not the plan's real billing).
 5. Decision rules (MODELS.md): comparable cost per MTok for bulk roles,
    reviewer of a lineage ≠ impl, `strong-*` judged on tasks that are up to it
-   (these tasks are too easy to discriminate Opus/Fable).
+   (these tasks are too easy to discriminate Opus/Fable). **The adoption
+   decision is made on the FULL effort×task grid** — never on a single
+   variant's result: a model can shine at `xhigh` and hallucinate at `low`
+   (the claude lesson), and the roster assigns one effort per role, not one
+   model-wide grade.
 6. Write `RESULTS.md` in a dated folder, with the same matrix, and compare
    line by line with the previous eval.
 

@@ -1,7 +1,7 @@
 # Eval summary — all models ever tested
 
 One place for the results of every model eval, without the per-eval detail
-(those live in `evals/<date>/RESULTS.md`). **Checked: 2026-09-30.**
+(those live in `evals/<date>/RESULTS.md`). **Checked: 2026-10-08.**
 
 ## How to read this page
 
@@ -23,7 +23,8 @@ One place for the results of every model eval, without the per-eval detail
 | glm-5p3-flash | fireworks | $0.15/$0.50 | $0.078 | $0.034 | 09-29 | impl + cheap-design, strong-review `high` — best deal in the grid |
 | deepseek-v4p1-flash | fireworks | $0.22/$0.66 | $0.082 | $0.031 | 09-29 | explore, cheap-mech, cheap-design-review — cheapest, tier-1 plans |
 | gemini-3.8-flash | copilot | $0.75/$3.75 | $0.390 | $0.235 | 09-29 | cheap-review `low` — 3/3 at $0.029 |
-| claude-sonnet-5.5 | copilot | $2/$10 | $1.05 | $0.52 | 09-29 | strong-code/design `high`, review alternatives `medium` — best reviewer of its price class |
+| claude-haiku-5.5 | copilot | ~$0.75/$3.75 (copilot claude-flash class) | ~$0.39 | $0.029 | 10-07 | cheap-review `default` — 3/3 at $0.0063, full 6-variant grid; `xhigh` = measured design-review at $0.018; never `max` (fails to deliver) |
+| claude-sonnet-5.5 | copilot | $2/$10 | $0.975 | $0.52 | 09-29 | strong-code/design `high`, review alternatives `medium` — best reviewer of its price class. 10-08: cache-read price cut $0.20 → $0.10/MTok, blended recomputed with the formula above: 0.20·2 + 0.75·0.10 + 0.05·10 = **$0.975** (was $1.05; cache line ~20 % cheaper, blended ~7 % cheaper) |
 | claude-opus-5.5 | copilot | $4/$20 | $1.95 | $1.03 | 09-29 | deep + alternative2 rungs — max depth |
 | gpt-6.1-sol | copilot | $2/$10 | $0.975 | $0.31 | 09-29, sol61 | strong alternatives, strong-design-review — strictly better than gpt-6-sol, same price |
 | qwen3p8-2p4t-a95b | fireworks | $2/$6 | $0.888 | $0.30 | 09-30 | strong-review-alternative2 `xhigh` — best review ever measured (3/3+2 proven, $0.151) |
@@ -33,6 +34,7 @@ One place for the results of every model eval, without the per-eval detail
 
 | Model | Provider | In/out $/MTok | Blended | Cost/4t | Eval | Why out |
 |---|---|---|---|---|---|---|
+| ember-1 | fireworks | n.t. (partial grid) | n.t. | $0.56 | 10-07 | mid-grid quality (T3 3/3, T4 6.5/10) at sonnet-class price; no role it could win — dominated by glm/deepseek/haiku |
 | grok-4.7 | copilot | $2/$6 | $1.08 | $0.285 | 09-29 | good reviewer (3/3+2, no proofs) but priced out by qwen/pro; kept as documented fallback for the alternative2 rungs |
 | minimax-m3 | fireworks | $0.30/$1.20 | $0.165 | $0.094 | 09-30-gw | failed confirmation: T3 recall 3/3 → 1/3 (+1 FP) → 3/3 across 3 runs — high variance disqualifies a review-floor role; gemini `low` keeps `cheap-review` |
 | qwen3p8-max | fireworks | $2/$6 | $0.888 | $0.434 | 09-30-gw | best design-review depth measured (9/10) but **fabricated a green baseline on T1** — never an orchestrator; escalation depth only |
@@ -59,4 +61,8 @@ One place for the results of every model eval, without the per-eval detail
   model ever tested**; qwen3p8-max is the only one that lied about it.
 - Price over speed: when two models sit in the same quality tier, the cheaper
   takes the role.
+- `max` effort has never paid for itself — and on the flash-tier models
+  (haiku-5.5: dead sessions / 32k reasoning with no output; deepseek: 4x cost
+  and *lower* T3 recall) it actively breaks delivery. Cap flash-tier models
+  at `xhigh`.
 - Review lineage ≠ impl lineage, always.
