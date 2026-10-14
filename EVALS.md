@@ -34,7 +34,7 @@ design-review), by effort:
 | deepseek-v4p1-flash | default(=high) | tier-1, baseline caught | PASS | 2/3 | 9/10 | 09-30 |
 | gemini-4-argon | low | PARTIAL | PASS | 3/3, 1FP | 8/10 | 10-14 |
 | gemini-4-argon | medium | PASS | PASS | 2/3, 2FP | 9/10 | 10-14 |
-| gemini-4-argon | high | PARTIAL (dismisses baseline) | PASS | 2/3, 1FP | 10/10 | 10-14 |
+| gemini-4-argon | high | PARTIAL (dismisses baseline) | PASS | 2/3, 1FP | 9/10 (2 runs: 10, 8) | 10-14 |
 | gemini-3.8-flash | low | ungrounded | PASS | 3/3 | mid | 09-29 |
 | gemini-3.8-flash | medium | PARTIAL | PASS | 2/3, 2FP | 9/10 | 10-14 |
 | gemini-3.8-flash | high | PARTIAL | PASS | 2/3, 2FP | 7/10 | 10-14 |
@@ -47,10 +47,12 @@ design-review), by effort:
 | gpt-6.1-sol | medium | PASS | PASS | 2/3, 0FP | 9/10 | 10-14 |
 | gpt-6.1-sol | xhigh | PASS | PASS | 2/3, 0FP | 9/10 | 10-14 |
 | gpt-6.1-sol | default | tier-1 | PASS | 2/3+1 bonus, 0FP | 7–8/10 | 09-29 |
-| qwen3p8-2p4t-a95b | low | FAIL (hallucination) | PASS | 3/3+2, 0FP | 9/10 | 10-14 |
+| qwen3p8-2p4t-a95b | low | FAIL (hallucination) | PASS | 3/3+2 → 2/3, 0FP (2 runs) | 9/10 | 10-14 |
 | qwen3p8-2p4t-a95b | medium | tier-1 | PASS | 2/3, 1FP | 8/10 | 10-14 |
 | qwen3p8-2p4t-a95b | xhigh (strong-review-a2 rung) | baseline caught by execution | PASS | **3/3+2 proven** | 10/10 | 09-30 |
 | fw-deepseek-v4-pro | high (design-review-a2 rung) | baseline caught | PASS | 2/3 (family blind spot) | 9–10/10 | 09-30 |
+
+**Confirmation runs 10-14** (second run of the same arm): gemini-4-argon `high` T4 10 → 8 (avg **9/10 over 2 runs**, variance noted — missed renames + hardcoded config); qwen3p8 `low` T3 3/3+2 → 2/3 (variance CONFIRMED — missed the manifest-purge defect, minimax lesson applies: `low` out for review roles).
 
 ## Roles and the decision each earned
 
@@ -62,14 +64,14 @@ design-review), by effort:
 | claude-sonnet-5.5 | copilot | $2/$10 | $0.975 | $0.52 | 09-29 | strong-code/design `high`, review alternatives `medium` — best reviewer of its price class. 10-08: cache-read price cut $0.20 → $0.10/MTok, blended recomputed: $0.975 |
 | claude-opus-5.5 | copilot | $4/$20 | $1.95 | $1.03 | 09-29 | deep + alternative2 rungs — max depth |
 | gpt-6.1-sol | copilot | $2/$10 | $0.975 | $0.35 (`low`, 10-14) | 10-14 | strong alternatives, strong-design-review — `low`/`medium` viable (identical 9/10 T4 across low→xhigh, 10-14); strictly better than gpt-6-sol, same price |
-| qwen3p8-2p4t-a95b | fireworks | $2/$6 | $0.888 | $0.43 (`xhigh`) | 09-30 | strong-review-alternative2 `xhigh` — best review ever measured (3/3+2 proven, $0.151); `low`/`medium` re-tested 10-14 (single-run arms, minimax variance lesson applies) |
+| qwen3p8-2p4t-a95b | fireworks | $2/$6 | $0.888 | $0.43 (`xhigh`) | 09-30 | strong-review-alternative2 `xhigh` — best review ever measured (3/3+2 proven, $0.151), the rung stays; `low`: unstable recall across runs (3/3 then 2/3) — out for review roles (variance confirmed 10-14); `medium` re-tested 10-14 |
 | fw-deepseek-v4-pro | gateway | $1.42/$2.83 | $0.513 | $0.20 | 09-30 | strong-design-review-alternative2 `high` — qwen-tier design-review at $0.047–0.058; no-variant arm is a dead gateway server error (10-14), keep `high` |
 
 ## Tested and kept out (reasons recorded)
 
 | Model | Provider | In/out $/MTok | Blended | Cost/4t | Eval | Why out |
 |---|---|---|---|---|---|---|
-| gemini-4-argon | copilot | n.t. (Copilot rate) | n.t. | $0.34–0.37 | 10-14 | capable generalist — `high` posts the best T4 ever measured alongside qwen-max (10/10), only campaign T2 semantic fix — but **no slot won**: review floor stays haiku (3/3 0FP $0.0063 vs argon low 3/3 1FP). Re-entry: undercut the incumbent's price in a role |
+| gemini-4-argon | copilot | n.t. (Copilot rate) | n.t. | $0.34–0.37 | 10-14 | capable generalist — `high` T4 now **9/10 avg over 2 runs** (10, 8; confirmation run 10-14), only campaign T2 semantic fix. Upgraded: confirmed candidate for the strong-design-review-alternative rung (currently sonnet-5.5 medium, ~$0.52/4t) at ~$0.09/task and one more distinct lineage — PENDING OWNER DECISION. Review floor otherwise stays haiku (3/3 0FP $0.0063 vs argon low 3/3 1FP) |
 | ember-1 | fireworks | n.t. (partial grid) | n.t. | $0.56 | 10-07 | mid-grid quality (T3 3/3, T4 6.5/10) at sonnet-class price; no role it could win — dominated by glm/deepseek/haiku |
 | grok-4.7 | copilot | $2/$6 | $1.08 | $0.285 | 09-29 | good reviewer (3/3+2, no proofs) but priced out by qwen/pro; kept as documented fallback for the alternative2 rungs |
 | minimax-m3 | fireworks | $0.30/$1.20 | $0.165 | $0.094 | 09-30-gw | failed confirmation: T3 recall 3/3 → 1/3 (+1 FP) → 3/3 across 3 runs — high variance disqualifies a review-floor role; haiku holds the floor |
