@@ -1,0 +1,132 @@
+DONE T1 fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b medium rc=0 16:09:36
+DONE T1 github-copilot/gemini-4-argon high rc=0 16:09:55
+DONE T2 fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b medium rc=0 16:09:57
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash low rc=0 16:10:04
+DONE T3 fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b medium rc=0 16:10:37
+DONE T2 github-copilot/gemini-4-argon high rc=0 16:10:57
+DONE T2 ai-gateway-misc/fw-glm-5.3-flash low rc=0 16:11:07
+DONE T3 ai-gateway-misc/fw-glm-5.3-flash low rc=0 16:11:25
+DONE T3 github-copilot/gemini-4-argon high rc=0 16:12:01
+DONE T4 ai-gateway-misc/fw-glm-5.3-flash low rc=0 16:12:19
+SHARD COMPLETE shard.aa
+DONE T4 github-copilot/gemini-4-argon high rc=0 16:13:41
+SHARD COMPLETE shard.ab
+DONE T4 fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b medium rc=0 16:17:17
+SHARD COMPLETE shard.ac
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:26:27
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:26:47
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:27:11
+DONE T2 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:27:28
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:27:58
+DONE T2 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:28:14
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:28:17
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:28:30
+DONE T3 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:28:52
+DONE T2 github-copilot/gemini-3.8-flash medium rc=0 16:29:17
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:30:32
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:30:41
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:30:51
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:32:15
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:32:20
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:32:26
+DONE T2 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:32:59
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:34:25
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:34:38
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:34:50
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:36:33
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:36:45
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:36:53
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:38:30
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:38:34
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:39:28
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:40:32
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:40:38
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:40:41
+DONE T2 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:41:05
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:42:26
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:42:42
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:42:43
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:44:23
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:44:24
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:46:16
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:46:44
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:47:03
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:48:23
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:48:27
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:48:35
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:50:17
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:50:32
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:51:56
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:52:08
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:52:11
+DONE T2 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:52:34
+DONE T1 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:53:30
+DONE T2 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:53:47
+DONE T1 github-copilot/gemini-3.8-flash medium rc=0 16:53:51
+DONE T1 github-copilot/gpt-6.1-sol low rc=0 16:53:54
+DONE T3 ai-gateway-misc/fw-glm-5.3-flash high rc=0 16:54:48
+DONE T1 ai-gateway-misc/FW-GLM-5.3 high rc=1 17:02:41
+DONE T1 ai-gateway-misc/FW-GLM-5.3 low rc=1 17:02:41
+DONE T2 ai-gateway-misc/FW-GLM-5.3 low rc=1 17:02:44
+DONE T2 ai-gateway-misc/FW-GLM-5.3 high rc=1 17:02:44
+DONE T3 ai-gateway-misc/FW-GLM-5.3 low rc=1 17:02:47
+DONE T3 ai-gateway-misc/FW-GLM-5.3 high rc=1 17:02:47
+DONE T1 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:02:47
+DONE T4 ai-gateway-misc/FW-GLM-5.3 low rc=1 17:02:49
+SHARD COMPLETE shard.m.4
+DONE T4 ai-gateway-misc/FW-GLM-5.3 high rc=1 17:02:49
+SHARD COMPLETE shard.m.3
+DONE T2 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:02:52
+DONE T3 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:02:56
+DONE T4 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:03:01
+SHARD COMPLETE shard.m.1
+DONE T1 fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b low rc=0 17:03:12
+DONE T1 github-copilot/gemini-4-argon low rc=0 17:03:13
+DONE T1 github-copilot/gemini-4-argon medium rc=0 17:03:16
+DONE T1 github-copilot/gpt-6.1-sol medium rc=0 17:03:33
+DONE T1 github-copilot/gemini-3.8-flash high rc=0 17:03:38
+DONE T1 github-copilot/gpt-6.1-sol xhigh rc=0 17:03:41
+DONE T2 github-copilot/gemini-4-argon medium rc=0 17:04:15
+DONE T1 ai-gateway-misc/fw-deepseek-v4.1-flash low rc=0 17:04:26
+DONE T2 github-copilot/gemini-4-argon low rc=0 17:04:27
+DONE T3 github-copilot/gemini-4-argon medium rc=0 17:04:37
+DONE T3 github-copilot/gemini-4-argon low rc=0 17:04:51
+DONE T4 github-copilot/gemini-4-argon low rc=0 17:05:14
+SHARD COMPLETE shard.m.7
+DONE T4 github-copilot/gemini-4-argon medium rc=0 17:06:23
+SHARD COMPLETE shard.m.8
+DONE T2 ai-gateway-misc/fw-deepseek-v4.1-flash low rc=0 17:06:59
+DONE T2 github-copilot/gemini-3.8-flash high rc=0 17:07:02
+DONE T2 fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b low rc=0 17:07:04
+DONE T2 github-copilot/gpt-6.1-sol medium rc=0 17:07:15
+DONE T3 ai-gateway-misc/fw-deepseek-v4.1-flash low rc=0 17:07:35
+DONE T3 fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b low rc=0 17:07:37
+DONE T2 github-copilot/gpt-6.1-sol xhigh rc=0 17:07:44
+DONE T3 github-copilot/gpt-6.1-sol medium rc=0 17:07:49
+DONE T4 ai-gateway-misc/fw-deepseek-v4.1-flash low rc=0 17:08:13
+SHARD COMPLETE shard.m.2
+DONE T4 fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b low rc=0 17:08:16
+SHARD COMPLETE shard.m.5
+DONE T3 github-copilot/gpt-6.1-sol xhigh rc=0 17:08:17
+DONE T4 github-copilot/gpt-6.1-sol medium rc=0 17:08:43
+SHARD COMPLETE shard.m.9
+DONE T3 github-copilot/gemini-3.8-flash high rc=0 17:09:21
+DONE T4 github-copilot/gpt-6.1-sol xhigh rc=0 17:11:25
+SHARD COMPLETE shard.m.10
+DONE T4 github-copilot/gemini-3.8-flash high rc=0 17:12:11
+SHARD COMPLETE shard.m.6
+DONE T1 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:13:30
+DONE T2 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:13:35
+DONE T3 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:13:39
+DONE T4 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:13:43
+SHARD COMPLETE shard.retry1
+DONE T1 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:13:47
+DONE T2 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:13:51
+DONE T3 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:13:55
+DONE T4 ai-gateway-misc/fw-deepseek-v4-pro none rc=1 17:13:59
+SHARD COMPLETE shard.retry2
+RETRYDONE T4 ai-gateway-misc/fw-glm-5.3-flash high rc=0 17:22:58
+RETRY2DONE T1 ai-gateway-misc/fw-glm-5.3 low rc=0 17:48:30
+RETRY2DONE T2 ai-gateway-misc/fw-glm-5.3 low rc=0 17:49:54
+RETRY2DONE T3 ai-gateway-misc/fw-glm-5.3 low rc=0 17:50:31
+RETRY2DONE T4 ai-gateway-misc/fw-glm-5.3 low rc=0 17:51:25

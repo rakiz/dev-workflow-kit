@@ -1,0 +1,362 @@
+{
+ "eval-2026-10-14-T1-ai-gateway-misc-fw-glm-5-3-flash-low": {
+  "cost": 0.0053,
+  "in": 20820,
+  "cache": 0,
+  "out": 1399
+ },
+ "eval-2026-10-14-T1-github-copilot-gemini-4-argon-high": {
+  "cost": 0.0995,
+  "in": 34108,
+  "cache": 0,
+  "out": 2596
+ },
+ "eval-2026-10-14-T2-ai-gateway-misc-fw-glm-5-3-flash-low": {
+  "cost": 0.0063,
+  "in": 28548,
+  "cache": 0,
+  "out": 339
+ },
+ "eval-2026-10-14-T1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium": {
+  "cost": 0.101,
+  "in": 31802,
+  "cache": 0,
+  "out": 1823
+ },
+ "eval-2026-10-14-T2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium": {
+  "cost": 0.0984,
+  "in": 31116,
+  "cache": 0,
+  "out": 552
+ },
+ "eval-2026-10-14-T2-github-copilot-gemini-4-argon-high": {
+  "cost": 0.0868,
+  "in": 34952,
+  "cache": 0,
+  "out": 918
+ },
+ "eval-2026-10-14-T3-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium": {
+  "cost": 0.0981,
+  "in": 17474,
+  "cache": 0,
+  "out": 1047
+ },
+ "eval-2026-10-14-T4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium": {
+  "cost": 0.1064,
+  "in": 43349,
+  "cache": 0,
+  "out": 1280
+ },
+ "eval-2026-10-14-T3-github-copilot-gemini-4-argon-high": {
+  "cost": 0.0995,
+  "in": 37975,
+  "cache": 0,
+  "out": 1264
+ },
+ "eval-2026-10-14-T3-ai-gateway-misc-fw-glm-5-3-flash-low": {
+  "cost": 0.0051,
+  "in": 27624,
+  "cache": 0,
+  "out": 319
+ },
+ "eval-2026-10-14-T4-ai-gateway-misc-fw-glm-5-3-flash-low": {
+  "cost": 0.0059,
+  "in": 27298,
+  "cache": 0,
+  "out": 902
+ },
+ "eval-2026-10-14-T4-github-copilot-gemini-4-argon-high": {
+  "cost": 0.0879,
+  "in": 34356,
+  "cache": 0,
+  "out": 1393
+ },
+ "eval-2026-10-14-T1-ai-gateway-misc-fw-glm-5-3-flash-high": {
+  "cost": 0.005,
+  "in": 10583,
+  "cache": 0,
+  "out": 1791
+ },
+ "eval-2026-10-14-T1-github-copilot-gpt-6-1-sol-low": {
+  "cost": 0.0971,
+  "in": 26207,
+  "cache": 0,
+  "out": 1813
+ },
+ "eval-2026-10-14-T1-github-copilot-gemini-3-8-flash-medium": {
+  "cost": 0.0532,
+  "in": 58044,
+  "cache": 0,
+  "out": 1574
+ },
+ "eval-2026-10-14-T2-github-copilot-gpt-6-1-sol-low": {
+  "cost": 0.0821,
+  "in": 24824,
+  "cache": 0,
+  "out": 816
+ },
+ "eval-2026-10-14-T2-ai-gateway-misc-fw-glm-5-3-flash-high": {
+  "cost": 0.0049,
+  "in": 13027,
+  "cache": 0,
+  "out": 505
+ },
+ "eval-2026-10-14-T3-ai-gateway-misc-fw-glm-5-3-flash-high": {
+  "cost": 0.0057,
+  "in": 12743,
+  "cache": 0,
+  "out": 610
+ },
+ "eval-2026-10-14-T2-github-copilot-gemini-3-8-flash-medium": {
+  "cost": 0.0417,
+  "in": 32574,
+  "cache": 0,
+  "out": 774
+ },
+ "eval-2026-10-14-T1-ai-gateway-misc-fw-deepseek-v4-1-flash-low": {
+  "cost": 0.008,
+  "in": 32288,
+  "cache": 0,
+  "out": 2080
+ },
+ "eval-2026-10-14-T1-github-copilot-gpt-6-1-sol-xhigh": {
+  "cost": 0.0917,
+  "in": 26078,
+  "cache": 0,
+  "out": 1493
+ },
+ "eval-2026-10-14-T1-github-copilot-gemini-3-8-flash-high": {
+  "cost": 0.0547,
+  "in": 49644,
+  "cache": 0,
+  "out": 1667
+ },
+ "eval-2026-10-14-T1-github-copilot-gpt-6-1-sol-medium": {
+  "cost": 0.0922,
+  "in": 26117,
+  "cache": 0,
+  "out": 1543
+ },
+ "eval-2026-10-14-T1-github-copilot-gemini-4-argon-medium": {
+  "cost": 0.0922,
+  "in": 32999,
+  "cache": 0,
+  "out": 2097
+ },
+ "eval-2026-10-14-T1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low": {
+  "cost": 0.0889,
+  "in": 29175,
+  "cache": 0,
+  "out": 1314
+ },
+ "eval-2026-10-14-T1-github-copilot-gemini-4-argon-low": {
+  "cost": 0.0874,
+  "in": 31992,
+  "cache": 0,
+  "out": 1839
+ },
+ "eval-2026-10-14-T2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low": {
+  "cost": 0.1017,
+  "in": 29852,
+  "cache": 0,
+  "out": 804
+ },
+ "eval-2026-10-14-T2-github-copilot-gemini-4-argon-low": {
+  "cost": 0.0922,
+  "in": 36305,
+  "cache": 0,
+  "out": 871
+ },
+ "eval-2026-10-14-T2-github-copilot-gemini-4-argon-medium": {
+  "cost": 0.0847,
+  "in": 34640,
+  "cache": 0,
+  "out": 781
+ },
+ "eval-2026-10-14-T2-github-copilot-gpt-6-1-sol-medium": {
+  "cost": 0.0979,
+  "in": 25754,
+  "cache": 0,
+  "out": 1181
+ },
+ "eval-2026-10-14-T2-github-copilot-gemini-3-8-flash-high": {
+  "cost": 0.065,
+  "in": 63685,
+  "cache": 0,
+  "out": 769
+ },
+ "eval-2026-10-14-T2-github-copilot-gpt-6-1-sol-xhigh": {
+  "cost": 0.0913,
+  "in": 24617,
+  "cache": 0,
+  "out": 1076
+ },
+ "eval-2026-10-14-T3-github-copilot-gemini-4-argon-medium": {
+  "cost": 0.0764,
+  "in": 31619,
+  "cache": 0,
+  "out": 805
+ },
+ "eval-2026-10-14-T2-ai-gateway-misc-fw-deepseek-v4-1-flash-low": {
+  "cost": 0.0066,
+  "in": 31388,
+  "cache": 0,
+  "out": 463
+ },
+ "eval-2026-10-14-T3-github-copilot-gemini-4-argon-low": {
+  "cost": 0.1238,
+  "in": 56322,
+  "cache": 0,
+  "out": 850
+ },
+ "eval-2026-10-14-T4-github-copilot-gemini-4-argon-medium": {
+  "cost": 0.0898,
+  "in": 34765,
+  "cache": 0,
+  "out": 1260
+ },
+ "eval-2026-10-14-T4-github-copilot-gemini-4-argon-low": {
+  "cost": 0.0715,
+  "in": 29506,
+  "cache": 0,
+  "out": 1000
+ },
+ "eval-2026-10-14-T3-ai-gateway-misc-fw-deepseek-v4-1-flash-low": {
+  "cost": 0.0074,
+  "in": 31718,
+  "cache": 0,
+  "out": 753
+ },
+ "eval-2026-10-14-T3-github-copilot-gemini-3-8-flash-high": {
+  "cost": 0.0589,
+  "in": 47316,
+  "cache": 0,
+  "out": 975
+ },
+ "eval-2026-10-14-T3-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low": {
+  "cost": 0.0657,
+  "in": 14604,
+  "cache": 0,
+  "out": 764
+ },
+ "eval-2026-10-14-T3-github-copilot-gpt-6-1-sol-medium": {
+  "cost": 0.0868,
+  "in": 26281,
+  "cache": 0,
+  "out": 935
+ },
+ "eval-2026-10-14-T4-ai-gateway-misc-fw-deepseek-v4-1-flash-low": {
+  "cost": 0.0076,
+  "in": 31307,
+  "cache": 0,
+  "out": 1413
+ },
+ "eval-2026-10-14-T4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low": {
+  "cost": 0.0933,
+  "in": 29447,
+  "cache": 0,
+  "out": 929
+ },
+ "eval-2026-10-14-T3-github-copilot-gpt-6-1-sol-xhigh": {
+  "cost": 0.0844,
+  "in": 26266,
+  "cache": 0,
+  "out": 796
+ },
+ "eval-2026-10-14-T4-github-copilot-gpt-6-1-sol-medium": {
+  "cost": 0.0756,
+  "in": 23698,
+  "cache": 0,
+  "out": 880
+ },
+ "eval-2026-10-14-T4-github-copilot-gpt-6-1-sol-xhigh": {
+  "cost": 0.0854,
+  "in": 25934,
+  "cache": 0,
+  "out": 827
+ },
+ "eval-2026-10-14-T4-github-copilot-gemini-3-8-flash-high": {
+  "cost": 0.0833,
+  "in": 85126,
+  "cache": 0,
+  "out": 1304
+ },
+ "eval-2026-10-14-T4-ai-gateway-misc-fw-glm-5-3-flash-high": {
+  "cost": 0.0048,
+  "in": 27458,
+  "cache": 0,
+  "out": 675
+ },
+ "eval-2026-10-14-T1-ai-gateway-misc-fw-glm-5-3-low": {
+  "cost": 0.0561,
+  "in": 28948,
+  "cache": 0,
+  "out": 1580
+ },
+ "eval-2026-10-14-T2-ai-gateway-misc-fw-glm-5-3-low": {
+  "cost": 0.0579,
+  "in": 28804,
+  "cache": 0,
+  "out": 389
+ },
+ "eval-2026-10-14-T3-ai-gateway-misc-fw-glm-5-3-low": {
+  "cost": 0.0621,
+  "in": 29050,
+  "cache": 0,
+  "out": 594
+ },
+ "eval-2026-10-14-T4-ai-gateway-misc-fw-glm-5-3-low": {
+  "cost": 0.0404,
+  "in": 27197,
+  "cache": 0,
+  "out": 588
+ },
+ "eval-2026-10-14-T1-ai-gateway-misc-fw-glm-5-3-high": {
+  "cost": 0.0624,
+  "in": 30111,
+  "cache": 0,
+  "out": 1707
+ },
+ "eval-2026-10-14-T2-ai-gateway-misc-fw-glm-5-3-high": {
+  "cost": 0.0589,
+  "in": 29419,
+  "cache": 0,
+  "out": 408
+ },
+ "eval-2026-10-14-T3-ai-gateway-misc-fw-glm-5-3-high": {
+  "cost": 0.0824,
+  "in": 31692,
+  "cache": 0,
+  "out": 860
+ },
+ "eval-2026-10-14-T4-ai-gateway-misc-fw-glm-5-3-high": {
+  "cost": 0.0582,
+  "in": 29172,
+  "cache": 0,
+  "out": 902
+ },
+ "eval-2026-10-14-T3-github-copilot-gemini-3-8-flash-medium": {
+  "cost": 0.0447,
+  "in": 42934,
+  "cache": 0,
+  "out": 881
+ },
+ "eval-2026-10-14-T4-github-copilot-gemini-3-8-flash-medium": {
+  "cost": 0.0405,
+  "in": 38282,
+  "cache": 0,
+  "out": 1243
+ },
+ "eval-2026-10-14-T3-github-copilot-gpt-6-1-sol-low": {
+  "cost": 0.0929,
+  "in": 27423,
+  "cache": 0,
+  "out": 1017
+ },
+ "eval-2026-10-14-T4-github-copilot-gpt-6-1-sol-low": {
+  "cost": 0.0757,
+  "in": 24306,
+  "cache": 0,
+  "out": 750
+ }
+}

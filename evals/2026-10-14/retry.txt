@@ -1,0 +1,7 @@
+T4 ai-gateway-misc/fw-glm-5.3-flash high
+T3 github-copilot/gemini-3.8-flash medium
+T2 github-copilot/gemini-3.8-flash medium
+T2 github-copilot/gemini-3.8-flash high
+T3 github-copilot/gpt-6.1-sol low
+T4 github-copilot/gpt-6.1-sol low
+T2 ai-gateway-misc/fw-deepseek-v4.1-flash low

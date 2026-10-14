@@ -1,0 +1,7 @@
+**Real defects in `incremental.py` (commit fe8ce2c):**
+
+1. **Major — `copy_many` silently swallows copy failures** (`incremental.py:29-31`). `except Exception: continue` drops every error; the returned `done` list is indistinguishable from "everything succeeded". A failed copy (disk full, permission denied) means files missing at destination with no signal — silent data loss in a sync tool. At minimum collect and return/report failures.
+
+2. **Major — mutable default argument in `filter_excluded`** (`incremental.py:14`). `excluded=[]` is created once at function definition, so results accumulate across calls: a second call returns paths excluded in the *first* call, i.e. paths that aren't in its `paths` input at all — corrupted, misleading return value. (It also mutates a caller-passed list as a hidden side effect.)
+
+3. **Minor — `merge_manifest` never drops entries deleted from the source** (`incremental.py:40`). Files removed at the source keep their old entry forever, so the destination manifest grows stale and no longer reflects reality; if the file is later recreated with a matching mtime, the merge can wrongly skip recording the new state. Deletions should propagate (e.g. drop keys absent from `new_manifest`).

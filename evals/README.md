@@ -14,15 +14,13 @@ release.
   the repo, where it first recreates the 2-commit history (baseline
   "Initial synccli", then the seeded-defect review commit that added
   `incremental.py`) so T3's `git show HEAD` has a real commit to review.
-- `2026-09-29/` — the eval (final results in `RESULTS.md`, scored responses in
-  `outputs/` — only a subset of the runs is archived there: 35 of 45, the rest
-  live in the opencode session DB).
-- `2026-09-29-sol61/` — release-day eval of `gpt-6.1-sol` vs the incumbent
-  `gpt-6-sol` (same protocol, 4 tasks): strictly better-or-equal at the same
-  price — the 3 sol slots bumped (`RESULTS.md`).
-- `2026-09-30-deepseek-effort/` — deepseek-v4p1-flash re-baseline after a
-  Fireworks effort-mapping fix (default effort = new `high`); keep-default
-  decision, results in `RESULTS.md`.
+- `2026-10-14/` — the full effort-grid campaign (15 arms × T1–T4, sessions,
+  per-run costs); results in `RESULTS.md`.
+- Prior campaigns (2026-09-29 main matrix, 2026-09-29-sol61, the 2026-09-30
+  deepseek-effort / deepseek-v4-pro / gateway-candidates / nemotron /
+  qwen3p8 evals, 2026-10-07 haiku+ember completion) have been **folded into
+  the aggregate `../EVALS.md`** — one blended report per model×effort, with
+  the measurement date on each cell — and their dated directories removed.
 
 ## The 4 tasks
 

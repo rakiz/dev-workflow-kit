@@ -1,0 +1,3 @@
+ai-gateway-misc/FW-GLM-5.3 high — 4/4 runs rc=1, error: "The model does not exist or does not support this protocol." (deterministic; not retried)
+ai-gateway-misc/FW-GLM-5.3 low — 4/4 runs rc=1, error: "The model does not exist or does not support this protocol." (deterministic; not retried)
+ai-gateway-misc/fw-deepseek-v4-pro none — 12/12 runs rc=1 (original + 2 retries), error: "UnknownError: Unexpected server error. Check server logs for details." — permanent, given up

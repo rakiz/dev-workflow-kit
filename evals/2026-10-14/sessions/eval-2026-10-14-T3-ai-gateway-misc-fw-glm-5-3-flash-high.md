@@ -1,0 +1,9 @@
+**Defects in `incremental.py` (commit d65c815):**
+
+1. **Major — `copy_many` reports failures as success, silently.** Two layers of swallowing: `copy_file` (synccli.py:66-69) already catches `OSError` internally and returns normally after truncating `dst` to a partial/empty file (a failed mid-read destroys pre-existing `dst` content), and `copy_many`'s own `except Exception: continue` hides the rest. So a dst path ends up in the returned `done` list even though nothing was copied — the docstring contract ("return the list of dst paths done") is false, and per DESIGN ("log to stdout and continue") nothing is logged. Result: destination silently stale or corrupted with no signal to the caller.
+
+2. **Major — `merge_manifest` drops legitimate updates.** The guard `old[rel]["mtime"] <= state["mtime"]` rejects the new state whenever the old mtime is equal or newer, ignoring `size` entirely. A file rewritten with identical mtime (sub-second edits, restore from archive, coarse filesystem timestamps) but different content/size is rejected forever — the change never propagates and no later sync fixes it, since the stored old state is preserved. This also contradicts the rest of the system: `changed_files` compares full `(size, mtime)` state.
+
+3. **Minor — `filter_excluded` mutable default argument.** `excluded=[]` is created once at definition time; every call without an explicit list appends to the same shared list and returns it. The second call in a process returns the first call's paths again, so callers acting on the result can exclude/skip paths that aren't in the current set.
+
+4. **Minor — `merge_manifest` never removes deleted entries.** It's a pure union: relpaths present in `old` but absent from `new_manifest` are carried forward forever, so files deleted from the source stay pinned as "known" in the destination manifest and deletions can never be detected or propagated.

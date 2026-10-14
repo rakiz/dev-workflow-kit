@@ -1,0 +1,5 @@
+- **Minor — Exclusion results leak between calls** (`incremental.py:10–15`). The mutable default `excluded=[]` is reused across invocations. After `filter_excluded([".git/config"])`, calling `filter_excluded(["normal.txt"])` still returns `[".git/config"]`, which is not a subset of the current input. Mutating a returned list also corrupts subsequent results.
+
+- **Major — Failed copies are reported as completed** (`incremental.py:23–25`). `copy_file()` catches `OSError` internally and returns normally, so `copy_many()` appends the destination even when the source is missing, the destination cannot be written, or copying fails after truncating it. This violates the promised list of completed destinations and can cause callers to record failed copies as synchronized.
+
+- **Major — Manifest merge discards valid changes with older timestamps** (`incremental.py:38–40`). A changed source file can legitimately have an earlier mtime after restoring a backup, checking out a revision, or preserving timestamps during copying. The merge silently retains the old state in that case—even when the size differs—leaving the manifest inconsistent with the new file state.

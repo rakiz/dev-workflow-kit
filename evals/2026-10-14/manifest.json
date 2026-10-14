@@ -1,0 +1,91 @@
+{
+ "ai-gateway-misc-fw-deepseek-v4-1-flash-low": {
+  "T1": "eval-2026-10-14-T1-ai-gateway-misc-fw-deepseek-v4-1-flash-low.md",
+  "T3": "eval-2026-10-14-T3-ai-gateway-misc-fw-deepseek-v4-1-flash-low.md",
+  "T4": "eval-2026-10-14-T4-ai-gateway-misc-fw-deepseek-v4-1-flash-low.md"
+ },
+ "ai-gateway-misc-fw-glm-5-3-flash-high": {
+  "T1": "eval-2026-10-14-T1-ai-gateway-misc-fw-glm-5-3-flash-high.md",
+  "T2": "eval-2026-10-14-T2-ai-gateway-misc-fw-glm-5-3-flash-high.md",
+  "T3": "eval-2026-10-14-T3-ai-gateway-misc-fw-glm-5-3-flash-high.md",
+  "T4": "eval-2026-10-14-T4-ai-gateway-misc-fw-glm-5-3-flash-high.md"
+ },
+ "ai-gateway-misc-fw-glm-5-3-flash-low": {
+  "T1": "eval-2026-10-14-T1-ai-gateway-misc-fw-glm-5-3-flash-low.md",
+  "T2": "eval-2026-10-14-T2-ai-gateway-misc-fw-glm-5-3-flash-low.md",
+  "T3": "eval-2026-10-14-T3-ai-gateway-misc-fw-glm-5-3-flash-low.md",
+  "T4": "eval-2026-10-14-T4-ai-gateway-misc-fw-glm-5-3-flash-low.md"
+ },
+ "ai-gateway-misc-fw-glm-5-3-high": {
+  "T1": "eval-2026-10-14-T1-ai-gateway-misc-FW-GLM-5-3-high.md",
+  "T2": "eval-2026-10-14-T2-ai-gateway-misc-FW-GLM-5-3-high.md",
+  "T3": "eval-2026-10-14-T3-ai-gateway-misc-FW-GLM-5-3-high.md",
+  "T4": "eval-2026-10-14-T4-ai-gateway-misc-FW-GLM-5-3-high.md"
+ },
+ "ai-gateway-misc-fw-glm-5-3-low": {
+  "T1": "eval-2026-10-14-T1-ai-gateway-misc-FW-GLM-5-3-low.md",
+  "T2": "eval-2026-10-14-T2-ai-gateway-misc-FW-GLM-5-3-low.md",
+  "T3": "eval-2026-10-14-T3-ai-gateway-misc-FW-GLM-5-3-low.md",
+  "T4": "eval-2026-10-14-T4-ai-gateway-misc-FW-GLM-5-3-low.md"
+ },
+ "fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low": {
+  "T1": "eval-2026-10-14-T1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low.md",
+  "T2": "eval-2026-10-14-T2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low.md",
+  "T3": "eval-2026-10-14-T3-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low.md",
+  "T4": "eval-2026-10-14-T4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-low.md"
+ },
+ "fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium": {
+  "T1": "eval-2026-10-14-T1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium.md",
+  "T2": "eval-2026-10-14-T2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium.md",
+  "T3": "eval-2026-10-14-T3-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium.md",
+  "T4": "eval-2026-10-14-T4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium.md"
+ },
+ "github-copilot-gemini-3-8-flash-high": {
+  "T1": "eval-2026-10-14-T1-github-copilot-gemini-3-8-flash-high.md",
+  "T2": "eval-2026-10-14-T2-github-copilot-gemini-3-8-flash-high.md",
+  "T3": "eval-2026-10-14-T3-github-copilot-gemini-3-8-flash-high.md",
+  "T4": "eval-2026-10-14-T4-github-copilot-gemini-3-8-flash-high.md"
+ },
+ "github-copilot-gemini-3-8-flash-medium": {
+  "T1": "eval-2026-10-14-T1-github-copilot-gemini-3-8-flash-medium.md",
+  "T2": "eval-2026-10-14-T2-github-copilot-gemini-3-8-flash-medium.md",
+  "T3": "eval-2026-10-14-T3-github-copilot-gemini-3-8-flash-medium.md",
+  "T4": "eval-2026-10-14-T4-github-copilot-gemini-3-8-flash-medium.md"
+ },
+ "github-copilot-gemini-4-argon-high": {
+  "T1": "eval-2026-10-14-T1-github-copilot-gemini-4-argon-high.md",
+  "T2": "eval-2026-10-14-T2-github-copilot-gemini-4-argon-high.md",
+  "T3": "eval-2026-10-14-T3-github-copilot-gemini-4-argon-high.md",
+  "T4": "eval-2026-10-14-T4-github-copilot-gemini-4-argon-high.md"
+ },
+ "github-copilot-gemini-4-argon-low": {
+  "T1": "eval-2026-10-14-T1-github-copilot-gemini-4-argon-low.md",
+  "T2": "eval-2026-10-14-T2-github-copilot-gemini-4-argon-low.md",
+  "T3": "eval-2026-10-14-T3-github-copilot-gemini-4-argon-low.md",
+  "T4": "eval-2026-10-14-T4-github-copilot-gemini-4-argon-low.md"
+ },
+ "github-copilot-gemini-4-argon-medium": {
+  "T1": "eval-2026-10-14-T1-github-copilot-gemini-4-argon-medium.md",
+  "T2": "eval-2026-10-14-T2-github-copilot-gemini-4-argon-medium.md",
+  "T3": "eval-2026-10-14-T3-github-copilot-gemini-4-argon-medium.md",
+  "T4": "eval-2026-10-14-T4-github-copilot-gemini-4-argon-medium.md"
+ },
+ "github-copilot-gpt-6-1-sol-low": {
+  "T1": "eval-2026-10-14-T1-github-copilot-gpt-6-1-sol-low.md",
+  "T2": "eval-2026-10-14-T2-github-copilot-gpt-6-1-sol-low.md",
+  "T3": "eval-2026-10-14-T3-github-copilot-gpt-6-1-sol-low.md",
+  "T4": "eval-2026-10-14-T4-github-copilot-gpt-6-1-sol-low.md"
+ },
+ "github-copilot-gpt-6-1-sol-medium": {
+  "T1": "eval-2026-10-14-T1-github-copilot-gpt-6-1-sol-medium.md",
+  "T2": "eval-2026-10-14-T2-github-copilot-gpt-6-1-sol-medium.md",
+  "T3": "eval-2026-10-14-T3-github-copilot-gpt-6-1-sol-medium.md",
+  "T4": "eval-2026-10-14-T4-github-copilot-gpt-6-1-sol-medium.md"
+ },
+ "github-copilot-gpt-6-1-sol-xhigh": {
+  "T1": "eval-2026-10-14-T1-github-copilot-gpt-6-1-sol-xhigh.md",
+  "T2": "eval-2026-10-14-T2-github-copilot-gpt-6-1-sol-xhigh.md",
+  "T3": "eval-2026-10-14-T3-github-copilot-gpt-6-1-sol-xhigh.md",
+  "T4": "eval-2026-10-14-T4-github-copilot-gpt-6-1-sol-xhigh.md"
+ }
+}

@@ -227,6 +227,11 @@ When a replacement model is picked through the availability menu, `init.sh`
 leaves the variant untouched — a different model may use a different effort
 scale, so check the `variant:` line manually.
 
+- **glm-5.3-flash runs `low`** (pinned 2026-10-14: the gateway exposes no
+  `default` variant for this id; `low` passed T2/T3/T4 in the eval grid —
+  `evals/2026-10-14/RESULTS.md`; `high` is reserved for the strong-review
+  rung).
+
 ## Replacing a model
 
 A replacement is a reasonable equivalent when:

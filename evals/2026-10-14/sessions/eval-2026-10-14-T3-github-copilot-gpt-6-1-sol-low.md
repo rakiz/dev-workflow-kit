@@ -1,0 +1,5 @@
+- **Major — `incremental.py:23–24`: Failed copies are reported as completed.** `copy_file()` suppresses `OSError`, so a missing or unreadable source returns normally and `copy_many()` adds its destination to `done`, even when nothing was copied. This violates the documented return contract and can cause callers to mark failed transfers as synced.
+
+- **Minor — `incremental.py:10–15`: Exclusion results leak between calls.** The default `excluded=[]` is shared and returned directly. After `filter_excluded([".git/config"])`, calling `filter_excluded(["a.txt"])` incorrectly returns `[".git/config"]`. Previously returned results also change when subsequent calls append exclusions.
+
+- **Minor — `incremental.py:38–39`: Older timestamps prevent legitimate manifest updates.** Replacing or restoring a file can change its size/content while decreasing its mtime. For example, an old state `{size: 10, mtime: 100}` merged with `{size: 20, mtime: 90}` retains the old state. Timestamp ordering is not a reliable indication of which observation is current, so the returned manifest can misrepresent the file.
