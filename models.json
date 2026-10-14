@@ -91,9 +91,9 @@
       "family_hint": "gpt"
     },
     "strong-design-review-alternative": {
-      "model": "github-copilot/claude-sonnet-5.5",
-      "family_hint": "claude",
-      "variant": "medium"
+      "model": "github-copilot/gemini-4-argon",
+      "family_hint": "gemini",
+      "variant": "high"
     },
     "strong-design-review-alternative2": {
       "model": "ai-gateway-misc/fw-deepseek-v4-pro",

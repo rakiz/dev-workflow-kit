@@ -162,13 +162,13 @@ Two rules bind the whole grid:
 | Function \ tier | cheap | strong | alternative | alternative2 |
 |---|---|---|---|---|
 | design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` sol | `strong-design-alternative2` opus |
-| design-review | `cheap-design-review` deepseek | `strong-design-review` sol | `strong-design-review-alternative` s5.5 `medium` | `strong-design-review-alternative2` pro `high` |
+| design-review | `cheap-design-review` deepseek | `strong-design-review` sol | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` pro `high` |
 | code (impl) | `cheap-code` glm `none` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
 | orchestration | session default model: glm — the user's configured default model; recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
-Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro.
+Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro, argon = gemini-4-argon.
 
 Eval 2026-09-30 addendum — qwen and pro join as the 7th/8th families
 (`evals/2026-09-30-qwen3p8/`, `evals/2026-09-30-deepseek-v4-pro/`): qwen
@@ -182,6 +182,11 @@ accessible; **grok is the documented fallback for both `alternative2`
 rungs**: MongoDB's managed-settings draft (`10gen/mongocode`) whitelists pro
 but not qwen, so when the managed layer lands on a machine,
 swap `strong-review-alternative2` back to grok.
+
+Eval 2026-10-14 addendum — gemini-4-argon `high` takes the
+`strong-design-review-alternative` rung (was s5.5 `medium`): argon `high` T4
+9/10 average over 2 runs (10, 8) at ~$0.09/task vs s5.5's ~$0.13 — rung
+swap, one more distinct lineage in the cross-review chain.
 
 Escalation semantics: rung N+1 is invoked only when rung N failed, stalled or
 expressed doubt — never speculatively. Invoke rung N+1 with rung N's output
@@ -220,8 +225,9 @@ by review); review floors at **`default`** (cheap-review — haiku 5.5 caught
 3/3 seeded defects at default effort in the 2026-10-07 eval, cheaper than any
 `low`-effort rung); strong rungs pinned to the eval's
 best effort — **`high`** for strong-code/strong-design (s5.5) and
-strong-review (glm), **`medium`** for the s5.5 review/design-review
-alternatives (the eval's effort facts above apply).
+strong-review (glm), **`medium`** for the s5.5 review alternative,
+**`high`** for the gemini design-review alternative (the eval's effort facts
+above apply).
 
 When a replacement model is picked through the availability menu, `init.sh`
 leaves the variant untouched — a different model may use a different effort
