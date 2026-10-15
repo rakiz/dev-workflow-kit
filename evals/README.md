@@ -14,8 +14,13 @@ release.
   the repo, where it first recreates the 2-commit history (baseline
   "Initial synccli", then the seeded-defect review commit that added
   `incremental.py`) so T3's `git show HEAD` has a real commit to review.
-- `2026-10-14/` — the full effort-grid campaign (15 arms × T1–T4, sessions,
-  per-run costs); results in `RESULTS.md`.
+- `2026-10-15/` — **the current report** (`RESULTS.md`): the 10-14 campaign
+  re-arbitrated under the per-task cost methodology (roles are assigned per
+  task; a rung is decided on quality×cost of the task that rung performs,
+  4-task totals are a budget sanity-check only).
+- `2026-10-14/` — raw session data only for the full effort-grid campaign
+  (15 arms × T1–T4): `sessions/`, `costs.json`, manifest, log evidence. Its
+  report was superseded by `2026-10-15/RESULTS.md`.
 - Prior campaigns (2026-09-29 main matrix, 2026-09-29-sol61, the 2026-09-30
   deepseek-effort / deepseek-v4-pro / gateway-candidates / nemotron /
   qwen3p8 evals, 2026-10-07 haiku+ember completion) have been **folded into

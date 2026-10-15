@@ -3,8 +3,9 @@
 **THE single aggregate**: one place for the results of every model eval ever
 run in this kit, blended across campaigns with the date each cell was
 measured. The per-eval detail was folded in here and the per-date
-`evals/` dirs removed (the last campaign, 2026-10-14, has its own detail
-page in `evals/2026-10-14/RESULTS.md`). **Checked: 2026-10-14.**
+`evals/` dirs removed (the current detail page is
+`evals/2026-10-15/RESULTS.md` — the 2026-10-14 campaign re-arbitrated under
+the per-task cost methodology). **Checked: 2026-10-15.**
 
 ## How to read this page
 
@@ -26,31 +27,36 @@ page in `evals/2026-10-14/RESULTS.md`). **Checked: 2026-10-14.**
 The measured matrix per model (T1 plan / T2 impl / T3 review / T4
 design-review), by effort:
 
-| Model | Effort | T1 | T2 | T3 | T4 | Date |
-|---|---|---|---|---|---|---|
-| glm-5p3-flash | low | PARTIAL (misses red baseline) | PASS | 3/3+2, 0FP | 8/10 | 10-14 |
-| glm-5p3-flash | high (strong-review rung) | PASS | PASS | 3/3+2, 2FP | 6/10 | 10-14 |
-| deepseek-v4p1-flash | low | PARTIAL | PASS | 2/3, 0FP | 9/10 | 10-14 |
-| deepseek-v4p1-flash | default(=high) | tier-1, baseline caught | PASS | 2/3 | 9/10 | 09-30 |
-| gemini-4-argon | low | PARTIAL | PASS | 3/3, 1FP | 8/10 | 10-14 |
-| gemini-4-argon | medium | PASS | PASS | 2/3, 2FP | 9/10 | 10-14 |
-| gemini-4-argon | high | PARTIAL (dismisses baseline) | PASS | 2/3, 1FP | 9/10 (2 runs: 10, 8) | 10-14 |
-| gemini-3.8-flash | low | ungrounded | PASS | 3/3 | mid | 09-29 |
-| gemini-3.8-flash | medium | PARTIAL | PASS | 2/3, 2FP | 9/10 | 10-14 |
-| gemini-3.8-flash | high | PARTIAL | PASS | 2/3, 2FP | 7/10 | 10-14 |
-| claude-haiku-5.5 | default | 6/10 | PASS | 3/3, $0.0063 | 8/10 | 10-07 |
-| claude-haiku-5.5 | xhigh | 9/10 | PASS | 3/3+proofs | 9/10 | 10-07 |
-| claude-sonnet-5.5 | high | best plan | PASS | — | — | 09-29 |
-| claude-sonnet-5.5 | medium | — | PASS | best reviewer | tier-1 | 09-29 |
-| claude-opus-5.5 | default | tier-1 | PASS | tier-1 | tier-1 | 09-29 |
-| gpt-6.1-sol | low | PASS | PASS | 2/3, 0FP | 9/10 | 10-14 |
-| gpt-6.1-sol | medium | PASS | PASS | 2/3, 0FP | 9/10 | 10-14 |
-| gpt-6.1-sol | xhigh | PASS | PASS | 2/3, 0FP | 9/10 | 10-14 |
-| gpt-6.1-sol | default | tier-1 | PASS | 2/3+1 bonus, 0FP | 7–8/10 | 09-29 |
-| qwen3p8-2p4t-a95b | low | FAIL (hallucination) | PASS | 3/3+2 → 2/3, 0FP (2 runs) | 9/10 | 10-14 |
-| qwen3p8-2p4t-a95b | medium | tier-1 | PASS | 2/3, 1FP | 8/10 | 10-14 |
-| qwen3p8-2p4t-a95b | xhigh (strong-review-a2 rung) | baseline caught by execution | PASS | **3/3+2 proven** | 10/10 | 09-30 |
-| fw-deepseek-v4-pro | high (design-review-a2 rung) | baseline caught | PASS | 2/3 (family blind spot) | 9–10/10 | 09-30 |
+| Model | Effort | T1 | T2 | T3 | T4 | T1 $ | T2 $ | T3 $ | T4 $ | Date |
+|---|---|---|---|---|---|---|---|---|---|---|
+| glm-5p3-flash | low | PARTIAL (misses red baseline) | PASS | 3/3+2, 0FP | 8/10 | .0053 | .0063 | .0051 | .0059 | 10-14 |
+| glm-5p3-flash | high (strong-review rung) | PASS | PASS | 3/3+2, 2FP | 6/10 | .0050 | .0049 | .0057 | .0048 | 10-14 |
+| deepseek-v4p1-flash | low | PARTIAL | PASS | 2/3, 0FP | 9/10 | .0080 | .0066 | .0074 | .0076 | 10-14 |
+| deepseek-v4p1-flash | default(=high) | tier-1, baseline caught | PASS | 2/3 | 9/10 | n.t. | n.t. | n.t. | n.t. | 09-30 |
+| gemini-4-argon | low | PARTIAL | PASS | 3/3, 1FP | 8/10 | .0874 | .0922 | .1238 | .0715 | 10-14 |
+| gemini-4-argon | medium | PASS | PASS | 2/3, 2FP | 9/10 | .0922 | .0847 | .0764 | .0898 | 10-14 |
+| gemini-4-argon | high | PARTIAL (dismisses baseline) | PASS | 2/3, 1FP | 9/10 (2 runs: 10, 8) | .0995 | .0868 | .0995 | .0879 | 10-14 |
+| gemini-3.8-flash | low | ungrounded | PASS | 3/3 | mid | n.t. | n.t. | n.t. | n.t. | 09-29 |
+| gemini-3.8-flash | medium | PARTIAL | PASS | 2/3, 2FP | 9/10 | .0532 | .0417 | .0447 | .0405 | 10-14 |
+| gemini-3.8-flash | high | PARTIAL | PASS | 2/3, 2FP | 7/10 | .0547 | .0650 | .0589 | .0833 | 10-14 |
+| claude-haiku-5.5 | default | 6/10 | PASS | 3/3, $0.0063 | 8/10 | n.t. | n.t. | .0063 | n.t. | 10-07 |
+| claude-haiku-5.5 | xhigh | 9/10 | PASS | 3/3+proofs | 9/10 | n.t. | n.t. | n.t. | n.t. | 10-07 |
+| claude-sonnet-5.5 | high | best plan | PASS | — | — | n.t. | n.t. | n.t. | n.t. | 09-29 |
+| claude-sonnet-5.5 | medium | — | PASS | best reviewer | tier-1 | n.t. | n.t. | n.t. | n.t. | 09-29 |
+| claude-opus-5.5 | default | tier-1 | PASS | tier-1 | tier-1 | n.t. | n.t. | n.t. | n.t. | 09-29 |
+| gpt-6.1-sol | low | PASS | PASS | 2/3, 0FP | 9/10 | .0971 | .0821 | .0929 | .0757 | 10-14 |
+| gpt-6.1-sol | medium | PASS | PASS | 2/3, 0FP | 9/10 | .0922 | .0979 | .0868 | .0756 | 10-14 |
+| gpt-6.1-sol | xhigh | PASS | PASS | 2/3, 0FP | 9/10 | .0917 | .0913 | .0844 | .0854 | 10-14 |
+| gpt-6.1-sol | default | tier-1 | PASS | 2/3+1 bonus, 0FP | 7–8/10 | n.t. | n.t. | n.t. | n.t. | 09-29 |
+| qwen3p8-2p4t-a95b | low | FAIL (hallucination) | PASS | 3/3+2 → 2/3, 0FP (2 runs) | 9/10 | .0889 | .1017 | .0657 | .0933 | 10-14 |
+| qwen3p8-2p4t-a95b | medium | tier-1 | PASS | 2/3, 1FP | 8/10 | .1010 | .0984 | .0981 | .1064 | 10-14 |
+| qwen3p8-2p4t-a95b | xhigh (strong-review-a2 rung) | baseline caught by execution | PASS | **3/3+2 proven** | 10/10 | n.t. | n.t. | n.t. | n.t. | 09-30 |
+| fw-deepseek-v4-pro | high (design-review-a2 rung) | baseline caught | PASS | 2/3 (family blind spot) | 9–10/10 | n.t. | n.t. | n.t. | n.t. | 09-30 |
+
+Per-task $ columns: cost paid on that task (`evals/2026-10-14/costs.json`);
+`n.t. (total only)` — the campaign archived totals, per-task costs were not
+recorded. The 4-task totals in the Roles table below are kept as a budget
+sanity-check only — never a role arbiter (see Standing lessons).
 
 **Confirmation runs 10-14** (second run of the same arm): gemini-4-argon `high` T4 10 → 8 (avg **9/10 over 2 runs**, variance noted — missed renames + hardcoded config); qwen3p8 `low` T3 3/3+2 → 2/3 (variance CONFIRMED — missed the manifest-purge defect, minimax lesson applies: `low` out for review roles).
 
@@ -99,6 +105,12 @@ design-review), by effort:
   model ever tested**; qwen3p8-max is the only one that lied about it
   (qwen3p8-2p4t `low` hallucinated instead, 10-14; gemini-4-argon `high`
   dismissed the baseline as unrelated — a third failure shape, 10-14).
+- Role-decided per-task costs (2026-10-15 methodology): a rung is decided
+  on the task that rung performs — quality measured on that task, cost paid
+  on that task. The 4-task total is a budget sanity-check only, never an
+  arbiter: a model good on T1 and expensive there can lose on total to a
+  model bad on T1 but cheap there, and the total would hide the
+  role-relevant cost.
 - Price over speed: when two models sit in the same quality tier, the
   cheaper one takes the role.
 - `max` effort has never paid for itself — and on the flash-tier models
