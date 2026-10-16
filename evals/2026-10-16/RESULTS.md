@@ -47,10 +47,30 @@ a run which *executes the tests* sees.
 | **muse-spark `high`** | **10-16** | **$0.1739** | **PASS** — executes the tests, flags the pre-existing failure (`test_synccli.py:22-24` vs `synccli.py:55`), marks defect surface out-of-scope |
 | **muse-spark `xhigh`** | **10-16** | **$0.1038** | **FAIL** — **invents a green baseline** ("7 tests pass green"); the qwen3p8-max failure shape |
 
-**Decision: gpt-6.1-sol holds the orchestrator slot** — PASS at every effort
+**T1 eval verdict: gpt-6.1-sol wins the planning rung** — PASS at every effort
 @ ~$0.092–0.097/run. Spark's only PASS is at `high` @ $0.174 — 2× sol's cost
 for the same verdict. Spark's `xhigh` hallucinating a green baseline repeats
-the qwen3p8-max lesson (effort does not buy honesty).
+the qwen3p8-max lesson (effort does not buy honesty). This is an eval-rung
+result only: deployed orchestration is the session default model, glm-flash
+(`MODELS.md` orchestration row) — T1 measures plan quality, not the deployed
+role.
+
+**The deployed default as orchestrator — glm-flash, price × quality** (the
+owner runs glm as session default regardless of the eval pick; both T1 arms
+from 10-14, single run each):
+
+| glm arm | T1 cost / run | T1 verdict | vs sol `low` ($0.0922 PASS) |
+|---|---|---|---|
+| glm-flash `high` | $0.0050 | PASS — the only flash arm that executes the tests | **18× cheaper, same verdict** |
+| glm-flash `low` | $0.0053 | PARTIAL — misses the red baseline | cheaper, wrong verdict |
+
+Read: as an orchestrator, glm-flash is competitive **only effort-pinned to
+`high`** — at `low` it under-explores and misses the trap, exactly the
+README's `low`-effort failure mode (structural under-exploration on T1). At
+`high` it delivers the same PASS verdict as sol at 5% of the cost, so the
+deployed choice (glm default) is defensible on price × quality; sol's edge
+is robustness across efforts (PASS low→xhigh, no pinning needed), not the
+verdict itself.
 
 ## T2 — Impl
 
@@ -70,7 +90,7 @@ Objective scoring: `python3 -m unittest` green + size/minimalism of the fix
 | gemini-4-argon `low`–`high` | 10-14 | $0.085–0.092 | ✅ PASS (`high` = the only campaign semantic fix) |
 | sonnet-5.5 / opus-5.5 / haiku / qwen `xhigh` / deepseek default | 09-29/10-07/09-30 | n.t. | ✅ PASS |
 
-**Decision: fw-glm-5.3-flash `low` holds cheap-code** — suite-verified PASS
+**Eval verdict: fw-glm-5.3-flash `low` — confirmed as deployed cheap-code** — suite-verified PASS
 @ $0.005–0.006/run vs spark $0.12 and qwen $0.10: a **20× spread** for the
 identical objective outcome. Deepseek `low` ($0.0066) is the explore/cheap-mech
 arm on the same tier. No challengers.
@@ -98,7 +118,8 @@ Scored n/3, bonus findings, **false positives counted**.
 | **muse-spark `high`** | **10-16** | **$0.1199** | **3/3, 0 FP** +2 bonus (same two, both correct) |
 | **muse-spark `xhigh`** | **10-16** | **$0.0900** | **3/3, 0 FP** +2 bonus (same, EXCLUDE_TOP_DIRS as minor) |
 
-**Decision: haiku-5.5 `default` holds the review floor** — spark is a clean
+**Eval verdict: haiku-5.5 `default` keeps the review floor** (deployed
+cheap-review — confirmed) — spark is a clean
 **quality tie (3/3, 0FP at all four efforts)** at **15–19× the per-run cost**
 ($0.09–0.12 vs $0.0063). glm-flash `low` remains the cheaper floor contender
 (provisional, single run). Qwen `xhigh` keeps the proven-depth rung; sonnet-5.5
@@ -126,10 +147,14 @@ thread, undefined deletions/renames, no instance lock, hardcoded config,
 | haiku-5.5 `xhigh` | 10-07 | n.t. ($0.018 design run) | 9/10 |
 | sonnet-5.5 `medium` | 09-29 | n.t. (~$0.52/4t) | tier-1 — current strong-design-review slot |
 
-**Decision: gemini-4-argon `high` holds strong-design-review** (9/10 avg
-@ $0.088). Spark `medium`/`xhigh` ties it at 9/10 0FP in the same price class
-($0.076–0.089) — a tie is not a win under the per-task rule (price over speed
-only breaks ties in the cheaper model's favor; there is no tie to break).
+**Eval verdict: argon `high` ties sol on T4** (9/10 avg @ $0.088). The
+deployed rung is **unchanged: `strong-design-review` = gpt-6.1-sol**
+(`models.json` — deliberate, commit `a5f8a6e`); argon `high` sits at
+`-alternative` as a candidate to move up, **PENDING OWNER DECISION**
+(`EVALS.md` argon row). Spark `medium`/`xhigh` tie both at 9/10 0FP in the
+same price class ($0.076–0.089) — a tie is not a win under the per-task rule
+(price over speed only breaks ties in the cheaper model's favor; there is no
+tie to break).
 Qwen `xhigh` (10/10 proven) and deepseek-pro `high` (09-30) keep their rungs;
 gemini-3.8 `medium` stays out — deepseek `low` 9/10 @ $0.0076 dominates.
 
@@ -137,20 +162,26 @@ gemini-3.8 `medium` stays out — deepseek `low` 9/10 @ $0.0076 dominates.
 
 ## Roster (current — unchanged by this campaign)
 
-Each rung: model@effort, the T-task evidence backing it, per-task cost where
-measured.
+The deployed roster is the repo's chosen config (`models.json` + `MODELS.md`
+grid), decided after prior campaigns; eval verdicts above recommend, the
+config decides. Each rung: model@effort, the T-task evidence backing it,
+per-task cost where measured.
 
 | Rung | Model @ effort | Evidence | Cost / task |
 |---|---|---|---|
-| orchestrator | **gpt-6.1-sol** `low` | T1 PASS at all efforts (10-14) | $0.092–0.097 |
+| orchestration (deployed) | **session default: fw-glm-5.3-flash** (`high` pin recommended) | session config, outside the kit (`MODELS.md` orchestration row); T1: PASS @ `high` $0.0050 (18× sol's price), PARTIAL @ `low` — see §T1 comparison | $0.0050 (`high`, 10-14) |
+| T1 planning rung (eval) | gpt-6.1-sol `low` | T1 PASS at all efforts (10-14) | $0.092–0.097 |
 | strong-review | fw-glm-5.3-flash `high` | T1 PASS, the only flash arm that executes tests (10-14) | $0.0050 |
-| strong-review-alternative | qwen3p8 `xhigh` | T3 3/3+2 proven (09-30) | n.t. |
-| strong-review-alternative2 / fallback | grok-4.7 (documented); sonnet-5.5 `medium` reviewer | 09-29 | n.t. |
+| strong-review-alternative | claude-sonnet-5.5 `medium` (deployed, `models.json`) | best reviewer of its price class (09-29) | n.t. |
+| strong-review-alternative2 | qwen3p8 `xhigh` (deployed, `models.json`); grok-4.7 documented fallback (no-qwen whitelists) | T3 3/3+2 proven by execution (09-30) | n.t. |
 | strong-code | sonnet-5.5 `high`; opus-5.5 `default` deep | T2 PASS tier-1 (09-29) | n.t. |
+| strong-design | sonnet-5.5 `high` (deployed, `models.json`); sol → opus escalades | T4/plan tier-1 (09-29) | n.t. |
 | strong-code-alternative | gpt-6.1-sol | T2 PASS (10-14) | $0.082–0.098 |
-| strong-design-review | **gemini-4-argon `high`** | T4 9/10 avg 2 runs (10-14) | $0.088 |
+| strong-design-review | **gpt-6.1-sol** (deployed, `models.json`) | deliberate pick, commit `a5f8a6e`; T4 9/10 all efforts (10-14) | $0.076–0.085 |
+| strong-design-review-alternative | **gemini-4-argon `high`** | T4 9/10 avg 2 runs (10-14) — candidate to move up, PENDING OWNER DECISION | $0.088 |
 | strong-design-review-alternative2 | fw-deepseek-v4-pro `high` | T4 9–10/10 (09-30) | n.t. |
-| cheap-code / cheap-mech | **fw-glm-5.3-flash `low`** | T2 PASS suite-verified (10-14) | $0.0063 |
+| cheap-code / cheap-design | **fw-glm-5.3-flash `low`** | T2 PASS suite-verified (10-14) | $0.0063 |
+| cheap-mech | **fw-deepseek-v4.1-flash** (deployed, `models.json`) | T2 PASS (10-14) | $0.0066 |
 | explore / cheap-design-review | **fw-deepseek-v4.1-flash `low`** | T2 PASS, T4 9/10 (10-14) | $0.0066–0.0076 |
 | cheap-review | **claude-haiku-5.5 `default`** | T3 3/3 0FP (10-07) | $0.0063 |
 | design-review (cheap) | fw-glm-5.3-flash `low` / haiku `xhigh` | T4 8/10 (10-14) / 9/10 @ $0.018 (10-07) | $0.0059 |
