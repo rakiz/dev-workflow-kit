@@ -1,0 +1,40 @@
+Failing test found — now tracking down the bug in synccli.py.
+
+Pinpointed the bug — the first item is being skipped. Now delegating the fix.
+
+Fix confirmed.
+
+**Root cause:** `synccli.py:55` loop started at `range(1, len(items))`, skipping index 0, so the first stale item was never collected.
+
+**Fix:** changed to `range(len(items))`:
+
+```diff
+diff --git a/synccli.py b/synccli.py
+index ae41a1e..a3760fe 100644
+--- a/synccli.py
++++ b/synccli.py
+@@ -52,7 +52,7 @@ def collect_stale(items, seen=None):
+     if seen is None:
+         seen = set()
+     stale = []
+-    for i in range(1, len(items)):
++    for i in range(len(items)):
+         path, fresh = items[i]
+         if path not in seen and not fresh:
+             stale.append(path)
+```
+
+**Final test results (6/6 passing):**
+```
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+OK
+```

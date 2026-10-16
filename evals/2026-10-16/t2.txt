@@ -1,0 +1,4 @@
+eval-2026-10-16-T2-fireworks-ai-accounts-fireworks-models-muse-spark-open-low /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-53414
+eval-2026-10-16-T2-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-53877
+eval-2026-10-16-T2-fireworks-ai-accounts-fireworks-models-muse-spark-open-high /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-54431
+eval-2026-10-16-T2-fireworks-ai-accounts-fireworks-models-muse-spark-open-xhigh /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/synccli-eval-55170

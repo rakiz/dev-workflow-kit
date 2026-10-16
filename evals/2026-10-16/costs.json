@@ -1,0 +1,98 @@
+{
+ "eval-2026-10-16-T1-fireworks-ai-accounts-fireworks-models-muse-spark-open-low": {
+  "cost": 0.0887,
+  "in": 58041,
+  "cache": 0,
+  "out": 1844
+ },
+ "eval-2026-10-16-T1-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium": {
+  "cost": 0.0662,
+  "in": 30906,
+  "cache": 0,
+  "out": 2774
+ },
+ "eval-2026-10-16-T1-fireworks-ai-accounts-fireworks-models-muse-spark-open-high": {
+  "cost": 0.1739,
+  "in": 117968,
+  "cache": 0,
+  "out": 4761
+ },
+ "eval-2026-10-16-T1-fireworks-ai-accounts-fireworks-models-muse-spark-open-xhigh": {
+  "cost": 0.1038,
+  "in": 59232,
+  "cache": 0,
+  "out": 3971
+ },
+ "eval-2026-10-16-T2-fireworks-ai-accounts-fireworks-models-muse-spark-open-low": {
+  "cost": 0.1179,
+  "in": 88585,
+  "cache": 0,
+  "out": 690
+ },
+ "eval-2026-10-16-T2-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium": {
+  "cost": 0.1276,
+  "in": 87825,
+  "cache": 0,
+  "out": 837
+ },
+ "eval-2026-10-16-T2-fireworks-ai-accounts-fireworks-models-muse-spark-open-high": {
+  "cost": 0.1247,
+  "in": 88641,
+  "cache": 0,
+  "out": 1055
+ },
+ "eval-2026-10-16-T2-fireworks-ai-accounts-fireworks-models-muse-spark-open-xhigh": {
+  "cost": 0.1268,
+  "in": 90351,
+  "cache": 0,
+  "out": 1022
+ },
+ "eval-2026-10-16-T3-fireworks-ai-accounts-fireworks-models-muse-spark-open-low": {
+  "cost": 0.106,
+  "in": 79411,
+  "cache": 0,
+  "out": 847
+ },
+ "eval-2026-10-16-T3-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium": {
+  "cost": 0.124,
+  "in": 83471,
+  "cache": 0,
+  "out": 1210
+ },
+ "eval-2026-10-16-T3-fireworks-ai-accounts-fireworks-models-muse-spark-open-high": {
+  "cost": 0.1199,
+  "in": 82203,
+  "cache": 0,
+  "out": 711
+ },
+ "eval-2026-10-16-T3-fireworks-ai-accounts-fireworks-models-muse-spark-open-xhigh": {
+  "cost": 0.09,
+  "in": 57176,
+  "cache": 0,
+  "out": 797
+ },
+ "eval-2026-10-16-T4-fireworks-ai-accounts-fireworks-models-muse-spark-open-low": {
+  "cost": 0.0804,
+  "in": 57049,
+  "cache": 0,
+  "out": 1136
+ },
+ "eval-2026-10-16-T4-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium": {
+  "cost": 0.089,
+  "in": 57486,
+  "cache": 0,
+  "out": 1682
+ },
+ "eval-2026-10-16-T4-fireworks-ai-accounts-fireworks-models-muse-spark-open-high": {
+  "cost": 0.0993,
+  "in": 63157,
+  "cache": 0,
+  "out": 1819
+ },
+ "eval-2026-10-16-T4-fireworks-ai-accounts-fireworks-models-muse-spark-open-xhigh": {
+  "cost": 0.0759,
+  "in": 52516,
+  "cache": 0,
+  "out": 1227
+ }
+}

@@ -1,0 +1,16 @@
+RUN T1 low rc=0 07:30:42
+RUN T1 medium rc=0 07:32:15
+RUN T1 high rc=0 07:35:25
+RUN T1 xhigh rc=0 07:36:56
+RUN T2 low rc=0 07:37:43
+RUN T2 medium rc=0 07:38:27
+RUN T2 high rc=0 07:39:37
+RUN T2 xhigh rc=0 07:40:59
+RUN T3 low rc=0 07:42:45
+RUN T3 medium rc=0 07:44:18
+RUN T3 high rc=0 07:45:27
+RUN T3 xhigh rc=0 07:46:44
+RUN T4 low rc=0 07:47:45
+RUN T4 medium rc=0 07:48:46
+RUN T4 high rc=0 07:50:21
+RUN T4 xhigh rc=0 07:50:55

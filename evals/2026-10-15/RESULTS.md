@@ -1,5 +1,9 @@
 # Model eval results — 2026-10-15 (per-task cost methodology, corrected)
 
+> **SUPERSEDED** by `../2026-10-16/RESULTS.md` (muse-spark grid campaign) —
+> the current complete standalone report. This file remains the reference for
+> the per-task cost methodology derivation and the 10-14 re-arbitration.
+
 Corrects the 2026-10-14 campaign arbitration (`../2026-10-14/` — raw session
 data only, `RESULTS.md` deleted there; this file supersedes it). Same 15-arm
 × T1–T4 data, re-arbitrated under a corrected decision rule: roster

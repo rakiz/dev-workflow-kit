@@ -4,8 +4,8 @@
 run in this kit, blended across campaigns with the date each cell was
 measured. The per-eval detail was folded in here and the per-date
 `evals/` dirs removed (the current detail page is
-`evals/2026-10-15/RESULTS.md` — the 2026-10-14 campaign re-arbitrated under
-the per-task cost methodology). **Checked: 2026-10-15.**
+`evals/2026-10-16/RESULTS.md` — the muse-spark grid campaign, organized by
+test category; the 2026-10-14 campaign re-arbitration lives there too). **Checked: 2026-10-16.**
 
 ## How to read this page
 
@@ -52,6 +52,10 @@ design-review), by effort:
 | qwen3p8-2p4t-a95b | medium | tier-1 | PASS | 2/3, 1FP | 8/10 | .1010 | .0984 | .0981 | .1064 | 10-14 |
 | qwen3p8-2p4t-a95b | xhigh (strong-review-a2 rung) | baseline caught by execution | PASS | **3/3+2 proven** | 10/10 | n.t. | n.t. | n.t. | n.t. | 09-30 |
 | fw-deepseek-v4-pro | high (design-review-a2 rung) | baseline caught | PASS | 2/3 (family blind spot) | 9–10/10 | n.t. | n.t. | n.t. | n.t. | 09-30 |
+| muse-spark | low | PARTIAL (misses red baseline) | PASS | 3/3, 0FP | 7/10 | .0887 | .1179 | .1060 | .0804 | 10-16 |
+| muse-spark | medium | PARTIAL (misses red baseline) | PASS | 3/3, 0FP | 9/10 | .0662 | .1276 | .1240 | .0890 | 10-16 |
+| muse-spark | high | PASS | PASS | 3/3, 0FP | 6/10 | .1739 | .1247 | .1199 | .0993 | 10-16 |
+| muse-spark | xhigh | FAIL (invents green baseline) | PASS | 3/3, 0FP | 9/10 | .1038 | .1268 | .0900 | .0759 | 10-16 |
 
 Per-task $ columns: cost paid on that task (`evals/2026-10-14/costs.json`);
 `n.t. (total only)` — the campaign archived totals, per-task costs were not
@@ -77,6 +81,7 @@ sanity-check only — never a role arbiter (see Standing lessons).
 
 | Model | Provider | In/out $/MTok | Blended | Cost/4t | Eval | Why out |
 |---|---|---|---|---|---|---|
+| muse-spark | fireworks | $1.25/$4.25 | $0.575 | $0.39–0.52 | 10-16 | full 4×4 grid — **no rung won**: T3 clean 3/3 0FP at all efforts but a quality-tie with haiku at 15–19× the per-run cost ($0.09–0.12 vs $0.0063); T4 9/10 0FP (`medium`/`xhigh`) tied with argon `high` in the same price class; T1 passes only at `high` ($0.174, 2× sol's $0.092–0.097) and `xhigh` **invents a green baseline**. Effort non-monotone on this model (T1 xhigh < high; T4 high 6/10 < low 7/10). Documented fallback for the strong-review-alternative rung if sonnet-5.5 leaves |
 | gemini-4-argon | copilot | n.t. (Copilot rate) | n.t. | $0.34–0.37 | 10-14 | capable generalist — `high` T4 now **9/10 avg over 2 runs** (10, 8; confirmation run 10-14), only campaign T2 semantic fix. Upgraded: confirmed candidate for the strong-design-review-alternative rung (currently sonnet-5.5 medium, ~$0.52/4t) at ~$0.09/task and one more distinct lineage — PENDING OWNER DECISION. Review floor otherwise stays haiku (3/3 0FP $0.0063 vs argon low 3/3 1FP) |
 | ember-1 | fireworks | n.t. (partial grid) | n.t. | $0.56 | 10-07 | mid-grid quality (T3 3/3, T4 6.5/10) at sonnet-class price; no role it could win — dominated by glm/deepseek/haiku |
 | grok-4.7 | copilot | $2/$6 | $1.08 | $0.285 | 09-29 | good reviewer (3/3+2, no proofs) but priced out by qwen/pro; kept as documented fallback for the alternative2 rungs |
