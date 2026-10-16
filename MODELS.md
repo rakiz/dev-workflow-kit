@@ -163,7 +163,7 @@ Two rules bind the whole grid:
 |---|---|---|---|---|
 | design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` sol | `strong-design-alternative2` opus |
 | design-review | `cheap-design-review` deepseek | `strong-design-review` sol | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` pro `high` |
-| code (impl) | `cheap-code` glm `none` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
+| code (impl) | `cheap-code` glm `high` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
 | orchestration | session default model: glm — the user's configured default model; recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
@@ -219,8 +219,11 @@ agent next to the `model:` line. Roles without a `variant` entry get no
   recovered by review, not by slower generation.
 
 The global roster carries its variant defaults in `models.json`'s `"global"`
-section (eval 2026-09-29): bulk rungs at **`none`** (cheap-code, cheap-design
-— routine implementation needs no reasoning budget, the misses are recovered
+section (eval 2026-09-29, effort re-pinned per grid): bulk rungs at the
+**cheapest effort that passes their task** — cheap-code at **`high`**
+(glm: PASS 2/2 confirmed 10-16, cheaper than `low`), cheap-design at
+**`low`** (glm: `high` degrades T4 to 6/10 — routine implementation needs no
+reasoning budget, the misses are recovered
 by review); review floors at **`default`** (cheap-review — haiku 5.5 caught
 3/3 seeded defects at default effort in the 2026-10-07 eval, cheaper than any
 `low`-effort rung); strong rungs pinned to the eval's
@@ -233,10 +236,14 @@ When a replacement model is picked through the availability menu, `init.sh`
 leaves the variant untouched — a different model may use a different effort
 scale, so check the `variant:` line manually.
 
-- **glm-5.3-flash runs `low`** (pinned 2026-10-14: the gateway exposes no
-  `default` variant for this id; `low` passed T2/T3/T4 in the eval grid —
-  `evals/2026-10-14/RESULTS.md`; `high` is reserved for the strong-review
-  rung).
+- **glm-5.3-flash runs `low` for cheap-design, `high` for cheap-code/impl
+  and strong-review** (pinned 2026-10-16: the gateway exposes no `default`
+  variant for this id). Per-task rule, best effort at the best price:
+  T2 impl — `high` PASS 2/2 confirmed ($0.0049–0.0056, avg $0.00525) vs
+  `low` PASS $0.0063 (1 run); T1 orchestration — `high` PASS $0.0050 vs
+  `low` PARTIAL. But effort is non-monotone on T3/T4: `high` degrades
+  (T3 2 FP vs low's 0; T4 6/10 vs 8/10), so cheap-design and any review/
+  design-review use stay on `low` (`evals/2026-10-16/RESULTS.md` §T2).
 
 ## Replacing a model
 

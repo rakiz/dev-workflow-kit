@@ -81,6 +81,8 @@ Objective scoring: `python3 -m unittest` green + size/minimalism of the fix
 |---|---|---|---|
 | fw-glm-5.3-flash `low` | 10-14 | $0.0063 | ✅ PASS |
 | fw-glm-5.3-flash `high` | 10-14 | $0.0049 | ✅ PASS |
+| **fw-glm-5.3-flash `high` confirmation #1** | **10-16** | **$0.0056** | ✅ PASS — minimal off-by-one fix, suite 6/6 green, test file untouched |
+| **fw-glm-5.3-flash `high` confirmation #2** | **10-16** | **$0.0049** | ✅ PASS — suite 6/6 green |
 | fw-deepseek-v4.1-flash `low` | 10-14 | $0.0066 | ✅ PASS |
 | **muse-spark `low`** | **10-16** | **$0.1179** | ✅ PASS — 6/6 green, minimal one-line fix |
 | **muse-spark `medium`** | **10-16** | **$0.1276** | ✅ PASS — same |
@@ -90,8 +92,11 @@ Objective scoring: `python3 -m unittest` green + size/minimalism of the fix
 | gemini-4-argon `low`–`high` | 10-14 | $0.085–0.092 | ✅ PASS (`high` = the only campaign semantic fix) |
 | sonnet-5.5 / opus-5.5 / haiku / qwen `xhigh` / deepseek default | 09-29/10-07/09-30 | n.t. | ✅ PASS |
 
-**Eval verdict: fw-glm-5.3-flash `low` — confirmed as deployed cheap-code** — suite-verified PASS
-@ $0.005–0.006/run vs spark $0.12 and qwen $0.10: a **20× spread** for the
+**Eval verdict: fw-glm-5.3-flash `high` — confirmed as deployed cheap-code**
+(2/2 confirmation runs 10-16: PASS @ $0.0049/$0.0056, avg $0.00525 < `low`'s
+$0.0063 — pin flipped `low` → `high` per the best-effort-at-best-price rule;
+`cheap-design` stays `low`, where `high` degrades T4 to 6/10) — suite-verified
+PASS @ $0.005–0.006/run vs spark $0.12 and qwen $0.10: a **20× spread** for the
 identical objective outcome. Deepseek `low` ($0.0066) is the explore/cheap-mech
 arm on the same tier. No challengers.
 *Family/lineage note (standing rule, re-confirmed):* the reviewer must not be
@@ -180,7 +185,7 @@ per-task cost where measured.
 | strong-design-review | **gpt-6.1-sol** (deployed, `models.json`) | deliberate pick, commit `a5f8a6e`; T4 9/10 all efforts (10-14) | $0.076–0.085 |
 | strong-design-review-alternative | **gemini-4-argon `high`** | T4 9/10 avg 2 runs (10-14) — candidate to move up, PENDING OWNER DECISION | $0.088 |
 | strong-design-review-alternative2 | fw-deepseek-v4-pro `high` | T4 9–10/10 (09-30) | n.t. |
-| cheap-code / cheap-design | **fw-glm-5.3-flash `low`** | T2 PASS suite-verified (10-14) | $0.0063 |
+| cheap-code / cheap-design | **fw-glm-5.3-flash** — `high` (code, confirmed 10-16) / `low` (design) | T2 PASS suite-verified (10-14 + 2 runs 10-16) | $0.0053 avg (`high`) / $0.0063 (`low`) |
 | cheap-mech | **fw-deepseek-v4.1-flash** (deployed, `models.json`) | T2 PASS (10-14) | $0.0066 |
 | explore / cheap-design-review | **fw-deepseek-v4.1-flash `low`** | T2 PASS, T4 9/10 (10-14) | $0.0066–0.0076 |
 | cheap-review | **claude-haiku-5.5 `default`** | T3 3/3 0FP (10-07) | $0.0063 |

@@ -68,7 +68,7 @@ sanity-check only — never a role arbiter (see Standing lessons).
 
 | Model | Provider | In/out $/MTok | Blended | Cost/4t | Eval | Decision it earned |
 |---|---|---|---|---|---|---|
-| glm-5p3-flash | fireworks (gateway id `fw-glm-5.3-flash`) | $0.15/$0.50 | $0.078 | $0.023 (`low`, 10-14) | 10-14 | impl + cheap-design at `low` (pinned 10-14: gateway exposes no `default`; low passed T2/T3/T4 — 3/3+2 0FP review, 8/10 T4); `high` = strong-review rung (10-07, re-confirmed 10-14: T1 PASS vs low's miss) — best deal in the grid |
+| glm-5p3-flash | fireworks (gateway id `fw-glm-5.3-flash`) | $0.15/$0.50 | $0.078 | $0.023 | 10-16 | impl/cheap-code at `high` (confirmed 10-16: T2 PASS 2/2, $0.0049–0.0056 avg $0.00525 < low's $0.0063; T1 PASS $0.0050 vs low's miss), cheap-design stays `low` (high T4 6/10 < 8/10, non-monotone); `high` = strong-review rung (10-07, re-confirmed 10-14: T1 PASS vs low's miss) — best deal in the grid |
 | deepseek-v4p1-flash | fireworks | $0.22/$0.66 | $0.082 | $0.030 (`low`, 10-14) | 10-14 | explore, cheap-mech, cheap-design-review — cheapest, tier-1 plans; `low` viable budget arm (9/10 T4), default(=high) kept unpinned where quality matters |
 | claude-haiku-5.5 | copilot | ~$0.75/$3.75 (claude-flash class) | ~$0.39 | $0.029 | 10-07 | cheap-review `default` — 3/3 at $0.0063, full 6-variant grid; `xhigh` = measured design-review at $0.018; never `max` (fails to deliver) |
 | claude-sonnet-5.5 | copilot | $2/$10 | $0.975 | $0.52 | 09-29 | strong-code/design `high`, review alternatives `medium` — best reviewer of its price class. 10-08: cache-read price cut $0.20 → $0.10/MTok, blended recomputed: $0.975 |

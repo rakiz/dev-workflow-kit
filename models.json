@@ -2,7 +2,7 @@
   "impl": {
     "model": "ai-gateway-misc/fw-glm-5.3-flash",
     "family_hint": "glm",
-    "variant": "low"
+    "variant": "high"
   },
   "review": {
     "model": "github-copilot/claude-haiku-5.5",
@@ -25,7 +25,7 @@
     "cheap-code": {
       "model": "ai-gateway-misc/fw-glm-5.3-flash",
       "family_hint": "glm",
-      "variant": "low"
+      "variant": "high"
     },
     "cheap-review": {
       "model": "github-copilot/claude-haiku-5.5",
