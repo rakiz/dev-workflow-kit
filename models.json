@@ -87,8 +87,9 @@
       "family_hint": "claude"
     },
     "strong-design-review": {
-      "model": "github-copilot/gpt-6.1-sol",
-      "family_hint": "gpt"
+      "model": "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017",
+      "family_hint": "deepseek",
+      "variant": "medium"
     },
     "strong-design-review-alternative": {
       "model": "github-copilot/gemini-4-argon",

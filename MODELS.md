@@ -64,7 +64,8 @@ Per-task cost ladders (each rung = a quality tier up):
 - **Impl** glm $0.007 → s5.5 `high` $0.122 → opus $0.252
 - **Review** (impl = glm, cross-lineage only) haiku `default` $0.0063 → glm
   `high` $0.008 → s5.5 `medium` $0.119 → grok $0.200 → opus $0.236
-- **Design-review** deepseek $0.006 → sol $0.074 → s5.5 `medium` $0.124 →
+- **Design-review** deepseek $0.006 → 1017 `medium` $0.014 (10-19: 10/10-0FP
+  at all efforts, took the strong rung from sol) → s5.5 `medium` $0.124 →
   grok $0.085 (priced lower, quality tier judged higher) → opus $0.228
 
 `deepseek` re-baselined 2026-09-30 after a Fireworks effort-mapping fix
@@ -162,7 +163,7 @@ Two rules bind the whole grid:
 | Function \ tier | cheap | strong | alternative | alternative2 |
 |---|---|---|---|---|
 | design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` sol | `strong-design-alternative2` opus |
-| design-review | `cheap-design-review` deepseek | `strong-design-review` sol | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` pro `high` |
+| design-review | `cheap-design-review` deepseek | `strong-design-review` 1017 `medium` (10-19: 10/10-0FP @ $0.0143, first T4 sweep; replaces sol — 9/10 @ $0.076+) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` pro `high` |
 | code (impl) | `cheap-code` glm `high` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |

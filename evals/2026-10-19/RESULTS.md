@@ -113,16 +113,17 @@ strongest design-review candidate measured.
 
 ---
 
-## Roster impact (proposals — owner decides, config decides)
+## Roster impact (applied 10-19 — owner decision: sol → 1017 `medium` on strong-design-review)
 
-| Rung | Deployed | 1017 finding | Proposal |
+| Rung | Deployed (after this campaign) | 1017 finding | Decision |
 |---|---|---|---|
 | cheap-code / impl | glm-flash `high` ($0.0053 avg) | 1017 PASS all efforts @ $0.0104+ | **keep glm** (2× pricier, no quality gain) |
 | explore / cheap-mech | old flash `low` ($0.0066) | 1017 @ $0.0107 | **keep old flash** |
-| cheap-review | haiku `default` ($0.0063, 3/3 0FP) | 1017 `medium` 3/3 0FP @ $0.0233, no 100k cliff | **keep haiku**; **document 1017 `medium` as the >100k review fallback** (haiku pays 5× past 100k prompt) |
-| design-review (cheap) | old flash `low` (9/10 @ $0.0076) | 1017 `medium` 10/10 @ $0.0143 | owner call: 2× price for the extra category + bonuses |
-| T1 planning rung (eval) | gpt-6.1-sol ($0.092) | 1017 `xhigh` PASS @ $0.0154 (6× cheaper) | **candidate to take the eval rung** — single run, needs confirmation if adopted; deployed orchestration unchanged (session default) |
-| strong-design-review | gpt-6.1-sol (deployed) | 1017 `medium` 10/10-0FP @ $0.0143 vs sol 9/10 @ $0.076 | **candidate — pending owner decision** (would also add a 4th lineage to the grid) |
+| cheap-review | haiku `default` ($0.0063, 3/3 0FP) | 1017 `medium` 3/3 0FP @ $0.0233, no 100k cliff | **keep haiku**; **1017 `medium` = documented >100k review fallback** (haiku pays 5× past 100k prompt) |
+| design-review (cheap) | old flash `low` (9/10 @ $0.0076) | 1017 `medium` 10/10 @ $0.0143 | **keep old flash** (half price for one category) |
+| orchestration (deployed) | session default glm-flash `high` ($0.0050 PASS) | 1017 PASS medium+ @ $0.0154+ | **keep glm** — same verdict, 3× cheaper |
+| strong-design-review | **deepseek-v4p1-flash-1017 `medium`** (was gpt-6.1-sol) | 10/10-0FP @ $0.0143 vs sol 9/10 @ $0.076 (5×) | **SWAPPED** — best model×effort×price, adds a 4th lineage to design-review |
+| T1 planning rung (eval) | gpt-6.1-sol `low` | 1017 `xhigh` PASS @ $0.0154 | no role change — eval rung only, orchestration stays session-default |
 
 ## Standing verdicts on new models
 
@@ -135,8 +136,9 @@ strongest design-review candidate measured.
     ($0.0233) — non-monotone island, echoes the qwen `low` variance lesson.
   - T4: **10/10 0FP at all four efforts** ($0.0143–0.0168) — first sweep
     ever measured.
-  - **Rostered: not yet.** Two candidates pending owner decision (T1 eval
-    rung, strong-design-review); documented fallback for big-context review.
+  - **Rostered 10-19 (owner decision): `strong-design-review` `medium`** —
+    replaces gpt-6.1-sol (10/10-0FP vs 9/10 at 5× less cost, 4th lineage).
+    Documented fallback: >100k review (haiku cliff).
   - Cost note: ~1.6–2× the old v4.1-flash per task at matched effort.
 - **MiMo-V2.6-Pro** — unavailable (no gateway/Fireworks id, 2026-10-19).
 - **Haiku 5.5 long-context cliff (documented 10-19)**: prompts >100k tokens
