@@ -167,9 +167,9 @@ Two rules bind the whole grid:
 | code (impl) | `cheap-code` glm `high` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
-| orchestration | session default model: glm — the user's configured default model; recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
+| orchestration | session default model: glm — the user's configured default model; **pin `high`** (T1: PASS @ `high` $0.0050, PARTIAL @ `low`); recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
-Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro, argon = gemini-4-argon.
+Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro, argon = gemini-4-argon, 1017 = deepseek-v4p1-flash-1017 (fireworks direct).
 
 Eval 2026-09-30 addendum — qwen and pro join as the 7th/8th families
 (`evals/2026-09-30-qwen3p8/`, `evals/2026-09-30-deepseek-v4-pro/`): qwen

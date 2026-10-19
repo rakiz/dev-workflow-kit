@@ -125,6 +125,34 @@ strongest design-review candidate measured.
 | strong-design-review | **deepseek-v4p1-flash-1017 `medium`** (was gpt-6.1-sol) | 10/10-0FP @ $0.0143 vs sol 9/10 @ $0.076 (5×) | **SWAPPED** — best model×effort×price, adds a 4th lineage to design-review |
 | T1 planning rung (eval) | gpt-6.1-sol `low` | 1017 `xhigh` PASS @ $0.0154 | no role change — eval rung only, orchestration stays session-default |
 
+## Roster global (current — after this campaign's swap)
+
+The deployed roster = `models.json` + `MODELS.md` grid. This table supersedes
+the roster table in `../2026-10-16/RESULTS.md` (stale on cheap-code effort
+and strong-design-review). Eval verdicts recommend, the config decides.
+
+| Rung | Model @ effort | Evidence | Cost / task |
+|---|---|---|---|
+| orchestration (deployed) | **session default: fw-glm-5.3-flash** (`high` pin) | T1: PASS @ `high` $0.0050 (18× sol, cheapest PASS), PARTIAL @ `low` — see 10-16 §T1 comparison | $0.0050 (`high`, 10-14) |
+| strong-review | fw-glm-5.3-flash `high` | T1 PASS, the only flash arm that executes tests (10-14) | $0.0050 |
+| strong-review-alternative | claude-sonnet-5.5 `medium` | best reviewer of its price class (09-29) | n.t. |
+| strong-review-alternative2 | qwen3p8 `xhigh`; grok-4.7 documented fallback (no-qwen whitelists) | T3 3/3+2 proven by execution (09-30) | n.t. |
+| cheap-code / cheap-design | **fw-glm-5.3-flash** — `high` (code, confirmed 10-16 2/2) / `low` (design) | T2 PASS suite-verified | $0.0053 avg (`high`) / $0.0063 (`low`) |
+| cheap-mech / explore | **fw-deepseek-v4.1-flash `low`** | T2 PASS, T4 9/10 (10-14); 1017 @ $0.0107 doesn't beat it | $0.0066–0.0076 |
+| cheap-review | **claude-haiku-5.5 `default`** | T3 3/3 0FP (10-07); <90k prompt rule (5× cliff past 100k) | $0.0063 |
+| strong-code | sonnet-5.5 `high`; opus-5.5 `default` deep | T2 PASS tier-1 (09-29) | n.t. |
+| strong-design | sonnet-5.5 `high`; sol → opus escalades | T4/plan tier-1 (09-29) | n.t. |
+| strong-code-alternative / strong-design-alternative | **gpt-6.1-sol** | T2 PASS (10-14); T4 9/10 all efforts (10-14) | $0.076–0.098 |
+| **strong-design-review** | **deepseek-v4p1-flash-1017 `medium`** (10-19 swap, was sol) | **T4 10/10-0FP at all efforts** — first sweep; sol 9/10 @ 5× the cost | $0.0143 |
+| strong-design-review-alternative | gemini-4-argon `high` | T4 9/10 avg 2 runs (10-14) | $0.088 |
+| strong-design-review-alternative2 | fw-deepseek-v4-pro `high` | T4 9–10/10 (09-30) | n.t. |
+| design-review (cheap) | fw-glm-5.3-flash `low` / haiku `xhigh` | T4 8/10 (10-14) / 9/10 @ $0.018 (10-07) | $0.0059 |
+| >100k review fallback | **deepseek-v4p1-flash-1017 `medium`** | T3 3/3-0FP @ $0.0233, no long-context cliff | $0.0233 |
+
+**muse-spark**: NOT rostered — no rung won (10-16). **1017**: rostered at
+strong-design-review; not on cheap rungs (dominated by glm/old-flash on
+price), not on orchestration (glm `high` 3× cheaper at same verdict).
+
 ## Standing verdicts on new models
 
 - **deepseek-v4p1-flash-1017** (Fireworks, 1017 snapshot) — full 4×4 grid
