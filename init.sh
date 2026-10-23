@@ -114,12 +114,91 @@
 #   - Combinable with --update: the same lock-driven three-way sync as the
 #     project agents, for the roster files only.
 
+# print_help : the no-args document. Written for an LLM deciding what to
+# run: complete flag semantics, update contract, install-time decisions,
+# post-install steps and worked examples — plain text, no colors.
+print_help() {
+cat <<'EOF'
+dev-workflow-kit — install the dev-workflow agents/skill/templates (project
+mode) or the session-agent roster (global mode).
+TWO MODES
+1. Project mode — into a git repo: the five pipeline agents
+   (agent/{deep,design-review,explore,impl,review}.md), the dev-workflow
+   skill, the pre-commit hook, and the templates (dev-workflow.json,
+   TODO/SPEC/INPROGRESS/CHANGELOG/DESIGNS/CONVENTIONS.md).
+   From the kit:      ./init.sh [--flags] /path/to/target-project
+   From the project:  /path/to/dev-workflow-kit/init.sh [--flags]
+   (no target argument: the current directory is the target)
+2. Global mode — the session roster (global/agent/*.md) into
+   ${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/agent/. No git repo,
+   no target argument.   ./init.sh [--update] --global
+
+FLAGS
+  --with-rules        Also install RULES.md (opt-in safety rules). Fresh
+                      install only; asked y/N with a TTY, skipped in CI with a warning.
+  --companions=on|off Force companions on/off in a FRESHLY COPIED
+                      dev-workflow.json (first install only — an existing
+                      one is never touched). Without it: auto-detected.
+  --update            Sync an already-initialized target (see below).
+  --global            Global mode (see above).
+  --only=COMP[,...]   Restrict the run to components:
+                      workflow  : project core — pipeline agents, dev-workflow
+                                  skill, hook, templates, dev-workflow.json
+                                  (project mode default).
+                      roster    : session agents, global/agent/*.md
+                                  (global mode default).
+                      pr-review : PR-review skill (skill/pr-review/), project
+                                  mode; skipped with a warning when this kit
+                                  does not ship it yet.
+                      Without --only: workflow (project) / roster (global).
+
+UPDATE (--update) SEMANTICS
+  - Kit-managed files only, per the lock file: agents, the dev-workflow
+    skill, the pre-commit hook, model/variant frontmatter from models.json,
+    and the kit-authored rule/convention files. Lock:
+    .opencode/.dev-workflow-kit-lock.json (<config-dir>/... with --global).
+  - Never touches project-state files (dev-workflow.json, TODO.md, SPEC.md,
+    INPROGRESS.md, CHANGELOG.md, DESIGNS.md); never overwrites a customized
+    file (kit version parked as <file>.dev-workflow-kit-new); CI-safe, no prompt.
+  - Respects installed components: the lock's "components" array limits
+    a plain --update. Add a component with --update --only=pr-review
+    (installs it, adds it to the lock). Old locks (no field): all files.
+
+FRESH INSTALL DECISIONS (an LLM may pre-answer, else defer to the user)
+  - Companions on/off: auto-detected; decide with --companions=on|off.
+  - RULES.md opt-in: pass --with-rules, or answer the y/N prompt.
+  - Project mode requires a git repo.
+
+AFTER INSTALL
+  - Restart the opencode session to load the new agents/skill; customize
+    dev-workflow.json (e.g. test command); commit the lock file.
+
+EXAMPLES
+  ./init.sh /path/to/project                  # fresh project install
+  ./init.sh --global                          # session roster
+  ./init.sh --only=workflow /path/to/project  # selective install
+  ./init.sh --update /path/to/project         # sync kit-managed files
+  ./init.sh --update --only=pr-review         # add a component later
+
+MORE: README.md (usage, global roster) and MODELS.md (roster rationale, 4-tier model grid).
+EOF
+}
+
 KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# No arguments: print the full help document (stdout) and exit 0 — never run
+# an implicit install on the current directory by accident.
+if [[ $# -eq 0 ]]; then
+  print_help
+  exit 0
+fi
 
 WITH_RULES=0
 UPDATE=0
 GLOBAL_MODE=0
 COMPANIONS_FLAG=""
+ONLY_GIVEN=0
+ONLY_COMPONENTS=()
 positionals=()
 for arg in "$@"; do
   case "$arg" in
@@ -132,8 +211,23 @@ for arg in "$@"; do
       echo "init: --companions accepts on or off (got: '$arg')." >&2
       exit 1
       ;;
+    --only=*)
+      ONLY_GIVEN=1
+      ONLY_COMPONENTS=()
+      IFS=, read -r -a _only_raw <<<"${arg#--only=}"
+      for _c in "${_only_raw[@]}"; do
+        case "$_c" in
+          workflow|roster|pr-review) ONLY_COMPONENTS+=("$_c") ;;
+          *)
+            echo "init: --only accepts comma-separated workflow, roster or pr-review (got: '$_c')." >&2
+            exit 1
+            ;;
+        esac
+      done
+      [[ ${#ONLY_COMPONENTS[@]} -gt 0 ]] || { echo "init: --only needs at least one component (workflow, roster, pr-review)." >&2; exit 1; }
+      ;;
     -*)
-      echo "Usage: $0 [--with-rules] [--companions=on|off] [--update] [--global] [/path/to/target-project]" >&2
+      echo "Usage: $0 [--with-rules] [--companions=on|off] [--update] [--global] [--only=workflow,roster,pr-review] [/path/to/target-project]" >&2
       exit 1
       ;;
     *) positionals+=("$arg") ;;
@@ -150,6 +244,50 @@ if [[ $GLOBAL_MODE -eq 1 && ${#positionals[@]} -gt 0 ]]; then
   echo "init: --global installs the session roster into the opencode config directory and takes no target argument." >&2
   exit 1
 fi
+
+# Component selection vs mode: workflow and pr-review are project-mode
+# components, roster is the global-mode component. Deduplicate the list so
+# the lock's components array stays clean.
+if [[ $ONLY_GIVEN -eq 1 ]]; then
+  ONLY_DEDUPED=()
+  for _c in "${ONLY_COMPONENTS[@]}"; do
+    [[ " ${ONLY_DEDUPED[*]} " == *" $_c "* ]] || ONLY_DEDUPED+=("$_c")
+  done
+  ONLY_COMPONENTS=("${ONLY_DEDUPED[@]}")
+  if [[ $GLOBAL_MODE -eq 1 ]]; then
+    for _c in "${ONLY_COMPONENTS[@]}"; do
+      [[ "$_c" == "roster" ]] || { echo "init: --only=$_c is not valid with --global (global mode installs the 'roster' component only)." >&2; exit 1; }
+    done
+  else
+    for _c in "${ONLY_COMPONENTS[@]}"; do
+      [[ "$_c" != "roster" ]] || { echo "init: --only=roster is only valid with --global (the session roster installs into the opencode config directory)." >&2; exit 1; }
+    done
+  fi
+else
+  # Default selection = exactly the pre---only behavior: project mode
+  # installs the workflow component, global mode the roster.
+  if [[ $GLOBAL_MODE -eq 1 ]]; then ONLY_COMPONENTS=("roster"); else ONLY_COMPONENTS=("workflow"); fi
+fi
+
+# Which components are in play for this run (used by both the install and
+# the --update paths to gate their steps).
+HAS_WF=0; HAS_ROSTER=0; HAS_PR=0
+for _c in "${ONLY_COMPONENTS[@]}"; do
+  case "$_c" in
+    workflow) HAS_WF=1 ;;
+    roster)   HAS_ROSTER=1 ;;
+    pr-review) HAS_PR=1 ;;
+  esac
+done
+
+# Effective selection: pr-review is only recordable in the lock when this
+# kit version actually ships skill/pr-review/ — recording a component the
+# kit cannot install would make every later --update warn about it forever.
+EFFECTIVE_COMPONENTS=()
+for _c in "${ONLY_COMPONENTS[@]}"; do
+  [[ "$_c" == "pr-review" && ! -d "$KIT_DIR/skill/pr-review" ]] && continue
+  EFFECTIVE_COMPONENTS+=("$_c")
+done
 
 if [[ $GLOBAL_MODE -eq 1 ]]; then
   TARGET="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
@@ -605,6 +743,51 @@ lock_set() {
   return 1
 }
 
+# lock_set_components COMP... : record the run's component selection in the
+# lock's additive "components" array (schema version unchanged: a lock
+# without the field is still a valid lock — --update then treats every
+# already-installed file as eligible, the pre-components behavior).
+# No-op unless lock_init succeeded; a jq failure warns once, like lock_set.
+lock_set_components() {
+  [[ $LOCK_OK -eq 1 ]] || return 0
+  local tmp json="[" first=1 c
+  for c in "$@"; do
+    [[ $first -eq 1 ]] || json+=","
+    json+="\"$c\""
+    first=0
+  done
+  json+="]"
+  tmp="$(mktemp)" || { [[ -n "$LOCK_WARNED" ]] || { warnings+=("could not create a temp file for the lock file"); LOCK_WARNED=1; }; return 1; }
+  if jq --argjson comps "$json" '.components = $comps' "$LOCK_FILE" > "$tmp" 2>/dev/null \
+      && mv "$tmp" "$LOCK_FILE"; then
+    LOCK_WRITTEN=1
+    return 0
+  fi
+  rm -f "$tmp"
+  [[ -n "$LOCK_WARNED" ]] || { warnings+=("could not record the installed components in the lock file ${LOCK_FILE#$TARGET/}"); LOCK_WARNED=1; }
+  return 1
+}
+
+# lock_union_components COMP... : union the given components into the
+# lock's existing "components" array. Used by BOTH --update --only (add a
+# component later) and plain install with --only (re-running a selective
+# install must not SHRINK the recorded selection — a later plain --update
+# would silently stop syncing the components already installed). With no
+# existing array, a fresh one is written; nothing is written when the union
+# would be empty (an empty array must never masquerade as a selection).
+lock_union_components() {
+  [[ $LOCK_OK -eq 1 ]] || return 0
+  local existing=() c
+  while IFS= read -r c; do
+    [[ -n "$c" ]] && existing+=("$c")
+  done < <(jq -r 'if (.components | type) == "array" then (.components | .[]) else empty end' "$LOCK_FILE" 2>/dev/null || true)
+  for c in "$@"; do
+    [[ " ${existing[*]} " == *" $c "* ]] || existing+=("$c")
+  done
+  [[ ${#existing[@]} -gt 0 ]] || return 0
+  lock_set_components "${existing[@]}"
+}
+
 # lock_record_if_synced SRC DST REL HAS_MODEL : install-mode baseline
 # recording — when the target's body matches the kit's (freshly copied or
 # still identical), record the kit's body hash and the target's current
@@ -1004,8 +1187,55 @@ update_rules_conventions() {
   done
 }
 
+# update_pr_review : the --update step for the pr-review component — same
+# lock-driven sync as the other skill files, for everything under
+# skill/pr-review/. The skill does not exist in every kit version: absent
+# from the kit, the component is a clean skip with a warning (the installer
+# is ready for when the skill lands).
+update_pr_review() {
+  if [[ ! -d "$KIT_DIR/skill/pr-review" ]]; then
+    warnings+=("component 'pr-review': this kit version does not ship skill/pr-review/ yet — nothing installed or synced, and 'pr-review' is NOT recorded in the lock's components array (run --update --only=pr-review again once the kit ships the skill)")
+    return 0
+  fi
+  local f rel
+  while IFS= read -r -d '' f; do
+    rel="skill/pr-review/${f#"$KIT_DIR/skill/pr-review/"}"
+    update_sync_managed "$f" "$TARGET/.opencode/$rel" "$rel" 0 ""
+  done < <(find "$KIT_DIR/skill/pr-review" -type f -print0 2>/dev/null)
+}
+
 if [[ $UPDATE -eq 1 ]]; then
-  if [[ ! -d "$AGENT_DST_DIR" ]]; then
+  # Which components does this --update sync? Priority: --only wins (used to
+  # ADD a component later); else the lock's "components" array (recorded by
+  # recent installs) — update respects what was installed; else (old lock
+  # without the field) the mode default, i.e. today's behavior: every
+  # already-installed kit-managed file is eligible.
+  UPDATE_COMPONENTS=()
+  if [[ $ONLY_GIVEN -eq 1 ]]; then
+    UPDATE_COMPONENTS=("${ONLY_COMPONENTS[@]}")
+  else
+    while IFS= read -r _c; do
+      [[ -n "$_c" ]] && UPDATE_COMPONENTS+=("$_c")
+    done < <(jq -r 'if (.components | type) == "array" and (.components | length) > 0 then (.components | .[]) else empty end' "$LOCK_FILE" 2>/dev/null || true)
+    if [[ ${#UPDATE_COMPONENTS[@]} -eq 0 ]]; then
+      # Old lock without a components field: the mode default — today's
+      # behavior, every already-installed kit-managed file is eligible.
+      if [[ $GLOBAL_MODE -eq 1 ]]; then UPDATE_COMPONENTS=("roster"); else UPDATE_COMPONENTS=("workflow"); fi
+    fi
+  fi
+  U_WF=0; U_ROSTER=0; U_PR=0
+  for _c in "${UPDATE_COMPONENTS[@]}"; do
+    case "$_c" in
+      workflow) U_WF=1 ;;
+      roster) U_ROSTER=1 ;;
+      pr-review) U_PR=1 ;;
+    esac
+  done
+  # The "never initialized" precondition only bites when the workflow
+  # component is being synced — a --only=pr-review add-on update on a target
+  # initialized with --only=workflow has no agent/ directory to require
+  # (.opencode/ exists, the agent/ subdirectory may not).
+  if [[ $U_WF -eq 1 || $U_ROSTER -eq 1 ]] && [[ ! -d "$AGENT_DST_DIR" ]]; then
     if [[ $GLOBAL_MODE -eq 1 ]]; then
       echo "init: --update --global: '$TARGET' has no agent/ directory — run './init.sh --global' first." >&2
     else
@@ -1037,26 +1267,41 @@ if [[ $UPDATE -eq 1 ]]; then
   MODELS_OK=1
   [[ -f "$KIT_DIR/models.json" ]] || { MODELS_OK=0; warnings+=("kit models.json not found — model/variant defaults not refreshed"); }
 
-  shopt -s nullglob
-  for src in "$AGENT_SRC_DIR"/*.md; do
-    name="$(basename "$src" .md)"
-    update_sync_managed "$src" "$AGENT_DST_DIR/$(basename "$src")" "agent/$(basename "$src")" 1 "$name"
-  done
-  shopt -u nullglob
+  # --only with --update: union the requested components into the lock's
+  # "components" array (adding a component later must not drop the ones
+  # already recorded).
+  if [[ $ONLY_GIVEN -eq 1 ]]; then
+    lock_union_components "${EFFECTIVE_COMPONENTS[@]}"
+  fi
+
+  if [[ $U_WF -eq 1 ]]; then
+    shopt -s nullglob
+    for src in "$AGENT_SRC_DIR"/*.md; do
+      name="$(basename "$src" .md)"
+      update_sync_managed "$src" "$AGENT_DST_DIR/$(basename "$src")" "agent/$(basename "$src")" 1 "$name"
+    done
+    shopt -u nullglob
+  fi
   if [[ $GLOBAL_MODE -eq 1 ]]; then
     # Roster agents only — the config directory has no skill/hook/rules.
     warn_shadowed_agents
   else
-    update_sync_managed "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0 ""
-    sync_hook
+    if [[ $U_WF -eq 1 ]]; then
+      update_sync_managed "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0 ""
+      sync_hook
 
-    # Kit-authored rule/convention files — same "ours vs theirs" sync as the
-    # agents, for files that already exist in the target (never created).
-    update_rules_conventions
+      # Kit-authored rule/convention files — same "ours vs theirs" sync as the
+      # agents, for files that already exist in the target (never created).
+      update_rules_conventions
+    fi
+    if [[ $U_PR -eq 1 ]]; then
+      update_pr_review
+    fi
   fi
 
   echo ""
   echo "=== dev-workflow-kit: update summary for $TARGET ==="
+  echo "Components synced: ${UPDATE_COMPONENTS[*]}"
   if [[ ${#updated_body[@]} -gt 0 ]]; then
     echo "Updated (body):"
     printf '  + %s\n' "${updated_body[@]}"
@@ -1106,80 +1351,101 @@ if [[ $UPDATE -eq 1 ]]; then
 fi
 
 # Agents: synced — project pipeline agents into .opencode/agent/ (project
-# mode), or the session roster into the config directory (global mode).
-shopt -s nullglob
-for src in "$AGENT_SRC_DIR"/*.md; do
-  name="$(basename "$src" .md)"
-  dst="$AGENT_DST_DIR/$(basename "$src")"
-  existed=0; [[ -f "$dst" ]] && existed=1
-  copy_sync "$src" "$dst" "agent/$(basename "$src")"
-  if [[ $existed -eq 0 && -f "$dst" ]]; then
-    fresh_agents+=("$name")
-  fi
-done
-shopt -u nullglob
-if [[ $GLOBAL_MODE -eq 0 ]]; then
-  copy_sync "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md"
-
-  # Hook pre-commit (shared with --update; see sync_hook)
-  sync_hook
-
-  # Templates + project config: only if absent
-  dw_fresh=0
-  if [[ ! -f "$TARGET/dev-workflow.json" ]]; then dw_fresh=1; fi
-  COMPANIONS_ENABLE=1
-  COMPANIONS_SOURCES=0
-  if [[ -n $COMPANIONS_FLAG && $dw_fresh -eq 0 ]]; then
-    warnings+=("--companions=$COMPANIONS_FLAG ignored: an existing dev-workflow.json was kept (the installer never overwrites it)")
-  elif [[ $dw_fresh -eq 1 && -n $COMPANIONS_FLAG ]]; then
-    # Explicit flag: detection and prompt skipped entirely.
-    if [[ $COMPANIONS_FLAG == on ]]; then COMPANIONS_ENABLE=1; else COMPANIONS_ENABLE=0; fi
-  elif [[ $dw_fresh -eq 1 ]]; then
-    # Scan the pristine target BEFORE the template copies land.
-    companions_scan "$TARGET"
-    companions_decide
-  fi
-  copy_if_absent "$KIT_DIR/templates/dev-workflow.json" "$TARGET/dev-workflow.json" "dev-workflow.json"
-  for t in TODO.md SPEC.md INPROGRESS.md CHANGELOG.md DESIGNS.md CONVENTIONS.md; do
-    copy_if_absent "$KIT_DIR/templates/$t" "$TARGET/$t" "$t"
-  done
-  # Apply a disable decision to the FRESH copy only (dw_fresh guards it — an
-  # existing dev-workflow.json is never touched, in any mode). Every outcome
-  # echoes what was configured, why, and the lever to change it.
-  if [[ $dw_fresh -eq 1 && $COMPANIONS_ENABLE -eq 0 ]]; then
-    if companions_set_off "$TARGET/dev-workflow.json"; then
-      if [[ $COMPANIONS_FLAG == off ]]; then
-        echo '  ~ companions: disabled (--companions=off)'
-      elif [[ -t 0 ]]; then
-        echo '  ~ companions: disabled — user choice'
-      else
-        echo "  ! companions: disabled — pre-existing repo ($COMPANIONS_SOURCES source file(s), no companion .md), no TTY to ask"
-      fi
-      echo '    re-enable: edit dev-workflow.json to "companions": { "enabled": true } (the --companions flag only applies at first install)'
-    else
-      warnings+=("could not set companions.enabled=false in the freshly copied dev-workflow.json — left as the template (enabled: true)")
+# mode, workflow component), or the session roster into the config directory
+# (global mode, roster component). Gated on the run's component selection:
+# --only=pr-review skips the agent loop entirely.
+if [[ $HAS_WF -eq 1 || $HAS_ROSTER -eq 1 ]]; then
+  shopt -s nullglob
+  for src in "$AGENT_SRC_DIR"/*.md; do
+    name="$(basename "$src" .md)"
+    dst="$AGENT_DST_DIR/$(basename "$src")"
+    existed=0; [[ -f "$dst" ]] && existed=1
+    copy_sync "$src" "$dst" "agent/$(basename "$src")"
+    if [[ $existed -eq 0 && -f "$dst" ]]; then
+      fresh_agents+=("$name")
     fi
-  elif [[ $dw_fresh -eq 1 && $COMPANIONS_FLAG == on ]]; then
-    echo '  = companions: enabled (--companions=on)'
-    echo '    change: edit "companions": { "enabled": false } in dev-workflow.json (the --companions flag only applies at first install)'
-  fi
+  done
+  shopt -u nullglob
+fi
+if [[ $GLOBAL_MODE -eq 0 ]]; then
+  if [[ $HAS_WF -eq 1 ]]; then
+    copy_sync "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md"
+  
+    # Hook pre-commit (shared with --update; see sync_hook)
+    sync_hook
+  
+    # Templates + project config: only if absent
+    dw_fresh=0
+    if [[ ! -f "$TARGET/dev-workflow.json" ]]; then dw_fresh=1; fi
+    COMPANIONS_ENABLE=1
+    COMPANIONS_SOURCES=0
+    if [[ -n $COMPANIONS_FLAG && $dw_fresh -eq 0 ]]; then
+      warnings+=("--companions=$COMPANIONS_FLAG ignored: an existing dev-workflow.json was kept (the installer never overwrites it)")
+    elif [[ $dw_fresh -eq 1 && -n $COMPANIONS_FLAG ]]; then
+      # Explicit flag: detection and prompt skipped entirely.
+      if [[ $COMPANIONS_FLAG == on ]]; then COMPANIONS_ENABLE=1; else COMPANIONS_ENABLE=0; fi
+    elif [[ $dw_fresh -eq 1 ]]; then
+      # Scan the pristine target BEFORE the template copies land.
+      companions_scan "$TARGET"
+      companions_decide
+    fi
+    copy_if_absent "$KIT_DIR/templates/dev-workflow.json" "$TARGET/dev-workflow.json" "dev-workflow.json"
+    for t in TODO.md SPEC.md INPROGRESS.md CHANGELOG.md DESIGNS.md CONVENTIONS.md; do
+      copy_if_absent "$KIT_DIR/templates/$t" "$TARGET/$t" "$t"
+    done
+    # Apply a disable decision to the FRESH copy only (dw_fresh guards it — an
+    # existing dev-workflow.json is never touched, in any mode). Every outcome
+    # echoes what was configured, why, and the lever to change it.
+    if [[ $dw_fresh -eq 1 && $COMPANIONS_ENABLE -eq 0 ]]; then
+      if companions_set_off "$TARGET/dev-workflow.json"; then
+        if [[ $COMPANIONS_FLAG == off ]]; then
+          echo '  ~ companions: disabled (--companions=off)'
+        elif [[ -t 0 ]]; then
+          echo '  ~ companions: disabled — user choice'
+        else
+          echo "  ! companions: disabled — pre-existing repo ($COMPANIONS_SOURCES source file(s), no companion .md), no TTY to ask"
+        fi
+        echo '    re-enable: edit dev-workflow.json to "companions": { "enabled": true } (the --companions flag only applies at first install)'
+      else
+        warnings+=("could not set companions.enabled=false in the freshly copied dev-workflow.json — left as the template (enabled: true)")
+      fi
+    elif [[ $dw_fresh -eq 1 && $COMPANIONS_FLAG == on ]]; then
+      echo '  = companions: enabled (--companions=on)'
+      echo '    change: edit "companions": { "enabled": false } in dev-workflow.json (the --companions flag only applies at first install)'
+    fi
+  
+    # RULES.md is opt-in (with a flag/prompt, unlike CONVENTIONS.cpp.md,
+    # CONVENTIONS.cpp23.md and CONVENTIONS.python.md which stay
+    # manual-copy-only): --with-rules
+    # forces it on; with a TTY an
+    # interactive y/N prompt asks (default No); otherwise (CI, piped stdin) it is
+    # skipped with a warning. Same copy_if_absent semantics as the other
+    # templates: never overwrite.
+    if [[ $WITH_RULES -eq 1 ]]; then
+      copy_if_absent "$KIT_DIR/templates/RULES.md" "$TARGET/RULES.md" "RULES.md"
+    elif [[ -t 0 ]]; then
+      read -r -p "Include RULES.md — Power-of-10-inspired safety rules with a justified-deviation protocol? [y/N] " ans
+      case "$ans" in
+        y|Y|yes|Yes|YES) copy_if_absent "$KIT_DIR/templates/RULES.md" "$TARGET/RULES.md" "RULES.md" ;;
+      esac
+    else
+      warnings+=("RULES.md not installed (no TTY to ask, --with-rules not passed) — pass --with-rules or copy templates/RULES.md manually to opt in")
+    fi
+  fi # HAS_WF — the skill, hook, templates and dev-workflow.json all belong
+     # to the workflow component: --only=pr-review skips this whole block.
 
-  # RULES.md is opt-in (with a flag/prompt, unlike CONVENTIONS.cpp.md,
-  # CONVENTIONS.cpp23.md and CONVENTIONS.python.md which stay
-  # manual-copy-only): --with-rules
-  # forces it on; with a TTY an
-  # interactive y/N prompt asks (default No); otherwise (CI, piped stdin) it is
-  # skipped with a warning. Same copy_if_absent semantics as the other
-  # templates: never overwrite.
-  if [[ $WITH_RULES -eq 1 ]]; then
-    copy_if_absent "$KIT_DIR/templates/RULES.md" "$TARGET/RULES.md" "RULES.md"
-  elif [[ -t 0 ]]; then
-    read -r -p "Include RULES.md — Power-of-10-inspired safety rules with a justified-deviation protocol? [y/N] " ans
-    case "$ans" in
-      y|Y|yes|Yes|YES) copy_if_absent "$KIT_DIR/templates/RULES.md" "$TARGET/RULES.md" "RULES.md" ;;
-    esac
-  else
-    warnings+=("RULES.md not installed (no TTY to ask, --with-rules not passed) — pass --with-rules or copy templates/RULES.md manually to opt in")
+  # pr-review component (install): copy the skill's files when this kit
+  # version ships it; a kit without skill/pr-review/ is a clean skip with a
+  # warning (the installer is ready for when the skill lands).
+  if [[ $HAS_PR -eq 1 ]]; then
+    if [[ ! -d "$KIT_DIR/skill/pr-review" ]]; then
+      warnings+=("component 'pr-review': this kit version does not ship skill/pr-review/ yet — nothing installed, and 'pr-review' is NOT recorded in the lock's components array (run the install again once the kit ships the skill)")
+    else
+      while IFS= read -r -d '' f; do
+        rel="skill/pr-review/${f#"$KIT_DIR/skill/pr-review/"}"
+        copy_sync "$f" "$TARGET/.opencode/$rel" "$rel"
+      done < <(find "$KIT_DIR/skill/pr-review" -type f -print0 2>/dev/null)
+    fi
   fi
 fi
 
@@ -1277,20 +1543,41 @@ fi
 # no entry either (sync_hook detects its drift by file comparison).
 if command -v jq >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
   if lock_init; then
-    shopt -s nullglob
-    for src in "$AGENT_SRC_DIR"/*.md; do
-      lock_record_if_synced "$src" "$AGENT_DST_DIR/$(basename "$src")" "agent/$(basename "$src")" 1
-    done
-    shopt -u nullglob
+    # Record the run's component selection, UNIONED into any existing array
+    # (additive lock field — the schema version is unchanged). A selective
+    # re-install must never shrink the recorded selection: a later plain
+    # --update reads this array and only syncs these components. A component
+    # the kit cannot ship (pr-review without skill/pr-review/) is not
+    # recorded — see EFFECTIVE_COMPONENTS. --update --only=X uses the same
+    # union to add X without dropping the others.
+    lock_union_components "${EFFECTIVE_COMPONENTS[@]}"
+    if [[ $HAS_WF -eq 1 || $HAS_ROSTER -eq 1 ]]; then
+      shopt -s nullglob
+      for src in "$AGENT_SRC_DIR"/*.md; do
+        lock_record_if_synced "$src" "$AGENT_DST_DIR/$(basename "$src")" "agent/$(basename "$src")" 1
+      done
+      shopt -u nullglob
+    fi
     if [[ $GLOBAL_MODE -eq 0 ]]; then
-      lock_record_if_synced "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0
-      # CONVENTIONS.md and RULES.md: baseline the kit-managed prefix (the
-      # `## Project rules` split) when the freshly copied (or still identical)
-      # file matches the kit. CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md
-      # and CONVENTIONS.python.md are never copied by install, so they only
-      # ever get a baseline from a later --update bootstrap.
-      lock_record_rules_if_synced "CONVENTIONS.md"
-      lock_record_rules_if_synced "RULES.md"
+      if [[ $HAS_WF -eq 1 ]]; then
+        lock_record_if_synced "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0
+        # CONVENTIONS.md and RULES.md: baseline the kit-managed prefix (the
+        # `## Project rules` split) when the freshly copied (or still identical)
+        # file matches the kit. CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md
+        # and CONVENTIONS.python.md are never copied by install, so they only
+        # ever get a baseline from a later --update bootstrap.
+        lock_record_rules_if_synced "CONVENTIONS.md"
+        lock_record_rules_if_synced "RULES.md"
+      fi
+      # pr-review component: baseline each file whose target matches the kit
+      # (freshly copied or still identical) — same contract as the other
+      # skill files.
+      if [[ $HAS_PR -eq 1 && -d "$KIT_DIR/skill/pr-review" ]]; then
+        while IFS= read -r -d '' f; do
+          prel="skill/pr-review/${f#"$KIT_DIR/skill/pr-review/"}"
+          lock_record_if_synced "$f" "$TARGET/.opencode/$prel" "$prel" 0
+        done < <(find "$KIT_DIR/skill/pr-review" -type f -print0 2>/dev/null)
+      fi
     fi
   fi
 else
@@ -1303,6 +1590,7 @@ if [[ $GLOBAL_MODE -eq 1 ]]; then
 else
   echo "=== dev-workflow-kit: installed into $TARGET ==="
 fi
+echo "Components: ${EFFECTIVE_COMPONENTS[*]}"
 if [[ -n "$KIT_VERSION" ]]; then
   echo "dev-workflow-kit $KIT_VERSION installed"
 else
