@@ -163,7 +163,7 @@ Two rules bind the whole grid:
 | Function \ tier | cheap | strong | alternative | alternative2 |
 |---|---|---|---|---|
 | design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` sol | `strong-design-alternative2` opus |
-| design-review | `cheap-design-review` deepseek | `strong-design-review` 1017 `medium` (10-19: 10/10-0FP @ $0.0143, first T4 sweep; replaces sol — 9/10 @ $0.076+) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` pro `high` |
+| design-review | `cheap-design-review` **M3.1 `medium`** (10-23 confirmation: 10/10 avg 3 runs @ $0.0082, replaces old deepseek flash 9/10 @ $0.0076 — same price, +1 category) | `strong-design-review` 1017 `medium` (10-19: 10/10-0FP @ $0.0143, first T4 sweep; replaces sol — 9/10 @ $0.076+) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` pro `high` |
 | code (impl) | `cheap-code` glm `high` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |

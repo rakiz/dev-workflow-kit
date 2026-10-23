@@ -68,8 +68,25 @@ release.
    variant's result: a model can shine at `xhigh` and hallucinate at `low`
    (the claude lesson), and the roster assigns one effort per role, not one
    model-wide grade.
-6. Write `RESULTS.md` in a dated folder, with the same matrix, and compare
-   line by line with the previous eval.
+ 6. Write `RESULTS.md` in a dated folder, with the same matrix, and compare
+    line by line with the previous eval.
+ 7. **Bench v2 (planned — policy decided 2026-10-23)**: T4 (and T3 depth)
+    are saturating — 1017 swept T4 10/10 at all efforts, M3.1 averages
+    9.7/10, qwen proved 10/10. A harder bench v2 (cross-file semantic
+    regressions, race conditions, measurement-forcing traps; proof-by-
+    execution scored, FPs triple-counted) will be run **only for models
+    ≥9/10 on v1 T4** — it exists to break ties the v1 bench can no longer
+    break, not to re-rank the fleet. **Inversion caveat**: a model can
+    score 8/10 on v1 and 10/10 on v2 (the benches measure different
+    depth constructs), so scores are NEVER compared across benches —
+    v2 governs only the rungs it was built for (strong-design-review and
+    future strong-depth confirmations), v1 stays the cheap-tier screener,
+    and each roster decision cites the bench it was decided on. Accepting
+    the ≥9/10 gate means accepting that an inverted model (8/10 v1,
+    10/10 v2) is missed; the gate trades that miss for campaign cost.
+    Incumbents are NOT re-run on v2 (results are not comparable across
+    benches); a v2 re-base happens only if a v2 rung decision actually
+    changes the roster.
 
 ## Effort lesson (valid for any Claude model with a recalibrated effort)
 

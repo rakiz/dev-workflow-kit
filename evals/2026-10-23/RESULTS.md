@@ -110,7 +110,7 @@ run — confirmation candidate.
 | cheap-code / impl | glm-flash `high` ($0.0053, 3 runs) | $0.0063 direct, $0.012–0.022 delegated | keep glm — no gain |
 | explore / cheap-mech | old flash `low` ($0.0066) | $0.0063 direct T2 — parity | keep; M3.1 = backup if old flash degrades |
 | cheap-review | haiku `default` ($0.0063, proven) | M3.1 `low` 3/3-0FP @ $0.0068 (single run) | keep haiku; **run confirmation before any swap** |
-| design-review (cheap) | old flash `low` (9/10 @ $0.0076) | M3.1 `medium` 10/10 @ $0.0077 | **confirmation candidate** — same price, +1 category |
+| design-review (cheap) | **minimax-m3p1-flash `medium`** (10-23 confirmation: 10/10 avg 3 runs @ $0.0082, no delegation at medium; was old flash 9/10 @ $0.0076) | T4 10/10, 0 FP | **SWAPPED** |
 | orchestration | glm-flash `high` ($0.0050) | PASS @ $0.0073–0.0116 | keep glm — 2× cheaper |
 | strong-design-review | 1017 `medium` (10/10 @ $0.0143) | M3.1 `xhigh` 10/10-0FP @ $0.0141 with measurements | keep 1017 (rostered 10-19); M3.1 `xhigh` = nearest challenger |
 

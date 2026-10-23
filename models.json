@@ -14,8 +14,9 @@
     "family_hint": "deepseek"
   },
   "design-review": {
-    "model": "ai-gateway-misc/fw-deepseek-v4.1-flash",
-    "family_hint": "deepseek"
+    "model": "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash",
+    "family_hint": "minimax",
+    "variant": "medium"
   },
   "deep": {
     "model": "github-copilot/claude-opus-5.5",
@@ -42,8 +43,9 @@
       "variant": "low"
     },
     "cheap-design-review": {
-      "model": "ai-gateway-misc/fw-deepseek-v4.1-flash",
-      "family_hint": "deepseek"
+      "model": "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash",
+      "family_hint": "minimax",
+      "variant": "medium"
     },
     "strong-code": {
       "model": "github-copilot/claude-sonnet-5.5",
