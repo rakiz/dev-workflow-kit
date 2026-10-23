@@ -1,63 +1,60 @@
-# Design: `pr-review` — multi-model PR review pipeline
+# Design: `pr-review` — multi-pass, multi-model PR review pipeline
 
-Status: DESIGN v2 (not implemented) · Date: 2026-10-23 · Owner: dev-workflow-kit
-v2: finding-driven escalation only · single cheap rung by default · semantic dedup · haiku 100k-cliff handling · FP-weighted glm corroboration · mechanical gate · secret handling.
+Status: DESIGN v3 (not implemented) · Date: 2026-10-23 · Owner: dev-workflow-kit
+v3 (owner change): ALWAYS-multi-pass per objective — a fixed battery of 6 objective passes always runs, replacing "single cheap rung by default"; escalation is per-objective on the same deterministic triggers. v2 retains: finding-driven escalation only (no diff-shape triggers), semantic dedup, haiku 100k-cliff handling, FP-weighted corroboration, mechanical gate, secret handling.
 
 ## Goal
 
-A PR-review flow that runs one cheap review rung by default, escalates to strong rungs only on
-demonstrated need, and produces PR-ready draft comments posted **only after explicit user approval
-via a mechanical gate**. Every reviewer reads the same PR diff with a precise, tier-appropriate
-checklist, never modifies anything, and its cost is visible to the user.
+A PR-review flow that always runs a battery of 6 objective review passes (several agents, possibly the same agent several times with different objectives — the objective brief, not the model, carries the lens), then escalates per objective only on demonstrated need, and produces PR-ready draft comments posted **only after explicit user approval via a mechanical gate**. Every pass reads the same PR diff with its own specialized checklist, never modifies anything, and its cost is visible to the user.
 
-Verifiable end state: given a PR number, the flow produces (a) an auditable report — which model found what, corroborations and conflicts, FP judgment, cost per model — and (b) a staged draft of PR comments, of which exactly the user-approved subset is posted via `gh`.
+Verifiable end state: given a PR number, the flow produces (a) an auditable report — which pass/model found what, cross-objective corroborations and conflicts, FP judgment, cost per pass — and (b) a staged draft of PR comments, of which exactly the user-approved subset is posted via `gh`.
 
 ## Non-goals
 
 - **No auto-posting, ever.** The only `gh` write is `post-approved.sh`, which posts exclusively blocks the user ticked.
 - **No CI mode** (interactive skill; CI replay can come later). **No fixing** (reviewers propose, never patch). **GitHub only, for v1** (the scripts speak `gh`; other forges are v2).
-- **No new agent definitions.** The rungs are the existing global-roster agents; their agent
-  prompts are unchanged — all PR-specific instructions live in the brief. Models named anywhere in
-  this doc are whatever `models.json`'s global roster currently binds to those rungs, per the
-  table below — they are bindings, not new agents.
+- **No new agent definitions.** Passes run on the existing global-roster agents; agent prompts are unchanged — the objective brief carries everything. Models named in this doc are bindings from `models.json` (table below), not agents.
+- **The battery is a config of the skill, not code.** The 6 objectives below are the v1 list; adding/removing an objective is a SKILL.md list edit, not a script change.
 
-## Rungs and model bindings
+## Rungs, passes and model bindings
 
-| Rung (existing agent, prompt unchanged) | Current binding (models.json roster) |
-|---|---|
-| cheap-review | haiku 5.5 |
-| strong-review | glm-flash `high` |
-| strong-review-alternative / -alternative2 | per roster lineage rules |
-| cheap-review slot, large-context branch (same rung, different model binding) | deepseek-v4p1-flash-1017 `medium` — the roster's documented >100k cliff-free fallback; selected when the brief requires the whole large context at once, never as a second parallel rung |
+| Pass (objective) | Checklist focus | Default binding |
+|---|---|---|
+| 1. defect risk | language-aware defects: C++ → use-after-free, dangling refs, RAII/ownership, const-correctness, iterator invalidation, races; Python/Go equivalents (unhandled exceptions, swallowed errors, goroutine leaks, race-prone shared state) — the kit ships CONVENTIONS templates per language, referenced by the brief | cheap-review (haiku 5.5) |
+| 2. security | injection, authz, secret handling, untrusted input | cheap-review (haiku 5.5) |
+| 3. style / conventions | compliance with the kit's `CONVENTIONS.md` | cheap-review (haiku 5.5) |
+| 4. code quality | minimalism, no over-engineering, architecture fit | cheap-review (haiku 5.5) |
+| 5. comments & docs accuracy | do comments/docstrings/README claims match the code — the "lying comment" trap | cheap-review (haiku 5.5) |
+| 6. tests | coverage of the diff, missing failure-first tests | cheap-review (haiku 5.5) |
+| Escalation rung (per objective) | strong-review | glm-flash `high` |
+| Doubt rung | strong-review-alternative / -alternative2 | per roster lineage rules |
+| Large-context branch (same pass, different binding) | when a pass's brief needs the whole context >100k | deepseek-v4p1-flash-1017 `medium` (roster's documented cliff-free fallback) |
 
-When the roster is re-arbitrated, only this table changes; the flow, checklists and gate reference
-agents, never model names.
+The SAME model may run several passes — different briefs carry different lenses. **Lineage rule stays:** the battery must not be bound to the impl/author's family when that family is known (reviewer lineage ≠ author lineage). When the roster is re-arbitrated, only this table changes.
 
 ## Chosen flow
 
-**A new skill (`skill/pr-review/SKILL.md`) + two small scripts (`fetch-pr.sh` read-only,
-`post-approved.sh` the only poster), reusing the global-roster review agents.** Orchestration
-happens in the primary session — the orchestrator must enforce cost accounting and the user gates,
-and sub-agents cannot ask the user questions.
+**A new skill (`skill/pr-review/SKILL.md`) + two small scripts (`fetch-pr.sh` read-only, `post-approved.sh` the only poster), reusing the global-roster review agents.** Orchestration happens in the primary session — the orchestrator must enforce cost accounting and the user gates, and sub-agents cannot ask the user questions.
 
 ```
 user: "review PR 123" (skill triggers on: pr-review / review PR <n>)
   ├─ 1. FETCH (read-only)   fetch-pr.sh → staging dir: pr metadata, diff
   │       (base…head), changed files, CI status. NO checkout, NO branch
   │       switch, NO writes outside the staging dir.
-  ├─ 2. BRIEF               one brief per rung: diff size + touched paths +
-  │       checklist + grounding rules + safety rules + FP-discipline clause.
-  ├─ 3. CHEAP RUNG          the cheap-review rung (its current binding, table
-  │       above), single rung by default. Size thresholds (below) decide
-  │       chunking vs the large-context binding — same rung either way.
-  ├─ 4. AGGREGATE           orchestrator semantic-merges findings (below).
-  ├─ 5. ESCALATE?           finding-driven triggers only (below) →
-  │       strong-review, then -alternative / -alternative2, each reading the
-  │       previous rung's findings. Beyond strong-review: user's explicit go
-  │       before the spend.
+  ├─ 2. BRIEFS              one brief per objective: diff (or chunk) + language
+  │       template + the objective's checklist + grounding rules + safety
+  │       rules + FP-discipline clause.
+  ├─ 3. BATTERY             all 6 objective passes RUN (parallel; same rung
+  │       agent, per-pass bindings and briefs). ALWAYS runs — never skipped.
+  ├─ 4. MERGE               orchestrator semantic-merges findings ACROSS passes
+  │       (below); conflicts marked.
+  ├─ 5. ESCALATE?           per objective, deterministic triggers only (below)
+  │       → the ESCALATED OBJECTIVE goes to strong-review, then alternatives;
+  │       the rest of the battery is untouched. Beyond strong-review: user's
+  │       explicit go before the spend.
   ├─ 6. STAGE               PR-<n>-comments.md, one block per finding: severity,
-  │       provenance (model, cost), confidence, proposed body. User approves /
-  │       edits / rejects EACH block individually (own [x] approve tick).
+  │       provenance (pass, model, cost), confidence, proposed body. User
+  │       approves / edits / rejects EACH block individually (own [x] tick).
   └─ 7. POST + REPORT       post-approved.sh (the mechanical gate) posts only
           [x] approve blocks via `gh pr review --comment`. Then the report.
 ```
@@ -69,59 +66,31 @@ Hard safety rule, repeated in every brief and in the skill: **reviewers and the 
 | Threshold | Level | Behavior when exceeded |
 |---|---|---|
 | Hard diff-size cap | `fetch-pr.sh` (script) | refuse and offer a chunked review (per-file-group runs) — never silent truncation |
-| ~90k-token prompt budget | brief (orchestrator) | split the brief into chunks reviewed by the same rung |
+| ~90k-token prompt budget per pass | brief (orchestrator) | split that pass's brief into chunks reviewed by the same pass/binding |
 
-**Relation:** the script cap exists so the ~90k prompt threshold is always reachable by chunking — the cap keeps individual diffs small enough that the brief-level budget can be met by splitting; if a review genuinely needs the whole context in one prompt, that is the large-context binding's job (table above), still the same cheap rung.
+**Relation:** the script cap exists so the ~90k per-pass threshold is always reachable by chunking. If a pass genuinely needs the whole context in one prompt, that is the large-context binding's job (table above) — still the same objective pass.
 
-## Per-rung checklists
+## Per-pass brief rules (all passes)
 
-**Cheap rung (cheap-review)** — the T3 rubric on a PR diff, evidence-backed: (1) real defects —
-logic, off-by-one, wrong variable, broken edge case; must cite `file:line` and *why*; (2) data
-loss / silent failure — swallowed errors, `except: pass`, a success path that can lie; (3)
-contract breaks — callers of touched functions (check the callers, not just the modified file),
-changed return shapes, removed API; (4) security — injection, path traversal, unvalidated input,
-secrets in the diff; (5) missing tests — new behavior untested, bug fix without red/green
-evidence; (6) FP discipline — a finding without a concrete mechanism is an FP; never padded to
-look thorough (3×-penalty rule, in every brief).
+- Review the diff **as new code** against the base — the PR description and author claims are unverified claims to check.
+- Read the surroundings of every touched file (callers, tests) — a reviewer that only read the diff must say `diff-only review` in its report.
+- Read `CONVENTIONS.md`/`RULES.md` and the kit's language template when present; each brief names its language template for pass 1.
+- Every brief carries the FP-discipline clause: a finding without a concrete mechanism is an FP; never padded to look thorough (3×-penalty rule).
+- The brief carries diff line count, changed-file list, and whether the PR fixes a reported bug (red/green expectation applies, mainly for the tests pass).
 
-**Strong rung (strong-review, then alternatives)** — the cheap findings are attached and assumed
-incomplete: (1) cross-system impact — blast radius beyond this repo's callers, config/infra
-coupling, rollout/rollback; (2) architecture — wrong layering, duplicated abstraction; (3) subtle
-correctness — concurrency, ordering, idempotency, partial failure; (4) adjudication
-(brief-carried; the strong-review agent prompt is unchanged) — confirm/refute each unresolved
-cheap finding, including FP call-outs it can disprove; (5) what the previous family missed — the
-brief names the previous rung's model family so the lineage rule is explicit. Alternatives rungs
-run only after the previous rung stalled or expressed doubt; `-alternative2` also states what a
-human must decide.
+## Escalation policy (per objective, one policy, aligned everywhere)
 
-**Grounding rules (all rungs):** review the diff **as new code** against the base — the PR
-description and author claims are unverified claims to check; read the surroundings of every
-touched file (callers, tests) — a reviewer that only read the diff must say `diff-only review`;
-read `CONVENTIONS.md`/`RULES.md` when present; the brief carries diff line count, changed-file
-list, and whether the PR fixes a reported bug (red/green expectation applies).
+**Triggered by findings only, never by diff shape — evaluated PER PASS.** Checked after the merge: an unconfirmed **major** finding (security, data loss, contract break) within a pass escalates THAT objective to strong-review; a **conflict** between passes on the same finding escalates that objective (adjudication); a pass's explicit `diff-only review` or uncertainty statement escalates it too. An unconfirmed major on the security pass escalates the security objective — not the whole battery.
 
-## Escalation policy (one policy, aligned everywhere)
+A large diff or sensitive path is **never** an automatic trigger — it becomes a user-facing SUGGESTION; the pipeline never spends on diff shape. Doubt/stall from a strong rung → strong-review-alternative, then -alternative2 (that objective only). A pass with no trigger ends with the battery — never speculatively escalated.
 
-**Triggered by findings only, never by diff shape.** Checked after aggregation: an unconfirmed
-**major** finding (security, data loss, contract break) → strong-review; a **conflict** between
-reviewers on the same finding → strong-review (adjudication); a reviewer's explicit `diff-only
-review` or uncertainty statement → strong-review.
+A reviewer's self-reported confidence is **evidence for the report, never a trigger by itself** — triggers stay the three deterministic ones above. "Confident, clean" from one pass does NOT outvote a major finding from another: that disagreement IS a cross-pass conflict → escalate.
 
-A reviewer's self-reported confidence is **evidence for the report, never a trigger by itself** —
-triggers stay the three deterministic ones above. "Confident, clean" from one reviewer does NOT
-outvote a major finding from another: that disagreement IS a cross-reviewer conflict → escalate.
+## Findings aggregation (semantic merge ACROSS passes, no deterministic key)
 
-A large diff or sensitive path (auth, migrations, money, concurrency) is **never** an automatic
-trigger — it becomes a user-facing SUGGESTION ("large or sensitive diff — run the strong rung?");
-the pipeline never spends on diff shape. Doubt/stall from a strong rung →
-strong-review-alternative, then -alternative2. No trigger → stop after the cheap rung, never
-speculatively.
+Findings come back in the existing one-line format (`severity — file:line — problem — expected action`) plus `reviewed`/`not reviewed` axis statements and an overall verdict. The orchestrator performs a **semantic merge across passes** — a judgment call, not a key match: the same defect surfacing on two different objectives (e.g. defect-risk and security) on the same file:line = corroborated (`confidence: 2 objectives`), severity takes the max; wording may differ and locations may be lines apart. A **conflict** (same location/category with opposite verdicts across passes, or a strong rung refuting a battery finding) is never self-resolved — it escalates that objective.
 
-## Findings aggregation (semantic merge, no deterministic key)
-
-Findings come back in the existing one-line format (`severity — file:line — problem — expected action`) plus `reviewed`/`not reviewed` axis statements and an overall verdict. The orchestrator performs a **semantic merge** — a judgment call, not a key match: same defect named by ≥2 reviewers = corroborated (`confidence: 2 models`), severity takes the max; wording may differ and locations may be lines apart. A **conflict** (same location/category with opposite verdicts, or a strong rung refuting a cheap finding) is never self-resolved — it escalates.
-
-**Corroboration by the strong rung is not independent confidence when both bindings share a lineage** (strong-review currently binds glm-flash `high`, measured 2 FPs on v1 T3): a glm-only finding raises severity only with mechanism-level proof in its own text, and the glm brief carries the FP-discipline clause explicitly. glm never runs as haiku's parallel corroborator AND first escalation rung (no-op escalation); the report notes the lineage overlap when both ran. A finding no rung corroborates and the strongest rung does not confirm is staged `low-confidence` (posted only if the user keeps it) and flagged as a probable FP in the report, never silently dropped.
+**Corroboration by the strong rung is not independent confidence when bindings share a lineage** (strong-review binds glm-flash `high`, measured 2 FPs on v1 T3): a glm-only finding raises severity only with mechanism-level proof in its own text, and the glm brief carries the FP-discipline clause explicitly. glm never runs as a battery pass's corroborator AND its first escalation rung (no-op escalation). A finding no pass corroborates and the strongest rung does not confirm is staged `low-confidence` (posted only if the user keeps it) and flagged as a probable FP in the report, never silently dropped.
 
 ## The mechanical approval gate
 
@@ -129,8 +98,8 @@ Findings come back in the existing one-line format (`severity — file:line — 
 
 ```markdown
 ## [F2] major — src/sync.py:87 — silent copy failure can report `done`
-- provenance: found by cheap-review (haiku 5.5, $0.002)
-- confidence: high (2 models)   <!-- or: low — possible FP -->
+- provenance: found by security pass (haiku 5.5, $0.002); corroborated by defect-risk pass
+- confidence: high (2 objectives)   <!-- or: low — possible FP -->
 - status: [ ] approve / [x] reject / edited
 <!-- comment body below — this exact text is posted if approved -->
 **Bug**: `copy_file` swallows `OSError` ...
@@ -142,16 +111,14 @@ Findings come back in the existing one-line format (`severity — file:line — 
 
 ## File layout
 
-`skill/pr-review/` holds three files: `SKILL.md` (triggers "review PR `<n>`", flow, checklists, gate rules), `fetch-pr.sh` (read-only: `gh pr view`/`diff` → staging dir; diff-size cap) and `post-approved.sh` (the mechanical gate: `[x] approve` blocks → `gh pr review`).
-
-Installed to `.opencode/skill/pr-review/` by `init.sh` (copy-if-absent, `--update` syncs it). Runtime artifacts per PR, in the staging dir (temp dir by default; see secret handling): `PR-<n>/` (fetched context), `PR-<n>-comments.md` (the gate input), `PR-<n>-report.md` (the audit output). No change to `dev-workflow.json` schema.
+`skill/pr-review/` holds three files: `SKILL.md` (triggers "review PR `<n>`", the battery config — the 6 objectives and their bindings, thresholds, gate rules), `fetch-pr.sh` (read-only: `gh pr view`/`diff` → staging dir; diff-size cap) and `post-approved.sh` (the mechanical gate: `[x] approve` blocks → `gh pr review`). Installed to `.opencode/skill/pr-review/` by `init.sh` (copy-if-absent, `--update` syncs it). Runtime artifacts per PR, in the staging dir (temp dir by default): `PR-<n>/` (fetched context), `PR-<n>-comments.md` (the gate input), `PR-<n>-report.md` (the audit output). No change to `dev-workflow.json` schema.
 
 ## Cost accounting
 
-Reference costs ship in the skill so the user sees the ladder before spending: cheap-review ~$0.0063/task, strong-review ~$0.008/task, strong-review-alternative ~$0.119/task, -alternative2 ~$0.151/task (per-task labels, from `MODELS.md`/`EVALS.md`), with a context-size qualifier: the ~$0.007 cheap floor is the small-diff case only — a review routed to the large-context binding (deepseek-v4p1-flash-1017 `medium`, through cheap-review's slot) costs more and is priced as such. Actual costs come from the opencode sessions DB per rung, child sessions extracted by `session.parent_id` (not by title), applying the delegation rule (parent + all named children). Budget defaults: cheap rung always runs; strong rung only on trigger; alternative rungs only on expressed doubt; escalation beyond strong-review is behind the user gate.
+The battery is ~N×cheap (N = number of objectives, 6 for v1; passes with the default binding are ~$0.0063/task each), so the always-on cost stays at the cheap tier — which is the point. Escalations are per-objective add-ons priced at the rung ladder: strong-review ~$0.008/task, strong-review-alternative ~$0.119/task, -alternative2 ~$0.151/task (per-task labels, from `MODELS.md`/`EVALS.md`), with a context-size qualifier: a pass routed to the large-context binding (deepseek-v4p1-flash-1017 `medium`, through cheap-review's slot) costs more and is priced as such. Actual costs come from the opencode sessions DB per pass, child sessions extracted by `session.parent_id` (not by title), applying the delegation rule (parent + all named children). Escalation beyond strong-review is behind the user gate.
 
 ## Rollout
 
-1. Add `SKILL.md`, `fetch-pr.sh`, `post-approved.sh`; wire into `init.sh` (copy-if-absent) and the lock / `--update` path; README structure table and lock hash list.
-2. Dogfood on a real PR of the kit itself; verify the gate holds (nothing posted without an exact `[x] approve`), the report is complete, costs match the sessions DB.
+1. Add `SKILL.md` (with the battery config), `fetch-pr.sh`, `post-approved.sh`; wire into `init.sh` (copy-if-absent) and the lock / `--update` path; README structure table and lock hash list.
+2. Dogfood on a real PR of the kit itself; verify the gate holds (nothing posted without an exact `[x] approve`), the battery runs all 6 passes, cross-objective merge behaves, costs match the sessions DB.
 3. After two dogfooded PRs: move this doc's final state into `DESIGNS.md` per the kit's designs-archive convention.
