@@ -52,9 +52,15 @@ release.
    variant run also counts as a data point — record it as such.
 3. Verify T2 objectively (`python3 -m unittest` in the copy), score T3/T4
    against the lists above, judge T1 (grounding + trap detection).
-4. Extract cost/tokens/duration from the opencode DB (session titles are
-   `eval-YYYY-MM-DD-<TASK>-<TAG>`, per `run-eval.sh`; cost = the provider's
-   standard API rate, not the plan's real billing).
+ 4. Extract cost/tokens/duration from the opencode DB (session titles are
+    `eval-YYYY-MM-DD-<TASK>-<TAG>`, per `run-eval.sh`; cost = the provider's
+    standard API rate, not the plan's real billing). **Delegation rule
+    (2026-10-23, the minimax-m3p1 lesson): if the eval session spawns
+    subagents, the arm's cost = parent + ALL child sessions** (linked by
+    `session.parent_id`) **and each child's model@effort is recorded by
+    name** — a model that delegates inside an eval is scored on the
+    combined labor, never on its own tokens alone (same caveat as the
+    muse-spark Cheap-Mech delegation, 10-16).
 5. Decision rules (MODELS.md): comparable cost per MTok for bulk roles,
    reviewer of a lineage ≠ impl, `strong-*` judged on tasks that are up to it
    (these tasks are too easy to discriminate Opus/Fable). **The adoption
