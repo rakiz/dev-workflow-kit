@@ -86,7 +86,9 @@ release.
     10/10 v2) is missed; the gate trades that miss for campaign cost.
     Incumbents are NOT re-run on v2 (results are not comparable across
     benches); a v2 re-base happens only if a v2 rung decision actually
-    changes the roster.
+    changes the roster. The v2 fixture lives in `synccli-eval-repo-v2/`
+    (answer key: `RUBRIC-T4V2.md` — 10 categories, 5 code-only-detectable,
+    formula: categories + proof bonus − 3×FP).
 
 ## Effort lesson (valid for any Claude model with a recalibrated effort)
 
