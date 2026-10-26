@@ -1274,7 +1274,7 @@ if [[ $UPDATE -eq 1 ]]; then
     lock_union_components "${EFFECTIVE_COMPONENTS[@]}"
   fi
 
-  if [[ $U_WF -eq 1 ]]; then
+  if [[ $U_WF -eq 1 || ($GLOBAL_MODE -eq 1 && $U_ROSTER -eq 1) ]]; then
     shopt -s nullglob
     for src in "$AGENT_SRC_DIR"/*.md; do
       name="$(basename "$src" .md)"
