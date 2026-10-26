@@ -53,7 +53,7 @@
       "variant": "high"
     },
     "strong-code-alternative": {
-      "model": "github-copilot/gpt-6.1-sol",
+      "model": "github-copilot/gpt-6.1-terra",
       "family_hint": "gpt"
     },
     "strong-code-alternative2": {
@@ -81,7 +81,7 @@
       "variant": "high"
     },
     "strong-design-alternative": {
-      "model": "github-copilot/gpt-6.1-sol",
+      "model": "github-copilot/gpt-6.1-terra",
       "family_hint": "gpt"
     },
     "strong-design-alternative2": {

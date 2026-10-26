@@ -74,7 +74,7 @@ sanity-check only — never a role arbiter (see Standing lessons).
 | deepseek-v4p1-flash-1017 | fireworks | n.t. (snapshot pricing) | n.t. | $0.058 | 10-19 | full 4×4 grid: **T4 10/10-0FP at every effort** ($0.014–0.017, first sweep), T3 **3/3-0FP at `medium` only** ($0.0233, non-monotone), T1 PASS medium+ ($0.015–0.026), **`low` T1 FAIL (invented green baseline — worse than old flash)**; ~1.6–2× old flash per task. **ROSTERED 10-19: strong-design-review `medium`** (replaces sol, owner decision — best model×effort×price per task, 4th lineage); documented fallback: >100k review (haiku cliff). `evals/2026-10-19/RESULTS.md` |
 | claude-sonnet-5.5 | copilot | $2/$10 | $0.975 | $0.52 | 09-29 | strong-code/design `high`, review alternatives `medium` — best reviewer of its price class. 10-08: cache-read price cut $0.20 → $0.10/MTok, blended recomputed: $0.975 |
 | claude-opus-5.5 | copilot | $4/$20 | $1.95 | $1.03 | 09-29 | deep + alternative2 rungs — max depth |
-| gpt-6.1-sol | copilot | $2/$10 | $0.975 | $0.35 (`low`, 10-14) | 10-14 | strong alternatives (code/design producer) — `low`/`medium` viable (identical 9/10 T4 across low→xhigh, 10-14); strictly better than gpt-6-sol, same price. **Lost strong-design-review to deepseek-v4p1-flash-1017 `medium` (10-19: 10/10-0FP @ $0.0143 vs 9/10 @ $0.076)** |
+| gpt-6.1-sol | copilot | $2/$10 | $0.975 | $0.35 (`low`, 10-14) | 10-14 | **OFF the roster (10-26)** — strong-design-review lost to 1017 `medium` (10-19), then both alternative rungs lost to gpt-6.1-terra (strict quality parity at ~50% cost, T4-medium 10/10 vs 9/10); documented fallback if terra regresses |
 | qwen3p8-2p4t-a95b | fireworks | $2/$6 | $0.888 | $0.43 (`xhigh`) | 09-30 | strong-review-alternative2 `xhigh` — best review ever measured (3/3+2 proven, $0.151), the rung stays; `low`: unstable recall across runs (3/3 then 2/3) — out for review roles (variance confirmed 10-14); `medium` re-tested 10-14 |
 | fw-deepseek-v4-pro | gateway | $1.42/$2.83 | $0.513 | $0.20 | 09-30 | strong-design-review-alternative2 `high` — qwen-tier design-review at $0.047–0.058; no-variant arm is a dead gateway server error (10-14), keep `high` |
 
@@ -96,6 +96,7 @@ sanity-check only — never a role arbiter (see Standing lessons).
 | kimi-k3 | copilot | $3/$15 | $1.58 | $0.283 | 09-29 | design/impl-capable, 2/3 as reviewer — never a review role; no slot pays its price |
 | nemotron-lightning-3p5-30b-a3b | fireworks | $0.05/$0.20 | $0.028 | — | 09-30-nemotron | 5/12 degenerate loops — unreliable |
 | gpt-5.6-terra | copilot | $2/$12 | $1.03 | $0.387 | 09-29 | dominated by sol |
+| gpt-6.1-terra | copilot | n.t. | n.t. | $0.28 (4t avg, 10-26) | 10-26 | full grid: **strict quality-parity with sol at ~half price on every task** — T1 PASS all efforts ($0.044–0.047), T2 PASS (all delegated: cheap-mech + cheap-review children, $0.059–0.071), T3 2/3-0FP all efforts (seed-3 blind like sol; 4 verified bonuses at `xhigh`), T4 9–10/10-0FP (`medium` 10/10 @ $0.0388). **ROSTERED 10-26: strong-design-alternative + strong-code-alternative** (replaces sol). Never reaches T3 3/3 — no threat to haiku/1017/glm rungs. `evals/2026-10-26/RESULTS.md` |
 | claude-fable-5.1 | copilot | $10/$50 | $4.69 | n.t. | 09-29 | too expensive |
 
 ## Rejected on price without a run

@@ -162,14 +162,14 @@ Two rules bind the whole grid:
 
 | Function \ tier | cheap | strong | alternative | alternative2 |
 |---|---|---|---|---|
-| design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` sol | `strong-design-alternative2` opus |
+| design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` terra 6.1 | `strong-design-alternative2` opus |
 | design-review | `cheap-design-review` **M3.1 `medium`** (10-23 confirmation: 10/10 avg 3 runs @ $0.0082, replaces old deepseek flash 9/10 @ $0.0076 — same price, +1 category) | `strong-design-review` 1017 `medium` (10-19: 10/10-0FP @ $0.0143, first T4 sweep; replaces sol — 9/10 @ $0.076+) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` pro `high` |
-| code (impl) | `cheap-code` glm `high` | `strong-code` s5.5 `high` | `strong-code-alternative` sol | `strong-code-alternative2` opus |
+| code (impl) | `cheap-code` glm `high` | `strong-code` s5.5 `high` | `strong-code-alternative` terra 6.1 | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
 | orchestration | session default model: glm — the user's configured default model; **pin `high`** (T1: PASS @ `high` $0.0050, PARTIAL @ `low`); recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
-Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol, opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro, argon = gemini-4-argon, 1017 = deepseek-v4p1-flash-1017 (fireworks direct).
+Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol (off the roster 10-26 — dominated by terra), opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro, argon = gemini-4-argon, 1017 = deepseek-v4p1-flash-1017 (fireworks direct), M3.1 = minimax-m3p1-flash, terra = gpt-6.1-terra.
 
 Eval 2026-09-30 addendum — qwen and pro join as the 7th/8th families
 (`evals/2026-09-30-qwen3p8/`, `evals/2026-09-30-deepseek-v4-pro/`): qwen
