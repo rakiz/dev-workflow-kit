@@ -110,15 +110,17 @@ Read-only localization work: find symbols, trace a flow, summarize. High
 volume, low stakes, cheapest acceptable model wins. DeepSeek's cheap tier does
 this as well as models many times its price.
 
-### design-review — `ai-gateway-misc/fw-deepseek-v4.1-flash` (family: deepseek)
+### design-review — `fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash` (family: minimax, variant: medium)
 
-Critiques an approach before code is written. Runs rarely, and the eval
-(`evals/2026-09-29/`, task T4) showed deepseek covering the same
-top flaw categories as models 13x its price on a seeded design doc — same
-quality tier as `gpt-5.6-terra`, at $0.006 per run. With the price-over-speed
-priority it takes the role; deepseek is also a third lineage (neither impl's
-glm nor review's claude). For a high-stakes design, escalate the critique to
-`claude-sonnet-5.5` `medium`/`high` or `claude-opus-5.5`.
+Critiques an approach before code is written. Runs rarely. Rostered 10-23 after
+the full grid (`evals/2026-10-23/RESULTS.md`) showed M3 stable across 3
+confirmation runs at 10/10 avg @ $0.0082, replacing the old deepseek flash
+(9/10 @ $0.0076 — ~+8%, +1 flaw category, no delegation at `medium`).
+Minimax is a lineage distinct from impl's glm and review's claude — keep that
+property when replacing either side. For a high-stakes design, escalate the
+critique: `strong-design-review` rung (`deepseek-v4p1-flash-1017` `medium`,
+then `gemini-4-argon` `high`, `deepseek-v4-pro` `high`) or straight to
+`claude-opus-5.5`.
 
 ### deep — `github-copilot/claude-opus-5.5` (family: claude)
 
