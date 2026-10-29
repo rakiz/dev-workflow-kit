@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-29",
+  "model": "github-copilot/mai-code-1.1-flash",
+  "variant": "default (only variant — model exposes none)",
+  "runs": {
+    "T1": {"session": "ses_e765c4d28ffeZBuwNeUw091ff4", "title": "eval-2026-10-29-T1-github-copilot-mai-code-1-1-flash", "cost_usd": 0.0096288, "tokens_input": 25686, "tokens_output": 1375, "tokens_reasoning": 1536, "tokens_cache_read": 49920, "duration_s": 23.16, "children": 0},
+    "T2": {"session": "ses_e765be094ffe71m2uU20Sgytx1", "title": "eval-2026-10-29-T2-github-copilot-mai-code-1-1-flash", "cost_usd": 0.00748444, "tokens_input": 10739, "tokens_output": 1036, "tokens_reasoning": 512, "tokens_cache_read": 173952, "duration_s": 28.792, "children": 0},
+    "T3": {"session": "ses_e76589d64ffeG0vEWqqDRua1pr", "title": "eval-2026-10-29-T3-github-copilot-mai-code-1-1-flash", "cost_usd": 0.00791952, "tokens_input": 10756, "tokens_output": 696, "tokens_reasoning": 2112, "tokens_cache_read": 119936, "duration_s": 37.255, "children": 0},
+    "T4": {"session": "ses_e7657b8d3ffeVasNrUE1FKqlm4", "title": "eval-2026-10-29-T4-github-copilot-mai-code-1-1-flash", "cost_usd": 0.00433364, "tokens_input": 7863, "tokens_output": 511, "tokens_reasoning": 1088, "tokens_cache_read": 42112, "duration_s": 20.566, "children": 0}
+  },
+  "four_task_total_usd": 0.0293664,
+  "pricing_per_mtok": {"input": 0.20, "output": 1.20, "cache_read": 0.02},
+  "cost_handcheck_T2_usd": 0.00748,
+  "extraction": "sqlite3 ~/.local/share/opencode/opencode.db — see raw/sessions.tsv"
+}
