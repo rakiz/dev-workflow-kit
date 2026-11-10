@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Terminal design rung: the design problem both strong-design and strong-design-alternative failed to settle, or a system-level design worth the roster's most expensive judgment before any code exists. COST WARNING: expensive tier — before invoking, tell the user (\"escalating to strong-design-alternative2\") and why the cheaper rung wasn't enough; never invoke silently. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 ---

@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Review escalation (Claude, s5.5 medium): reviews the output of strong-code-alternative (gpt family) from a different lineage; also the deeper re-review when strong-review's verdict on a diff still leaves doubt. Read-only by design. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 permission:

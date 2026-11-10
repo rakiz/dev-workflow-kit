@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Strong implementation rung (Claude, s5.5 high): work cheap-code demonstrably stalled on (2–3 failed attempts without progress), or a major finding escalated from cheap-review — deep reasoning, then the minimal fix. Predicted difficulty is NOT a trigger: the cheap rung runs first and its attempt costs cents. If it expresses doubt or fails, escalate to strong-code-alternative next (fresh family, gpt); after that, strong-code-alternative2, then human. COST WARNING: expensive tier — before invoking, tell the user (\"escalating to strong-code\") and why the cheaper rung wasn't enough; never invoke silently. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 ---

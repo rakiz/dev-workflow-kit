@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Mandatory review of the work produced by impl — read-only, sorts findings into minor (back to impl) / major (escalate to deep)."
 permission:

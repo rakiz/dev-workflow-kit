@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Read-only critique of an approach/design BEFORE code is written, for tasks with real architectural stakes — cheap to change course here. Skip for small/mechanical tasks (use cheap-mech) or routine cheap-code work with no real design question. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 permission:

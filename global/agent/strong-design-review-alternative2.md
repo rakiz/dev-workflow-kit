@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Terminal design-review rung (fresh family): the audit of last resort for a design produced by strong-design-alternative2 (Claude family) — the one review a Claude-authored system-level design should always get. Read-only. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 permission:

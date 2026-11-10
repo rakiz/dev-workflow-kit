@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Cheap design producer: writes the approach/design doc for a feature or refactor BEFORE code exists (options considered, tradeoffs, risks, rollout). Pair with cheap-design-review for tasks with real architectural stakes. Skip for small/mechanical tasks (use cheap-mech). If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 ---

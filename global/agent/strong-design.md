@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Strong design rung (Claude): the design work cheap-design stalled on, or an architecture with real tradeoffs (concurrency, migration, state machines, cross-system contracts) that cheap-design's doc cannot settle — cheap-design produces the first draft, this rung escalates on demonstrated failure or genuinely unmeasurable stakes. Think in depth, decide, document. If it expresses doubt or fails, escalate to strong-design-alternative next (fresh family). COST WARNING: expensive tier — before invoking, tell the user (\"escalating to strong-design\") and why the cheaper rung wasn't enough; never invoke silently. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 ---

@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Terminal implementation rung: the task both strong-code and strong-code-alternative failed to settle, or the step right before human intervention. COST WARNING: expensive tier — before invoking, tell the user (\"escalating to strong-code-alternative2\") and why the cheaper rung wasn't enough; never invoke silently. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 ---

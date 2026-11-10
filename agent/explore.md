@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Fast read-only exploration of the codebase: locate files/symbols, trace a simple flow, summarize."
 permission:

@@ -14,11 +14,14 @@
 #   - Model defaults: the kit's models.json is the single source of truth.
 #     For each freshly copied agent, init.sh writes its `model:` frontmatter
 #     line from models.json (plus a `variant:` reasoning-effort line when
-#     models.json defines one for that agent), then (if the opencode CLI is
-#     available) checks the model is offered by its provider and proposes a
-#     replacement menu otherwise. Warnings only — this step can never fail
-#     the install. A replacement model picked through the menu never gets a
-#     guessed variant: the step-A variant is left untouched.
+#     models.json defines one for that agent, plus a `# Model family: <hint>.`
+#     comment line right after the model line — the family derived from the
+#     model id being written, via its family_hint mapping in models.json),
+#     then (if the opencode CLI is available) checks the model is offered by
+#     its provider and proposes a replacement menu otherwise. Warnings only —
+#     this step can never fail the install. A replacement model picked
+#     through the menu never gets a guessed variant: the step-A variant is
+#     left untouched.
 #   - dev-workflow.json, TODO.md, SPEC.md, INPROGRESS.md, CHANGELOG.md,
 #     DESIGNS.md, CONVENTIONS.md: copied ONLY if they do not exist yet (never overwritten).
 #     RULES.md: OPT-IN — copied with --with-rules, or via an interactive y/N
@@ -362,19 +365,22 @@ elif [[ -n $COMPANIONS_FLAG && $UPDATE -eq 1 ]]; then
   warnings+=("--companions=$COMPANIONS_FLAG has no effect with --update: dev-workflow.json is never created or changed in update mode")
 fi
 
-# _bodies_equal FILE_A FILE_B : compare two files ignoring their `model:`
-# and `variant:` frontmatter lines — the shared normalization for every
-# kit-vs-target comparison (copy_sync, lock recording, --update).
+# _bodies_equal FILE_A FILE_B : compare two files ignoring their `model:`,
+# `variant:` and `# Model family:` lines — the shared normalization for every
+# kit-vs-target comparison (copy_sync, lock recording, --update). The family
+# comment line is stripped like the frontmatter keys because init.sh injects
+# it from models.json: installed agents legitimately differ from the kit
+# sources on those lines only.
 _bodies_equal() {
-  diff <(grep -vE '^(model|variant):' "$1") <(grep -vE '^(model|variant):' "$2") >/dev/null 2>&1
+  diff <(grep -vE '^(model|variant):|^# Model family:' "$1") <(grep -vE '^(model|variant):|^# Model family:' "$2") >/dev/null 2>&1
 }
 
 # copy_sync SRC DST LABEL : copy if absent; if present and identical to the
 # kit, no-op; if present and different, NEVER overwrite (a local
 # customization would be destroyed) — warn and skip. The `model:` and
-# `variant:` lines are ignored when comparing: init.sh injects them from
-# models.json, so installed agents legitimately differ from the kit sources
-# on those lines only.
+# `variant:` lines and the `# Model family:` comment line are ignored when
+# comparing: init.sh injects them from models.json, so installed agents
+# legitimately differ from the kit sources on those lines only.
 copy_sync() {
   local src="$1" dst="$2" label="$3"
   if [[ -f "$dst" ]] && ! cmp -s "$src" "$dst"; then
@@ -508,24 +514,36 @@ _upsert_fm_key() {
   mv "$tmp" "$file"
 }
 
-# set_agent_model FILE MODEL [VARIANT] : upsert the `model:` frontmatter
-# line, then — only when VARIANT is non-empty — upsert a `variant:` line
-# right after it (reasoning effort, for models that support it). An empty
-# VARIANT never touches any existing `variant:` line: a replacement model
-# picked by the user gets no guessed effort.
+# set_agent_model FILE MODEL [VARIANT] [FAMILY] : upsert the `model:`
+# frontmatter line, then — only when VARIANT is non-empty — upsert a
+# `variant:` line right after it (reasoning effort, for models that support
+# it), then reconcile the `# Model family:` comment line right after the
+# `model:` line: a non-empty FAMILY (the family derived from MODEL via
+# _family_for_model) is upserted; an EMPTY FAMILY — a model whose family is
+# unknown — REMOVES any existing line, so a stale header never survives a
+# model swap. An empty VARIANT never touches any existing `variant:` line: a
+# replacement model picked by the user gets no guessed effort. The family
+# line is always kit-managed (never user-customized): every run re-derives
+# it from the model in effect and replaces whatever it said.
 set_agent_model() {
-  local file="$1" model="$2" variant="${3:-}"
+  local file="$1" model="$2" variant="${3:-}" family="${4:-}"
   _upsert_fm_key "$file" "model" "$model" || return 1
   if [[ -n "$variant" ]]; then
     _upsert_fm_key "$file" "variant" "$variant" "model" || return 1
   fi
+  if [[ -n "$family" ]]; then
+    _upsert_fm_key "$file" "# Model family" "$family." "model" || return 1
+  else
+    _remove_fm_line "$file" "# Model family" || return 1
+  fi
 }
 
 # _body_hash FILE : sha256 of the file's content with its `model:`/`variant:`
-# frontmatter lines stripped — the same normalization _bodies_equal applies.
+# frontmatter lines and its `# Model family:` comment line stripped — the
+# same normalization _bodies_equal applies.
 # This is the "body" unit every lock baseline and --update comparison uses.
 _body_hash() {
-  grep -vE '^(model|variant):' "$1" 2>/dev/null | shasum -a 256 | awk '{print $1}'
+  grep -vE '^(model|variant):|^# Model family:' "$1" 2>/dev/null | shasum -a 256 | awk '{print $1}'
 }
 
 # _fm_value FILE KEY : value of the file's `KEY: value` frontmatter line,
@@ -565,6 +583,58 @@ models_json() {
   local section="."
   [[ $GLOBAL_MODE -eq 1 ]] && section=".global"
   jq -r --arg a "$1" --arg f "$2" "${section}[\$a][\$f] // \"\"" "$KIT_DIR/models.json" 2>/dev/null || true
+}
+
+# _family_for_model MODEL : the family_hint of the models.json entry whose
+# `model` equals MODEL — searching every top-level agent AND every "global"
+# roster agent, so a model id is resolved to its family regardless of which
+# roster carries it. This is how the `# Model family:` line stays truthful:
+# the family is derived from the model actually being written (a user's
+# replacement, a hand-set model), never inherited from the kit default.
+# "" when no entry carries that model id (or the match has no family_hint):
+# the family is then UNKNOWN — the caller must NOT inherit any default; the
+# family line is removed and a warning says the family is unknown.
+_family_for_model() {
+  jq -r --arg m "$1" '
+    ([to_entries[] | select(.key != "global") | .value] + [.global[]?])
+    | map(select(.model == $m))[0].family_hint // ""' \
+    "$KIT_DIR/models.json" 2>/dev/null || true
+}
+
+# _remove_fm_line FILE KEY : delete the `KEY:`-prefixed line, if present.
+# The removal half of the family-line contract: a model whose family cannot
+# be derived must not keep a stale family header from a previous model.
+_remove_fm_line() {
+  local file="$1" key="$2" tmp
+  grep -q "^${key}:" "$file" 2>/dev/null || return 0
+  tmp="$(mktemp)" || return 1
+  grep -v "^${key}:" "$file" > "$tmp" || { rm -f "$tmp"; return 1; }
+  mv "$tmp" "$file"
+}
+
+# _reconcile_agent_family DST REL MODEL : bring the `# Model family:` line in
+# line with MODEL — the model actually in the file, or the one being written.
+# Resolves MODEL through _family_for_model: a mapping upserts the line (a
+# no-op write is skipped when it already says exactly that); no mapping
+# (missing models.json included) REMOVES the line and warns — an unknown
+# family never inherits a default, and a stale header never survives a model
+# swap. update_agent_model calls this on EVERY path, so the header stays
+# correct even when the model/variant logic early-returns (kept model,
+# missing models.json, no kit default, unchanged model/variant); a wrong
+# lineage header would defeat the cross-lineage review check, so the warning
+# repeating on later runs is accepted.
+_reconcile_agent_family() {
+  local dst="$1" rel="$2" model="$3" family current
+  family="$(_family_for_model "$model")"
+  current="$(_fm_value "$dst" "# Model family")"
+  if [[ -z "$family" ]]; then
+    warnings+=("$rel: model '${model:-<none>}' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
+    if [[ -n "$current" ]]; then
+      _remove_fm_line "$dst" "# Model family" || warnings+=("could not remove the family line of $rel")
+    fi
+  elif [[ "$current" != "$family." ]]; then
+    _upsert_fm_key "$dst" "# Model family" "$family." "model" || warnings+=("could not update the family line of $rel")
+  fi
 }
 
 # _jsonc_strip_comments FILE : best-effort JSONC -> JSON on stdout. A
@@ -891,12 +961,23 @@ sync_hook() {
 # The `variant:` line follows the exact same three-way logic, independently:
 # a variant is user-customized when it differs from the lock's recorded
 # (kit-injected) value — kept as-is and NOT baselined, and never overwritten
-# by a refresh (not even when the model itself is refreshed).
+# by a refresh (not even when the model itself is refreshed). The
+# `# Model family:` line has no user state at all: _reconcile_agent_family
+# runs on EVERY path below, derived from the model actually in the file
+# (the refresh arms then re-derive it from the model they write) — so a
+# missing or stale header is fixed even when the model/variant logic
+# early-returns (bootstrap, kept model, missing models.json, no kit
+# default, unchanged model/variant); a model id with no family_hint mapping
+# loses the line.
 update_agent_model() {
   local dst="$1" rel="$2" agent="$3"
-  local target_model target_variant lock_model kit_model kit_variant lock_variant
+  local target_model target_variant lock_model kit_model kit_variant kit_family lock_variant
   target_model="$(_fm_value "$dst" model)"
   target_variant="$(_fm_value "$dst" variant)"
+  # Family reconciliation first — it must survive every early return below.
+  # Until a refresh writes another model, the model in the file is
+  # target_model, so the header follows it (the user's kept model included).
+  _reconcile_agent_family "$dst" "$rel" "$target_model"
   if ! lock_has_model "$rel"; then
     # Bootstrap: no recorded model (pre---update-era install) — cannot tell a
     # user choice from a kit injection, so treat the current value as
@@ -908,14 +989,18 @@ update_agent_model() {
   lock_model="$(lock_get "$rel" model)"
   if [[ "$target_model" != "$lock_model" ]]; then
     kept_model+=("$rel (model '${target_model:-<none>}' kept — differs from the last kit-injected default: user-configured)")
+    # Model/variant untouched — the user's choice stands. The family header
+    # was already reconciled above to the model actually in the file.
     return
   fi
   [[ $MODELS_OK -eq 1 ]] || return
   kit_model="$(models_json "$agent" model)"
   kit_variant="$(models_json "$agent" variant)"
+  kit_family="$(_family_for_model "$kit_model")"
   if [[ -z "$kit_model" ]]; then
     return
   fi
+  [[ -n "$kit_family" ]] || warnings+=("$rel: kit default model '$kit_model' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
   # Three-way state of the variant — the same test the model applies against
   # its own lock field: differing from the lock's recorded value means the
   # user set it, so it is kept and not baselined.
@@ -929,7 +1014,7 @@ update_agent_model() {
     # same rule as set_agent_model); a customized variant is not baselined.
     local inject_variant="$kit_variant"
     [[ $variant_kept -eq 1 ]] && inject_variant=""
-    if set_agent_model "$dst" "$kit_model" "$inject_variant"; then
+    if set_agent_model "$dst" "$kit_model" "$inject_variant" "$kit_family"; then
       updated_model+=("$rel (model: $kit_model${inject_variant:+, variant: $inject_variant})")
       lock_set "$rel" model "$kit_model"
       [[ $variant_kept -eq 1 ]] || lock_set "$rel" variant "$kit_variant"
@@ -947,7 +1032,7 @@ update_agent_model() {
     return
   fi
   if [[ "$kit_variant" != "$lock_variant" ]]; then
-    if set_agent_model "$dst" "$kit_model" "$kit_variant"; then
+    if set_agent_model "$dst" "$kit_model" "$kit_variant" "$kit_family"; then
       lock_set "$rel" variant "$kit_variant"
       [[ -n "$kit_variant" ]] && updated_model+=("$rel (variant: $kit_variant)")
     else
@@ -1045,11 +1130,13 @@ update_sync_managed() {
     copied+=("$rel (new in kit)")
     lock_set "$rel" body_sha256 "$(_body_hash "$src")"
     if [[ $has_model -eq 1 && $MODELS_OK -eq 1 ]]; then
-      local km kv
+      local km kv kf
       km="$(models_json "$agent" model)"
       kv="$(models_json "$agent" variant)"
+      kf="$(_family_for_model "$km")"
       if [[ -n "$km" ]]; then
-        if set_agent_model "$dst" "$km" "$kv"; then
+        [[ -n "$kf" ]] || warnings+=("$rel: model '$km' has no family_hint mapping in models.json — '# Model family' line omitted (family unknown)")
+        if set_agent_model "$dst" "$km" "$kv" "$kf"; then
           lock_set "$rel" model "$km"
           lock_set "$rel" variant "$kv"
         else
@@ -1075,8 +1162,14 @@ update_sync_managed() {
 
   if [[ $BODY_UPDATED -eq 1 ]]; then
     updated_body+=("$rel")
-    if [[ $has_model -eq 1 && -n "$prev_model" ]] && ! set_agent_model "$dst" "$prev_model" "$prev_variant"; then
-      warnings+=("could not restore the model line of $rel after the body update")
+    if [[ $has_model -eq 1 && -n "$prev_model" ]]; then
+      # The kit copy wiped the injected frontmatter: restore the model/
+      # variant the file had. The family line is deliberately NOT restored
+      # here — update_agent_model below reconciles it on every path from
+      # the model actually in the file (single place for the family logic).
+      if ! set_agent_model "$dst" "$prev_model" "$prev_variant"; then
+        warnings+=("could not restore the model line of $rel after the body update")
+      fi
     fi
   fi
 
@@ -1465,9 +1558,15 @@ if [[ ${#fresh_agents[@]} -gt 0 ]]; then
         warnings+=("no model configured in models.json for agent '$agent', agent left without injected model")
         continue
       fi
-      # Step A: inject the default model (and variant, when one is
-      # configured for this agent) — independent of opencode's presence.
-      if ! set_agent_model "$AGENT_DST_DIR/$agent.md" "$model" "$variant"; then
+      # Step A: inject the default model (and variant, and family line, when
+      # one is configured for this agent) — independent of opencode's presence.
+      # The family is derived from the model id itself, so it stays correct
+      # even if models.json's family_hint for the agent is ever absent.
+      family="$(_family_for_model "$model")"
+      if [[ -z "$family" ]]; then
+        warnings+=("agent '$agent': model '$model' has no family_hint mapping in models.json — no '# Model family' line injected (family unknown)")
+      fi
+      if ! set_agent_model "$AGENT_DST_DIR/$agent.md" "$model" "$variant" "$family"; then
         warnings+=("could not write model into agent '$agent'")
         continue
       fi
@@ -1518,7 +1617,14 @@ if [[ ${#fresh_agents[@]} -gt 0 ]]; then
         break
       done
       if [[ -n "$choice" ]]; then
-        if set_agent_model "$AGENT_DST_DIR/$agent.md" "$choice"; then
+        # The family line follows the model actually chosen, not the kit
+        # default's: re-derive it from the replacement id (an unknown family
+        # removes the line — a wrong lineage header is worse than none).
+        family="$(_family_for_model "$choice")"
+        if [[ -z "$family" ]]; then
+          warnings+=("agent '$agent': replacement model '$choice' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
+        fi
+        if set_agent_model "$AGENT_DST_DIR/$agent.md" "$choice" "" "$family"; then
           echo "  ~ agent '$agent': model replaced with '$choice'"
         else
           warnings+=("could not write chosen model into agent '$agent'")

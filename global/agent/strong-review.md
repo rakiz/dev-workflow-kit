@@ -1,5 +1,5 @@
 ---
-# Model is injected at install time by init.sh from the kit's models.json.
+# Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Strong review rung (fresh family, glm): re-reads strong-code's implementation output (Claude family) from a different lineage — the mandatory second pair of eyes when strong-code did the bulk of the work. Also the reviewer of any Claude-produced diff needing more than cheap-review's depth. Classify findings as minor (back to the implementer) or major (escalate to strong-review-alternative, then strong-review-alternative2). If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 permission:

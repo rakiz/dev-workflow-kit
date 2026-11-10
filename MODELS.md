@@ -261,6 +261,18 @@ A replacement is a reasonable equivalent when:
    blind spots defeat the review step). For the other roles, lineage is free
    to change.
 
+   Each installed agent file carries its model family as a header line
+   (`# Model family: <family>.`, injected by `init.sh` right after the
+   `model:` line and derived from the model actually in effect), so lineage
+   is readable at runtime instead of only in this page. An orchestrator
+   dispatching a review must read the author's family and the reviewer's
+   family header from the installed agent files and check they differ before
+   dispatch — dispatching a same-family review is a RULE-DEVIATION that must
+   be justified like any other, with the grid's one documented exception:
+   the `-alternative` re-review rung may share the producer's family (the
+   fresh-family pass already happened at the previous rung, see the Lineage
+   rule above).
+
 When `init.sh` finds a configured model unavailable in the target
 installation, it proposes candidates from the same provider and family; this
 page is the reference for judging them.
