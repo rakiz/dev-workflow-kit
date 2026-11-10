@@ -17,6 +17,11 @@ test category; the 2026-10-14 campaign re-arbitration lives there too). **Checke
 - **Blended $/MTok** estimates real-session cost with our observed token mix
   (~20 % fresh input, ~75 % cache read, ~5 % output):
   `blended = 0.20·in + 0.75·cache_read + 0.05·out`.
+- **Bench v2 scores (T4v2, `evals/2026-11-01/`) live outside this page's
+  tables** — v2 is never compared to v1 (different depth constructs) and
+  governs only strong-design-review/strong-depth rungs. First campaign
+  2026-11-01: qwen3p8-2p4t `xhigh` 10/14, 1017 `medium` 9/14,
+  M3.1 `medium` 9/14, terra `medium` 8/14 — 0 FP, 0 proofs executed.
 - **Cost / 4 tasks** is the measured T1–T4 total from the model's eval
   (provider API rate, not plan billing), at the effort named in the roster.
 - Every measured cell carries the campaign date that produced it

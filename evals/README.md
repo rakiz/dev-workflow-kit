@@ -6,6 +6,16 @@ release.
 
 ## Contents
 
+- `2026-11-01/` — **the current report** (`RESULTS.md`): first bench-v2
+  campaign — the four v1-T4-perfect models scored on `synccli-eval-repo-v2`
+  (qwen3p8-2p4t `xhigh` 10/14, 1017 `medium` 9/14, M3.1 `medium` 9/14,
+  terra `medium` 8/14; zero proofs-by-execution anywhere). Calibration
+  validated the v2 rubric; the owner FP ruling (deduct only via rules a-d)
+  is codified in `RUBRIC-T4V2.md`. No roster change. New Qwen releases
+  (Flash-Next, 27B) are served by no configured provider — v1 grid postponed.
+- `run-eval-v2.sh` — v2 twin of `run-eval.sh`: T4-only, copies
+  `synccli-eval-repo-v2`, no git history, session titles
+  `eval-<date>-T4V2-<tag>`.
 - `synccli-eval-repo/` — the test fixture, shipped as plain files (no `.git`,
   history stripped on purpose): baseline with 1 seeded failing test
   (`range(1, ...)`) + `incremental.py` carrying 3 seeded defects. **Do not

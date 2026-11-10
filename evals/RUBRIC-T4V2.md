@@ -28,6 +28,11 @@ score = categories_found (0–10, 1 each)
   (e.g. claiming `open(..., "w")` is atomic), or (d) the same finding
   restated for a second file/line (counted once). Zero-FP discipline is the
   discriminator: findings are exact, not shotgunned.
+- **Example-FP lists vs FP rules (owner ruling, 2026-11-01 calibration):** the per-category
+  "Example FPs" lists mark findings that do not earn the *category point* when stated at that
+  shallower level — they are NOT automatic deductions. A finding is deducted as an FP only when
+  it matches rules (a)–(d) above. A factually-true finding that happens to appear in an
+  Example-FP list (e.g. PID-liveness stale-lock hygiene, `f.read()` memory use) costs nothing.
 
 ## The 10 seeded categories
 
