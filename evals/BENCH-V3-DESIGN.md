@@ -1,20 +1,32 @@
 # Bench v3 design — pipeline-named tasks, I-v2, design-authoring (D), calibration-first re-baseline
 
-**Status: APPROVED (owner decisions 2026-11-12 recorded in §9) — cleared for fixture build; nothing built yet.**
+**Status: APPROVED (owner decisions 2026-11-12 recorded in §9) — fixtures built 2026-11-12 (RG2 + D1, prototypes verified per §3.8), answer keys private outside the repo (`~/code_projects/IA-tooling/evals-keys/`, private git repo), pilot pending.**
+
+**Supersession note (2026-11-12):** §9 decision #4 (FULL ROSTER fleet)
+supersedes §1 item 4's "rung-relevant only" re-baseline recommendation and
+§6.1's option-A framing; §9 decision #6 (haiku INCLUDED, stage-2 cells)
+supersedes §6.2's haiku "skip" row.
 
 This document only proposes. No fixture is created, no `run-eval` script is
 touched, no `EVALS.md`/`README.md`/`MODELS.md` row changes until the owner
 approves the open decisions at the end.
 
 **Leakage note (v2):** this is a public repo. Sections 3–5 deliberately do
-NOT enumerate the seeded defects or the D taxonomy — those live in the
-answer-key files (`RUBRIC-IV2.md`, `RUBRIC-D1.md`, kit-private pattern,
-untracked until the pilot completes; owner decision #5). The public doc
-carries only the *construct* of each task: depth layering, trap classes,
-scoring mechanics, gates. This v2 revision itself exposes construct-level
-information as of 2026-11-12; the exposure date is recorded here and any
-fixture built from it must assume adversarial familiarity with the
-*shape* (but not the instance) of what is seeded. A distinctive-string
+NOT enumerate the seeded-defect INSTANCES (locations, probe commands,
+expected outputs) or the D taxonomy entries — those live in the answer-key
+files, held OUTSIDE the repo permanently (`~/code_projects/IA-tooling/evals-keys/`:
+`RUBRIC-IV2.md`, `RUBRIC-D1.md`, the reference-fixed copy; owner decision
+#5, relocated out of the repo 2026-11-12). The construct-level exposure
+already granted by this dated document is acknowledged here: the
+seeded-defect COUNT (4 for I-v2), the defect CLASS names (spec-vs-code
+contradiction, cross-file state consistency, measurement-forcing
+performance, fix-shape ambiguity — §3.2) and the 8 D category names (§4.3)
+are public as of 2026-11-12; instance-level details stay private. The
+public doc carries only the *construct* of each task: depth layering, trap
+classes, scoring mechanics, gates. This v2 revision itself exposes
+construct-level information as of 2026-11-12; the exposure date is recorded
+here and any fixture built from it must assume adversarial familiarity with
+the *shape* (but not the instance) of what is seeded. A distinctive-string
 leakage check (unique seeded identifiers grepped against the public repo
 before each campaign) is part of the fixture prototype checklist (§3.8).
 
@@ -157,7 +169,8 @@ state, incremental-vs-full work, silent failure) in an unfamiliar shape.
 ### 3.2 Seeded defects — COUNT AND DETAILS LIVE IN THE ANSWER KEY ONLY
 
 Per the leakage note: the defect list, locations, and acceptance probes live
-in `RUBRIC-IV2.md` (untracked until pilot). The public construct:
+in `RUBRIC-IV2.md` (private, outside the repo — `~/code_projects/IA-tooling/evals-keys/`).
+The public construct:
 
 - **4 defects total** (thinned from the v1 draft's 6 — six deep defects in
   ~350 lines is implausible engineering density and every probe multiplies
@@ -258,6 +271,21 @@ scorer instructions — is **frozen and committed before the first pilot arm
 runs**. Post-pilot changes are rubric amendments requiring an owner ruling
 and a fresh pilot of the affected arm; pre-registration is void if the
 rubric changes after scores exist.
+
+`RUBRIC-IV2.md` v0 frozen 2026-11-12; **private location (owner-approved
+relocation out of the repo, 2026-11-12 pre-freeze fix — owner decision #5
+means private permanently):**
+`~/code_projects/IA-tooling/evals-keys/RUBRIC-IV2.md` (private git repo,
+separate from the public repo), sha256 (post-amendment, still
+pre-pilot — no scores exist):
+
+`de9716166a9a7aa0c85ff1bc1bab12b1f1afa4ee29103d47a4fae037d84f754e  ~/code_projects/IA-tooling/evals-keys/RUBRIC-IV2.md`
+
+RG2 prototype tree hash (the audit flagged that fixtures had no recorded
+hash; computed over `evals/reportgen-eval-repo-i2/` with `find . -type f |
+sort | xargs shasum -a 256 | shasum -a 256`):
+
+`4065cd630f0a398d88ff1bf5317b986d6cfb9d8b96f3e6d388f9c16e7e007213  (RG2 prototype tree, evals/reportgen-eval-repo-i2/)`
 
 ### 3.7 Fix-shape ambiguity detail (the anti-mechanical axis)
 
@@ -404,6 +432,14 @@ brief-restatement FP examples (§4.3), the probe accept-list for Part B, and
 the implementability questionnaire — frozen and committed before the first
 pilot arm, same amendment rule as §3.6.
 
+`RUBRIC-D1.md` v0 frozen 2026-11-12; **private location (owner-approved
+relocation out of the repo, 2026-11-12 pre-freeze fix — same rule as
+§3.6):** `~/code_projects/IA-tooling/evals-keys/RUBRIC-D1.md` (private git
+repo, separate from the public repo), sha256 (post-amendment,
+still pre-pilot — no scores exist):
+
+`62ed6f2f10f260b168adaf23b35d6baa5173101081cc2e80d068330ce598b511  ~/code_projects/IA-tooling/evals-keys/RUBRIC-D1.md`
+
 ---
 
 ## 5. Calibration protocol (the heart)
@@ -412,7 +448,7 @@ Everything below is pre-registered: thresholds are fixed before the pilot
 runs; a post-hoc loosening requires an owner override recorded in
 `RESULTS.md`.
 
-### 5.1 Pilot composition (5 arms per task)
+### 5.1 Pilot composition (4 arms per task, 8 total)
 
 Pilot models — **sonnet-5.5 is in** (the review's point stands: it is the
 incumbent of the strong-code/strong-design rungs that I-v2/D exist to
@@ -457,9 +493,10 @@ Score bases: I-v2 reachable max 10, D reachable max 8 (§3.4, §4.3).
   arbitrate, evaluated only between completed arms:
   - strong-code/strong-design: **sonnet-5.5 vs terra**;
   - cheap tier (I-v2 only; D's cheap rung is glm vs itself in the pilot —
-    see note): **glm-flash vs deepseek-flash** (the deepseek cell comes
-    from the staged fleet's first tranche, §5.8, since deepseek-flash is
-    not a pilot model).
+    so D's cheap pair is deferred to the fleet tranche, the same mechanism
+    that brings the deepseek cell in this bullet): **glm-flash vs
+    deepseek-flash** (the deepseek cell comes from the staged fleet's first
+    tranche, §5.8, since deepseek-flash is not a pilot model).
   Each pair requires a within-pair gap ≥ **max(3 points, 2× measured
   variance)** — variance = the larger of (i) the pilot's own re-run delta
   on best/worst arms (§5.4) and (ii) the double-score delta (§5.2). If
@@ -472,7 +509,10 @@ Score bases: I-v2 reachable max 10, D reachable max 8 (§3.4, §4.3).
   (D) — otherwise the reading axis is inert;
   (b) the proof/honesty bonus earned by ≥1 arm — if not, the pre-registered
   fallback fires (§3.4 fold-in for I-v2's red-baseline; §4.3 mandated-probe
-  for D) *before* the fleet runs;
+  for D) *before* the fleet runs. The I-v2 fold-in, mechanically: if no arm
+  earns the red-baseline bonus, the bonus is folded into expectations
+  before fleet runs — never a re-threshold (the threshold is set on the
+  pre-registered max, §9 decision #2);
   (c) **demoted per review**: "zero FPs across all arms" is NOT a gate —
   11-01 showed 0 FP is good model behavior, not a fixture defect. FP-bait
   sufficiency is instead a **fixture-review item**: the pilot report must
@@ -496,6 +536,39 @@ Score bases: I-v2 reachable max 10, D reachable max 8 (§3.4, §4.3).
   cheapest model from the pilot (its gate role is covered by the first
   fleet tranche); (3) as a last resort reduce to 3 pilot models
   (opus/sonnet/terra) — never a silent return to single-run gating.
+
+**Gate-statistic completion (2026-11-12, owner-approved pre-pilot;
+thresholds unchanged — §9 decision #2 stands):**
+
+1. **D gate-1 score basis:** D's gate-1 input is the Part-A total AFTER the
+   implementability penalty (§4.3: a design scoring 0 on the questionnaire
+   loses 1 Part-A point), minus Part-C FPs — mirroring the formula
+   semantics of I-v2 (all deductions applied inside the score before the
+   gate compares it to the reachable max).
+2. **Two-run arms:** for an arm run twice (§5.4), the arm's gate score is
+   the MEAN of its runs; the arm's re-run delta is |run1 − run2|.
+   Variance for gate 2 = max(all re-run deltas, the double-score delta
+   §5.2); the 3-point floor applies when variance data is insufficient
+   (unchanged, §5.3).
+3. **DNF tolerance (OWNER RULING, 2026-11-12 — approved in the pre-freeze
+   Q&A):** the "< 4 completed arms on a task = no signal" rule stands (§5.3);
+   in addition, an isolated DNF arm is re-run ONCE before gate evaluation
+   when budget allows (a DNF counts toward budget, never toward scores —
+   §5.3 unchanged on that too). The "< 4" figure matches the pilot's
+   standing composition of 4 models per task — argon is excluded by the
+   design itself (§5.1) — so an earlier "5 arms" wording in the §5.1
+   heading was stale, and the frozen "< 4" rule was never renumbered.
+4. **I-v2 gate 3(a) tags** (v2 definition of code-only-detectable:
+   detectable by reading the code, invisible to the baseline suite) are
+   recorded per defect in `RUBRIC-IV2.md` — expected: (a), (b), (d)
+   code-only-detectable; (c) measurement-forcing.
+5. **Dangling cross-references fixed:** gate 3(b)'s I-v2 "§3.4 fold-in"
+   means, mechanically, what is now spelled in gate 3(b): fold the bonus
+   into expectations before fleet runs, never a re-threshold. Gate 2's
+   cheap-tier parenthetical resolves to the cheap-tier bullet in §5.3's
+   gate 2 itself: D has no cheap pair in the pilot (glm vs itself), so its
+   cheap rung is arbitrated from the fleet tranche that brings the
+   deepseek cell (§5.7's provisional-verdict rule below).
 
 ### 5.5 Scoring rubric skeleton — shared rules
 
@@ -531,7 +604,10 @@ redesigned, not re-rolled.
   (~$2.5). **Mid-campaign spread checkpoint**: after stage 1, the pilot +
   stage-1 results are re-checked against the gates with fleet data; a
   collapsing bench (fleet best scores saturating where the pilot spread)
-  halts stages 2–3 for an owner decision.
+  halts stages 2–3 for an owner decision. **Order, made explicit
+  (2026-11-12):** the pilot verdict on gate 2's cheap pair is provisional
+  until the stage-1 deepseek-flash cell lands; the pair is evaluated at
+  the mid-campaign checkpoint, not at stage 0 alone.
 - **Stage 2 — remaining rostered arms** (~$1.5): whole-roster capability
   baseline cells, run only if the checkpoint passed.
 - **Stage 3 — opportunistic**: carbon DR-v2 re-run (§6.2) and any
@@ -671,7 +747,8 @@ cross-arm cost comparisons and must be flagged in `RESULTS.md`.
    unseeded-true findings get the v2 "graded as neither category nor FP"
    ruling and a rubric amendment entry.
 2. **Leakage (public repo)** — construct-level exposure from this doc is
-   accepted and dated; instance-level answer keys stay untracked; the
+    accepted and dated; instance-level answer keys stay outside the repo
+    (`~/code_projects/IA-tooling/evals-keys/`); the
    distinctive-string check (§3.8) and restricting eval-run network access
    where the harness allows (the runner already copies fixtures to a fresh
    dir; adding network isolation to the script spec is a line-item) bound

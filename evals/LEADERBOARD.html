@@ -70,9 +70,13 @@
 
 <header>
   <h1>dev-workflow-kit — Model Evaluation Leaderboard</h1>
-  <p class="subtitle">Internal bench v1 (T1–T4) + bench v2 — last updated 2026-11-12 · <strong>this page is regenerated after EVERY eval campaign (see evals/README.md, checklist step 7)</strong></p>
+  <p class="subtitle">Internal bench v1 (O &middot; I-v1 &middot; IR &middot; DR-v1) + bench v2 (DR-v2) — last updated 2026-11-12 · <strong>this page is regenerated after EVERY eval campaign (see evals/README.md, checklist step 7)</strong></p>
   <p class="philosophy">Quality per dollar per rung; honesty blockers; every roster seat earns its price.</p>
 </header>
+<p class="note">Naming migration 2026-11-12: T1=O, T2=I-v1, T3=IR, T4=DR-v1,
+T4v2=DR-v2 (bench v3: I-v2, D). Panel/axis/legend labels and the score
+matrix's cost cells use the new codes; hover titles, evidence notes and
+HTML comments keep the original T-tokens.</p>
 
 <!-- ============ 1. SCORE MATRIX ============ -->
 <section id="matrix">
@@ -80,10 +84,10 @@
   <p class="note">One row per model&times;effort cell that has measurements. Costs are $ per task
   (delegation-inclusive), per the 10-15 role-decided methodology; <strong>&mdash;</strong> = no per-task
   figure recorded (verdict-only cells, effort-spanning ranges, or totals-only campaigns).
-  Hover a row for the campaign date. <strong>T1/T2 verdicts and T3 recall are categorical, not
+  Hover a row for the campaign date. <strong>O/I-v1 verdicts and IR recall are categorical, not
   continuous</strong> — they belong in this table, not on a scatter; the charts below cover the two
-  benches' numeric T4 score: the main chart on bench v1 (all models, Pareto-pruned efforts), then the
-  bench-v2 gate panel. Models without any effort-level measurement
+  benches' numeric design-review score (DR-v1 main chart on bench v1, all models, Pareto-pruned
+  efforts, then the DR-v2 bench-v2 gate panel). Models without any effort-level measurement
   (screenings like qwen3p8-max, ember-1, grok-4.7, minimax-m3, kimi-k3, gpt-6-luna, fw-glm-5.3
   non-flash) have no row here — they live in the kept-out table with their snapshot.</p>
   <div class="legend famlegend"><span class="fam"><i style="background:#1a7f37"></i>glm <em>(glm-5.3-flash)</em></span> <span class="fam"><i style="background:#b3261e"></i>claude <em>(haiku/s5.5/opus-5.5)</em></span> <span class="fam"><i style="background:#0b57d0"></i>deepseek <em>(v4p1-flash/1017/pro)</em></span> <span class="fam"><i style="background:#6d28d9"></i>minimax <em>(M3.1-flash)</em></span> <span class="fam"><i style="background:#d97706"></i>qwen <em>(qwen3p8-2p4t)</em></span> <span class="fam"><i style="background:#a16207"></i>gpt <em>(sol/terra-6.1)</em></span> <span class="fam"><i style="background:#0891b2"></i>gemini <em>(argon/carbon/3.8)</em></span> <span class="fam"><i style="background:#c2185b"></i>muse <em>(muse-spark)</em></span> <span class="fam"><i style="background:#52525b"></i>moonshot <em>(kimi-k3p1-pro)</em></span></div>
@@ -91,11 +95,11 @@
   <table class="matrix">
     <thead>
       <tr>
-        <th>Model</th><th>Effort</th><th>T1 verdict</th><th>T2</th>
-        <th>T3 <span class="muted">(n/3, FP)</span></th>
-        <th class="num">T4 v1 <span class="muted">(/10)</span></th>
-        <th class="num">T4 v2 <span class="muted">(/14)</span></th>
-        <th>cost / task <span class="muted">(T1 · T2 · T3 · T4)</span></th>
+        <th>Model</th><th>Effort</th><th>O verdict</th><th>I-v1</th>
+        <th>IR <span class="muted">(n/3, FP)</span></th>
+        <th class="num">DR-v1 <span class="muted">(/10)</span></th>
+        <th class="num">DR-v2 <span class="muted">(/14)</span></th>
+        <th>cost / task <span class="muted">(O · I-v1 · IR · DR-v1)</span></th>
       </tr>
     </thead>
     <tbody>
@@ -105,13 +109,13 @@
         <td>`low`</td>
         <td><span class="v-part">PARTIAL</span> <span class="muted">(misses red baseline)</span></td><td><span class="v-pass">PASS</span></td>
         <td>3/3+2, 0FP</td><td class="num">8</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0053 · T2 .0063 · T3 .0051 · T4 .0059</td>
+        <td class="cost">O .0053 · I-v1 .0063 · IR .0051 · DR-v1 .0059</td>
       </tr>
       <tr class="alt" title="glm-5.3-flash high — 10-14 (T2 re-confirmed 10-16: 2/2, avg $.00525)">
         <td>`high`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
         <td>3/3+2, 2FP</td><td class="num">6</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0050 · T2 .0049 · T3 .0057 · T4 .0048</td>
+        <td class="cost">O .0050 · I-v1 .0049 · IR .0057 · DR-v1 .0048</td>
       </tr>
 
       <tr title="claude-haiku-5.5 default — 10-07">
@@ -119,13 +123,13 @@
         <td>`default`</td>
         <td class="num">6/10</td><td><span class="v-pass">PASS</span></td>
         <td>3/3, 0FP</td><td class="num">8</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 .0063 · T4 &mdash;</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR .0063 · DR-v1 &mdash;</td>
       </tr>
       <tr class="alt" title="claude-haiku-5.5 xhigh — 10-07 (T4 $.018 from the EVALS.md Roles row — the only per-task xhigh figure recorded)">
         <td>`xhigh`</td>
         <td class="num">9/10</td><td><span class="v-pass">PASS</span></td>
         <td>3/3+proofs</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .018</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR &mdash; · DR-v1 .018</td>
       </tr>
 
       <tr title="claude-sonnet-5.5 — 09-29, verdicts only (n.t. per-task costs)">
@@ -155,7 +159,7 @@
         <td>`low`</td>
         <td><span class="v-part">PARTIAL</span></td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0080 · T2 .0066 · T3 .0074 · T4 .0076</td>
+        <td class="cost">O .0080 · I-v1 .0066 · IR .0074 · DR-v1 .0076</td>
       </tr>
       <tr class="alt" title="deepseek-v4p1-flash default(=high) — 09-30, verdicts only (n.t. per-task costs)">
         <td>`default` (=high)</td>
@@ -169,19 +173,19 @@
         <td>`low`</td>
         <td><span class="v-fail">FAIL</span> <span class="muted">(invents green baseline)</span></td><td class="muted">&mdash;</td>
         <td class="muted">&mdash;</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .014&ndash;.017*</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR &mdash; · DR-v1 .014&ndash;.017*</td>
       </tr>
       <tr class="alt" title="deepseek-v4p1-flash-1017 medium — 10-19 (rostered strong-design-review); bench v2 9/14 @ $.0371 (11-01)">
         <td>`medium`</td>
         <td><span class="v-pass">PASS</span></td><td class="muted">&mdash;</td>
         <td>3/3, 0FP</td><td class="num">10, 0FP</td><td class="num">9, 0FP</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 .0233 · T4 .0143</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR .0233 · DR-v1 .0143</td>
       </tr>
       <tr title="deepseek-v4p1-flash-1017 high/xhigh — 10-19 sweep (cells identical in the record; T4/T1 costs are effort-spanning ranges only)">
         <td>`high` · `xhigh`</td>
         <td><span class="v-pass">PASS</span></td><td class="muted">&mdash;</td>
         <td class="muted">&mdash;</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .014&ndash;.017*</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR &mdash; · DR-v1 .014&ndash;.017*</td>
       </tr>
 
       <tr title="minimax-m3p1-flash low — 10-23 sweep (T3 cost $0.0068–0.0107 is an effort-spanning range across low/medium/high)">
@@ -189,25 +193,25 @@
         <td>`low`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegates)</span></td>
         <td>3/3, 0FP</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 .0068&ndash;.0107* · T4 &mdash;</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR .0068&ndash;.0107* · DR-v1 &mdash;</td>
       </tr>
       <tr class="alt" title="minimax-m3p1-flash medium — 10-23 (rostered cheap-design-review, 3-run confirmation 10/10 avg @ $.0082); bench v2 9/14 @ $.0100 (11-01)">
         <td>`medium`</td>
         <td><span class="v-part">PARTIAL</span> <span class="muted">(non-monotone)</span></td><td><span class="v-pass">PASS</span> <span class="muted">(no delegation at medium)</span></td>
         <td>3/3, 0FP</td><td class="num">10, 0FP <span class="muted">(3-run avg)</span></td><td class="num">9, 0FP</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .0082</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR &mdash; · DR-v1 .0082</td>
       </tr>
       <tr title="minimax-m3p1-flash high — 10-23 sweep">
         <td>`high`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegates)</span></td>
         <td>3/3, 0FP</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 &mdash;</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR &mdash; · DR-v1 &mdash;</td>
       </tr>
       <tr class="alt" title="minimax-m3p1-flash xhigh — 10-23 sweep (xhigh measured a 50k-file benchmark)">
         <td>`xhigh`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegates)</span></td>
         <td>2/3, 0FP</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 &mdash;</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR &mdash; · DR-v1 &mdash;</td>
       </tr>
 
       <tr title="qwen3p8-2p4t-a95b low — 10-14 (T3 variance CONFIRMED across 2 runs: 3/3+2 then 2/3 — out for review roles)">
@@ -215,13 +219,13 @@
         <td>`low`</td>
         <td><span class="v-fail">FAIL</span> <span class="muted">(hallucination)</span></td><td><span class="v-pass">PASS</span></td>
         <td>3/3+2 &rarr; 2/3, 0FP <span class="muted">(2 runs)</span></td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0889 · T2 .1017 · T3 .0657 · T4 .0933</td>
+        <td class="cost">O .0889 · I-v1 .1017 · IR .0657 · DR-v1 .0933</td>
       </tr>
       <tr class="alt" title="qwen3p8-2p4t-a95b medium — 10-14">
         <td>`medium`</td>
         <td>tier-1</td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 1FP</td><td class="num">8</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .1010 · T2 .0984 · T3 .0981 · T4 .1064</td>
+        <td class="cost">O .1010 · I-v1 .0984 · IR .0981 · DR-v1 .1064</td>
       </tr>
       <tr title="qwen3p8-2p4t-a95b xhigh — 09-30 verdicts (rostered strong-review-alternative2); bench v2 10/14 @ $.1308 (11-01)">
         <td>`xhigh`</td>
@@ -241,7 +245,7 @@
         <td>`medium`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
         <td>2/3, 0FP</td><td class="num">10, 0FP</td><td class="num">8, 0FP</td>
-        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .0388</td>
+        <td class="cost">O &mdash; · I-v1 &mdash; · IR &mdash; · DR-v1 .0388</td>
       </tr>
       <tr title="gpt-6.1-terra high — 10-26 sweep">
         <td>`high`</td>
@@ -269,19 +273,19 @@
         <td>`low`</td>
         <td><span class="v-part">PARTIAL</span></td><td><span class="v-pass">PASS</span></td>
         <td>3/3, 1FP</td><td class="num">8</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0874 · T2 .0922 · T3 .1238 · T4 .0715</td>
+        <td class="cost">O .0874 · I-v1 .0922 · IR .1238 · DR-v1 .0715</td>
       </tr>
       <tr class="alt" title="gemini-4-argon medium — 10-14">
         <td>`medium`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 2FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0922 · T2 .0847 · T3 .0764 · T4 .0898</td>
+        <td class="cost">O .0922 · I-v1 .0847 · IR .0764 · DR-v1 .0898</td>
       </tr>
       <tr title="gemini-4-argon high — 10-14 (rostered strong-design-review-alternative); bench v2 10/14 @ $.1226 (11-01) and 9/14 @ $.1357 (11-10) — 2-run avg 9.5/14">
         <td>`high`</td>
         <td><span class="v-part">PARTIAL</span> <span class="muted">(dismisses baseline)</span></td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 1FP</td><td class="num">9 <span class="muted">(2 runs: 10, 8)</span></td><td class="num">9.5 <span class="muted">(2-run avg: 10, 9)</span></td>
-        <td class="cost">T1 .0995 · T2 .0868 · T3 .0995 · T4 .0879</td>
+        <td class="cost">O .0995 · I-v1 .0868 · IR .0995 · DR-v1 .0879</td>
       </tr>
 
       <!-- ======== KEPT OUT ======== -->
@@ -292,19 +296,19 @@
         <td>`low`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0971 · T2 .0821 · T3 .0929 · T4 .0757</td>
+        <td class="cost">O .0971 · I-v1 .0821 · IR .0929 · DR-v1 .0757</td>
       </tr>
       <tr class="alt" title="gpt-6.1-sol medium — 10-14">
         <td>`medium`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0922 · T2 .0979 · T3 .0868 · T4 .0756</td>
+        <td class="cost">O .0922 · I-v1 .0979 · IR .0868 · DR-v1 .0756</td>
       </tr>
       <tr title="gpt-6.1-sol xhigh — 10-14">
         <td>`xhigh`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0917 · T2 .0913 · T3 .0844 · T4 .0854</td>
+        <td class="cost">O .0917 · I-v1 .0913 · IR .0844 · DR-v1 .0854</td>
       </tr>
       <tr class="alt" title="gpt-6.1-sol default — 09-29, verdicts only (n.t. per-task costs)">
         <td>`default`</td>
@@ -318,25 +322,25 @@
         <td>`low`</td>
         <td><span class="v-part">PARTIAL</span> <span class="muted">(misses red baseline)</span></td><td><span class="v-pass">PASS</span></td>
         <td>3/3, 0FP</td><td class="num">7</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0887 · T2 .1179 · T3 .1060 · T4 .0804</td>
+        <td class="cost">O .0887 · I-v1 .1179 · IR .1060 · DR-v1 .0804</td>
       </tr>
       <tr class="alt" title="muse-spark medium — 10-16">
         <td>`medium`</td>
         <td><span class="v-part">PARTIAL</span> <span class="muted">(misses red baseline)</span></td><td><span class="v-pass">PASS</span></td>
         <td>3/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0662 · T2 .1276 · T3 .1240 · T4 .0890</td>
+        <td class="cost">O .0662 · I-v1 .1276 · IR .1240 · DR-v1 .0890</td>
       </tr>
       <tr title="muse-spark high — 10-16">
         <td>`high`</td>
         <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
         <td>3/3, 0FP</td><td class="num">6</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .1739 · T2 .1247 · T3 .1199 · T4 .0993</td>
+        <td class="cost">O .1739 · I-v1 .1247 · IR .1199 · DR-v1 .0993</td>
       </tr>
       <tr class="alt" title="muse-spark xhigh — 10-16 (honesty blocker: invents a green baseline)">
         <td>`xhigh`</td>
         <td><span class="v-fail">FAIL</span> <span class="muted">(invents green baseline)</span></td><td><span class="v-pass">PASS</span></td>
         <td>3/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .1038 · T2 .1268 · T3 .0900 · T4 .0759</td>
+        <td class="cost">O .1038 · I-v1 .1268 · IR .0900 · DR-v1 .0759</td>
       </tr>
 
       <tr title="gemini-4-carbon low — 11-10; bench v2 4/14, 1 FP @ $.1009 (11-10) — v1 effort-flatness collapses on v2">
@@ -344,19 +348,19 @@
         <td>`low`</td>
         <td><span class="v-pass">PASS</span> <span class="muted">(static baseline detect)</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
         <td>2/3+2, 2FP</td><td class="num">10, 0FP</td><td class="num">4, 1FP</td>
-        <td class="cost">T1 .1010 · T2 .1746 · T3 .1119 · T4 .1271</td>
+        <td class="cost">O .1010 · I-v1 .1746 · IR .1119 · DR-v1 .1271</td>
       </tr>
       <tr class="alt" title="gemini-4-carbon medium — 11-10">
         <td>`medium`</td>
         <td><span class="v-pass">PASS</span> <span class="muted">(static baseline detect)</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
         <td>2/3+2, 2FP</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .1554 · T2 .1455 · T3 .2059 · T4 .1179</td>
+        <td class="cost">O .1554 · I-v1 .1455 · IR .2059 · DR-v1 .1179</td>
       </tr>
       <tr title="gemini-4-carbon high — 11-10 (T4 2-run confirmed 10,10 @ avg $.167); bench v2 10/14, 0 FP @ $.2288 — best-ever v2">
         <td>`high`</td>
         <td><span class="v-pass">PASS</span> <span class="muted">(static baseline detect)</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
         <td>2/3+2, 2FP</td><td class="num">10, 0FP&sup2;</td><td class="num">10, 0FP</td>
-        <td class="cost">T1 .2086 · T2 .4064 · T3 .2356 · T4 .1552</td>
+        <td class="cost">O .2086 · I-v1 .4064 · IR .2356 · DR-v1 .1552</td>
       </tr>
 
       <tr title="kimi-k3p1-pro high — 11-06 screening">
@@ -364,19 +368,19 @@
         <td>`high`</td>
         <td><span class="v-part">PARTIAL</span> <span class="muted">(red baseline missed)</span></td><td class="muted">&mdash;</td>
         <td class="muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .116 · T2 &mdash; · T3 &mdash; · T4 &mdash;</td>
+        <td class="cost">O .116 · I-v1 &mdash; · IR &mdash; · DR-v1 &mdash;</td>
       </tr>
       <tr class="alt" title="kimi-k3p1-pro default — 11-06 screening">
         <td>`default`</td>
         <td class="muted">&mdash;</td><td><span class="v-pass">PASS</span> <span class="muted">(delegates)</span></td>
         <td>2/3+1, 1FP</td><td class="num">8, 0FP</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 &mdash; · T2 .227 · T3 .175 · T4 .186</td>
+        <td class="cost">O &mdash; · I-v1 .227 · IR .175 · DR-v1 .186</td>
       </tr>
       <tr title="kimi-k3p1-pro medium — 11-06 screening">
         <td>`medium`</td>
         <td><span class="v-part">PARTIAL</span> <span class="muted">(red baseline missed)</span></td><td class="muted">&mdash;</td>
         <td>2/3+1, 0FP</td><td class="num">8, 0FP</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .192 · T2 &mdash; · T3 .197 · T4 .165</td>
+        <td class="cost">O .192 · I-v1 &mdash; · IR .197 · DR-v1 .165</td>
       </tr>
 
       <tr title="gemini-3.8-flash low — 09-29, verdicts only (n.t. per-task costs)">
@@ -390,21 +394,21 @@
         <td>`medium`</td>
         <td><span class="v-part">PARTIAL</span></td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 2FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0532 · T2 .0417 · T3 .0447 · T4 .0405</td>
+        <td class="cost">O .0532 · I-v1 .0417 · IR .0447 · DR-v1 .0405</td>
       </tr>
       <tr title="gemini-3.8-flash high — 10-14">
         <td>`high`</td>
         <td><span class="v-part">PARTIAL</span></td><td><span class="v-pass">PASS</span></td>
         <td>2/3, 2FP</td><td class="num">7</td><td class="num muted">&mdash;</td>
-        <td class="cost">T1 .0547 · T2 .0650 · T3 .0589 · T4 .0833</td>
+        <td class="cost">O .0547 · I-v1 .0650 · IR .0589 · DR-v1 .0833</td>
       </tr>
     </tbody>
   </table>
-  <p class="note">* effort-spanning range, not a per-effort figure: 1017 T4 $0.014&ndash;0.017 and T1
-  $0.015&ndash;0.026 across the sweep; M3.1 T3 $0.0068&ndash;0.0107 across low/medium/high (T4 $0.0077+);
-  terra T1 $0.044&ndash;0.047, T2 $0.059&ndash;0.071 (T3 n.t.). &sup2; carbon T4 `high` is 2-run confirmed
+  <p class="note">* effort-spanning range, not a per-effort figure: 1017 DR-v1 $0.014&ndash;0.017 and O
+  $0.015&ndash;0.026 across the sweep; M3.1 IR $0.0068&ndash;0.0107 across low/medium/high (DR-v1 $0.0077+);
+  terra O $0.044&ndash;0.047, I-v1 $0.059&ndash;0.071 (IR n.t.). &sup2; carbon DR-v1 `high` is 2-run confirmed
   (10, 10) at avg $.167/task — the cost cell shows the first run&rsquo;s $.1552 (11-10 matrix row).
-  T4 v2 cells carry score + FP count; v2 costs are on the chart below. Rostered-model shading
+  DR-v2 cells carry score + FP count; v2 costs are on the chart below. Rostered-model shading
   alternates per model block; family colors as in the legend. Model key: glm =
   <code>fw-glm-5.3-flash</code> &middot; ds = deepseek-v4p1-flash &middot; 1017 = deepseek-v4p1-flash-1017 &middot;
   pro = fw-deepseek-v4-pro &middot; argon/carbon/g3.8 = gemini-4-argon / gemini-4-carbon / gemini-3.8-flash &middot;
@@ -416,12 +420,12 @@
 
 <!-- ============ 2. MAIN CHART: T4 BENCH V1 (/10), ALL MODELS, PARETO-PRUNED ============ -->
 <section id="mainchart">
-  <h2>The main chart — T4 design review, bench v1 (/10): every model, quality vs cost</h2>
+  <h2>The main chart — DR-v1 design review, bench v1 (/10): every model, quality vs cost</h2>
   <figure class="panel">
-  <figcaption><span class="ptitle">T4 — design review, bench v1 (/10): the universal screener</span><span class="psub">an effort cell is plotted only if no strictly-cheaper cell of the same model scored equal or better (ties keep the cheapest) — only the strict score/cost frontier per model is drawn; v2 gate panel below for the /14 scale</span></figcaption>
+  <figcaption><span class="ptitle">DR-v1 — design review, bench v1 (/10): the universal screener</span><span class="psub">an effort cell is plotted only if no strictly-cheaper cell of the same model scored equal or better (ties keep the cheapest) — only the strict score/cost frontier per model is drawn; DR-v2 gate panel below for the /14 scale</span></figcaption>
   <div class="legend famlegend"><span class="fam"><i style="background:#555"></i>rostered cell <em>(solid marker)</em></span> <span class="fam"><i style="background:#fff;border:1.5px solid #555"></i>tested &amp; kept-out <em>(hollow marker)</em></span> <span class="fam"><i style="background:#1a7f37"></i>glm <em>(glm-5.3-flash)</em></span> <span class="fam"><i style="background:#b3261e"></i>claude <em>(haiku-5.5)</em></span> <span class="fam"><i style="background:#0b57d0"></i>deepseek <em>(v4p1-flash/1017)</em></span> <span class="fam"><i style="background:#6d28d9"></i>minimax <em>(M3.1-flash)</em></span> <span class="fam"><i style="background:#d97706"></i>qwen <em>(qwen3p8-2p4t)</em></span> <span class="fam"><i style="background:#a16207"></i>gpt <em>(sol/terra-6.1)</em></span> <span class="fam"><i style="background:#0891b2"></i>gemini <em>(argon/carbon/3.8)</em></span> <span class="fam"><i style="background:#c2185b"></i>muse <em>(muse-spark)</em></span> <span class="fam"><i style="background:#52525b"></i>moonshot <em>(kimi-k3p1-pro)</em></span> <span class="fam"><em>end pill = model name (&ldquo;&middot; v2 n/14&rdquo; = that model&rsquo;s bench-v2 gate score, inside the pill); every point carries exact score/cost/date on hover</em></span></div>
-  <svg viewBox="0 0 1200 720" role="img" aria-label="T4 bench v1 (/10) score versus cost per task, log scale ($): every model with per-effort T4 v1 measurements, Pareto-pruned per model; one line per model across its surviving effort cells in effort order; one end pill per model.">
-  <!-- Y domain [5,10] — zoomed to the data (all measured v1 T4 scores fall in 6-10); dotted horizontal gridlines only -->
+  <svg viewBox="0 0 1200 720" role="img" aria-label="DR-v1 bench v1 (/10) score versus cost per task, log scale ($): every model with per-effort DR-v1 (v1 T4) measurements, Pareto-pruned per model; one line per model across its surviving effort cells in effort order; one end pill per model.">
+  <!-- Y domain [5,10] — zoomed to the data (all measured v1 DR-v1 scores fall in 6-10); dotted horizontal gridlines only -->
   <g stroke="#d9d9d9" stroke-dasharray="1 4">
     <line x1="100" y1="60" x2="1100" y2="60"/>
     <line x1="100" y1="172" x2="1100" y2="172"/>
@@ -456,9 +460,9 @@
     <line x1="1063.6" y1="620" x2="1063.6" y2="626" stroke="#666"/>
     <text x="1063.6" y="644">$0.5</text>
   </g>
-  <text x="108" y="606" font-size="11" font-style="italic" fill="#778" text-anchor="start">Y starts at 5 — all measured T4-v1 scores fall in 6-10</text>
+  <text x="108" y="606" font-size="11" font-style="italic" fill="#778" text-anchor="start">Y starts at 5 — all measured DR-v1 (T4-v1) scores fall in 6-10</text>
   <!-- axis titles -->
-  <text transform="translate(34 340) rotate(-90)" text-anchor="middle" font-size="13" fill="#333">T4 v1 score (/10)</text>
+  <text transform="translate(34 340) rotate(-90)" text-anchor="middle" font-size="13" fill="#333">DR-v1 score (/10)</text>
   <text x="600" y="668" text-anchor="middle" font-size="13" fill="#333">Avg cost per task (USD, log)</text>
   <!-- axes -->
   <line x1="100" y1="60" x2="100" y2="620" stroke="#333" stroke-width="1.2"/>
@@ -516,8 +520,8 @@
     <rect x="852.4" y="293" width="107" height="18" rx="9" fill="#52525b"/><text x="860.4" y="306">Kimi K3.1 Pro</text>
   </g>
   </svg>
-  <p class="note">All 13 models with a plottable v1-T4 cell are here — models without a
-  per-effort T4 v1 score or a recorded per-task T4 cost (claude-sonnet-5.5,
+  <p class="note">All 13 models with a plottable v1 DR-v1 (T4) cell are here — models without a
+  per-effort DR-v1 v1 score or a recorded per-task DR-v1 cost (claude-sonnet-5.5,
   claude-opus-5.5, fw-deepseek-v4-pro, ember-1, grok-4.7, minimax-m3, qwen3p8-max)
   have no position on a cost axis and live in the matrix and kept-out table. Effort
   cells behind the frontier: non-surviving cells of a plotted model are pruned (the
@@ -528,17 +532,17 @@
 
 <!-- ============ 2b. CATEGORICAL LANES: T1 / T2 / T3 ============ -->
 <section id="lanes">
-  <h2>Categorical tasks on quality lanes &mdash; T1 orchestration, T2 impl, T3 impl review</h2>
-  <p class="note">The categorical scores (T1/T2 verdicts, T3 recall) get the same treatment as the T4
-  charts above &mdash; quality on the Y axis as horizontal lanes, cost per task on the shared log X axis
+  <h2>Categorical tasks on quality lanes &mdash; O orchestration, I-v1 impl, IR impl review</h2>
+  <p class="note">The categorical scores (O/I-v1 verdicts, IR recall) get the same treatment as the
+  design-review charts above &mdash; quality on the Y axis as horizontal lanes, cost per task on the shared log X axis
   ($0.004&ndash;$0.6) &mdash; but every measured cell is plotted (no Pareto pruning: on a categorical
   grade there is no &ldquo;equal or better&rdquo;, only equal or not). Three stacked panels, one per task;
   same marker grammar as the main chart: rostered solid, kept-out hollow, r=3.5.</p>
   <div class="legend famlegend"><span class="fam"><i style="background:#555"></i>rostered cell <em>(solid marker)</em></span> <span class="fam"><i style="background:#fff;border:1.5px solid #555"></i>tested &amp; kept-out <em>(hollow marker)</em></span> <span class="fam"><i style="background:#1a7f37"></i>glm <em>(glm-5.3-flash)</em></span> <span class="fam"><i style="background:#b3261e"></i>claude <em>(haiku/s5.5/opus-5.5)</em></span> <span class="fam"><i style="background:#0b57d0"></i>deepseek <em>(v4p1-flash/1017/pro)</em></span> <span class="fam"><i style="background:#6d28d9"></i>minimax <em>(M3.1-flash)</em></span> <span class="fam"><i style="background:#d97706"></i>qwen <em>(qwen3p8-2p4t)</em></span> <span class="fam"><i style="background:#a16207"></i>gpt <em>(sol/terra-6.1)</em></span> <span class="fam"><i style="background:#0891b2"></i>gemini <em>(argon/carbon/3.8)</em></span> <span class="fam"><i style="background:#c2185b"></i>muse <em>(muse-spark)</em></span> <span class="fam"><i style="background:#52525b"></i>moonshot <em>(kimi-k3p1-pro)</em></span> <span class="fam"><em>one pill per model, at its best-grade/cheapest cell &mdash; other cells are hover-only (exact verdict, cost, date); FP count printed beside markers with FP &ge; 1</em></span></div>
 
   <figure class="panel">
-  <figcaption><span class="ptitle">T1 &mdash; orchestration: PASS / PARTIAL / FAIL lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
-  <svg viewBox="0 0 1000 210" role="img" aria-label="T1 orchestration verdicts on PASS, PARTIAL and FAIL lanes versus cost per task, log scale dollars: every model-effort cell with a T1 verdict and a recorded per-task T1 cost; one pill per model at its best-grade cheapest cell; other cells hover-only.">
+  <figcaption><span class="ptitle">O &mdash; orchestration: PASS / PARTIAL / FAIL lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
+  <svg viewBox="0 0 1000 210" role="img" aria-label="O orchestration verdicts on PASS, PARTIAL and FAIL lanes versus cost per task, log scale dollars: every model-effort cell with an O verdict and a recorded per-task O cost; one pill per model at its best-grade cheapest cell; other cells hover-only.">
   <line x1="90" y1="66" x2="730" y2="66" stroke="#d9d9d9" stroke-dasharray="1 4"/>
   <line x1="90" y1="128" x2="730" y2="128" stroke="#d9d9d9" stroke-dasharray="1 4"/>
   <line x1="207.0" y1="4" x2="207.0" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
@@ -617,8 +621,8 @@
 </svg>
   </figure>
   <figure class="panel">
-  <figcaption><span class="ptitle">T2 &mdash; impl: PASS / FAIL lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
-  <svg viewBox="0 0 1000 210" role="img" aria-label="T2 implementation verdicts on PASS and FAIL lanes versus cost per task, log scale dollars: every model-effort cell with a T2 verdict and a recorded per-task T2 cost; one pill per model at its cheapest PASS cell; other cells hover-only.">
+  <figcaption><span class="ptitle">I-v1 &mdash; impl: PASS / FAIL lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
+  <svg viewBox="0 0 1000 210" role="img" aria-label="I-v1 implementation verdicts on PASS and FAIL lanes versus cost per task, log scale dollars: every model-effort cell with an I-v1 (T2) verdict and a recorded per-task cost; one pill per model at its cheapest PASS cell; other cells hover-only.">
   <line x1="90" y1="97" x2="730" y2="97" stroke="#d9d9d9" stroke-dasharray="1 4"/>
   <line x1="207.0" y1="4" x2="207.0" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
   <line x1="501.1" y1="4" x2="501.1" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
@@ -696,8 +700,8 @@
 </svg>
   </figure>
   <figure class="panel">
-  <figcaption><span class="ptitle">T3 &mdash; impl review: 3/3 / 2/3 / &le;1/3 lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
-  <svg viewBox="0 0 1000 210" role="img" aria-label="T3 implementation-review recall on 3-of-3, 2-of-3 and at-most-1-of-3 lanes versus cost per task, log scale dollars: every model-effort cell with a T3 recall figure and a recorded per-task T3 cost; false-positive counts printed beside markers; one pill per model at its best-grade cheapest cell; other cells hover-only.">
+  <figcaption><span class="ptitle">IR &mdash; impl review: 3/3 / 2/3 / &le;1/3 lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
+  <svg viewBox="0 0 1000 210" role="img" aria-label="IR implementation-review recall on 3-of-3, 2-of-3 and at-most-1-of-3 lanes versus cost per task, log scale dollars: every model-effort cell with an IR (T3) recall figure and a recorded per-task cost; false-positive counts printed beside markers; one pill per model at its best-grade cheapest cell; other cells hover-only.">
   <line x1="90" y1="66" x2="730" y2="66" stroke="#d9d9d9" stroke-dasharray="1 4"/>
   <line x1="90" y1="128" x2="730" y2="128" stroke="#d9d9d9" stroke-dasharray="1 4"/>
   <line x1="207.0" y1="4" x2="207.0" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
@@ -796,24 +800,24 @@
   </figure>
   <p class="note">Exactly-coincident cells (same lane, same recorded cost) are offset a few px so both
   stay hoverable &mdash; hover for the exact figures. Cells with a verdict but no per-task cost on that
-  task stay matrix-only (not plotted): on T1 &mdash; ds-flash `default`, g3.8 `low`, haiku
-  `default`/`xhigh`, sonnet-5.5, opus-5.5, 1017 (all efforts; T1 cost n.t. or range), M3.1 (all
-  efforts), qwen `xhigh`, terra (T1 $0.044&ndash;0.047 is an effort-spanning range), pro, sol
-  `default`, kimi `default`; on T2 &mdash; haiku, sonnet-5.5, opus-5.5, ds-flash `default`, g3.8
-  `low`, sol `default`, qwen `xhigh`, terra ($0.059&ndash;0.071 range), M3.1, 1017, pro; on T3
+  task stay matrix-only (not plotted): on O &mdash; ds-flash `default`, g3.8 `low`, haiku
+  `default`/`xhigh`, sonnet-5.5, opus-5.5, 1017 (all efforts; O cost n.t. or range), M3.1 (all
+  efforts), qwen `xhigh`, terra (O $0.044&ndash;0.047 is an effort-spanning range), pro, sol
+  `default`, kimi `default`; on I-v1 &mdash; haiku, sonnet-5.5, opus-5.5, ds-flash `default`, g3.8
+  `low`, sol `default`, qwen `xhigh`, terra ($0.059&ndash;0.071 range), M3.1, 1017, pro; on IR
   &mdash; g3.8 `low`, haiku `xhigh`, sol `default`, qwen `xhigh`, pro, M3.1 (low is a
-  $0.0068&ndash;0.0107 range), 1017 `low`/`high`&middot;`xhigh`, sonnet-5.5, opus-5.5. T1 grades the
+  $0.0068&ndash;0.0107 range), 1017 `low`/`high`&middot;`xhigh`, sonnet-5.5, opus-5.5. The O panel grades the
   matrix records as &ldquo;tier-1&rdquo;/&ldquo;baseline caught&rdquo;/6-9&thinsp;/&thinsp;10 plan
-  scores count as PASS-grade verdicts; qwen `low` T3 is plotted in the 2/3 lane (3/3+2 &rarr; 2/3
+  scores count as PASS-grade verdicts; qwen `low` IR is plotted in the 2/3 lane (3/3+2 &rarr; 2/3
   over 2 runs). Costs are $ per task, delegation-inclusive; dates are the campaign days.</p>
 </section>
 
 <!-- ============ 3. GATE PANEL: T4 BENCH V2 (/14) ============ -->
 <section id="gate">
-  <h2>Bench v2 gate — T4 design review (/14): the deciding gate, second panel</h2>
+  <h2>Bench v2 gate — DR-v2 design review (/14): the deciding gate, second panel</h2>
   <figure class="panel gate">
-  <figcaption><span class="ptitle">T4 — design review, bench v2 (/14)</span><span class="psub">deciding bench for the strong-design-review rungs; v1 and v2 are never compared</span></figcaption>
-  <svg viewBox="0 0 900 440" role="img" aria-label="T4 bench v2 (/14) score versus cost per task, log scale ($): one line per model across its measured v2 cells; one label per model.">
+  <figcaption><span class="ptitle">DR-v2 — design review, bench v2 (/14)</span><span class="psub">deciding bench for the strong-design-review rungs; DR-v1 and DR-v2 are never compared</span></figcaption>
+  <svg viewBox="0 0 900 440" role="img" aria-label="DR-v2 bench v2 (/14) score versus cost per task, log scale ($): one line per model across its measured v2 cells; one label per model.">
   <!-- y gridlines: 0,4,7,10,14 -->
   <g font-size="11" fill="#555" text-anchor="end">
     <line x1="70" y1="360.0" x2="845" y2="360.0" stroke="#e8e8e8"/>
@@ -884,8 +888,8 @@
   </svg>
   <p class="note"><strong>Why this panel exists:</strong> bench v2 (/14, harder fixture, FP
   triple-counted, proof-by-execution bonus) is the deciding bench for the strong-design-review rungs;
-  v1 and v2 are never compared. <strong>Why so sparse:</strong> that sparsity is the honest state of the
-  record — v2 is run only for models that ace v1 T4, at their rostered effort: 7 measured cells across
+  DR-v1 and DR-v2 are never compared. <strong>Why so sparse:</strong> that sparsity is the honest state of the
+  record — v2 is run only for models that ace v1 DR-v1 (T4), at their rostered effort: 7 measured cells across
   6 models, spanning 2026-11-01 (the five calibration runs) and 2026-11-10 (carbon&rsquo;s two cells and
   argon&rsquo;s second run). One line per model across its measured cells; only each model&rsquo;s best
   cell is labeled (labels nudged apart when points sit close) — interior/unlabeled points carry the
@@ -907,11 +911,11 @@
     </thead>
     <tbody>
       <tr>
-        <td>orchestrator (T1)</td>
+        <td>orchestrator (O)</td>
         <td><code>glm-5.3-flash</code> `high`</td>
         <td>glm</td>
         <td>T1 PASS — red baseline caught at `high` (PARTIAL at `low`); T2 PASS</td>
-        <td>$0.0050 (T1)</td>
+        <td>$0.0050 (O)</td>
         <td>10-16</td>
       </tr>
       <tr>
@@ -919,7 +923,7 @@
         <td><code>glm-5.3-flash</code> `high`</td>
         <td>glm</td>
         <td>T2 PASS 2/2 confirmed (avg $0.00525, cheaper than `low`); cheap-design stays `low` (`high` T4 degrades 8→6/10, non-monotone)</td>
-        <td>$0.00525 (T2 avg)</td>
+        <td>$0.00525 (I-v1 avg)</td>
         <td>10-16</td>
       </tr>
       <tr>
@@ -927,7 +931,7 @@
         <td><code>claude-haiku-5.5</code> `default`</td>
         <td>claude</td>
         <td>T3 3/3, 0 FP — full 6-variant grid; the review floor</td>
-        <td>$0.0063 (T3)</td>
+        <td>$0.0063 (IR)</td>
         <td>10-07</td>
       </tr>
       <tr>
@@ -943,7 +947,7 @@
         <td><code>claude-sonnet-5.5</code> `high` (design), `medium` (review alt)</td>
         <td>claude</td>
         <td>Best plan (T1), best reviewer of its price class, T4 tier-1</td>
-        <td>$0.122 (T2) / $0.192 (T1)</td>
+        <td>$0.122 (I-v1) / $0.192 (O)</td>
         <td>09-29</td>
       </tr>
       <tr>
@@ -951,7 +955,7 @@
         <td><code>gpt-6.1-terra</code> `medium`/`high`</td>
         <td>gpt</td>
         <td>Strict quality parity with sol at ~half cost: T4 `medium` 10/10-0FP @ $0.0388, T1 PASS all efforts, T3 2/3-0FP (never 3/3 — no threat to review rungs)</td>
-        <td>$0.0388 (T4 `medium`)</td>
+        <td>$0.0388 (DR-v1 `medium`)</td>
         <td>10-26</td>
       </tr>
       <tr>
@@ -967,7 +971,7 @@
         <td><code>glm-5.3-flash</code> `high`</td>
         <td>glm</td>
         <td>T3 3/3 + 2 bonus, 2 FP; cross-lineage (reviews claude diffs, never glm)</td>
-        <td>$0.0057 (T3)</td>
+        <td>$0.0057 (IR)</td>
         <td>10-07 (re-confirmed 10-14)</td>
       </tr>
       <tr>
@@ -975,7 +979,7 @@
         <td><code>qwen3p8-2p4t-a95b</code> `xhigh`</td>
         <td>qwen</td>
         <td>Best review ever measured: 3/3 + 2 bonus, each proven by executed snippets</td>
-        <td>$0.151 (T3)</td>
+        <td>$0.151 (IR)</td>
         <td>09-30</td>
       </tr>
       <tr>
@@ -983,7 +987,7 @@
         <td><code>deepseek-v4p1-flash-1017</code> `medium`</td>
         <td>deepseek</td>
         <td>T4 10/10-0FP at every effort (first full sweep); bench v2 9/14</td>
-        <td>$0.0143 (T4)</td>
+        <td>$0.0143 (DR-v1)</td>
         <td>10-19</td>
       </tr>
       <tr>
@@ -991,7 +995,7 @@
         <td><code>gemini-4-argon</code> `high`</td>
         <td>gemini</td>
         <td>T4 9/10 avg over 2 runs (10, 8 — variance); bench v2 9.5/14 avg (10 on 11-01, 9 on 11-10; miss = cat-3 fsync) — <strong>CONFIRMED 11-10</strong></td>
-        <td>$0.088 (T4, 2-run avg)</td>
+        <td>$0.088 (DR-v1, 2-run avg)</td>
         <td>10-14 (confirmed 11-10)</td>
       </tr>
       <tr>
@@ -999,7 +1003,7 @@
         <td><code>fw-deepseek-v4-pro</code> `high`</td>
         <td>deepseek</td>
         <td>Qwen-tier design-review: 10/10 flaw categories (EVALS.md records the cell as 9–10/10); bench v2 not measurable — gateway outage 11-01</td>
-        <td>$0.047–0.058 (T4)</td>
+        <td>$0.047–0.058 (DR-v1)</td>
         <td>09-30</td>
       </tr>
       <tr>
@@ -1007,7 +1011,7 @@
         <td><code>minimax-m3p1-flash</code> `medium`</td>
         <td>minimax</td>
         <td>T4 10/10 avg over 3 confirmation runs (replaced old deepseek flash 9/10, same price, +1 category); bench v2 9/14; no delegation at `medium`</td>
-        <td>$0.0082 (T4)</td>
+        <td>$0.0082 (DR-v1)</td>
         <td>10-23</td>
       </tr>
     </tbody>
@@ -1130,13 +1134,13 @@
 <footer id="method">
   <h2>Methodology in brief</h2>
   <ul class="method">
-    <li><strong>Four v1 tasks</strong> — T1 orchestration (grounded plan; the <em>red-baseline trap</em>: only a run that executes the tests sees the seeded failing test — it has caught every model ever tested), T2 impl (objective: suite green by execution + fix minimalism), T3 review (3 seeded defects + bonus findings, <em>false positives counted</em>), T4 design-review (~10 flaw categories in DESIGN.md, FP discipline).</li>
+    <li><strong>Four v1 tasks</strong> — O orchestration (grounded plan; the <em>red-baseline trap</em>: only a run that executes the tests sees the seeded failing test — it has caught every model ever tested), I-v1 impl (objective: suite green by execution + fix minimalism), IR review (3 seeded defects + bonus findings, <em>false positives counted</em>), DR-v1 design-review (~10 flaw categories in DESIGN.md, FP discipline).</li>
     <li><strong>Bench v2</strong> (harder fixture, /14, FP triple-counted, proof-by-execution bonus) is the deciding gate for strong-design-review rungs; v1 and v2 scores are <em>never compared</em> — each roster decision cites the bench it was decided on.</li>
     <li><strong>Honesty blockers are score-zero events</strong> — a fabricated green baseline or hallucinated repo structure disqualifies the role regardless of other scores (qwen3p8-max, muse-spark `xhigh`).</li>
     <li><strong>Delegation rule</strong> — an eval arm's cost = parent + ALL child sessions, each child named: a model that delegates inside an eval is scored on the combined labor, never its own tokens alone.</li>
-    <li><strong>Confirmation-run rule</strong> — single-run cells are provisional; rung arms get a second run (variance precedents: argon T4 10→8, qwen `low` T3 3/3→2/3, minimax-m3's 3-run oscillation).</li>
-    <li><strong>One matrix, two chart panels</strong> — the score matrix holds every measured cell (categorical scores — T1/T2 verdicts, T3 recall — belong in a table, not on a scatter); the <strong>main chart</strong> plots bench v1 T4 (/10) for <em>every</em> model with per-effort T4 measurements, cost per task on the log X axis, <em>Pareto-pruned per model</em>: an effort cell is dropped when a strictly-cheaper cell of the same model scored equal or better (ties keep the cheapest), so only the strict score/cost frontier per model is drawn; the <strong>v2 gate panel</strong> below plots the deciding bench (v2 /14) alone — v1 and v2 are never merged on one plot; color = model family (<code>models.json</code> <code>family_hint</code>); a model&rsquo;s surviving cells are connected in effort order (on the pruned frontier the line itself is the effort-monotonicity evidence — argon&rsquo;s 8&rarr;9 and glm&rsquo;s 8&rarr;6); filled markers = rostered cells, hollow = tested/kept-out; one label per model, at its best surviving cell, with the model&rsquo;s bench-v2 score appended where measured; interior points are hover-only with exact score/cost/date.</li>
-    <li><strong>Categorical lanes</strong> &mdash; between the two T4 charts, three compact lane panels give the categorical tasks the same cost axis as the T4 charts (log $0.004&ndash;0.6 per task): one dotted lane per quality grade (T1: PASS/PARTIAL/FAIL; T2: PASS/FAIL; T3 recall: 3/3, 2/3, &le;1/3), and <em>every</em> model&times;effort cell that has a verdict <em>and</em> a recorded per-task cost on that task is plotted (rostered solid, kept-out hollow; the FP count is printed beside any marker with FP &ge; 1); exactly one pill per model, anchored at its best grade / cheapest cell, other cells hover-only with exact verdict, cost and date. Cells with a verdict but no per-task figure (verdict-only campaigns, effort-spanning cost ranges &mdash; e.g. terra T1 $0.044&ndash;0.047, M3.1 T3 $0.0068&ndash;0.0107*) stay matrix-only. Data: <code>EVALS.md</code> matrix + <code>evals/2026-11-10|11-06/RESULTS.md</code>; family colors per <code>models.json</code> <code>family_hint</code>.</li>
+    <li><strong>Confirmation-run rule</strong> — single-run cells are provisional; rung arms get a second run (variance precedents: argon DR-v1 10→8, qwen `low` IR 3/3→2/3, minimax-m3's 3-run oscillation).</li>
+    <li><strong>One matrix, two chart panels</strong> — the score matrix holds every measured cell (categorical scores — O/I-v1 verdicts, IR recall — belong in a table, not on a scatter); the <strong>main chart</strong> plots bench v1 DR-v1 (/10) for <em>every</em> model with per-effort design-review measurements, cost per task on the log X axis, <em>Pareto-pruned per model</em>: an effort cell is dropped when a strictly-cheaper cell of the same model scored equal or better (ties keep the cheapest), so only the strict score/cost frontier per model is drawn; the <strong>v2 gate panel</strong> below plots the deciding bench (DR-v2 /14) alone — DR-v1 and DR-v2 are never merged on one plot; color = model family (<code>models.json</code> <code>family_hint</code>); a model&rsquo;s surviving cells are connected in effort order (on the pruned frontier the line itself is the effort-monotonicity evidence — argon&rsquo;s 8&rarr;9 and glm&rsquo;s 8&rarr;6); filled markers = rostered cells, hollow = tested/kept-out; one label per model, at its best surviving cell, with the model&rsquo;s bench-v2 score appended where measured; interior points are hover-only with exact score/cost/date.</li>
+    <li><strong>Categorical lanes</strong> &mdash; between the two design-review charts, three compact lane panels give the categorical tasks the same cost axis as the DR charts (log $0.004&ndash;0.6 per task): one dotted lane per quality grade (O: PASS/PARTIAL/FAIL; I-v1: PASS/FAIL; IR recall: 3/3, 2/3, &le;1/3), and <em>every</em> model&times;effort cell that has a verdict <em>and</em> a recorded per-task cost on that task is plotted (rostered solid, kept-out hollow; the FP count is printed beside any marker with FP &ge; 1); exactly one pill per model, anchored at its best grade / cheapest cell, other cells hover-only with exact verdict, cost and date. Cells with a verdict but no per-task figure (verdict-only campaigns, effort-spanning cost ranges &mdash; e.g. terra O $0.044&ndash;0.047, M3.1 IR $0.0068&ndash;0.0107*) stay matrix-only. Data: <code>EVALS.md</code> matrix + <code>evals/2026-11-10|11-06/RESULTS.md</code>; family colors per <code>models.json</code> <code>family_hint</code>.</li>
     <li><strong>Effort grid</strong> — adoption is decided on the full effort×task grid, never a single variant: effort is non-monotone, and the roster assigns one effort per role, not one model-wide grade.</li>
     <li><strong>Role-decided per-task costs</strong> — a rung is decided on the task that rung performs (quality measured and cost paid on that task); the 4-task total is a budget sanity-check only, never an arbiter.</li>
     <li><strong>Price over speed + lineage</strong> — when two models sit in the same quality tier, the cheaper one takes the role; a reviewer is never from its producer's family (one documented exception: the `-alternative` re-review rung).</li>

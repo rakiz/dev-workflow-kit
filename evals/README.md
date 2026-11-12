@@ -6,6 +6,24 @@ release.
 
 ## Contents
 
+- `BENCH-V3-DESIGN.md` — the **APPROVED** bench-v3 design (see its status
+  line): pipeline-named taxonomy **D / DR / I / IR / O** (§2), the new I-v2
+  (fixture `reportgen-eval-repo-i2`, code RG2) and D (fixture
+  `syncfeat-brief-d1`, code D1) tasks, calibration-first gates (§5), staged
+  fleet and enforced caps (§5.7/§5.8, incl. the `run-eval-v3` script
+  line-items).
+- `run-eval-v3.sh` — the v3 runner: `run-eval-v3.sh <IV2|D1> <model>
+  [variant]` — I-v2/D tasks only; copies the right fixture to a fresh temp
+  work dir (plain copy, no git history), session title
+  `eval-<date>-<IV2|D>-<RG2|D1>-<model>[-<variant>]`, **15-min wall-clock
+  watchdog** per arm (macOS-safe background watcher), and a per-arm
+  cost-poll note (5-min check, 2× per-arm cap kill rule).
+- Fixture mapping — `fixture dir → fixture code → task codes` (title token
+  format: `eval-YYYY-MM-DD-<CODE>-<FIXTURECODE>-<model>-<effort>`):
+  - `synccli-eval-repo/` → `SYNC1` → O, I-v1, IR, DR-v1
+  - `synccli-eval-repo-v2/` → `SYNC2` → DR-v2
+  - `reportgen-eval-repo-i2/` → `RG2` → I-v2
+  - `syncfeat-brief-d1/` → `D1` → D
 - `2026-11-01/` — **the current report** (`RESULTS.md`): first bench-v2
   campaign — the four v1-T4-perfect models scored on `synccli-eval-repo-v2`
   (qwen3p8-2p4t `xhigh` 10/14, 1017 `medium` 9/14, M3.1 `medium` 9/14,
@@ -43,14 +61,31 @@ release.
   the aggregate `../EVALS.md`** — one blended report per model×effort, with
   the measurement date on each cell — and their dated directories removed.
 
-## The 4 tasks
+## Tasks (bench v3 taxonomy: D / DR / I / IR / O)
 
-| Task | Target role | Seeded trap | Scoring |
-|---|---|---|---|
-| T1 orchestration | orchestrator | pre-existing failing test — only a run that **executes the tests** sees it ; `--dry-run` already exists | grounded plan (file:line), red baseline detected, correct pipeline agents, verifiable criteria, zero hallucination |
-| T2 impl | cheap-code | the test's bug | objective: suite green? + size/minimalism of the fix |
-| T3 review | cheap-review | 3 defects in `incremental.py`: (1) mutable default arg, (2) silent copy failure → lying `done` (interaction with `copy_file`'s `except OSError: pass`), (3) `merge_manifest` never purges deleted files | n/3 found, bonus, **false positives counted**, severities |
-| T4 design-review | design-review | DESIGN.md contains ~10 categories of flaws: non-atomic manifest, 50k/500 ms polling, mtime only, copying files mid-write, errors swallowed without retry, blocking single thread, undefined deletions/renames, no instance lock, hardcoded config, reuse of `sync()` | categories covered, mechanical depth, zero FP |
+Pipeline stages: **D** design authoring, **DR** design-review, **I** impl,
+**IR** impl-review, **O** orchestration.
+
+| Code | Stage | Target role | Seeded trap / construct | Scoring |
+|---|---|---|---|---|
+| O | orchestration | orchestrator | pre-existing failing test — only a run that **executes the tests** sees it ; `--dry-run` already exists | grounded plan (file:line), red baseline detected, correct pipeline agents, verifiable criteria, zero hallucination |
+| I-v1 | impl | cheap-code | the test's bug | objective: suite green? + size/minimalism of the fix |
+| I-v2 | impl (v2, fixture RG2) | impl arbitration (cheap/strong rungs) | reportgen multi-defect impl: 4 defects — spec-vs-code contradiction (bait comment, behavioral defect probeable), cross-file state consistency, measurement-forcing perf (seeded oversized input), one fix-shape ambiguity (retry-once vs fail-fast, both correct); one pre-existing failing test scored report-only; the brief never counts or names defects; **delegation forbidden** | suite green (0/2, scorer-executed) + defects_fixed by deterministic probe (0–4) + tests_written (0–2) + ambiguity stated AND coherent (0/1) + red-baseline report bonus (+1) − explicit-false-claim FPs only; reachable max 10. Answer key PRIVATE |
+| IR | impl-review | cheap-review | 3 defects in `incremental.py`: (1) mutable default arg, (2) silent copy failure → lying `done` (interaction with `copy_file`'s `except OSError: pass`), (3) `merge_manifest` never purges deleted files | n/3 found, bonus, **false positives counted**, severities |
+| DR-v1 | design-review (v1, fixture SYNC1) | design-review | DESIGN.md contains ~10 categories of flaws: non-atomic manifest, 50k/500 ms polling, mtime only, copying files mid-write, errors swallowed without retry, blocking single thread, undefined deletions/renames, no instance lock, hardcoded config, reuse of `sync()` | categories covered, mechanical depth, zero FP |
+| DR-v2 | design-review (v2, fixture SYNC2) | strong-design-review | v2 DESIGN.md carries 10 flaw categories (5 code-only-detectable); proof-by-execution bonus | categories + proof bonus − 3×FP (/14); answer key public: `RUBRIC-T4V2.md` |
+| D | design (authoring) | design authoring (strong-design rungs) | `backupctl` design brief (`BRIEF.md`) over the v1 synccli code substrate — seeded I-v1 defect removed, `DESIGN.md` deleted; brief entails all 8 taxonomy categories without naming them (concurrency, atomicity, retention, detection, partial-failure integrity, performance budget, boundedness, error semantics); deliverable `DESIGN-d1.md`; **delegation forbidden** | 8 code-grounded category points (grounding is part of the point) + executed-proof honesty bonus (0–3) − brief-restatement/code-contradiction FPs; implementability questionnaire (0–2, unexecutable design −1); gate max 8. Answer key PRIVATE |
+
+**Answer keys `RUBRIC-IV2.md` and `RUBRIC-D1.md` are PRIVATE PERMANENTLY**
+(owner decision 2026-11-12) — this breaks the DR-v2 public-rubric precedent:
+the distinctive-string leakage check may not assume eventual publication of
+past benches.
+
+**Version policy:** an unqualified stage code always means the current
+version of that stage's fixture ("D" = the latest D fixture; "DR-v2" pins
+one), so a future DR-v3 or O-v2 needs no taxonomy rename. Scores are never
+compared across versions of the same stage. Each rung decision cites the
+bench it was decided on.
 
 ## To evaluate a new model (checklist)
 

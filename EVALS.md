@@ -1,5 +1,19 @@
 # Eval summary — all models ever tested
 
+<!-- Bench-v3 task-code migration (BENCH-V3-DESIGN.md §2.2, 2026-11-12).
+     Historical rows below keep their original T-names, interpreted via:
+
+     T1  = O       (orchestration, fixture SYNC1)
+     T2  = I-v1    (impl, fixture SYNC1)
+     I-v2 = new    (impl, fixture RG2 — bench v3)
+     T3  = IR      (impl-review, fixture SYNC1)
+     T4  = DR-v1   (design-review, fixture SYNC1)
+     T4v2 = DR-v2  (design-review, fixture SYNC2)
+     D   = new     (design authoring, fixture D1 — bench v3)
+
+     Cross-bench policy: scores are never compared across versions of the
+     same stage; each rung decision cites the bench it was decided on. -->
+
 **THE single aggregate**: one place for the results of every model eval ever
 run in this kit, blended across campaigns with the date each cell was
 measured. The per-eval detail was folded in here and the per-date
