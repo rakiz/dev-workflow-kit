@@ -35,6 +35,10 @@ does not meet:
   process — a run may stop mid-flight. An interrupted run must leave
   nothing behind that a later reader could mistake for a complete
   snapshot, and the next run must make progress without manual cleanup.
+  This includes the index itself: when a run finds a corrupt or
+  half-written index left behind by a dead run, the design must define
+  the recovery — what is discarded, what is re-derived from the tree,
+  and what the run reports.
 - **A source file can disappear without warning.** It can vanish between
   listing and copying, or be unreadable when the copy reaches it. The
   design must say what a snapshot then contains and what the run reports —
@@ -55,16 +59,26 @@ does not meet:
   from — a measurement or an explicit derivation, not a guess. The
   existing code and tests in this directory may be run to check claims.
 - **Three directories today, a few dozen over time.** Say what grows with
-  what (per-run work, memory, disk) and what stays flat.
+  what (per-run work, memory, disk) and what stays flat — every such
+  claim stated as an explicit bound: a number, a formula over N
+  (directories) and the tree's files and bytes, or a measured constant.
+  "Stays bounded" or "stays flat" without the bound itself is not an
+  answer.
 
 ## Grounding
 
 `backupctl` must build on the code in this directory rather than
 re-implement it: wherever your design touches scanning, manifests, change
 detection, or copying, name the exact existing file and function it builds
-on. Where your design must behave differently from what the existing code
-does today, say so explicitly and give the reason. A design that could have
-been written without reading `synccli.py` is not grounded in this codebase.
+on. Grounding is verified, not taken on faith: a reference counts only
+when the artifact it names actually exists in this directory and does
+what you claim it does — cite the file and the function (with line
+numbers when you have them). Where your design must behave differently
+from what the existing code does today, say so explicitly: name the
+exact function or behavior you override, where it lives, and the reason —
+an override of unnamed "current behavior" grounds nothing. A design that
+could have been written without reading `synccli.py` is not grounded in
+this codebase.
 
 ## Deliverable and working mode
 

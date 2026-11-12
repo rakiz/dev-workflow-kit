@@ -1,6 +1,6 @@
 # Bench v3 design — pipeline-named tasks, I-v2, design-authoring (D), calibration-first re-baseline
 
-**Status: APPROVED (owner decisions 2026-11-12 recorded in §9) — fixtures built 2026-11-12 (RG2 + D1, prototypes verified per §3.8), answer keys private outside the repo (`~/code_projects/IA-tooling/evals-keys/`, private git repo), pilot pending.**
+**Status: round 1 piloted 2026-11-12 — NO-GO (see `2026-11-12/RESULTS.md` §Verdict); round-2 rework applied 2026-11-12 (I-v2 reseed + mandated baseline step, D brief hardened, rubrics amended v1 in the private keys repo, commit `3bc5a6c` there, BEFORE any round-2 arm), §3.8 re-verified ×3 both directions; round-2 re-pilot (same 4 models per task) pending. Gates stay frozen (§5.3 + §9 decision #2).**
 
 **Supersession note (2026-11-12):** §9 decision #4 (FULL ROSTER fleet)
 supersedes §1 item 4's "rung-relevant only" re-baseline recommendation and
@@ -196,11 +196,12 @@ The public construct:
   needs concurrency infrastructure that multiplies prototype flakiness;
   revisit if a future bench needs a fix-shape race.)
 - **No red baseline in the scoring path**: one pre-existing failing test
-  exists, scored **report-only** (+1 bonus for naming it as pre-existing
-  with executed evidence) and **fix-only-if-asked** — the GOAL.md does not
-  ask to fix it, so "don't touch unrelated tests" is coherent. It is
-  double-counted nowhere: it is not part of suite-green, not a
-  defects_fixed point.
+  exists, scored **report-only** and **fix-only-if-asked** — the GOAL.md
+  does not ask to fix it, so "don't touch unrelated tests" is coherent.
+  It is double-counted nowhere: it is not part of suite-green, not a
+  defects_fixed point. (Round 2: the pilot's gate-3(b) fallback replaced
+  the report-only bonus with the GOAL.md-mandated baseline-recording
+  step — see §3.3/§3.4; the fix-only-if-asked rule is unchanged.)
 
 ### 3.3 Task brief (GOAL.md)
 
@@ -211,6 +212,16 @@ invariants holding; add a regression test per fixed defect; state any
 trade-off the brief leaves open. Do not refactor; do not touch unrelated
 tests." The brief never counts or names defects. **Delegation is
 forbidden** (the candidate runs alone; §6.5).
+
+**Round-2 amendment (2026-11-12, per the round-1 verdict; gate-3(b)
+fold-in):** GOAL.md now (i) mandates a baseline-recording step — run both
+shipped suites before changing anything and record command + observed
+output in the final report (scored as the `baseline_recorded` category
+point, §3.4); (ii) rewords the partial-failure invariant so its scope is
+no longer confusable with crash-only (round-1: opus/sonnet read the v0
+phrasing too narrowly; the reworded scope lives in the reworked GOAL.md,
+rationale recorded privately in RUBRIC-IV2.md §5). The brief still never
+counts or names defects.
 
 ### 3.4 Scoring formula
 
@@ -225,16 +236,23 @@ score = suite_green (0/2: scorer-executed `python3 -m unittest` in the run
                        the unfixed prototype — §3.5)
       + ambiguity_handled (0/1: the fix-shape trade-off §3.2 — implemented
                            coherently AND stated)
-      + red-baseline bonus (+1, report-only, executed evidence)
+      + baseline_recorded (0/1 — round-2 fold-in of the red-baseline
+                           bonus: the GOAL.md-mandated baseline-recording
+                           step, executed evidence quoted in the report)
       − FPs (see §3.5 penalties)
 ```
 
-- **Reachable max for gate purposes: 10** (2+4+2+1+1). Honest labeling: the
-  red-baseline bonus is expected to be widely earned (every honest model
-  runs the suite anyway), but until the pilot demonstrates it, gates use
-  max = 10, and if the pilot shows the bonus is near-universal it is folded
-  into expectations (not into a re-threshold — the threshold is set on the
-  pre-registered max, per §5.3).
+- **Round-2 fold-in note (2026-11-12):** the v0 red-baseline bonus was
+  earned by 0/4 pilot arms, firing the pre-registered gate-3(b) fallback:
+  the bonus is now a GOAL.md-mandated step scored as a category point
+  (`baseline_recorded`, see §3.3 and RUBRIC-IV2.md §5). The reachable max
+  for gate purposes stays **10** — an expectation re-fold, never a
+  re-threshold (§9 decision #2).
+
+- **Reachable max for gate purposes: 10** (2+4+2+1+1). Round 2: the
+  fifth point is `baseline_recorded` (the GOAL.md-mandated step) after
+  the gate-3(b) fold-in; the max is unchanged and the fold-in is an
+  expectation re-fold, not a re-threshold (§9 decision #2).
 - **Minimality**: `git diff` surface reported as a tiebreak column, not
   points (v1 precedent).
 
@@ -276,16 +294,30 @@ rubric changes after scores exist.
 relocation out of the repo, 2026-11-12 pre-freeze fix — owner decision #5
 means private permanently):**
 `~/code_projects/IA-tooling/evals-keys/RUBRIC-IV2.md` (private git repo,
-separate from the public repo), sha256 (post-amendment, still
-pre-pilot — no scores exist):
+separate from the public repo), sha256:
 
-`de9716166a9a7aa0c85ff1bc1bab12b1f1afa4ee29103d47a4fae037d84f754e  ~/code_projects/IA-tooling/evals-keys/RUBRIC-IV2.md`
+- v0 (pre-pilot round 1): `de9716166a9a7aa0c85ff1bc1bab12b1f1afa4ee29103d47a4fae037d84f754e`
+- **v1 (round-2 amendment, 2026-11-12 — private-repo commit `3bc5a6c`,
+  recorded BEFORE any round-2 arm runs):**
+  `a09024f51c1c3b7228db4faa39cddb05b650e60c0da722b980e4beb815f537ab`
 
 RG2 prototype tree hash (the audit flagged that fixtures had no recorded
 hash; computed over `evals/reportgen-eval-repo-i2/` with `find . -type f |
 sort | xargs shasum -a 256 | shasum -a 256`):
 
-`4065cd630f0a398d88ff1bf5317b986d6cfb9d8b96f3e6d388f9c16e7e007213  (RG2 prototype tree, evals/reportgen-eval-repo-i2/)`
+- round-1 prototype: `4065cd630f0a398d88ff1bf5317b986d6cfb9d8b96f3e6d388f9c16e7e007213`
+- **round-2 reworked prototype (2026-11-12 — GOAL.md reworded (mandated
+  baseline step + invariant scope clarification); reportgen.py gained a
+  per-input stdout work line, a findability reseed whose rationale is
+  recorded privately in RUBRIC-IV2.md §5):**
+  `d32d51e438341ba29fffda8422d9ff792a5f61f24a1c61a8cc74f4c7dfa003fd`
+
+Round-2 §3.8 re-verification: every probe ×3 consecutive rounds in fresh
+scratch copies against BOTH the reworked prototype (must fail) and the
+reworked reference-fixed copy (must pass) — all identical to the round-1
+observed numbers; suite-green OK 3/3 and red baseline exit 1 3/3 on both
+reworked trees; leakage check zero hits. Recorded in RUBRIC-IV2.md §5
+(private).
 
 ### 3.7 Fix-shape ambiguity detail (the anti-mechanical axis)
 
@@ -435,10 +467,19 @@ pilot arm, same amendment rule as §3.6.
 `RUBRIC-D1.md` v0 frozen 2026-11-12; **private location (owner-approved
 relocation out of the repo, 2026-11-12 pre-freeze fix — same rule as
 §3.6):** `~/code_projects/IA-tooling/evals-keys/RUBRIC-D1.md` (private git
-repo, separate from the public repo), sha256 (post-amendment,
-still pre-pilot — no scores exist):
+repo, separate from the public repo), sha256:
 
-`62ed6f2f10f260b168adaf23b35d6baa5173101081cc2e80d068330ce598b511  ~/code_projects/IA-tooling/evals-keys/RUBRIC-D1.md`
+- v0 (pre-pilot round 1): `62ed6f2f10f260b168adaf23b35d6baa5173101081cc2e80d068330ce598b511`
+- **v1 (round-2 amendment, 2026-11-12 — private-repo commit `3bc5a6c`,
+  recorded BEFORE any round-2 arm runs):**
+  `b9d5090d1562efac462433dc30c28370605ca9a9ad7af31513095a8d75b8bc75`
+
+D1 fixture tree hash (added at round 2; BRIEF.md hardened per the
+round-1 verdict — verified grounding at threshold, explicit bounds,
+torn-index recovery required; computed with the same `find | shasum`
+method over `evals/syncfeat-brief-d1/`):
+
+`59109cb1c178846a91067c089fd3a44dc5b93202390a9e61c42342de2bef7a70`
 
 ---
 

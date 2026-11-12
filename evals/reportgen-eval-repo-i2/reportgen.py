@@ -130,6 +130,7 @@ def run(rules_path, input_dir, output_dir, cache_path):
         digest = cache.file_digest(path)
         entry = state.get(name)
         header, data_rows = load_rows(path)
+        print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
         if entry and entry["digest"] == digest:
             results[name] = {"digest": digest, "rows": entry["rows"],
                              "summary": entry["summary"]}
