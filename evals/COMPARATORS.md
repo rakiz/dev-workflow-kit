@@ -47,6 +47,8 @@ for s,nc,n in sorted(rows,reverse=True): print(f'{n:32s} {s:.3f} {-nc:8.3f}')"
    (strict quality parity at ~50% cost). Root cause: **terra is absent from their board** —
    the comparison that retired sol cannot exist there. Standing check: before acting on an
    external "best value" claim, verify our tested replacements appear in their data.
+   **RESOLVED 11-12**: sol re-run on bench v2 → **2/14, worst v2 ever** (never read the
+   fixture code, 1 FP). Eviction confirmed; the divergence is now measured, not assumed.
 2. **Carbon vs Argon inverted on cost**: FrontierCode has carbon better AND cheaper
    (0.400 @ $4.04 vs 0.263 @ $6.51, best-effort cells); our two-bench data (v1+v2, 2-run
    cells) has carbon better but +45-77%/task. Probable cause: their harness is long-horizon

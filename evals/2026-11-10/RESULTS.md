@@ -330,3 +330,48 @@ then 10/14 on 11-01; 2-run avg 9.5/14) and below deepseek-1017 `medium` v2
 (9/14). The low-effort miss pattern is concentrated in the code-required
 categories (3, 9, 10) — the same reader-vs-skimmer split the rubric uses as
 its discriminator. No recommendation made here; the owner decides.
+
+## 7. Sol re-check on bench v2 (2026-11-12)
+
+**Score: 2/14** — 5/10 categories found, 0 proofs-by-execution, **1 FP (−3)**.
+Harness `bash evals/run-eval-v2.sh github-copilot/gpt-6.1-sol medium` (the script
+takes the variant as its 2nd arg and passes it as `--variant`; `medium` run per
+sol's best v1 T4 cell — variant confirmed recorded in the DB messages). Session
+`eval-2026-11-12-T4V2-github-copilot-gpt-6-1-sol-medium`. Cost **$0.1004** =
+parent $0.0900 + cheap-design-review child (minimax-m3p1-flash) $0.0104, per the
+delegation rule (parent 29,282 in / 856 out / 72,311 cache-read tok). Duration
+**121 s**.
+
+Found: cat 2 `lock-window` (release-before-commit split-brain, self-describing-
+entries argument rejected), cat 4 `mtime-truncation` (whole-second mtime + size
+misses same-size same-second edits), cat 6 `debounce-starvation` (reset-on-change
+is unbounded for a continuously written file), cat 7 `unbounded-state` (pending
+spans many polls, not one poll's changes — the drain-rate branch, mechanism
+named), cat 8 `scan-budget` (budget measures only scanning; cold-cache metadata
+I/O challenged; benchmark-the-cycle demanded). Missed: cat 1 `lock-toctou`
+(recommends a lifetime OS-backed lock but never names the exists→write acquire
+race), cat 3 `fsync-claim` (grazed — "append order alone does not establish
+durability" without observing the absent fsync; no credit per the 11-01
+calibration), cat 5 `partial-copy-marked-synced` (its "dst copies are not
+atomic" point is factually true but is not the seeded marked-synced/journal/
+replay flaw — non-credited, not an FP), cat 9 `deletions-never-propagated`
+(**inverted into the run's single FP**: "a failed scan can become destructive
+reconciliation" asserts a reconcile mechanism the fixture code does not
+implement at all — rule (a)), cat 10 `crash-on-transient-error`.
+
+Tool trace: sol globbed, read **DESIGN.md only**, then delegated the whole
+critique to the cheap-design-review child — which also read **DESIGN.md only**.
+Neither parent nor child ever opened `syncd.py` or `state.py`, and nothing was
+executed (no bash tool call in either session), so the +4 proof bonus was
+unreachable and every code-only-detectable category (3, 5, 9, 10) was judged
+blind. Same never-opened-the-code shape as terra medium's 11-01 run, with a
+worse net: the design-only critique produced one rule-(a) FP against the v2
+scoreboard's otherwise clean-FP field.
+
+Placement: 2/14 is the lowest v2 score recorded in this kit (v2 scoreboard:
+qwen xhigh 10, argon high 10 then 9, carbon high 10, 1017 medium 9, M3.1 9,
+carbon low 4, sol medium 2) and 7 points below sol's own v1 T4-medium cell
+(9/10) — the largest v1→v2 drop measured on this bench. Against the
+pre-registered threshold (sol ≤8 → eviction confirmed; ≥10 → reopen), **the
+10-26 eviction is confirmed on the harder bench.** No roster change made; no
+recommendation — the owner decides.
