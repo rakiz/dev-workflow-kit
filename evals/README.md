@@ -80,7 +80,15 @@ release.
    model-wide grade.
  6. Write `RESULTS.md` in a dated folder, with the same matrix, and compare
     line by line with the previous eval.
- 7. **Bench v2 (planned — policy decided 2026-10-23)**: T4 (and T3 depth)
+ 7. **Update `LEADERBOARD.html` after EVERY campaign** (2026-11-12 rule —
+    do not skip): the 5-panel grid (T1, T2, T3, T4-v1, T4-v2), family-colored
+    effort lines and all tables must reflect the new results the moment a
+    `RESULTS.md` lands — the synthetic view is only worth sharing if it is
+    never stale. Re-read the campaign's `RESULTS.md` + new `EVALS.md` rows
+    and regenerate the affected points/panels (self-contained HTML, no JS,
+    family colors per `models.json` `family_hint`; list non-plotted cells).
+ 8. **Bench v2 (live since 2026-11-01 — policy decided 2026-10-23)**: T4
+    (and T3 depth)
     are saturating — 1017 swept T4 10/10 at all efforts, M3.1 averages
     9.7/10, qwen proved 10/10. A harder bench v2 (cross-file semantic
     regressions, race conditions, measurement-forcing traps; proof-by-
