@@ -526,6 +526,288 @@
   </figure>
 </section>
 
+<!-- ============ 2b. CATEGORICAL LANES: T1 / T2 / T3 ============ -->
+<section id="lanes">
+  <h2>Categorical tasks on quality lanes &mdash; T1 orchestration, T2 impl, T3 impl review</h2>
+  <p class="note">The categorical scores (T1/T2 verdicts, T3 recall) get the same treatment as the T4
+  charts above &mdash; quality on the Y axis as horizontal lanes, cost per task on the shared log X axis
+  ($0.004&ndash;$0.6) &mdash; but every measured cell is plotted (no Pareto pruning: on a categorical
+  grade there is no &ldquo;equal or better&rdquo;, only equal or not). Three stacked panels, one per task;
+  same marker grammar as the main chart: rostered solid, kept-out hollow, r=3.5.</p>
+  <div class="legend famlegend"><span class="fam"><i style="background:#555"></i>rostered cell <em>(solid marker)</em></span> <span class="fam"><i style="background:#fff;border:1.5px solid #555"></i>tested &amp; kept-out <em>(hollow marker)</em></span> <span class="fam"><i style="background:#1a7f37"></i>glm <em>(glm-5.3-flash)</em></span> <span class="fam"><i style="background:#b3261e"></i>claude <em>(haiku/s5.5/opus-5.5)</em></span> <span class="fam"><i style="background:#0b57d0"></i>deepseek <em>(v4p1-flash/1017/pro)</em></span> <span class="fam"><i style="background:#6d28d9"></i>minimax <em>(M3.1-flash)</em></span> <span class="fam"><i style="background:#d97706"></i>qwen <em>(qwen3p8-2p4t)</em></span> <span class="fam"><i style="background:#a16207"></i>gpt <em>(sol/terra-6.1)</em></span> <span class="fam"><i style="background:#0891b2"></i>gemini <em>(argon/carbon/3.8)</em></span> <span class="fam"><i style="background:#c2185b"></i>muse <em>(muse-spark)</em></span> <span class="fam"><i style="background:#52525b"></i>moonshot <em>(kimi-k3p1-pro)</em></span> <span class="fam"><em>one pill per model, at its best-grade/cheapest cell &mdash; other cells are hover-only (exact verdict, cost, date); FP count printed beside markers with FP &ge; 1</em></span></div>
+
+  <figure class="panel">
+  <figcaption><span class="ptitle">T1 &mdash; orchestration: PASS / PARTIAL / FAIL lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
+  <svg viewBox="0 0 1000 210" role="img" aria-label="T1 orchestration verdicts on PASS, PARTIAL and FAIL lanes versus cost per task, log scale dollars: every model-effort cell with a T1 verdict and a recorded per-task T1 cost; one pill per model at its best-grade cheapest cell; other cells hover-only.">
+  <line x1="90" y1="66" x2="730" y2="66" stroke="#d9d9d9" stroke-dasharray="1 4"/>
+  <line x1="90" y1="128" x2="730" y2="128" stroke="#d9d9d9" stroke-dasharray="1 4"/>
+  <line x1="207.0" y1="4" x2="207.0" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
+  <line x1="501.1" y1="4" x2="501.1" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
+  <text x="84" y="39" font-size="12" font-weight="600" fill="#333" text-anchor="end">PASS</text>
+  <text x="84" y="101" font-size="12" font-weight="600" fill="#333" text-anchor="end">PARTIAL</text>
+  <text x="84" y="163" font-size="12" font-weight="600" fill="#333" text-anchor="end">FAIL</text>
+  <g font-size="11" fill="#666" text-anchor="middle">
+    <line x1="118.5" y1="190" x2="118.5" y2="194" stroke="#666"/>
+    <text x="118.5" y="206">$0.005</text>
+    <line x1="207.0" y1="190" x2="207.0" y2="194" stroke="#666"/>
+    <text x="207.0" y="206">$0.01</text>
+    <line x1="295.6" y1="190" x2="295.6" y2="194" stroke="#666"/>
+    <text x="295.6" y="206">$0.02</text>
+    <line x1="412.6" y1="190" x2="412.6" y2="194" stroke="#666"/>
+    <text x="412.6" y="206">$0.05</text>
+    <line x1="501.1" y1="190" x2="501.1" y2="194" stroke="#666"/>
+    <text x="501.1" y="206">$0.1</text>
+    <line x1="589.7" y1="190" x2="589.7" y2="194" stroke="#666"/>
+    <text x="589.7" y="206">$0.2</text>
+    <line x1="706.7" y1="190" x2="706.7" y2="194" stroke="#666"/>
+    <text x="706.7" y="206">$0.5</text>
+  </g>
+  <line x1="90" y1="4" x2="90" y2="190" stroke="#333" stroke-width="1.2"/>
+  <line x1="90" y1="190" x2="730" y2="190" stroke="#333" stroke-width="1.2"/>
+  <g stroke="#aaa" stroke-width="1">
+    <line x1="575.8" y1="35.0" x2="578.8" y2="21.0"/>
+    <line x1="502.9" y1="35.0" x2="505.9" y2="49.0"/>
+    <line x1="524.1" y1="97.0" x2="527.1" y2="83.0"/>
+    <line x1="424.5" y1="97.0" x2="427.5" y2="111.0"/>
+    <line x1="501.9" y1="35.0" x2="498.9" y2="14.0"/>
+    <line x1="486.1" y1="35.0" x2="483.1" y2="56.0"/>
+  </g>
+  <circle class="pt rostered" cx="118.5" cy="35.0" r="3.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1"><title>glm-5.3-flash high — T1 PASS (re-confirmed 10-16) @ $0.005/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="125.9" cy="97.0" r="3.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1"><title>glm-5.3-flash low — T1 PARTIAL (misses red baseline) @ $0.0053/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="178.5" cy="97.0" r="3.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1"><title>deepseek-v4p1-flash low — T1 PARTIAL @ $0.008/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="483.9" cy="97.0" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon low — T1 PARTIAL @ $0.0874/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="487.3" cy="35.0" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon medium — T1 PASS @ $0.0922/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="500.5" cy="97.0" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon high — T1 PARTIAL (dismisses baseline) @ $0.0995/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="420.5" cy="97.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-3.8-flash medium — T1 PARTIAL @ $0.0532/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="424.1" cy="97.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-3.8-flash high — T1 PARTIAL @ $0.0547/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="497.4" cy="35.0" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol low — T1 PASS @ $0.0971/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="494.3" cy="35.0" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol medium — T1 PASS @ $0.0922/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="490.1" cy="35.0" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol xhigh — T1 PASS @ $0.0917/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="486.1" cy="159.0" r="3.5" fill="#d97706" stroke="#d97706" stroke-width="1"><title>qwen3p8-2p4t-a95b low — T1 FAIL (hallucination) @ $0.0889/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="505.9" cy="35.0" r="3.5" fill="#d97706" stroke="#d97706" stroke-width="1"><title>qwen3p8-2p4t-a95b medium — T1 PASS (tier-1) @ $0.101/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="485.8" cy="97.0" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark low — T1 PARTIAL (misses red baseline) @ $0.0887/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="448.5" cy="97.0" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark medium — T1 PARTIAL (misses red baseline) @ $0.0662/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="571.8" cy="35.0" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark high — T1 PASS @ $0.1739/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="505.9" cy="159.0" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark xhigh — T1 FAIL (invents green baseline) @ $0.1038/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="498.9" cy="35.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon low — T1 PASS (static baseline detect) @ $0.101/task (11-10)</title></circle>
+  <circle class="pt keptout" cx="557.4" cy="35.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon medium — T1 PASS (static baseline detect) @ $0.1554/task (11-10)</title></circle>
+  <circle class="pt keptout" cx="595.1" cy="35.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon high — T1 PASS (static baseline detect) @ $0.2086/task (11-10)</title></circle>
+  <circle class="pt keptout" cx="520.1" cy="97.0" r="3.5" fill="none" stroke="#52525b" stroke-width="1.4"><title>kimi-k3p1-pro high — T1 PARTIAL (red baseline missed) @ $0.116/task (11-06)</title></circle>
+  <circle class="pt keptout" cx="584.5" cy="97.0" r="3.5" fill="none" stroke="#52525b" stroke-width="1.4"><title>kimi-k3p1-pro medium — T1 PARTIAL (red baseline missed) @ $0.192/task (11-06)</title></circle>
+  <g font-size="10.5">
+    <rect x="375.9" y="28.5" width="104.4" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="381.9" y="38.3" fill="#ffffff">Gemini 4 Argon</text>
+    <rect x="578.8" y="14.5" width="78.0" height="13" rx="6.5" fill="#c2185b"/>
+    <text x="584.8" y="24.3" fill="#ffffff">Muse Spark</text>
+    <rect x="185.5" y="90.5" width="137.4" height="13" rx="6.5" fill="#0b57d0"/>
+    <text x="191.5" y="100.3" fill="#ffffff">DeepSeek V4.1 Flash</text>
+    <rect x="505.9" y="42.5" width="111.0" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="511.9" y="52.3" fill="#ffffff">Gemini 4 Carbon</text>
+    <rect x="527.1" y="76.5" width="97.8" height="13" rx="6.5" fill="#52525b"/>
+    <text x="533.1" y="86.3" fill="#ffffff">Kimi K3.1 Pro</text>
+    <rect x="427.5" y="104.5" width="117.6" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="433.5" y="114.3" fill="#ffffff">Gemini 3.8 Flash</text>
+    <rect x="407.7" y="7.5" width="91.2" height="13" rx="6.5" fill="#d97706"/>
+    <text x="413.7" y="17.3" fill="#ffffff">Qwen3.8 2P4T</text>
+    <rect x="125.5" y="28.5" width="97.8" height="13" rx="6.5" fill="#1a7f37"/>
+    <text x="131.5" y="38.3" fill="#ffffff">GLM 5.3 Flash</text>
+    <rect x="398.5" y="49.5" width="84.6" height="13" rx="6.5" fill="#a16207"/>
+    <text x="404.5" y="59.3" fill="#ffffff">GPT 6.1 Sol</text>
+  </g>
+</svg>
+  </figure>
+  <figure class="panel">
+  <figcaption><span class="ptitle">T2 &mdash; impl: PASS / FAIL lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
+  <svg viewBox="0 0 1000 210" role="img" aria-label="T2 implementation verdicts on PASS and FAIL lanes versus cost per task, log scale dollars: every model-effort cell with a T2 verdict and a recorded per-task T2 cost; one pill per model at its cheapest PASS cell; other cells hover-only.">
+  <line x1="90" y1="97" x2="730" y2="97" stroke="#d9d9d9" stroke-dasharray="1 4"/>
+  <line x1="207.0" y1="4" x2="207.0" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
+  <line x1="501.1" y1="4" x2="501.1" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
+  <text x="84" y="54" font-size="12" font-weight="600" fill="#333" text-anchor="end">PASS</text>
+  <text x="84" y="148" font-size="12" font-weight="600" fill="#333" text-anchor="end">FAIL</text>
+  <g font-size="11" fill="#666" text-anchor="middle">
+    <line x1="118.5" y1="190" x2="118.5" y2="194" stroke="#666"/>
+    <text x="118.5" y="206">$0.005</text>
+    <line x1="207.0" y1="190" x2="207.0" y2="194" stroke="#666"/>
+    <text x="207.0" y="206">$0.01</text>
+    <line x1="295.6" y1="190" x2="295.6" y2="194" stroke="#666"/>
+    <text x="295.6" y="206">$0.02</text>
+    <line x1="412.6" y1="190" x2="412.6" y2="194" stroke="#666"/>
+    <text x="412.6" y="206">$0.05</text>
+    <line x1="501.1" y1="190" x2="501.1" y2="194" stroke="#666"/>
+    <text x="501.1" y="206">$0.1</text>
+    <line x1="589.7" y1="190" x2="589.7" y2="194" stroke="#666"/>
+    <text x="589.7" y="206">$0.2</text>
+    <line x1="706.7" y1="190" x2="706.7" y2="194" stroke="#666"/>
+    <text x="706.7" y="206">$0.5</text>
+  </g>
+  <line x1="90" y1="4" x2="90" y2="190" stroke="#333" stroke-width="1.2"/>
+  <line x1="90" y1="190" x2="730" y2="190" stroke="#333" stroke-width="1.2"/>
+  <g stroke="#aaa" stroke-width="1">
+    <line x1="553.0" y1="50.5" x2="556.0" y2="36.5"/>
+    <line x1="483.9" y1="50.5" x2="486.9" y2="64.5"/>
+    <line x1="495.1" y1="50.5" x2="492.1" y2="36.5"/>
+    <line x1="526.2" y1="50.5" x2="529.2" y2="15.5"/>
+    <line x1="119.9" y1="50.5" x2="122.9" y2="36.5"/>
+    <line x1="471.9" y1="50.5" x2="468.9" y2="64.5"/>
+    <line x1="158.0" y1="50.5" x2="161.0" y2="71.5"/>
+    <line x1="609.9" y1="50.5" x2="612.9" y2="64.5"/>
+  </g>
+  <circle class="pt rostered" cx="148.0" cy="50.5" r="3.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1"><title>glm-5.3-flash low — T2 PASS @ $0.0063/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="115.9" cy="50.5" r="3.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1"><title>glm-5.3-flash high — T2 PASS (re-confirmed 10-16: 2/2, avg $0.00525) @ $0.0049/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="154.0" cy="50.5" r="3.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1"><title>deepseek-v4p1-flash low — T2 PASS @ $0.0066/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="490.8" cy="50.5" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon low — T2 PASS @ $0.0922/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="479.9" cy="50.5" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon medium — T2 PASS (the campaign's only semantic impl fix) @ $0.0847/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="483.1" cy="50.5" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon high — T2 PASS @ $0.0868/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="389.4" cy="50.5" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-3.8-flash medium — T2 PASS @ $0.0417/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="446.1" cy="50.5" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-3.8-flash high — T2 PASS @ $0.065/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="475.9" cy="50.5" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol low — T2 PASS @ $0.0821/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="498.4" cy="50.5" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol medium — T2 PASS @ $0.0979/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="489.5" cy="50.5" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol xhigh — T2 PASS @ $0.0913/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="503.3" cy="50.5" r="3.5" fill="#d97706" stroke="#d97706" stroke-width="1"><title>qwen3p8-2p4t-a95b low — T2 PASS @ $0.1017/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="499.1" cy="50.5" r="3.5" fill="#d97706" stroke="#d97706" stroke-width="1"><title>qwen3p8-2p4t-a95b medium — T2 PASS @ $0.0984/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="522.2" cy="50.5" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark low — T2 PASS @ $0.1179/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="532.3" cy="50.5" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark medium — T2 PASS @ $0.1276/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="529.3" cy="50.5" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark high — T2 PASS @ $0.1247/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="531.5" cy="50.5" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark xhigh — T2 PASS @ $0.1268/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="572.3" cy="50.5" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon low — T2 PASS (delegated) @ $0.1746/task (11-10)</title></circle>
+  <circle class="pt keptout" cx="549.0" cy="50.5" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon medium — T2 PASS (delegated) @ $0.1455/task (11-10)</title></circle>
+  <circle class="pt keptout" cx="680.2" cy="50.5" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon high — T2 PASS (delegated) @ $0.4064/task (11-10)</title></circle>
+  <circle class="pt keptout" cx="605.9" cy="50.5" r="3.5" fill="none" stroke="#52525b" stroke-width="1.4"><title>kimi-k3p1-pro default — T2 PASS (delegates: cheap-code + cheap-review on top) @ $0.227/task (11-06)</title></circle>
+  <g font-size="10.5">
+    <rect x="556.0" y="30.0" width="111.0" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="562.0" y="39.8" fill="#ffffff">Gemini 4 Carbon</text>
+    <rect x="486.9" y="58.0" width="104.4" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="492.9" y="67.8" fill="#ffffff">Gemini 4 Argon</text>
+    <rect x="400.9" y="30.0" width="91.2" height="13" rx="6.5" fill="#d97706"/>
+    <text x="406.9" y="39.8" fill="#ffffff">Qwen3.8 2P4T</text>
+    <rect x="529.2" y="9.0" width="78.0" height="13" rx="6.5" fill="#c2185b"/>
+    <text x="535.2" y="18.8" fill="#ffffff">Muse Spark</text>
+    <rect x="122.9" y="30.0" width="97.8" height="13" rx="6.5" fill="#1a7f37"/>
+    <text x="128.9" y="39.8" fill="#ffffff">GLM 5.3 Flash</text>
+    <rect x="264.8" y="44.0" width="117.6" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="270.8" y="53.8" fill="#ffffff">Gemini 3.8 Flash</text>
+    <rect x="384.3" y="58.0" width="84.6" height="13" rx="6.5" fill="#a16207"/>
+    <text x="390.3" y="67.8" fill="#ffffff">GPT 6.1 Sol</text>
+    <rect x="161.0" y="65.0" width="137.4" height="13" rx="6.5" fill="#0b57d0"/>
+    <text x="167.0" y="74.8" fill="#ffffff">DeepSeek V4.1 Flash</text>
+    <rect x="612.9" y="58.0" width="97.8" height="13" rx="6.5" fill="#52525b"/>
+    <text x="618.9" y="67.8" fill="#ffffff">Kimi K3.1 Pro</text>
+  </g>
+</svg>
+  </figure>
+  <figure class="panel">
+  <figcaption><span class="ptitle">T3 &mdash; impl review: 3/3 / 2/3 / &le;1/3 lanes</span><span class="psub">categorical quality lanes, cost per task on log scale &mdash; every measured cell plotted</span></figcaption>
+  <svg viewBox="0 0 1000 210" role="img" aria-label="T3 implementation-review recall on 3-of-3, 2-of-3 and at-most-1-of-3 lanes versus cost per task, log scale dollars: every model-effort cell with a T3 recall figure and a recorded per-task T3 cost; false-positive counts printed beside markers; one pill per model at its best-grade cheapest cell; other cells hover-only.">
+  <line x1="90" y1="66" x2="730" y2="66" stroke="#d9d9d9" stroke-dasharray="1 4"/>
+  <line x1="90" y1="128" x2="730" y2="128" stroke="#d9d9d9" stroke-dasharray="1 4"/>
+  <line x1="207.0" y1="4" x2="207.0" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
+  <line x1="501.1" y1="4" x2="501.1" y2="190" stroke="#e5e5e5" stroke-dasharray="2 4"/>
+  <text x="84" y="39" font-size="12" font-weight="600" fill="#333" text-anchor="end">3/3</text>
+  <text x="84" y="101" font-size="12" font-weight="600" fill="#333" text-anchor="end">2/3</text>
+  <text x="84" y="163" font-size="12" font-weight="600" fill="#333" text-anchor="end">&#8804;1/3</text>
+  <g font-size="11" fill="#666" text-anchor="middle">
+    <line x1="118.5" y1="190" x2="118.5" y2="194" stroke="#666"/>
+    <text x="118.5" y="206">$0.005</text>
+    <line x1="207.0" y1="190" x2="207.0" y2="194" stroke="#666"/>
+    <text x="207.0" y="206">$0.01</text>
+    <line x1="295.6" y1="190" x2="295.6" y2="194" stroke="#666"/>
+    <text x="295.6" y="206">$0.02</text>
+    <line x1="412.6" y1="190" x2="412.6" y2="194" stroke="#666"/>
+    <text x="412.6" y="206">$0.05</text>
+    <line x1="501.1" y1="190" x2="501.1" y2="194" stroke="#666"/>
+    <text x="501.1" y="206">$0.1</text>
+    <line x1="589.7" y1="190" x2="589.7" y2="194" stroke="#666"/>
+    <text x="589.7" y="206">$0.2</text>
+    <line x1="706.7" y1="190" x2="706.7" y2="194" stroke="#666"/>
+    <text x="706.7" y="206">$0.5</text>
+  </g>
+  <line x1="90" y1="4" x2="90" y2="190" stroke="#333" stroke-width="1.2"/>
+  <line x1="90" y1="190" x2="730" y2="190" stroke="#333" stroke-width="1.2"/>
+  <g stroke="#aaa" stroke-width="1">
+    <line x1="529.0" y1="35.0" x2="532.0" y2="21.0"/>
+    <line x1="451.5" y1="97.0" x2="454.5" y2="83.0"/>
+    <line x1="519.5" y1="97.0" x2="522.5" y2="111.0"/>
+    <line x1="475.5" y1="97.0" x2="472.5" y2="111.0"/>
+    <line x1="576.6" y1="97.0" x2="579.6" y2="83.0"/>
+    <line x1="125.0" y1="35.0" x2="128.0" y2="14.0"/>
+    <line x1="394.3" y1="97.0" x2="391.3" y2="76.0"/>
+    <line x1="491.7" y1="35.0" x2="494.7" y2="49.0"/>
+  </g>
+  <circle class="pt rostered" cx="121.0" cy="35.0" r="3.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1"><title>glm-5.3-flash low — T3 3/3+2, 0FP @ $0.0051/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="135.2" cy="35.0" r="3.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1"><title>glm-5.3-flash high — T3 3/3+2, 2FP @ $0.0057/task (10-14)</title></circle>
+  <text x="140.7" y="29.5" font-size="8.5" fill="#555">2FP</text>
+  <circle class="pt rostered" cx="148.0" cy="35.0" r="3.5" fill="#b3261e" stroke="#b3261e" stroke-width="1"><title>claude-haiku-5.5 default — T3 3/3, 0FP (full 6-variant grid) @ $0.0063/task (10-07)</title></circle>
+  <circle class="pt rostered" cx="315.1" cy="35.0" r="3.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1"><title>deepseek-v4p1-flash-1017 medium — T3 3/3, 0FP @ $0.0233/task (10-19)</title></circle>
+  <circle class="pt keptout" cx="487.7" cy="35.0" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark xhigh — T3 3/3, 0FP @ $0.09/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="508.6" cy="35.0" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark low — T3 3/3, 0FP @ $0.106/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="524.3" cy="35.0" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark high — T3 3/3, 0FP @ $0.1199/task (10-16)</title></circle>
+  <circle class="pt keptout" cx="532.0" cy="35.0" r="3.5" fill="none" stroke="#c2185b" stroke-width="1.4"><title>muse-spark medium — T3 3/3, 0FP @ $0.124/task (10-16)</title></circle>
+  <circle class="pt rostered" cx="525.0" cy="35.0" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon low — T3 3/3, 1FP @ $0.1238/task (10-14)</title></circle>
+  <text x="530.5" y="29.5" font-size="8.5" fill="#555">1FP</text>
+  <circle class="pt rostered" cx="466.8" cy="97.0" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon medium — T3 2/3, 2FP @ $0.0764/task (10-14)</title></circle>
+  <text x="472.3" y="91.5" font-size="8.5" fill="#555">2FP</text>
+  <circle class="pt rostered" cx="500.5" cy="97.0" r="3.5" fill="#0891b2" stroke="#0891b2" stroke-width="1"><title>gemini-4-argon high — T3 2/3, 1FP @ $0.0995/task (10-14)</title></circle>
+  <text x="506.0" y="91.5" font-size="8.5" fill="#555">1FP</text>
+  <circle class="pt rostered" cx="168.6" cy="97.0" r="3.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1"><title>deepseek-v4p1-flash low — T3 2/3, 0FP @ $0.0074/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="398.3" cy="97.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-3.8-flash medium — T3 2/3, 2FP @ $0.0447/task (10-14)</title></circle>
+  <text x="403.8" y="91.5" font-size="8.5" fill="#555">2FP</text>
+  <circle class="pt keptout" cx="433.5" cy="97.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-3.8-flash high — T3 2/3, 2FP @ $0.0589/task (10-14)</title></circle>
+  <text x="439.0" y="91.5" font-size="8.5" fill="#555">2FP</text>
+  <circle class="pt rostered" cx="447.5" cy="97.0" r="3.5" fill="#d97706" stroke="#d97706" stroke-width="1"><title>qwen3p8-2p4t-a95b low — T3 3/3+2 &#8594; 2/3 over 2 runs, 0FP @ $0.0657/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="479.5" cy="97.0" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol xhigh — T3 2/3, 0FP @ $0.0844/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="483.1" cy="97.0" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol medium — T3 2/3, 0FP @ $0.0868/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="491.7" cy="97.0" r="3.5" fill="none" stroke="#a16207" stroke-width="1.4"><title>gpt-6.1-sol low — T3 2/3, 0FP @ $0.0929/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="498.7" cy="97.0" r="3.5" fill="#d97706" stroke="#d97706" stroke-width="1"><title>qwen3p8-2p4t-a95b medium — T3 2/3, 1FP @ $0.0981/task (10-14)</title></circle>
+  <text x="504.2" y="91.5" font-size="8.5" fill="#555">1FP</text>
+  <circle class="pt keptout" cx="515.5" cy="97.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon low — T3 2/3+2, 2FP @ $0.1119/task (11-10)</title></circle>
+  <text x="521.0" y="91.5" font-size="8.5" fill="#555">2FP</text>
+  <circle class="pt keptout" cx="593.4" cy="97.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon medium — T3 2/3+2, 2FP @ $0.2059/task (11-10)</title></circle>
+  <text x="598.9" y="91.5" font-size="8.5" fill="#555">2FP</text>
+  <circle class="pt keptout" cx="610.6" cy="97.0" r="3.5" fill="none" stroke="#0891b2" stroke-width="1.4"><title>gemini-4-carbon high — T3 2/3+2, 2FP @ $0.2356/task (11-10)</title></circle>
+  <text x="616.1" y="91.5" font-size="8.5" fill="#555">2FP</text>
+  <circle class="pt keptout" cx="572.6" cy="97.0" r="3.5" fill="none" stroke="#52525b" stroke-width="1.4"><title>kimi-k3p1-pro default — T3 2/3+1, 1FP @ $0.175/task (11-06)</title></circle>
+  <text x="578.1" y="91.5" font-size="8.5" fill="#555">1FP</text>
+  <circle class="pt keptout" cx="587.7" cy="97.0" r="3.5" fill="none" stroke="#52525b" stroke-width="1.4"><title>kimi-k3p1-pro medium — T3 2/3+1, 0FP @ $0.197/task (11-06)</title></circle>
+  <g font-size="10.5">
+    <rect x="175.6" y="90.5" width="137.4" height="13" rx="6.5" fill="#0b57d0"/>
+    <text x="181.6" y="100.3" fill="#ffffff">DeepSeek V4.1 Flash</text>
+    <rect x="532.0" y="14.5" width="104.4" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="538.0" y="24.3" fill="#ffffff">Gemini 4 Argon</text>
+    <rect x="155.0" y="28.5" width="117.6" height="13" rx="6.5" fill="#b3261e"/>
+    <text x="161.0" y="38.3" fill="#ffffff">Claude Haiku 5.5</text>
+    <rect x="454.5" y="76.5" width="91.2" height="13" rx="6.5" fill="#d97706"/>
+    <text x="460.5" y="86.3" fill="#ffffff">Qwen3.8 2P4T</text>
+    <rect x="522.5" y="104.5" width="111.0" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="528.5" y="114.3" fill="#ffffff">Gemini 4 Carbon</text>
+    <rect x="387.9" y="104.5" width="84.6" height="13" rx="6.5" fill="#a16207"/>
+    <text x="393.9" y="114.3" fill="#ffffff">GPT 6.1 Sol</text>
+    <rect x="579.6" y="76.5" width="97.8" height="13" rx="6.5" fill="#52525b"/>
+    <text x="585.6" y="86.3" fill="#ffffff">Kimi K3.1 Pro</text>
+    <rect x="322.1" y="28.5" width="97.8" height="13" rx="6.5" fill="#0b57d0"/>
+    <text x="328.1" y="38.3" fill="#ffffff">DeepSeek 1017</text>
+    <rect x="128.0" y="7.5" width="97.8" height="13" rx="6.5" fill="#1a7f37"/>
+    <text x="134.0" y="17.3" fill="#ffffff">GLM 5.3 Flash</text>
+    <rect x="273.7" y="69.5" width="117.6" height="13" rx="6.5" fill="#0891b2"/>
+    <text x="279.7" y="79.3" fill="#ffffff">Gemini 3.8 Flash</text>
+    <rect x="494.7" y="42.5" width="78.0" height="13" rx="6.5" fill="#c2185b"/>
+    <text x="500.7" y="52.3" fill="#ffffff">Muse Spark</text>
+  </g>
+</svg>
+  </figure>
+  <p class="note">Exactly-coincident cells (same lane, same recorded cost) are offset a few px so both
+  stay hoverable &mdash; hover for the exact figures. Cells with a verdict but no per-task cost on that
+  task stay matrix-only (not plotted): on T1 &mdash; ds-flash `default`, g3.8 `low`, haiku
+  `default`/`xhigh`, sonnet-5.5, opus-5.5, 1017 (all efforts; T1 cost n.t. or range), M3.1 (all
+  efforts), qwen `xhigh`, terra (T1 $0.044&ndash;0.047 is an effort-spanning range), pro, sol
+  `default`, kimi `default`; on T2 &mdash; haiku, sonnet-5.5, opus-5.5, ds-flash `default`, g3.8
+  `low`, sol `default`, qwen `xhigh`, terra ($0.059&ndash;0.071 range), M3.1, 1017, pro; on T3
+  &mdash; g3.8 `low`, haiku `xhigh`, sol `default`, qwen `xhigh`, pro, M3.1 (low is a
+  $0.0068&ndash;0.0107 range), 1017 `low`/`high`&middot;`xhigh`, sonnet-5.5, opus-5.5. T1 grades the
+  matrix records as &ldquo;tier-1&rdquo;/&ldquo;baseline caught&rdquo;/6-9&thinsp;/&thinsp;10 plan
+  scores count as PASS-grade verdicts; qwen `low` T3 is plotted in the 2/3 lane (3/3+2 &rarr; 2/3
+  over 2 runs). Costs are $ per task, delegation-inclusive; dates are the campaign days.</p>
+</section>
+
 <!-- ============ 3. GATE PANEL: T4 BENCH V2 (/14) ============ -->
 <section id="gate">
   <h2>Bench v2 gate — T4 design review (/14): the deciding gate, second panel</h2>
@@ -854,6 +1136,7 @@
     <li><strong>Delegation rule</strong> — an eval arm's cost = parent + ALL child sessions, each child named: a model that delegates inside an eval is scored on the combined labor, never its own tokens alone.</li>
     <li><strong>Confirmation-run rule</strong> — single-run cells are provisional; rung arms get a second run (variance precedents: argon T4 10→8, qwen `low` T3 3/3→2/3, minimax-m3's 3-run oscillation).</li>
     <li><strong>One matrix, two chart panels</strong> — the score matrix holds every measured cell (categorical scores — T1/T2 verdicts, T3 recall — belong in a table, not on a scatter); the <strong>main chart</strong> plots bench v1 T4 (/10) for <em>every</em> model with per-effort T4 measurements, cost per task on the log X axis, <em>Pareto-pruned per model</em>: an effort cell is dropped when a strictly-cheaper cell of the same model scored equal or better (ties keep the cheapest), so only the strict score/cost frontier per model is drawn; the <strong>v2 gate panel</strong> below plots the deciding bench (v2 /14) alone — v1 and v2 are never merged on one plot; color = model family (<code>models.json</code> <code>family_hint</code>); a model&rsquo;s surviving cells are connected in effort order (on the pruned frontier the line itself is the effort-monotonicity evidence — argon&rsquo;s 8&rarr;9 and glm&rsquo;s 8&rarr;6); filled markers = rostered cells, hollow = tested/kept-out; one label per model, at its best surviving cell, with the model&rsquo;s bench-v2 score appended where measured; interior points are hover-only with exact score/cost/date.</li>
+    <li><strong>Categorical lanes</strong> &mdash; between the two T4 charts, three compact lane panels give the categorical tasks the same cost axis as the T4 charts (log $0.004&ndash;0.6 per task): one dotted lane per quality grade (T1: PASS/PARTIAL/FAIL; T2: PASS/FAIL; T3 recall: 3/3, 2/3, &le;1/3), and <em>every</em> model&times;effort cell that has a verdict <em>and</em> a recorded per-task cost on that task is plotted (rostered solid, kept-out hollow; the FP count is printed beside any marker with FP &ge; 1); exactly one pill per model, anchored at its best grade / cheapest cell, other cells hover-only with exact verdict, cost and date. Cells with a verdict but no per-task figure (verdict-only campaigns, effort-spanning cost ranges &mdash; e.g. terra T1 $0.044&ndash;0.047, M3.1 T3 $0.0068&ndash;0.0107*) stay matrix-only. Data: <code>EVALS.md</code> matrix + <code>evals/2026-11-10|11-06/RESULTS.md</code>; family colors per <code>models.json</code> <code>family_hint</code>.</li>
     <li><strong>Effort grid</strong> — adoption is decided on the full effort×task grid, never a single variant: effort is non-monotone, and the roster assigns one effort per role, not one model-wide grade.</li>
     <li><strong>Role-decided per-task costs</strong> — a rung is decided on the task that rung performs (quality measured and cost paid on that task); the 4-task total is a budget sanity-check only, never an arbiter.</li>
     <li><strong>Price over speed + lineage</strong> — when two models sit in the same quality tier, the cheaper one takes the role; a reviewer is never from its producer's family (one documented exception: the `-alternative` re-review rung).</li>
