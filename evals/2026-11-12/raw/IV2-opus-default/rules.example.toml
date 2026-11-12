@@ -1,0 +1,12 @@
+# Column transforms applied while summarizing the input CSVs.
+# Column names not listed here pass through unchanged.
+# Other tables are reserved for future report options.
+
+[transforms]
+tx_id = "trim"
+amount = "currency_amount"
+date = "date_iso"
+emp_id = "trim"
+name = "trim"
+salary = "round2"
+note_id = "trim"
