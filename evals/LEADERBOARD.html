@@ -22,7 +22,6 @@
   table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem 0; font-size: .88rem; }
   th, td { border: 1px solid #d5d5d5; padding: .4rem .55rem; text-align: left; vertical-align: top; }
   th { background: #f2f2f2; font-weight: 600; }
-  tbody tr:nth-child(even) { background: #fafafa; }
   code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85em; }
   .legend { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; font-size: .82rem; margin: .35rem 0; align-items: center; }
   .famlegend { font-size: .88rem; }
@@ -45,6 +44,19 @@
   a { color: #0b57d0; }
   ul.method { font-size: .9rem; }
   ul.method li { margin-bottom: .3rem; }
+  /* ---- score matrix ---- */
+  table.matrix { font-size: .8rem; }
+  table.matrix th, table.matrix td { padding: .28rem .45rem; }
+  table.matrix td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.matrix td.cost { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .74rem; white-space: nowrap; text-align: right; }
+  table.matrix td.model { white-space: nowrap; font-weight: 600; }
+  table.matrix .famdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: .4em; vertical-align: 1px; }
+  table.matrix tr.alt td { background: #f6f8f6; }
+  table.matrix tr.divider td { background: #ececec; font-weight: 700; font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: #555; padding: .22rem .45rem; }
+  .v-pass { color: #1a7f37; font-weight: 600; }
+  .v-part { color: #9a6700; }
+  .v-fail { color: #b3261e; font-weight: 600; }
+  .muted { color: #999; }
   @media print {
     body { padding: 0; font-size: 12px; }
     h2 { page-break-after: avoid; }
@@ -62,486 +74,433 @@
   <p class="philosophy">Quality per dollar per rung; honesty blockers; every roster seat earns its price.</p>
 </header>
 
-<!-- ============ 2. THE GRID: 5 small multiples ============ -->
-<section id="grid">
-  <h2>The grid — score vs cost per task, five panels, one axis</h2>
-  <p class="note">Each panel is one task on the same log-scale cost axis ($ per task, delegation-inclusive).
-  A model&rsquo;s cells on a panel are connected in <em>effort order</em> — the FrontierCode-style effort
-  trajectory: a rising line means effort pays, a zigzag means effort is non-monotone. <strong>Color = model
-  family</strong>; marker = roster status at that model&times;effort. Every point&rsquo;s hover title carries
-  the exact score, FP count, cost and date.</p>
+<!-- ============ 1. SCORE MATRIX ============ -->
+<section id="matrix">
+  <h2>The score matrix — every model, every effort, every score</h2>
+  <p class="note">One row per model&times;effort cell that has measurements. Costs are $ per task
+  (delegation-inclusive), per the 10-15 role-decided methodology; <strong>&mdash;</strong> = no per-task
+  figure recorded (verdict-only cells, effort-spanning ranges, or totals-only campaigns).
+  Hover a row for the campaign date. <strong>T1/T2 verdicts and T3 recall are categorical, not
+  continuous</strong> — they belong in this table, not on a scatter; the single chart below covers the
+  one score that is both numeric and deciding (bench v2). Models without any effort-level measurement
+  (screenings like qwen3p8-max, ember-1, grok-4.7, minimax-m3, kimi-k3, gpt-6-luna, fw-glm-5.3
+  non-flash) have no row here — they live in the kept-out table with their snapshot.</p>
   <div class="legend famlegend"><span class="fam"><i style="background:#1a7f37"></i>glm <em>(glm-5.3-flash)</em></span> <span class="fam"><i style="background:#b3261e"></i>claude <em>(haiku/s5.5/opus-5.5)</em></span> <span class="fam"><i style="background:#0b57d0"></i>deepseek <em>(v4p1-flash/1017/pro)</em></span> <span class="fam"><i style="background:#6d28d9"></i>minimax <em>(M3.1-flash)</em></span> <span class="fam"><i style="background:#d97706"></i>qwen <em>(qwen3p8-2p4t)</em></span> <span class="fam"><i style="background:#a16207"></i>gpt <em>(sol/terra-6.1)</em></span> <span class="fam"><i style="background:#0891b2"></i>gemini <em>(argon/carbon/3.8)</em></span> <span class="fam"><i style="background:#c2185b"></i>muse <em>(muse-spark)</em></span> <span class="fam"><i style="background:#52525b"></i>moonshot <em>(kimi-k3p1-pro)</em></span></div>
-  <div class="legend">
-    <span class="mk"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4.5"/></svg> filled = rostered cell (holds a rung at that effort)</span>
-    <span class="mk"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4.5" fill="#fff" stroke="#555" stroke-width="1.8"/></svg> hollow = tested, no rung at that effort</span>
-    <span class="mk">— solid line = effort trajectory (low&rarr;high)</span>
-    <span class="mk">- - dashed line = repeat runs of the same cell</span>
-  </div>
 
-<figure class="panel">
-<figcaption><span class="ptitle">T1 — orchestration (grounded plan + red-baseline trap)</span><span class="psub">Y: 0 FAIL · ½ PARTIAL · 1 PASS</span></figcaption>
-<svg viewBox="0 0 900 285" role="img" aria-label="T1 — orchestration (grounded plan + red-baseline trap): score versus cost per task, log scale ($).">
-<g font-size="9.5" fill="#666" text-anchor="middle">
-<line x1="105.1" y1="30" x2="105.1" y2="225" stroke="#f0f0f0"/>
-<line x1="105.1" y1="225" x2="105.1" y2="229" stroke="#333"/>
-<text x="105.1" y="240">$0.005</text>
-<line x1="214.2" y1="30" x2="214.2" y2="225" stroke="#f0f0f0"/>
-<line x1="214.2" y1="225" x2="214.2" y2="229" stroke="#333"/>
-<text x="214.2" y="240">$0.01</text>
-<line x1="323.3" y1="30" x2="323.3" y2="225" stroke="#f0f0f0"/>
-<line x1="323.3" y1="225" x2="323.3" y2="229" stroke="#333"/>
-<text x="323.3" y="240">$0.02</text>
-<line x1="467.6" y1="30" x2="467.6" y2="225" stroke="#f0f0f0"/>
-<line x1="467.6" y1="225" x2="467.6" y2="229" stroke="#333"/>
-<text x="467.6" y="240">$0.05</text>
-<line x1="576.7" y1="30" x2="576.7" y2="225" stroke="#f0f0f0"/>
-<line x1="576.7" y1="225" x2="576.7" y2="229" stroke="#333"/>
-<text x="576.7" y="240">$0.1</text>
-<line x1="685.8" y1="30" x2="685.8" y2="225" stroke="#f0f0f0"/>
-<line x1="685.8" y1="225" x2="685.8" y2="229" stroke="#333"/>
-<text x="685.8" y="240">$0.2</text>
-<line x1="830.0" y1="30" x2="830.0" y2="225" stroke="#f0f0f0"/>
-<line x1="830.0" y1="225" x2="830.0" y2="229" stroke="#333"/>
-<text x="830.0" y="240">$0.5</text>
-</g>
-<g font-size="10" fill="#555" text-anchor="end">
-<line x1="70" y1="225.0" x2="830" y2="225.0" stroke="#e8e8e8"/>
-<text x="64" y="228.5">0 FAIL</text>
-<line x1="70" y1="127.5" x2="830" y2="127.5" stroke="#e8e8e8"/>
-<text x="64" y="131.0">½ PARTIAL</text>
-<line x1="70" y1="30.0" x2="830" y2="30.0" stroke="#e8e8e8"/>
-<text x="64" y="33.5">1 PASS</text>
-</g>
-<line x1="70" y1="30" x2="70" y2="225" stroke="#333" stroke-width="1.2"/>
-<line x1="70" y1="225" x2="830" y2="225" stroke="#333" stroke-width="1.2"/>
-<text x="450.0" y="277" font-size="11" fill="#333" text-anchor="middle">cost per task, log scale ($)</text>
-<polyline points="114.3,127.5 105.1,30.0" fill="none" stroke="#1a7f37" stroke-width="1.6" opacity="0.55"/>
-<polyline points="555.5,127.5 563.9,30.0 575.9,127.5" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="477.3,127.5 481.7,127.5" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="572.0,30.0 563.9,30.0 563.0,30.0" fill="none" stroke="#a16207" stroke-width="1.6" opacity="0.55"/>
-<polyline points="557.8,127.5 511.7,127.5 663.8,30.0 582.5,225.0" fill="none" stroke="#c2185b" stroke-width="1.6" opacity="0.55"/>
-<polyline points="578.2,30.0 646.1,30.0 692.4,30.0" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="679.3,127.5 600.0,127.5" fill="none" stroke="#52525b" stroke-width="1.6" opacity="0.55"/>
-<circle class="pt rostered" cx="105.1" cy="30.0" r="4.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash high — PASS @ $0.0050/task (10-14; PARTIAL at low)</title></circle>
-<circle class="pt keptout" cx="114.3" cy="127.5" r="4.5" fill="#ffffff" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash low — PARTIAL (misses red baseline) @ $0.0053/task (10-14)</title></circle>
-<circle class="pt rostered" cx="179.1" cy="127.5" r="4.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash low — PARTIAL @ $0.0080/task (10-14)</title></circle>
-<circle class="pt keptout" cx="477.3" cy="127.5" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash medium — PARTIAL @ $0.0532/task (10-14)</title></circle>
-<circle class="pt keptout" cx="481.7" cy="127.5" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash high — PARTIAL @ $0.0547/task (10-14)</title></circle>
-<circle class="pt keptout" cx="511.7" cy="127.5" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark medium — PARTIAL (misses red baseline) @ $0.0662/task (10-16)</title></circle>
-<circle class="pt keptout" cx="555.5" cy="127.5" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon low — PARTIAL @ $0.0874/task (10-14)</title></circle>
-<circle class="pt keptout" cx="557.8" cy="127.5" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark low — PARTIAL (misses red baseline) @ $0.0887/task (10-16)</title></circle>
-<circle class="pt keptout" cx="558.1" cy="225.0" r="4.5" fill="#ffffff" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b low — FAIL (hallucinated) @ $0.0889/task (10-14)</title></circle>
-<circle class="pt keptout" cx="563.0" cy="30.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol xhigh — PASS @ $0.0917/task (10-14)</title></circle>
-<circle class="pt keptout" cx="563.9" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon medium — PASS @ $0.0922/task (10-14)</title></circle>
-<circle class="pt keptout" cx="563.9" cy="30.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol medium — PASS @ $0.0922/task (10-14)</title></circle>
-<circle class="pt keptout" cx="572.0" cy="30.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol low — PASS @ $0.0971/task (10-14)</title></circle>
-<circle class="pt keptout" cx="575.9" cy="127.5" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — PARTIAL (dismisses baseline) @ $0.0995/task (10-14)</title></circle>
-<circle class="pt keptout" cx="578.2" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon low — PASS (static baseline detect, never executes) @ $0.1010/task (11-10)</title></circle>
-<circle class="pt keptout" cx="582.5" cy="225.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark xhigh — FAIL (invents a green baseline) @ $0.1038/task (10-16)</title></circle>
-<circle class="pt keptout" cx="600.0" cy="127.5" r="4.5" fill="#ffffff" stroke="#52525b" stroke-width="1.8"><title>kimi-k3p1-pro high — PARTIAL (red baseline missed) @ $0.116/task (11-06)</title></circle>
-<circle class="pt keptout" cx="646.1" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon medium — PASS (static baseline detect) @ $0.1554/task (11-10)</title></circle>
-<circle class="pt keptout" cx="663.8" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark high — PASS @ $0.1739/task (10-16)</title></circle>
-<circle class="pt keptout" cx="679.3" cy="127.5" r="4.5" fill="#ffffff" stroke="#52525b" stroke-width="1.8"><title>kimi-k3p1-pro medium — PARTIAL (red baseline missed) @ $0.192/task (11-06)</title></circle>
-<circle class="pt keptout" cx="692.4" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon high — PASS (static baseline detect) @ $0.2086/task (11-10)</title></circle>
-<text x="105.1" y="46.0" font-size="9.5" fill="#1a7f37" text-anchor="middle">glm-hi</text>
-<text x="114.3" y="143.5" font-size="9.5" fill="#1a7f37" text-anchor="middle">glm-lo</text>
-<text x="179.1" y="143.5" font-size="9.5" fill="#0b57d0" text-anchor="middle">ds-lo</text>
-<text x="477.3" y="143.5" font-size="9.5" fill="#0891b2" text-anchor="middle">g3.8-med</text>
-<text x="507.7" y="143.5" font-size="9.5" fill="#0891b2" text-anchor="start">g3.8-hi</text>
-<text x="563.7" y="143.5" font-size="9.5" fill="#c2185b" text-anchor="start">muse-med</text>
-<text x="607.5" y="143.5" font-size="9.5" fill="#0891b2" text-anchor="start">argon-lo</text>
-<text x="667.8" y="143.5" font-size="9.5" fill="#c2185b" text-anchor="start">muse-lo</text>
-<text x="532.1" y="217.0" font-size="9.5" fill="#d97706" text-anchor="end">qwen-lo</text>
-<text x="563.0" y="46.0" font-size="9.5" fill="#a16207" text-anchor="middle">sol-xh</text>
-<text x="589.9" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="start">argon-med</text>
-<text x="537.9" y="46.0" font-size="9.5" fill="#a16207" text-anchor="end">sol-med</text>
-<text x="652.0" y="46.0" font-size="9.5" fill="#a16207" text-anchor="start">sol-lo</text>
-<text x="627.9" y="119.5" font-size="9.5" fill="#0891b2" text-anchor="start">argon-hi</text>
-<text x="498.2" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="end">carbon-lo</text>
-<text x="608.5" y="217.0" font-size="9.5" fill="#c2185b" text-anchor="start">muse-xh</text>
-<text x="710.0" y="143.5" font-size="9.5" fill="#52525b" text-anchor="start">kimi-hi</text>
-<text x="698.1" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="start">carbon-med</text>
-<text x="773.8" y="46.0" font-size="9.5" fill="#c2185b" text-anchor="start">muse-hi</text>
-<text x="759.3" y="143.5" font-size="9.5" fill="#52525b" text-anchor="start">kimi-med</text>
-<text x="718.4" y="22.0" font-size="9.5" fill="#0891b2" text-anchor="start">carbon-hi</text>
-</svg>
-</figure>
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>Model</th><th>Effort</th><th>T1 verdict</th><th>T2</th>
+        <th>T3 <span class="muted">(n/3, FP)</span></th>
+        <th class="num">T4 v1 <span class="muted">(/10)</span></th>
+        <th class="num">T4 v2 <span class="muted">(/14)</span></th>
+        <th>cost / task <span class="muted">(T1 · T2 · T3 · T4)</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- ======== ROSTERED ======== -->
+      <tr title="glm-5.3-flash low — 10-14">
+        <td class="model" rowspan="2" style="border-bottom:2px solid #1a7f37"><span class="famdot" style="background:#1a7f37"></span>glm-5.3-flash</td>
+        <td>`low`</td>
+        <td><span class="v-part">PARTIAL</span> <span class="muted">(misses red baseline)</span></td><td><span class="v-pass">PASS</span></td>
+        <td>3/3+2, 0FP</td><td class="num">8</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0053 · T2 .0063 · T3 .0051 · T4 .0059</td>
+      </tr>
+      <tr class="alt" title="glm-5.3-flash high — 10-14 (T2 re-confirmed 10-16: 2/2, avg $.00525)">
+        <td>`high`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
+        <td>3/3+2, 2FP</td><td class="num">6</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0050 · T2 .0049 · T3 .0057 · T4 .0048</td>
+      </tr>
 
-<figure class="panel">
-<figcaption><span class="ptitle">T2 — implementation (suite green by execution)</span><span class="psub">Y: 0 FAIL · 1 PASS — every measured cell PASSed</span></figcaption>
-<svg viewBox="0 0 900 285" role="img" aria-label="T2 — implementation (suite green by execution): score versus cost per task, log scale ($).">
-<g font-size="9.5" fill="#666" text-anchor="middle">
-<line x1="105.1" y1="30" x2="105.1" y2="225" stroke="#f0f0f0"/>
-<line x1="105.1" y1="225" x2="105.1" y2="229" stroke="#333"/>
-<text x="105.1" y="240">$0.005</text>
-<line x1="214.2" y1="30" x2="214.2" y2="225" stroke="#f0f0f0"/>
-<line x1="214.2" y1="225" x2="214.2" y2="229" stroke="#333"/>
-<text x="214.2" y="240">$0.01</text>
-<line x1="323.3" y1="30" x2="323.3" y2="225" stroke="#f0f0f0"/>
-<line x1="323.3" y1="225" x2="323.3" y2="229" stroke="#333"/>
-<text x="323.3" y="240">$0.02</text>
-<line x1="467.6" y1="30" x2="467.6" y2="225" stroke="#f0f0f0"/>
-<line x1="467.6" y1="225" x2="467.6" y2="229" stroke="#333"/>
-<text x="467.6" y="240">$0.05</text>
-<line x1="576.7" y1="30" x2="576.7" y2="225" stroke="#f0f0f0"/>
-<line x1="576.7" y1="225" x2="576.7" y2="229" stroke="#333"/>
-<text x="576.7" y="240">$0.1</text>
-<line x1="685.8" y1="30" x2="685.8" y2="225" stroke="#f0f0f0"/>
-<line x1="685.8" y1="225" x2="685.8" y2="229" stroke="#333"/>
-<text x="685.8" y="240">$0.2</text>
-<line x1="830.0" y1="30" x2="830.0" y2="225" stroke="#f0f0f0"/>
-<line x1="830.0" y1="225" x2="830.0" y2="229" stroke="#333"/>
-<text x="830.0" y="240">$0.5</text>
-</g>
-<g font-size="10" fill="#555" text-anchor="end">
-<line x1="70" y1="225.0" x2="830" y2="225.0" stroke="#e8e8e8"/>
-<text x="64" y="228.5">0 FAIL</text>
-<line x1="70" y1="30.0" x2="830" y2="30.0" stroke="#e8e8e8"/>
-<text x="64" y="33.5">1 PASS</text>
-</g>
-<line x1="70" y1="30" x2="70" y2="225" stroke="#333" stroke-width="1.2"/>
-<line x1="70" y1="225" x2="830" y2="225" stroke="#333" stroke-width="1.2"/>
-<text x="450.0" y="277" font-size="11" fill="#333" text-anchor="middle">cost per task, log scale ($)</text>
-<polyline points="141.5,30.0 101.9,30.0" fill="none" stroke="#1a7f37" stroke-width="1.6" opacity="0.55"/>
-<polyline points="563.9,30.0 550.5,30.0 554.4,30.0" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="439.0,30.0 508.9,30.0" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="545.6,30.0 573.3,30.0 562.3,30.0" fill="none" stroke="#a16207" stroke-width="1.6" opacity="0.55"/>
-<polyline points="579.3,30.0 574.1,30.0" fill="none" stroke="#d97706" stroke-width="1.6" opacity="0.55"/>
-<polyline points="602.6,30.0 615.0,30.0 611.4,30.0 614.0,30.0" fill="none" stroke="#c2185b" stroke-width="1.6" opacity="0.55"/>
-<polyline points="664.4,30.0 635.7,30.0 797.4,30.0" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<circle class="pt rostered" cx="101.9" cy="30.0" r="4.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash high — PASS @ $0.0049/task (10-16 confirmation: 2/2, avg $0.00525)</title></circle>
-<circle class="pt rostered" cx="141.5" cy="30.0" r="4.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash low — PASS @ $0.0063/task (10-14)</title></circle>
-<circle class="pt rostered" cx="148.8" cy="30.0" r="4.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash low — PASS @ $0.0066/task (10-14)</title></circle>
-<circle class="pt keptout" cx="439.0" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash medium — PASS @ $0.0417/task (10-14)</title></circle>
-<circle class="pt keptout" cx="508.9" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash high — PASS @ $0.0650/task (10-14)</title></circle>
-<circle class="pt keptout" cx="545.6" cy="30.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol low — PASS @ $0.0821/task (10-14)</title></circle>
-<circle class="pt keptout" cx="550.5" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon medium — PASS @ $0.0847/task (10-14)</title></circle>
-<circle class="pt keptout" cx="554.4" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — PASS @ $0.0868/task (10-14)</title></circle>
-<circle class="pt keptout" cx="562.3" cy="30.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol xhigh — PASS @ $0.0913/task (10-14)</title></circle>
-<circle class="pt keptout" cx="563.9" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon low — PASS @ $0.0922/task (10-14)</title></circle>
-<circle class="pt keptout" cx="573.3" cy="30.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol medium — PASS @ $0.0979/task (10-14)</title></circle>
-<circle class="pt keptout" cx="574.1" cy="30.0" r="4.5" fill="#ffffff" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b medium — PASS @ $0.0984/task (10-14)</title></circle>
-<circle class="pt keptout" cx="579.3" cy="30.0" r="4.5" fill="#ffffff" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b low — PASS @ $0.1017/task (10-14)</title></circle>
-<circle class="pt keptout" cx="602.6" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark low — PASS @ $0.1179/task (10-16)</title></circle>
-<circle class="pt keptout" cx="611.4" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark high — PASS @ $0.1247/task (10-16)</title></circle>
-<circle class="pt keptout" cx="614.0" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark xhigh — PASS @ $0.1268/task (10-16)</title></circle>
-<circle class="pt keptout" cx="615.0" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark medium — PASS @ $0.1276/task (10-16)</title></circle>
-<circle class="pt keptout" cx="635.7" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon medium — PASS (delegated: glm cheap-code + haiku) @ $0.1455/task (11-10)</title></circle>
-<circle class="pt keptout" cx="664.4" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon low — PASS (delegated: deepseek cheap-mech + haiku cheap-review) @ $0.1746/task (11-10)</title></circle>
-<circle class="pt keptout" cx="705.7" cy="30.0" r="4.5" fill="#ffffff" stroke="#52525b" stroke-width="1.8"><title>kimi-k3p1-pro default — PASS (delegates to glm cheap-code + haiku cheap-review anyway) @ $0.227/task (11-06)</title></circle>
-<circle class="pt keptout" cx="797.4" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon high — PASS (delegated: glm cheap-code + haiku) @ $0.4064/task (11-10)</title></circle>
-<text x="101.9" y="46.0" font-size="9.5" fill="#1a7f37" text-anchor="middle">glm-hi</text>
-<text x="141.5" y="46.0" font-size="9.5" fill="#1a7f37" text-anchor="middle">glm-lo</text>
-<text x="174.8" y="46.0" font-size="9.5" fill="#0b57d0" text-anchor="start">ds-lo</text>
-<text x="439.0" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="middle">g3.8-med</text>
-<text x="508.9" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="middle">g3.8-hi</text>
-<text x="545.6" y="46.0" font-size="9.5" fill="#a16207" text-anchor="middle">sol-lo</text>
-<text x="576.5" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="start">argon-med</text>
-<text x="634.4" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="start">argon-hi</text>
-<text x="482.3" y="22.0" font-size="9.5" fill="#a16207" text-anchor="end">sol-xh</text>
-<text x="563.9" y="68.0" font-size="9.5" fill="#0891b2" text-anchor="middle">argon-lo</text>
-<text x="683.3" y="46.0" font-size="9.5" fill="#a16207" text-anchor="start">sol-med</text>
-<text x="600.1" y="68.0" font-size="9.5" fill="#d97706" text-anchor="start">qwen-med</text>
-<text x="527.3" y="68.0" font-size="9.5" fill="#d97706" text-anchor="end">qwen-lo</text>
-<text x="712.6" y="22.0" font-size="9.5" fill="#c2185b" text-anchor="start">muse-lo</text>
-<text x="721.4" y="46.0" font-size="9.5" fill="#c2185b" text-anchor="start">muse-hi</text>
-<text x="666.0" y="68.0" font-size="9.5" fill="#c2185b" text-anchor="start">muse-xh</text>
-<text x="725.0" y="68.0" font-size="9.5" fill="#c2185b" text-anchor="start">muse-med</text>
-<text x="635.7" y="90.0" font-size="9.5" fill="#0891b2" text-anchor="middle">carbon-med</text>
-<text x="774.4" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="start">carbon-lo</text>
-<text x="785.7" y="68.0" font-size="9.5" fill="#52525b" text-anchor="start">kimi-def</text>
-<text x="797.4" y="90.0" font-size="9.5" fill="#0891b2" text-anchor="middle">carbon-hi</text>
-</svg>
-</figure>
+      <tr title="claude-haiku-5.5 default — 10-07">
+        <td class="model" rowspan="2" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-haiku-5.5</td>
+        <td>`default`</td>
+        <td class="num">6/10</td><td><span class="v-pass">PASS</span></td>
+        <td>3/3, 0FP</td><td class="num">8</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 .0063 · T4 &mdash;</td>
+      </tr>
+      <tr class="alt" title="claude-haiku-5.5 xhigh — 10-07 (T4 $.018 from the EVALS.md Roles row — the only per-task xhigh figure recorded)">
+        <td>`xhigh`</td>
+        <td class="num">9/10</td><td><span class="v-pass">PASS</span></td>
+        <td>3/3+proofs</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .018</td>
+      </tr>
 
-<figure class="panel">
-<figcaption><span class="ptitle">T3 — impl review (defects recalled, 0–3)</span><span class="psub">label = recall + FP count (e.g. “2/3 2FP”); * = qwen low over 2 runs: 3/3+2 then 2/3</span></figcaption>
-<svg viewBox="0 0 900 285" role="img" aria-label="T3 — impl review (defects recalled, 0–3): score versus cost per task, log scale ($).">
-<g font-size="9.5" fill="#666" text-anchor="middle">
-<line x1="105.1" y1="30" x2="105.1" y2="225" stroke="#f0f0f0"/>
-<line x1="105.1" y1="225" x2="105.1" y2="229" stroke="#333"/>
-<text x="105.1" y="240">$0.005</text>
-<line x1="214.2" y1="30" x2="214.2" y2="225" stroke="#f0f0f0"/>
-<line x1="214.2" y1="225" x2="214.2" y2="229" stroke="#333"/>
-<text x="214.2" y="240">$0.01</text>
-<line x1="323.3" y1="30" x2="323.3" y2="225" stroke="#f0f0f0"/>
-<line x1="323.3" y1="225" x2="323.3" y2="229" stroke="#333"/>
-<text x="323.3" y="240">$0.02</text>
-<line x1="467.6" y1="30" x2="467.6" y2="225" stroke="#f0f0f0"/>
-<line x1="467.6" y1="225" x2="467.6" y2="229" stroke="#333"/>
-<text x="467.6" y="240">$0.05</text>
-<line x1="576.7" y1="30" x2="576.7" y2="225" stroke="#f0f0f0"/>
-<line x1="576.7" y1="225" x2="576.7" y2="229" stroke="#333"/>
-<text x="576.7" y="240">$0.1</text>
-<line x1="685.8" y1="30" x2="685.8" y2="225" stroke="#f0f0f0"/>
-<line x1="685.8" y1="225" x2="685.8" y2="229" stroke="#333"/>
-<text x="685.8" y="240">$0.2</text>
-<line x1="830.0" y1="30" x2="830.0" y2="225" stroke="#f0f0f0"/>
-<line x1="830.0" y1="225" x2="830.0" y2="229" stroke="#333"/>
-<text x="830.0" y="240">$0.5</text>
-</g>
-<g font-size="10" fill="#555" text-anchor="end">
-<line x1="70" y1="225.0" x2="830" y2="225.0" stroke="#e8e8e8"/>
-<text x="64" y="228.5">0</text>
-<line x1="70" y1="160.0" x2="830" y2="160.0" stroke="#e8e8e8"/>
-<text x="64" y="163.5">1</text>
-<line x1="70" y1="95.0" x2="830" y2="95.0" stroke="#e8e8e8"/>
-<text x="64" y="98.5">2</text>
-<line x1="70" y1="30.0" x2="830" y2="30.0" stroke="#e8e8e8"/>
-<text x="64" y="33.5">3</text>
-</g>
-<line x1="70" y1="30" x2="70" y2="225" stroke="#333" stroke-width="1.2"/>
-<line x1="70" y1="225" x2="830" y2="225" stroke="#333" stroke-width="1.2"/>
-<text x="450.0" y="277" font-size="11" fill="#333" text-anchor="middle">cost per task, log scale ($)</text>
-<polyline points="108.2,30.0 125.7,30.0" fill="none" stroke="#1a7f37" stroke-width="1.6" opacity="0.55"/>
-<polyline points="610.3,30.0 534.3,95.0 575.9,95.0" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="449.9,95.0 493.3,95.0" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="565.1,95.0 554.4,95.0 550.0,95.0" fill="none" stroke="#a16207" stroke-width="1.6" opacity="0.55"/>
-<polyline points="510.5,95.0 573.6,95.0" fill="none" stroke="#d97706" stroke-width="1.6" opacity="0.55"/>
-<polyline points="585.8,30.0 610.5,30.0 605.2,30.0 560.1,30.0" fill="none" stroke="#c2185b" stroke-width="1.6" opacity="0.55"/>
-<polyline points="594.4,95.0 690.3,95.0 711.6,95.0" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="664.8,95.0 683.4,95.0" fill="none" stroke="#52525b" stroke-width="1.6" opacity="0.55"/>
-<circle class="pt rostered" cx="108.2" cy="30.0" r="4.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash low — 3/3 + 2 bonus, 0FP @ $0.0051/task (10-14)</title></circle>
-<circle class="pt rostered" cx="125.7" cy="30.0" r="4.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash high — 3/3 + 2 bonus, 2FP @ $0.0057/task (10-14) - strong-review rung</title></circle>
-<circle class="pt rostered" cx="141.5" cy="30.0" r="4.5" fill="#b3261e" stroke="#b3261e" stroke-width="1.8"><title>claude-haiku-5.5 default — 3/3, 0FP @ $0.0063/task (10-07) - the review floor</title></circle>
-<circle class="pt rostered" cx="166.8" cy="95.0" r="4.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash low — 2/3, 0FP @ $0.0074/task (10-14)</title></circle>
-<circle class="pt keptout" cx="449.9" cy="95.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash medium — 2/3, 2FP @ $0.0447/task (10-14)</title></circle>
-<circle class="pt keptout" cx="493.3" cy="95.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash high — 2/3, 2FP @ $0.0589/task (10-14)</title></circle>
-<circle class="pt keptout" cx="510.5" cy="95.0" r="4.5" fill="#ffffff" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b low — 2 runs: 3/3+2 then 2/3, 0FP - variance confirmed, out for review roles @ $0.0657/task (10-14)</title></circle>
-<circle class="pt keptout" cx="534.3" cy="95.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon medium — 2/3, 2FP @ $0.0764/task (10-14)</title></circle>
-<circle class="pt keptout" cx="550.0" cy="95.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol xhigh — 2/3, 0FP @ $0.0844/task (10-14)</title></circle>
-<circle class="pt keptout" cx="554.4" cy="95.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol medium — 2/3, 0FP @ $0.0868/task (10-14)</title></circle>
-<circle class="pt keptout" cx="560.1" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark xhigh — 3/3, 0FP @ $0.0900/task (10-16)</title></circle>
-<circle class="pt keptout" cx="565.1" cy="95.0" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol low — 2/3, 0FP @ $0.0929/task (10-14)</title></circle>
-<circle class="pt keptout" cx="573.6" cy="95.0" r="4.5" fill="#ffffff" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b medium — 2/3, 1FP @ $0.0981/task (10-14)</title></circle>
-<circle class="pt keptout" cx="575.9" cy="95.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — 2/3, 1FP @ $0.0995/task (10-14)</title></circle>
-<circle class="pt keptout" cx="585.8" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark low — 3/3, 0FP @ $0.1060/task (10-16)</title></circle>
-<circle class="pt keptout" cx="594.4" cy="95.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon low — 2/3 + 2 bonus, 2FP @ $0.1119/task (11-10)</title></circle>
-<circle class="pt keptout" cx="605.2" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark high — 3/3, 0FP @ $0.1199/task (10-16)</title></circle>
-<circle class="pt keptout" cx="610.3" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon low — 3/3, 1FP @ $0.1238/task (10-14)</title></circle>
-<circle class="pt keptout" cx="610.5" cy="30.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark medium — 3/3, 0FP @ $0.1240/task (10-16)</title></circle>
-<circle class="pt keptout" cx="664.8" cy="95.0" r="4.5" fill="#ffffff" stroke="#52525b" stroke-width="1.8"><title>kimi-k3p1-pro default — 2/3 + 1 bonus, 1FP @ $0.175/task (11-06)</title></circle>
-<circle class="pt keptout" cx="683.4" cy="95.0" r="4.5" fill="#ffffff" stroke="#52525b" stroke-width="1.8"><title>kimi-k3p1-pro medium — 2/3 + 1 bonus, 0FP @ $0.197/task (11-06)</title></circle>
-<circle class="pt keptout" cx="690.3" cy="95.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon medium — 2/3 + 2 bonus, 2FP @ $0.2059/task (11-10)</title></circle>
-<circle class="pt keptout" cx="711.6" cy="95.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon high — 2/3 + 2 bonus, 2FP @ $0.2356/task (11-10)</title></circle>
-<text x="108.2" y="46.0" font-size="9.5" fill="#1a7f37" text-anchor="middle">3/3+2 0FP</text>
-<text x="151.7" y="46.0" font-size="9.5" fill="#1a7f37" text-anchor="start">3/3+2 2FP</text>
-<text x="221.5" y="46.0" font-size="9.5" fill="#b3261e" text-anchor="start">3/3 0FP</text>
-<text x="166.8" y="111.0" font-size="9.5" fill="#0b57d0" text-anchor="middle">2/3 0FP</text>
-<text x="449.9" y="111.0" font-size="9.5" fill="#0891b2" text-anchor="middle">2/3 2FP</text>
-<text x="493.3" y="111.0" font-size="9.5" fill="#0891b2" text-anchor="middle">2/3 2FP</text>
-<text x="536.5" y="111.0" font-size="9.5" fill="#d97706" text-anchor="start">2/3* 0FP</text>
-<text x="586.3" y="111.0" font-size="9.5" fill="#0891b2" text-anchor="start">2/3 2FP</text>
-<text x="630.0" y="111.0" font-size="9.5" fill="#a16207" text-anchor="start">2/3 0FP</text>
-<text x="606.4" y="87.0" font-size="9.5" fill="#a16207" text-anchor="start">2/3 0FP</text>
-<text x="560.1" y="46.0" font-size="9.5" fill="#c2185b" text-anchor="middle">3/3 0FP</text>
-<text x="675.1" y="111.0" font-size="9.5" fill="#a16207" text-anchor="start">2/3 0FP</text>
-<text x="573.6" y="76.0" font-size="9.5" fill="#d97706" text-anchor="middle">2/3 1FP</text>
-<text x="549.9" y="76.0" font-size="9.5" fill="#0891b2" text-anchor="end">2/3 1FP</text>
-<text x="611.8" y="46.0" font-size="9.5" fill="#c2185b" text-anchor="start">3/3 0FP</text>
-<text x="646.4" y="76.0" font-size="9.5" fill="#0891b2" text-anchor="start">2/3+2 2FP</text>
-<text x="657.2" y="46.0" font-size="9.5" fill="#c2185b" text-anchor="start">3/3 0FP</text>
-<text x="530.3" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="end">3/3 1FP</text>
-<text x="720.5" y="46.0" font-size="9.5" fill="#c2185b" text-anchor="start">3/3 0FP</text>
-<text x="716.8" y="111.0" font-size="9.5" fill="#52525b" text-anchor="start">2/3+1 1FP</text>
-<text x="735.4" y="87.0" font-size="9.5" fill="#52525b" text-anchor="start">2/3+1 0FP</text>
-<text x="770.3" y="111.0" font-size="9.5" fill="#0891b2" text-anchor="start">2/3+2 2FP</text>
-<text x="711.6" y="133.0" font-size="9.5" fill="#0891b2" text-anchor="middle">2/3+2 2FP</text>
-</svg>
-</figure>
+      <tr title="claude-sonnet-5.5 — 09-29, verdicts only (n.t. per-task costs)">
+        <td class="model" rowspan="2" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-sonnet-5.5</td>
+        <td>`high`</td>
+        <td>best plan</td><td><span class="v-pass">PASS</span></td>
+        <td class="muted">&mdash;</td><td class="muted">&mdash;</td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t.</td>
+      </tr>
+      <tr class="alt" title="claude-sonnet-5.5 — 09-29, verdicts only (n.t. per-task costs)">
+        <td>`medium`</td>
+        <td class="muted">&mdash;</td><td><span class="v-pass">PASS</span></td>
+        <td>best reviewer</td><td>tier-1</td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t.</td>
+      </tr>
 
-<figure class="panel">
-<figcaption><span class="ptitle">T4 — design review, bench v1 (/10)</span><span class="psub">superseded as a gate by v2 — kept for full-grid coverage</span></figcaption>
-<svg viewBox="0 0 900 285" role="img" aria-label="T4 — design review, bench v1 (/10): score versus cost per task, log scale ($).">
-<g font-size="9.5" fill="#666" text-anchor="middle">
-<line x1="105.1" y1="30" x2="105.1" y2="225" stroke="#f0f0f0"/>
-<line x1="105.1" y1="225" x2="105.1" y2="229" stroke="#333"/>
-<text x="105.1" y="240">$0.005</text>
-<line x1="214.2" y1="30" x2="214.2" y2="225" stroke="#f0f0f0"/>
-<line x1="214.2" y1="225" x2="214.2" y2="229" stroke="#333"/>
-<text x="214.2" y="240">$0.01</text>
-<line x1="323.3" y1="30" x2="323.3" y2="225" stroke="#f0f0f0"/>
-<line x1="323.3" y1="225" x2="323.3" y2="229" stroke="#333"/>
-<text x="323.3" y="240">$0.02</text>
-<line x1="467.6" y1="30" x2="467.6" y2="225" stroke="#f0f0f0"/>
-<line x1="467.6" y1="225" x2="467.6" y2="229" stroke="#333"/>
-<text x="467.6" y="240">$0.05</text>
-<line x1="576.7" y1="30" x2="576.7" y2="225" stroke="#f0f0f0"/>
-<line x1="576.7" y1="225" x2="576.7" y2="229" stroke="#333"/>
-<text x="576.7" y="240">$0.1</text>
-<line x1="685.8" y1="30" x2="685.8" y2="225" stroke="#f0f0f0"/>
-<line x1="685.8" y1="225" x2="685.8" y2="229" stroke="#333"/>
-<text x="685.8" y="240">$0.2</text>
-<line x1="830.0" y1="30" x2="830.0" y2="225" stroke="#f0f0f0"/>
-<line x1="830.0" y1="225" x2="830.0" y2="229" stroke="#333"/>
-<text x="830.0" y="240">$0.5</text>
-</g>
-<g font-size="10" fill="#555" text-anchor="end">
-<line x1="70" y1="225.0" x2="830" y2="225.0" stroke="#e8e8e8"/>
-<text x="64" y="228.5">0</text>
-<line x1="70" y1="186.0" x2="830" y2="186.0" stroke="#e8e8e8"/>
-<text x="64" y="189.5">2</text>
-<line x1="70" y1="147.0" x2="830" y2="147.0" stroke="#e8e8e8"/>
-<text x="64" y="150.5">4</text>
-<line x1="70" y1="108.0" x2="830" y2="108.0" stroke="#e8e8e8"/>
-<text x="64" y="111.5">6</text>
-<line x1="70" y1="69.0" x2="830" y2="69.0" stroke="#e8e8e8"/>
-<text x="64" y="72.5">8</text>
-<line x1="70" y1="30.0" x2="830" y2="30.0" stroke="#e8e8e8"/>
-<text x="64" y="33.5">10</text>
-</g>
-<line x1="70" y1="30" x2="70" y2="225" stroke="#333" stroke-width="1.2"/>
-<line x1="70" y1="225" x2="830" y2="225" stroke="#333" stroke-width="1.2"/>
-<text x="450.0" y="277" font-size="11" fill="#333" text-anchor="middle">cost per task, log scale ($)</text>
-<polyline points="131.2,69.0 98.7,108.0" fill="none" stroke="#1a7f37" stroke-width="1.6" opacity="0.55"/>
-<polyline points="523.9,69.0 559.7,49.5 556.4,49.5" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="434.4,49.5 547.9,88.5" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="532.8,49.5 532.6,49.5 551.8,49.5" fill="none" stroke="#a16207" stroke-width="1.6" opacity="0.55"/>
-<polyline points="565.8,49.5 586.4,69.0" fill="none" stroke="#d97706" stroke-width="1.6" opacity="0.55"/>
-<polyline points="542.3,88.5 558.3,49.5 575.6,108.0 533.3,49.5" fill="none" stroke="#c2185b" stroke-width="1.6" opacity="0.55"/>
-<polyline points="614.4,30.0 602.6,30.0 657.4,30.0" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<polyline points="674.3,69.0 655.5,69.0" fill="none" stroke="#52525b" stroke-width="1.6" opacity="0.55"/>
-<circle class="pt rostered" cx="98.7" cy="108.0" r="4.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash high — 6/10 @ $0.0048/task (10-14) - non-monotone vs low</title></circle>
-<circle class="pt rostered" cx="131.2" cy="69.0" r="4.5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash low — 8/10 @ $0.0059/task (10-14) - cheap-design rung effort</title></circle>
-<circle class="pt rostered" cx="171.0" cy="49.5" r="4.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash low — 9/10 @ $0.0076/task (10-14)</title></circle>
-<circle class="pt rostered" cx="183.0" cy="30.0" r="4.5" fill="#6d28d9" stroke="#6d28d9" stroke-width="1.8"><title>minimax-m3p1-flash medium — 10/10 avg over 3 confirmation runs, 0FP @ $0.0082/task (10-23) - cheap-design-review rung</title></circle>
-<circle class="pt rostered" cx="270.5" cy="30.0" r="4.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash-1017 medium — 10/10, 0FP @ $0.0143/task (10-19) - strong-design-review rung</title></circle>
-<circle class="pt keptout" cx="306.7" cy="49.5" r="4.5" fill="#ffffff" stroke="#b3261e" stroke-width="1.8"><title>claude-haiku-5.5 xhigh — 9/10 @ $0.018/task (10-07; per-task figure from the EVALS.md Roles row)</title></circle>
-<circle class="pt rostered" cx="427.6" cy="30.0" r="4.5" fill="#a16207" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-terra medium — 10/10, 0FP @ $0.0388/task (10-26) - strong-design/code-alternative rung</title></circle>
-<circle class="pt keptout" cx="434.4" cy="49.5" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash medium — 9/10 @ $0.0405/task (10-14)</title></circle>
-<circle class="pt rostered" cx="475.2" cy="39.8" r="4.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>fw-deepseek-v4-pro high — 9-10/10 flaw categories, plotted at 9.5 @ $0.0525 (midpoint of recorded $0.047-0.058) (09-30) - strong-design-review-alternative2 rung</title></circle>
-<circle class="pt keptout" cx="523.9" cy="69.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon low — 8/10 @ $0.0715/task (10-14)</title></circle>
-<circle class="pt keptout" cx="532.6" cy="49.5" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol medium — 9/10 @ $0.0756/task (10-14)</title></circle>
-<circle class="pt keptout" cx="532.8" cy="49.5" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol low — 9/10 @ $0.0757/task (10-14)</title></circle>
-<circle class="pt keptout" cx="533.3" cy="49.5" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark xhigh — 9/10, 0FP @ $0.0759/task (10-16)</title></circle>
-<circle class="pt keptout" cx="542.3" cy="88.5" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark low — 7/10 @ $0.0804/task (10-16)</title></circle>
-<circle class="pt keptout" cx="547.9" cy="88.5" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash high — 7/10 @ $0.0833/task (10-14)</title></circle>
-<circle class="pt keptout" cx="551.8" cy="49.5" r="4.5" fill="#ffffff" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol xhigh — 9/10 @ $0.0854/task (10-14)</title></circle>
-<circle class="pt rostered" cx="556.4" cy="49.5" r="4.5" fill="#0891b2" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — 9/10 avg over 2 runs (10, 8 - variance) @ $0.0879/task (10-14) - strong-design-review-alternative rung</title></circle>
-<circle class="pt keptout" cx="558.3" cy="49.5" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark medium — 9/10, 0FP @ $0.0890/task (10-16)</title></circle>
-<circle class="pt keptout" cx="559.7" cy="49.5" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon medium — 9/10 @ $0.0898/task (10-14)</title></circle>
-<circle class="pt keptout" cx="565.8" cy="49.5" r="4.5" fill="#ffffff" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b low — 9/10 @ $0.0933/task (10-14)</title></circle>
-<circle class="pt keptout" cx="575.6" cy="108.0" r="4.5" fill="#ffffff" stroke="#c2185b" stroke-width="1.8"><title>muse-spark high — 6/10 @ $0.0993/task (10-16)</title></circle>
-<circle class="pt keptout" cx="586.4" cy="69.0" r="4.5" fill="#ffffff" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b medium — 8/10 @ $0.1064/task (10-14)</title></circle>
-<circle class="pt keptout" cx="602.6" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon medium — 10/10, 0FP @ $0.1179/task (11-10)</title></circle>
-<circle class="pt keptout" cx="614.4" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon low — 10/10, 0FP @ $0.1271/task (11-10)</title></circle>
-<circle class="pt keptout" cx="655.5" cy="69.0" r="4.5" fill="#ffffff" stroke="#52525b" stroke-width="1.8"><title>kimi-k3p1-pro medium — 8/10, 0FP @ $0.165/task incl. children (11-06)</title></circle>
-<circle class="pt keptout" cx="657.4" cy="30.0" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon high — 10/10, 0FP, 2-run avg (10, 10) @ $0.167/task (11-10)</title></circle>
-<circle class="pt keptout" cx="674.3" cy="69.0" r="4.5" fill="#ffffff" stroke="#52525b" stroke-width="1.8"><title>kimi-k3p1-pro default — 8/10, 0FP @ $0.186/task incl. children (11-06)</title></circle>
-<text x="98.7" y="124.0" font-size="9.5" fill="#1a7f37" text-anchor="middle">glm-hi</text>
-<text x="131.2" y="85.0" font-size="9.5" fill="#1a7f37" text-anchor="middle">glm-lo</text>
-<text x="171.0" y="65.5" font-size="9.5" fill="#0b57d0" text-anchor="middle">ds-lo</text>
-<text x="209.0" y="46.0" font-size="9.5" fill="#6d28d9" text-anchor="start">M3.1-med</text>
-<text x="322.5" y="46.0" font-size="9.5" fill="#0b57d0" text-anchor="start">1017-med</text>
-<text x="306.7" y="65.5" font-size="9.5" fill="#b3261e" text-anchor="middle">haiku-xh</text>
-<text x="453.6" y="22.0" font-size="9.5" fill="#a16207" text-anchor="start">terra-med</text>
-<text x="434.4" y="65.5" font-size="9.5" fill="#0891b2" text-anchor="middle">g3.8-med</text>
-<text x="475.2" y="55.8" font-size="9.5" fill="#0b57d0" text-anchor="middle">pro-hi</text>
-<text x="497.9" y="85.0" font-size="9.5" fill="#0891b2" text-anchor="end">argon-lo</text>
-<text x="612.6" y="65.5" font-size="9.5" fill="#a16207" text-anchor="start">sol-med</text>
-<text x="532.8" y="30.5" font-size="9.5" fill="#a16207" text-anchor="middle">sol-lo</text>
-<text x="559.3" y="30.5" font-size="9.5" fill="#c2185b" text-anchor="start">muse-xh</text>
-<text x="542.3" y="104.5" font-size="9.5" fill="#c2185b" text-anchor="middle">muse-lo</text>
-<text x="521.9" y="104.5" font-size="9.5" fill="#0891b2" text-anchor="end">g3.8-hi</text>
-<text x="551.8" y="65.5" font-size="9.5" fill="#a16207" text-anchor="middle">sol-xh</text>
-<text x="666.4" y="41.5" font-size="9.5" fill="#0891b2" text-anchor="start">argon-hi</text>
-<text x="584.3" y="87.5" font-size="9.5" fill="#c2185b" text-anchor="start">muse-med</text>
-<text x="639.7" y="87.5" font-size="9.5" fill="#0891b2" text-anchor="start">argon-med</text>
-<text x="455.8" y="87.5" font-size="9.5" fill="#d97706" text-anchor="end">qwen-lo</text>
-<text x="575.6" y="124.0" font-size="9.5" fill="#c2185b" text-anchor="middle">muse-hi</text>
-<text x="696.4" y="85.0" font-size="9.5" fill="#d97706" text-anchor="start">qwen-med</text>
-<text x="602.6" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="middle">carbon-med</text>
-<text x="724.4" y="46.0" font-size="9.5" fill="#0891b2" text-anchor="start">carbon-lo</text>
-<text x="765.5" y="85.0" font-size="9.5" fill="#52525b" text-anchor="start">kimi-med</text>
-<text x="683.4" y="22.0" font-size="9.5" fill="#0891b2" text-anchor="start">carbon-hi</text>
-<text x="700.3" y="61.0" font-size="9.5" fill="#52525b" text-anchor="start">kimi-def</text>
-</svg>
-</figure>
+      <tr title="claude-opus-5.5 default — 09-29, verdicts only (n.t. per-task costs)">
+        <td class="model" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-opus-5.5</td>
+        <td>`default`</td>
+        <td>tier-1</td><td><span class="v-pass">PASS</span></td>
+        <td>tier-1</td><td>tier-1</td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t.</td>
+      </tr>
 
-<figure class="panel gate">
-<figcaption><span class="ptitle">T4 — design review, bench v2 (/14) — THE GATE</span><span class="psub">deciding bench for design-review rungs; v1 and v2 are never compared</span></figcaption>
-<svg viewBox="0 0 900 285" role="img" aria-label="T4 — design review, bench v2 (/14) — THE GATE: score versus cost per task, log scale ($).">
-<g font-size="9.5" fill="#666" text-anchor="middle">
-<line x1="105.1" y1="30" x2="105.1" y2="225" stroke="#f0f0f0"/>
-<line x1="105.1" y1="225" x2="105.1" y2="229" stroke="#333"/>
-<text x="105.1" y="240">$0.005</text>
-<line x1="214.2" y1="30" x2="214.2" y2="225" stroke="#f0f0f0"/>
-<line x1="214.2" y1="225" x2="214.2" y2="229" stroke="#333"/>
-<text x="214.2" y="240">$0.01</text>
-<line x1="323.3" y1="30" x2="323.3" y2="225" stroke="#f0f0f0"/>
-<line x1="323.3" y1="225" x2="323.3" y2="229" stroke="#333"/>
-<text x="323.3" y="240">$0.02</text>
-<line x1="467.6" y1="30" x2="467.6" y2="225" stroke="#f0f0f0"/>
-<line x1="467.6" y1="225" x2="467.6" y2="229" stroke="#333"/>
-<text x="467.6" y="240">$0.05</text>
-<line x1="576.7" y1="30" x2="576.7" y2="225" stroke="#f0f0f0"/>
-<line x1="576.7" y1="225" x2="576.7" y2="229" stroke="#333"/>
-<text x="576.7" y="240">$0.1</text>
-<line x1="685.8" y1="30" x2="685.8" y2="225" stroke="#f0f0f0"/>
-<line x1="685.8" y1="225" x2="685.8" y2="229" stroke="#333"/>
-<text x="685.8" y="240">$0.2</text>
-<line x1="830.0" y1="30" x2="830.0" y2="225" stroke="#f0f0f0"/>
-<line x1="830.0" y1="225" x2="830.0" y2="229" stroke="#333"/>
-<text x="830.0" y="240">$0.5</text>
-</g>
-<g font-size="10" fill="#555" text-anchor="end">
-<line x1="70" y1="225.0" x2="830" y2="225.0" stroke="#e8e8e8"/>
-<text x="64" y="228.5">0</text>
-<line x1="70" y1="169.3" x2="830" y2="169.3" stroke="#e8e8e8"/>
-<text x="64" y="172.8">4</text>
-<line x1="70" y1="127.5" x2="830" y2="127.5" stroke="#e8e8e8"/>
-<text x="64" y="131.0">7</text>
-<line x1="70" y1="30.0" x2="830" y2="30.0" stroke="#e8e8e8"/>
-<text x="64" y="33.5">14</text>
-</g>
-<line x1="70" y1="85.7" x2="830" y2="85.7" stroke="#99a" stroke-dasharray="3 4"/>
-<text x="74" y="80.7" font-size="9.5" fill="#778" text-anchor="start">current ceiling — proof bonus (+4) never earned</text>
-<line x1="70" y1="30" x2="70" y2="225" stroke="#333" stroke-width="1.2"/>
-<line x1="70" y1="225" x2="830" y2="225" stroke="#333" stroke-width="1.2"/>
-<text x="450.0" y="277" font-size="11" fill="#333" text-anchor="middle">cost per task, log scale ($)</text>
-<polyline points="608.7,85.7 624.7,99.6" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55" stroke-dasharray="4 3"/>
-<polyline points="578.1,169.3 706.9,85.7" fill="none" stroke="#0891b2" stroke-width="1.6" opacity="0.55"/>
-<circle class="pt rostered" cx="214.2" cy="99.6" r="4.5" fill="#6d28d9" stroke="#6d28d9" stroke-width="1.8"><title>minimax-m3p1-flash medium — 9/14, 0 FP @ $0.0100/run (11-01) - cheap-design-review rung</title></circle>
-<circle class="pt rostered" cx="413.7" cy="113.6" r="4.5" fill="#a16207" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-terra medium — 8/14, 0 FP (never opened the code) @ $0.0355/run (11-01)</title></circle>
-<circle class="pt rostered" cx="420.6" cy="99.6" r="4.5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash-1017 medium — 9/14, 0 FP @ $0.0371/run (11-01) - strong-design-review rung</title></circle>
-<circle class="pt keptout" cx="578.1" cy="169.3" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon low — 4/14, 1 FP - v1 effort-flatness collapses on v2 @ $0.1009/run (11-10)</title></circle>
-<circle class="pt rostered" cx="608.7" cy="85.7" r="4.5" fill="#0891b2" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — 10/14, 0 FP @ $0.1226/run (11-01)</title></circle>
-<circle class="pt rostered" cx="618.9" cy="85.7" r="4.5" fill="#d97706" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b xhigh — 10/14, 0 FP (9-10, cat-3 borderline) @ $0.1308/run (11-01)</title></circle>
-<circle class="pt rostered" cx="624.7" cy="99.6" r="4.5" fill="#0891b2" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — 9/14, 0 FP (miss = cat-3 fsync) @ $0.1357/run (11-10) - 2-run avg 9.5/14</title></circle>
-<circle class="pt keptout" cx="706.9" cy="85.7" r="4.5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon high — 10/14, 0 FP - best-ever v2 @ $0.2288/run (11-10)</title></circle>
-<text x="214.2" y="115.6" font-size="9.5" fill="#6d28d9" text-anchor="middle">M3.1-med</text>
-<text x="413.7" y="129.6" font-size="9.5" fill="#a16207" text-anchor="middle">terra-med</text>
-<text x="446.6" y="115.6" font-size="9.5" fill="#0b57d0" text-anchor="start">1017-med</text>
-<text x="578.1" y="185.3" font-size="9.5" fill="#0891b2" text-anchor="middle">carbon-lo</text>
-<text x="634.7" y="101.7" font-size="9.5" fill="#0891b2" text-anchor="start">argon-hi</text>
-<text x="592.9" y="101.7" font-size="9.5" fill="#d97706" text-anchor="end">qwen-xh</text>
-<text x="624.7" y="115.6" font-size="9.5" fill="#0891b2" text-anchor="middle">argon-hi</text>
-<text x="706.9" y="101.7" font-size="9.5" fill="#0891b2" text-anchor="middle">carbon-hi</text>
-</svg>
-<p class="note"><strong>Why this panel is the gate:</strong> bench v2 is the deciding bench for the strong-design-review rungs. It is sparse by design — v2 is run only for models that ace v1 T4, at their rostered effort — and that sparsity is the honest state of the record: 7 measurements across 6 models. Argon&rsquo;s dashed segment connects two <em>repeat runs of the same cell</em> (10 on 11-01, 9 on 11-10; 2-run avg 9.5/14), not an effort trajectory. Carbon&rsquo;s solid line is the cautionary one: best-ever v2 at <code>high</code> (10/14, 0 FP) collapses to 4/14 with 1 FP at <code>low</code>. <code>fw-deepseek-v4-pro</code> has no v2 cell — gateway outage 11-01 (not measurable).</p>
-</figure>
+      <tr title="deepseek-v4p1-flash low — 10-14">
+        <td class="model" rowspan="2" style="border-bottom:2px solid #0b57d0"><span class="famdot" style="background:#0b57d0"></span>deepseek-v4p1-flash</td>
+        <td>`low`</td>
+        <td><span class="v-part">PARTIAL</span></td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0080 · T2 .0066 · T3 .0074 · T4 .0076</td>
+      </tr>
+      <tr class="alt" title="deepseek-v4p1-flash default(=high) — 09-30, verdicts only (n.t. per-task costs)">
+        <td>`default` (=high)</td>
+        <td>tier-1, baseline caught</td><td><span class="v-pass">PASS</span></td>
+        <td>2/3</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t.</td>
+      </tr>
 
-  <h3>Not plotted — every cell without both a numeric score and a per-task cost</h3>
-  <ul class="note" id="notplotted">
-    <li><strong>claude-sonnet-5.5, claude-opus-5.5</strong> — all cells: verdicts only (&ldquo;best plan&rdquo;, &ldquo;tier-1&rdquo;, &ldquo;best reviewer&rdquo;), n.t. per-task costs (4-task totals only).</li>
-    <li><strong>claude-haiku-5.5</strong> — T1 6/10 (`default`) and 9/10 (`xhigh`), T2 both efforts, T4 8/10 (`default`), T3 3/3+proofs (`xhigh`): n.t. per-task costs. Its plotted cells: T3 `default` ($0.0063) and T4 `xhigh` ($0.018 — the per-task T4 figure in EVALS.md&rsquo;s Roles row, the only one recorded for xhigh).</li>
-    <li><strong>deepseek-v4p1-flash</strong> — the `default`(=high) row (T1 tier-1, T2/T3/T4 pass-tier): n.t. per-task costs.</li>
-    <li><strong>gpt-6.1-sol</strong> — `default` row (T1 tier-1, T4 7&ndash;8/10): n.t. Its plotted efforts are low/medium/xhigh (10-14).</li>
-    <li><strong>gpt-6.1-terra</strong> — only T4 `medium` ($0.0388) has an exact per-task cost; T1 ($0.044&ndash;0.047) and T2 ($0.059&ndash;0.071) are effort-<em>ranges</em>, T3 has none — terra&rsquo;s T1/T2/T3 passes are not plottable per effort.</li>
-    <li><strong>deepseek-v4p1-flash-1017</strong> — only `medium` cells plotted (T4 10/10 @ $0.0143, T3 3/3 @ $0.0233); its other 4&times;4-sweep efforts carry cost <em>ranges</em> only ($0.014&ndash;0.017 T4, $0.015&ndash;0.026 T1). Its `low` T1 FAIL (invented green baseline) has no cost.</li>
-    <li><strong>minimax-m3p1-flash</strong> — only the rung cell T4 `medium` (10/10 avg, $0.0082) has a clean per-task cost; its grid&rsquo;s other cells carry ranges only ($0.0068&ndash;0.0107 T3, $0.0077+ T4) and T1/T2 verdicts have no per-task costs.</li>
-    <li><strong>qwen3p8-2p4t-a95b</strong> — the 09-30 `xhigh` grid cells (T1, T2, T4 10/10) and `medium` T1 tier-1: n.t. Its plotted v2 point is the 11-01 calibration run.</li>
-    <li><strong>fw-deepseek-v4-pro</strong> — T4 plotted at 9.5 (cell recorded 9&ndash;10/10) at the $0.047&ndash;0.058 midpoint; T1/T2/T3 n.t.; <strong>no v2 cell</strong> (gateway outage 11-01).</li>
-    <li><strong>gemini-3.8-flash</strong> — `low` effort: T1 &ldquo;ungrounded&rdquo;, T4 &ldquo;mid&rdquo; (non-numeric), n.t. costs.</li>
-    <li><strong>qwen3p8-max</strong> (T4 9/10, fabricated a T1 baseline), <strong>grok-4-20-reasoning</strong> (T4 9/10), <strong>ember-1</strong> (T4 6.5/10), <strong>grok-4.7</strong>, <strong>minimax-m3</strong>, <strong>kimi-k3</strong>, <strong>gpt-6-luna</strong>, <strong>fw-glm-5.3</strong> (non-flash): 4-task totals or no costs — no per-task cell to plot.</li>
-    <li><strong>kimi-k3p1-pro</strong> — T2 has a single `default` arm ($0.227, plotted as one point); T1/T3/T4 plotted at `high`+`medium`/`default` as measured (11-06).</li>
-  </ul>
-  <p class="note">Model key: glm = <code>fw-glm-5.3-flash</code> (glm-5p3-flash) &middot; ds = deepseek-v4p1-flash &middot;
-  1017 = deepseek-v4p1-flash-1017 &middot; pro = fw-deepseek-v4-pro &middot; argon/carbon/g3.8 = gemini-4-argon /
-  gemini-4-carbon / gemini-3.8-flash &middot; haiku = claude-haiku-5.5 &middot; sol/terra = gpt-6.1-sol / gpt-6.1-terra &middot;
-  qwen = qwen3p8-2p4t-a95b &middot; M3.1 = minimax-m3p1-flash &middot; muse = muse-spark &middot; kimi = kimi-k3p1-pro.
-  Family assignment per <code>models.json</code> <code>family_hint</code> (plus muse — an unrostered single-model
-  lineage — and moonshot for kimi-k3p1-pro).</p>
+      <tr title="deepseek-v4p1-flash-1017 low — 10-19 sweep (T1 FAIL has no cost; T4 cost is an effort-spanning range)">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #0b57d0"><span class="famdot" style="background:#0b57d0"></span>deepseek-v4p1-flash-1017</td>
+        <td>`low`</td>
+        <td><span class="v-fail">FAIL</span> <span class="muted">(invents green baseline)</span></td><td class="muted">&mdash;</td>
+        <td class="muted">&mdash;</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .014&ndash;.017*</td>
+      </tr>
+      <tr class="alt" title="deepseek-v4p1-flash-1017 medium — 10-19 (rostered strong-design-review); bench v2 9/14 @ $.0371 (11-01)">
+        <td>`medium`</td>
+        <td><span class="v-pass">PASS</span></td><td class="muted">&mdash;</td>
+        <td>3/3, 0FP</td><td class="num">10, 0FP</td><td class="num">9, 0FP</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 .0233 · T4 .0143</td>
+      </tr>
+      <tr title="deepseek-v4p1-flash-1017 high/xhigh — 10-19 sweep (cells identical in the record; T4/T1 costs are effort-spanning ranges only)">
+        <td>`high` · `xhigh`</td>
+        <td><span class="v-pass">PASS</span></td><td class="muted">&mdash;</td>
+        <td class="muted">&mdash;</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .014&ndash;.017*</td>
+      </tr>
+
+      <tr title="minimax-m3p1-flash low — 10-23 sweep (T3 cost $0.0068–0.0107 is an effort-spanning range across low/medium/high)">
+        <td class="model" rowspan="4" style="border-bottom:2px solid #6d28d9"><span class="famdot" style="background:#6d28d9"></span>minimax-m3p1-flash</td>
+        <td>`low`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegates)</span></td>
+        <td>3/3, 0FP</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 .0068&ndash;.0107* · T4 &mdash;</td>
+      </tr>
+      <tr class="alt" title="minimax-m3p1-flash medium — 10-23 (rostered cheap-design-review, 3-run confirmation 10/10 avg @ $.0082); bench v2 9/14 @ $.0100 (11-01)">
+        <td>`medium`</td>
+        <td><span class="v-part">PARTIAL</span> <span class="muted">(non-monotone)</span></td><td><span class="v-pass">PASS</span> <span class="muted">(no delegation at medium)</span></td>
+        <td>3/3, 0FP</td><td class="num">10, 0FP <span class="muted">(3-run avg)</span></td><td class="num">9, 0FP</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .0082</td>
+      </tr>
+      <tr title="minimax-m3p1-flash high — 10-23 sweep">
+        <td>`high`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegates)</span></td>
+        <td>3/3, 0FP</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 &mdash;</td>
+      </tr>
+      <tr class="alt" title="minimax-m3p1-flash xhigh — 10-23 sweep (xhigh measured a 50k-file benchmark)">
+        <td>`xhigh`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegates)</span></td>
+        <td>2/3, 0FP</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 &mdash;</td>
+      </tr>
+
+      <tr title="qwen3p8-2p4t-a95b low — 10-14 (T3 variance CONFIRMED across 2 runs: 3/3+2 then 2/3 — out for review roles)">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #d97706"><span class="famdot" style="background:#d97706"></span>qwen3p8-2p4t-a95b</td>
+        <td>`low`</td>
+        <td><span class="v-fail">FAIL</span> <span class="muted">(hallucination)</span></td><td><span class="v-pass">PASS</span></td>
+        <td>3/3+2 &rarr; 2/3, 0FP <span class="muted">(2 runs)</span></td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0889 · T2 .1017 · T3 .0657 · T4 .0933</td>
+      </tr>
+      <tr class="alt" title="qwen3p8-2p4t-a95b medium — 10-14">
+        <td>`medium`</td>
+        <td>tier-1</td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 1FP</td><td class="num">8</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .1010 · T2 .0984 · T3 .0981 · T4 .1064</td>
+      </tr>
+      <tr title="qwen3p8-2p4t-a95b xhigh — 09-30 verdicts (rostered strong-review-alternative2); bench v2 10/14 @ $.1308 (11-01)">
+        <td>`xhigh`</td>
+        <td>baseline caught by execution</td><td><span class="v-pass">PASS</span></td>
+        <td><strong>3/3+2 proven</strong></td><td class="num">10</td><td class="num">10, 0FP <span class="muted">(cat-3 borderline)</span></td>
+        <td class="cost">n.t. <span class="muted">(v1, 09-30)</span></td>
+      </tr>
+
+      <tr title="gpt-6.1-terra — 10-26 sweep (T1/T2 costs are effort-spanning ranges: T1 $0.044–0.047, T2 $0.059–0.071; T3 n.t.)">
+        <td class="model" rowspan="4" style="border-bottom:2px solid #a16207"><span class="famdot" style="background:#a16207"></span>gpt-6.1-terra</td>
+        <td>`low`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
+        <td>2/3, 0FP</td><td class="num">9&ndash;10, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t. per effort*</td>
+      </tr>
+      <tr class="alt" title="gpt-6.1-terra medium — 10-26 (rostered strong-design/code-alternative); bench v2 8/14 @ $.0355 (11-01, never opened the code)">
+        <td>`medium`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
+        <td>2/3, 0FP</td><td class="num">10, 0FP</td><td class="num">8, 0FP</td>
+        <td class="cost">T1 &mdash; · T2 &mdash; · T3 &mdash; · T4 .0388</td>
+      </tr>
+      <tr title="gpt-6.1-terra high — 10-26 sweep">
+        <td>`high`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
+        <td>2/3, 0FP</td><td class="num">9&ndash;10, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t. per effort*</td>
+      </tr>
+      <tr class="alt" title="gpt-6.1-terra xhigh — 10-26 sweep (4 verified bonus findings on T3)">
+        <td>`xhigh`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
+        <td>2/3, 0FP <span class="muted">(+4 verified bonuses)</span></td><td class="num">9&ndash;10, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t. per effort*</td>
+      </tr>
+
+      <tr title="fw-deepseek-v4-pro high — 09-30 verdicts (rostered strong-design-review-alternative2); no v2 cell — gateway outage 11-01">
+        <td class="model" style="border-bottom:2px solid #0b57d0"><span class="famdot" style="background:#0b57d0"></span>fw-deepseek-v4-pro</td>
+        <td>`high`</td>
+        <td>baseline caught</td><td><span class="v-pass">PASS</span></td>
+        <td>2/3 <span class="muted">(family blind spot)</span></td><td class="num">9&ndash;10</td><td class="num muted">not run</td>
+        <td class="cost">n.t.</td>
+      </tr>
+
+      <tr title="gemini-4-argon low — 10-14">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #0891b2"><span class="famdot" style="background:#0891b2"></span>gemini-4-argon</td>
+        <td>`low`</td>
+        <td><span class="v-part">PARTIAL</span></td><td><span class="v-pass">PASS</span></td>
+        <td>3/3, 1FP</td><td class="num">8</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0874 · T2 .0922 · T3 .1238 · T4 .0715</td>
+      </tr>
+      <tr class="alt" title="gemini-4-argon medium — 10-14">
+        <td>`medium`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 2FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0922 · T2 .0847 · T3 .0764 · T4 .0898</td>
+      </tr>
+      <tr title="gemini-4-argon high — 10-14 (rostered strong-design-review-alternative); bench v2 10/14 @ $.1226 (11-01) and 9/14 @ $.1357 (11-10) — 2-run avg 9.5/14">
+        <td>`high`</td>
+        <td><span class="v-part">PARTIAL</span> <span class="muted">(dismisses baseline)</span></td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 1FP</td><td class="num">9 <span class="muted">(2 runs: 10, 8)</span></td><td class="num">9.5 <span class="muted">(2-run avg: 10, 9)</span></td>
+        <td class="cost">T1 .0995 · T2 .0868 · T3 .0995 · T4 .0879</td>
+      </tr>
+
+      <!-- ======== KEPT OUT ======== -->
+      <tr class="divider"><td colspan="8">Tested and kept out</td></tr>
+
+      <tr title="gpt-6.1-sol low — 10-14">
+        <td class="model" rowspan="4" style="border-bottom:2px solid #a16207"><span class="famdot" style="background:#a16207"></span>gpt-6.1-sol</td>
+        <td>`low`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0971 · T2 .0821 · T3 .0929 · T4 .0757</td>
+      </tr>
+      <tr class="alt" title="gpt-6.1-sol medium — 10-14">
+        <td>`medium`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0922 · T2 .0979 · T3 .0868 · T4 .0756</td>
+      </tr>
+      <tr title="gpt-6.1-sol xhigh — 10-14">
+        <td>`xhigh`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0917 · T2 .0913 · T3 .0844 · T4 .0854</td>
+      </tr>
+      <tr class="alt" title="gpt-6.1-sol default — 09-29, verdicts only (n.t. per-task costs)">
+        <td>`default`</td>
+        <td>tier-1</td><td><span class="v-pass">PASS</span></td>
+        <td>2/3+1 bonus, 0FP</td><td class="num">7&ndash;8</td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t.</td>
+      </tr>
+
+      <tr title="muse-spark low — 10-16">
+        <td class="model" rowspan="4" style="border-bottom:2px solid #c2185b"><span class="famdot" style="background:#c2185b"></span>muse-spark</td>
+        <td>`low`</td>
+        <td><span class="v-part">PARTIAL</span> <span class="muted">(misses red baseline)</span></td><td><span class="v-pass">PASS</span></td>
+        <td>3/3, 0FP</td><td class="num">7</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0887 · T2 .1179 · T3 .1060 · T4 .0804</td>
+      </tr>
+      <tr class="alt" title="muse-spark medium — 10-16">
+        <td>`medium`</td>
+        <td><span class="v-part">PARTIAL</span> <span class="muted">(misses red baseline)</span></td><td><span class="v-pass">PASS</span></td>
+        <td>3/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0662 · T2 .1276 · T3 .1240 · T4 .0890</td>
+      </tr>
+      <tr title="muse-spark high — 10-16">
+        <td>`high`</td>
+        <td><span class="v-pass">PASS</span></td><td><span class="v-pass">PASS</span></td>
+        <td>3/3, 0FP</td><td class="num">6</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .1739 · T2 .1247 · T3 .1199 · T4 .0993</td>
+      </tr>
+      <tr class="alt" title="muse-spark xhigh — 10-16 (honesty blocker: invents a green baseline)">
+        <td>`xhigh`</td>
+        <td><span class="v-fail">FAIL</span> <span class="muted">(invents green baseline)</span></td><td><span class="v-pass">PASS</span></td>
+        <td>3/3, 0FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .1038 · T2 .1268 · T3 .0900 · T4 .0759</td>
+      </tr>
+
+      <tr title="gemini-4-carbon low — 11-10; bench v2 4/14, 1 FP @ $.1009 (11-10) — v1 effort-flatness collapses on v2">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #0891b2"><span class="famdot" style="background:#0891b2"></span>gemini-4-carbon</td>
+        <td>`low`</td>
+        <td><span class="v-pass">PASS</span> <span class="muted">(static baseline detect)</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
+        <td>2/3+2, 2FP</td><td class="num">10, 0FP</td><td class="num">4, 1FP</td>
+        <td class="cost">T1 .1010 · T2 .1746 · T3 .1119 · T4 .1271</td>
+      </tr>
+      <tr class="alt" title="gemini-4-carbon medium — 11-10">
+        <td>`medium`</td>
+        <td><span class="v-pass">PASS</span> <span class="muted">(static baseline detect)</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
+        <td>2/3+2, 2FP</td><td class="num">10, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .1554 · T2 .1455 · T3 .2059 · T4 .1179</td>
+      </tr>
+      <tr title="gemini-4-carbon high — 11-10 (T4 2-run confirmed 10,10 @ avg $.167); bench v2 10/14, 0 FP @ $.2288 — best-ever v2">
+        <td>`high`</td>
+        <td><span class="v-pass">PASS</span> <span class="muted">(static baseline detect)</span></td><td><span class="v-pass">PASS</span> <span class="muted">(delegated)</span></td>
+        <td>2/3+2, 2FP</td><td class="num">10, 0FP&sup2;</td><td class="num">10, 0FP</td>
+        <td class="cost">T1 .2086 · T2 .4064 · T3 .2356 · T4 .1552</td>
+      </tr>
+
+      <tr title="kimi-k3p1-pro high — 11-06 screening">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #52525b"><span class="famdot" style="background:#52525b"></span>kimi-k3p1-pro</td>
+        <td>`high`</td>
+        <td><span class="v-part">PARTIAL</span> <span class="muted">(red baseline missed)</span></td><td class="muted">&mdash;</td>
+        <td class="muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .116 · T2 &mdash; · T3 &mdash; · T4 &mdash;</td>
+      </tr>
+      <tr class="alt" title="kimi-k3p1-pro default — 11-06 screening">
+        <td>`default`</td>
+        <td class="muted">&mdash;</td><td><span class="v-pass">PASS</span> <span class="muted">(delegates)</span></td>
+        <td>2/3+1, 1FP</td><td class="num">8, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 &mdash; · T2 .227 · T3 .175 · T4 .186</td>
+      </tr>
+      <tr title="kimi-k3p1-pro medium — 11-06 screening">
+        <td>`medium`</td>
+        <td><span class="v-part">PARTIAL</span> <span class="muted">(red baseline missed)</span></td><td class="muted">&mdash;</td>
+        <td>2/3+1, 0FP</td><td class="num">8, 0FP</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .192 · T2 &mdash; · T3 .197 · T4 .165</td>
+      </tr>
+
+      <tr title="gemini-3.8-flash low — 09-29, verdicts only (n.t. per-task costs)">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #0891b2"><span class="famdot" style="background:#0891b2"></span>gemini-3.8-flash</td>
+        <td>`low`</td>
+        <td>ungrounded</td><td><span class="v-pass">PASS</span></td>
+        <td>3/3</td><td>mid <span class="muted">(non-numeric)</span></td><td class="num muted">&mdash;</td>
+        <td class="cost">n.t.</td>
+      </tr>
+      <tr class="alt" title="gemini-3.8-flash medium — 10-14">
+        <td>`medium`</td>
+        <td><span class="v-part">PARTIAL</span></td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 2FP</td><td class="num">9</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0532 · T2 .0417 · T3 .0447 · T4 .0405</td>
+      </tr>
+      <tr title="gemini-3.8-flash high — 10-14">
+        <td>`high`</td>
+        <td><span class="v-part">PARTIAL</span></td><td><span class="v-pass">PASS</span></td>
+        <td>2/3, 2FP</td><td class="num">7</td><td class="num muted">&mdash;</td>
+        <td class="cost">T1 .0547 · T2 .0650 · T3 .0589 · T4 .0833</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note">* effort-spanning range, not a per-effort figure: 1017 T4 $0.014&ndash;0.017 and T1
+  $0.015&ndash;0.026 across the sweep; M3.1 T3 $0.0068&ndash;0.0107 across low/medium/high (T4 $0.0077+);
+  terra T1 $0.044&ndash;0.047, T2 $0.059&ndash;0.071 (T3 n.t.). &sup2; carbon T4 `high` is 2-run confirmed
+  (10, 10) at avg $.167/task — the cost cell shows the first run&rsquo;s $.1552 (11-10 matrix row).
+  T4 v2 cells carry score + FP count; v2 costs are on the chart below. Rostered-model shading
+  alternates per model block; family colors as in the legend. Model key: glm =
+  <code>fw-glm-5.3-flash</code> &middot; ds = deepseek-v4p1-flash &middot; 1017 = deepseek-v4p1-flash-1017 &middot;
+  pro = fw-deepseek-v4-pro &middot; argon/carbon/g3.8 = gemini-4-argon / gemini-4-carbon / gemini-3.8-flash &middot;
+  haiku = claude-haiku-5.5 &middot; sol/terra = gpt-6.1-sol / gpt-6.1-terra &middot; qwen = qwen3p8-2p4t-a95b &middot;
+  M3.1 = minimax-m3p1-flash &middot; muse = muse-spark &middot; kimi = kimi-k3p1-pro. Family assignment per
+  <code>models.json</code> <code>family_hint</code> (plus muse — an unrostered single-model lineage — and
+  moonshot for kimi-k3p1-pro).</p>
+</section>
+
+<!-- ============ 2. THE ONE CHART: T4 BENCH V2 GATE ============ -->
+<section id="gate">
+  <h2>The one chart — T4 design review, bench v2 (/14): the deciding gate</h2>
+  <figure class="panel gate">
+  <figcaption><span class="ptitle">T4 — design review, bench v2 (/14)</span><span class="psub">deciding bench for the strong-design-review rungs; v1 and v2 are never compared</span></figcaption>
+  <svg viewBox="0 0 900 440" role="img" aria-label="T4 bench v2 (/14) score versus cost per task, log scale ($): one line per model across its measured v2 cells; one label per model.">
+  <!-- y gridlines: 0,4,7,10,14 -->
+  <g font-size="11" fill="#555" text-anchor="end">
+    <line x1="70" y1="360.0" x2="845" y2="360.0" stroke="#e8e8e8"/>
+    <text x="62" y="364.0">0</text>
+    <line x1="70" y1="268.6" x2="845" y2="268.6" stroke="#e8e8e8"/>
+    <text x="62" y="272.6">4</text>
+    <line x1="70" y1="200.0" x2="845" y2="200.0" stroke="#e8e8e8"/>
+    <text x="62" y="204.0">7</text>
+    <line x1="70" y1="131.4" x2="845" y2="131.4" stroke="#e8e8e8"/>
+    <text x="62" y="135.4">10</text>
+    <line x1="70" y1="40.0" x2="845" y2="40.0" stroke="#e8e8e8"/>
+    <text x="62" y="44.0">14</text>
+  </g>
+  <!-- x gridlines + ticks: log scale $0.005 .. $0.5 -->
+  <g font-size="11" fill="#666" text-anchor="middle">
+    <line x1="105.1" y1="40" x2="105.1" y2="360" stroke="#f0f0f0"/>
+    <line x1="105.1" y1="360" x2="105.1" y2="364" stroke="#333"/>
+    <text x="105.1" y="378">$0.005</text>
+    <line x1="214.2" y1="40" x2="214.2" y2="360" stroke="#f0f0f0"/>
+    <line x1="214.2" y1="360" x2="214.2" y2="364" stroke="#333"/>
+    <text x="214.2" y="378">$0.01</text>
+    <line x1="323.3" y1="40" x2="323.3" y2="360" stroke="#f0f0f0"/>
+    <line x1="323.3" y1="360" x2="323.3" y2="364" stroke="#333"/>
+    <text x="323.3" y="378">$0.02</text>
+    <line x1="467.6" y1="40" x2="467.6" y2="360" stroke="#f0f0f0"/>
+    <line x1="467.6" y1="360" x2="467.6" y2="364" stroke="#333"/>
+    <text x="467.6" y="378">$0.05</text>
+    <line x1="576.7" y1="40" x2="576.7" y2="360" stroke="#f0f0f0"/>
+    <line x1="576.7" y1="360" x2="576.7" y2="364" stroke="#333"/>
+    <text x="576.7" y="378">$0.1</text>
+    <line x1="685.8" y1="40" x2="685.8" y2="360" stroke="#f0f0f0"/>
+    <line x1="685.8" y1="360" x2="685.8" y2="364" stroke="#333"/>
+    <text x="685.8" y="378">$0.2</text>
+    <line x1="830.0" y1="40" x2="830.0" y2="360" stroke="#f0f0f0"/>
+    <line x1="830.0" y1="360" x2="830.0" y2="364" stroke="#333"/>
+    <text x="830.0" y="378">$0.5</text>
+  </g>
+  <!-- current ceiling: proof bonus never earned -->
+  <line x1="70" y1="131.4" x2="845" y2="131.4" stroke="#99a" stroke-dasharray="3 4"/>
+  <text x="74" y="126.4" font-size="10.5" fill="#778" text-anchor="start">current ceiling — proof bonus (+4) never earned</text>
+  <text x="88" y="24" font-size="11" fill="#555" text-anchor="start">bench v2 score (/14)</text>
+  <!-- axes -->
+  <line x1="70" y1="40" x2="70" y2="360" stroke="#333" stroke-width="1.2"/>
+  <line x1="70" y1="360" x2="845" y2="360" stroke="#333" stroke-width="1.2"/>
+  <text x="457" y="404" font-size="12" fill="#333" text-anchor="middle">cost per task, log scale ($)</text>
+
+  <!-- model lines: carbon = the only true effort trajectory (low -> high); argon = repeat runs of the same cell -->
+  <polyline points="578.1,268.6 706.9,131.4" fill="none" stroke="#0891b2" stroke-width="1.8" opacity="0.55"/>
+  <polyline points="608.7,131.4 624.7,154.3" fill="none" stroke="#0891b2" stroke-width="1.8" opacity="0.55" stroke-dasharray="4 3"/>
+
+  <!-- points: one per measured run -->
+  <circle class="pt rostered" cx="214.2" cy="154.3" r="5" fill="#6d28d9" stroke="#6d28d9" stroke-width="1.8"><title>minimax-m3p1-flash medium — 9/14, 0 FP @ $0.0100/run (11-01) - cheap-design-review rung</title></circle>
+  <circle class="pt rostered" cx="413.7" cy="177.1" r="5" fill="#a16207" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-terra medium — 8/14, 0 FP (never opened the code) @ $0.0355/run (11-01)</title></circle>
+  <circle class="pt rostered" cx="420.6" cy="154.3" r="5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash-1017 medium — 9/14, 0 FP @ $0.0371/run (11-01) - strong-design-review rung</title></circle>
+  <circle class="pt keptout" cx="578.1" cy="268.6" r="5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon low — 4/14, 1 FP - v1 effort-flatness collapses on v2 @ $0.1009/run (11-10)</title></circle>
+  <circle class="pt rostered" cx="608.7" cy="131.4" r="5" fill="#0891b2" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — 10/14, 0 FP @ $0.1226/run (11-01) - run 1 of 2</title></circle>
+  <circle class="pt rostered" cx="618.9" cy="131.4" r="5" fill="#d97706" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b xhigh — 10/14, 0 FP (9-10, cat-3 borderline) @ $0.1308/run (11-01)</title></circle>
+  <circle class="pt rostered" cx="624.7" cy="154.3" r="5" fill="#0891b2" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — 9/14, 0 FP (miss = cat-3 fsync) @ $0.1357/run (11-10) - run 2 of 2; 2-run avg 9.5/14</title></circle>
+  <circle class="pt keptout" cx="706.9" cy="131.4" r="5" fill="#ffffff" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon high — 10/14, 0 FP - best-ever v2 @ $0.2288/run (11-10)</title></circle>
+
+  <!-- labels: exactly one per model, placed above/below its best cell, nudged apart -->
+  <text x="214.2" y="176" font-size="11" fill="#6d28d9" text-anchor="middle">M3.1-med</text>
+  <text x="413.7" y="199" font-size="11" fill="#a16207" text-anchor="middle">terra-med</text>
+  <text x="420.6" y="147" font-size="11" fill="#0b57d0" text-anchor="middle">1017-med</text>
+  <text x="601" y="121" font-size="11" fill="#0891b2" text-anchor="end">argon-hi (avg 9.5)</text>
+  <text x="627" y="121" font-size="11" fill="#d97706" text-anchor="start">qwen-xh</text>
+  <text x="706.9" y="121" font-size="11" fill="#0891b2" text-anchor="middle">carbon-hi</text>
+  </svg>
+  <p class="note"><strong>Why this is the only chart:</strong> bench v2 (/14, harder fixture, FP
+  triple-counted, proof-by-execution bonus) is the deciding bench for the strong-design-review rungs;
+  v1 and v2 are never compared. <strong>Why so sparse:</strong> that sparsity is the honest state of the
+  record — v2 is run only for models that ace v1 T4, at their rostered effort: 7 measured cells across
+  6 models, spanning 2026-11-01 (the five calibration runs) and 2026-11-10 (carbon&rsquo;s two cells and
+  argon&rsquo;s second run). One line per model across its measured cells; only each model&rsquo;s best
+  cell is labeled (labels nudged apart when points sit close) — interior/unlabeled points carry the
+  exact score, FP count, cost and date on hover. Argon&rsquo;s dashed segment connects two <em>repeat
+  runs of the same cell</em> (10 on 11-01, 9 on 11-10; 2-run avg 9.5/14), not an effort trajectory.
+  Carbon&rsquo;s solid line is the cautionary one: best-ever v2 at <code>high</code> (10/14, 0 FP,
+  labeled) collapses to 4/14 with 1 FP at <code>low</code> (unlabeled point at $0.1009). Filled markers
+  = rostered cells, hollow = kept-out. <code>fw-deepseek-v4-pro</code> has no v2 cell — gateway outage
+  11-01 (not measurable).</p>
+  </figure>
 </section>
 
 <!-- ============ 3. RUNG TABLE ============ -->
@@ -781,7 +740,7 @@
     <li><strong>Honesty blockers are score-zero events</strong> — a fabricated green baseline or hallucinated repo structure disqualifies the role regardless of other scores (qwen3p8-max, muse-spark `xhigh`).</li>
     <li><strong>Delegation rule</strong> — an eval arm's cost = parent + ALL child sessions, each child named: a model that delegates inside an eval is scored on the combined labor, never its own tokens alone.</li>
     <li><strong>Confirmation-run rule</strong> — single-run cells are provisional; rung arms get a second run (variance precedents: argon T4 10→8, qwen `low` T3 3/3→2/3, minimax-m3's 3-run oscillation).</li>
-    <li><strong>The grid (five panels, one axis)</strong> — every panel shares the log-scale $/task axis; color = model family (<code>models.json</code> <code>family_hint</code>); a model&rsquo;s cells are connected in effort order, so the line itself is the effort-monotonicity evidence (glm T4 and muse T1/T4 visibly zigzag); filled markers = rostered cells, hollow = tested/kept-out. The fifth panel (bench v2, /14) is the design-review gate and is sparse by design — v2 exists only where a model aced v1 T4; only cells with both a numeric score and a per-task cost are drawn, and every unplotable cell is listed under the grid.</li>
+    <li><strong>One chart, one matrix</strong> — the score matrix holds every measured cell (categorical scores — T1/T2 verdicts, T3 recall — belong in a table, not on a scatter); the single chart plots the deciding bench (v2 /14) only, cost per task on the log X axis; color = model family (<code>models.json</code> <code>family_hint</code>); a model&rsquo;s cells are connected in effort order, so the line itself is the effort-monotonicity evidence (carbon&rsquo;s 4→10 collapse is the cautionary example); filled markers = rostered cells, hollow = tested/kept-out; one label per model, interior points are hover-only. v2 is sparse by design — it exists only where a model aced v1 T4; every unmeasured slot shows <code>—</code> in the matrix.</li>
     <li><strong>Effort grid</strong> — adoption is decided on the full effort×task grid, never a single variant: effort is non-monotone, and the roster assigns one effort per role, not one model-wide grade.</li>
     <li><strong>Role-decided per-task costs</strong> — a rung is decided on the task that rung performs (quality measured and cost paid on that task); the 4-task total is a budget sanity-check only, never an arbiter.</li>
     <li><strong>Price over speed + lineage</strong> — when two models sit in the same quality tier, the cheaper one takes the role; a reviewer is never from its producer's family (one documented exception: the `-alternative` re-review rung).</li>
