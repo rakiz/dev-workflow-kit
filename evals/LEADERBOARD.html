@@ -81,8 +81,9 @@
   (delegation-inclusive), per the 10-15 role-decided methodology; <strong>&mdash;</strong> = no per-task
   figure recorded (verdict-only cells, effort-spanning ranges, or totals-only campaigns).
   Hover a row for the campaign date. <strong>T1/T2 verdicts and T3 recall are categorical, not
-  continuous</strong> — they belong in this table, not on a scatter; the single chart below covers the
-  one score that is both numeric and deciding (bench v2). Models without any effort-level measurement
+  continuous</strong> — they belong in this table, not on a scatter; the charts below cover the two
+  benches' numeric T4 score: the main chart on bench v1 (all models, Pareto-pruned efforts), then the
+  bench-v2 gate panel. Models without any effort-level measurement
   (screenings like qwen3p8-max, ember-1, grok-4.7, minimax-m3, kimi-k3, gpt-6-luna, fw-glm-5.3
   non-flash) have no row here — they live in the kept-out table with their snapshot.</p>
   <div class="legend famlegend"><span class="fam"><i style="background:#1a7f37"></i>glm <em>(glm-5.3-flash)</em></span> <span class="fam"><i style="background:#b3261e"></i>claude <em>(haiku/s5.5/opus-5.5)</em></span> <span class="fam"><i style="background:#0b57d0"></i>deepseek <em>(v4p1-flash/1017/pro)</em></span> <span class="fam"><i style="background:#6d28d9"></i>minimax <em>(M3.1-flash)</em></span> <span class="fam"><i style="background:#d97706"></i>qwen <em>(qwen3p8-2p4t)</em></span> <span class="fam"><i style="background:#a16207"></i>gpt <em>(sol/terra-6.1)</em></span> <span class="fam"><i style="background:#0891b2"></i>gemini <em>(argon/carbon/3.8)</em></span> <span class="fam"><i style="background:#c2185b"></i>muse <em>(muse-spark)</em></span> <span class="fam"><i style="background:#52525b"></i>moonshot <em>(kimi-k3p1-pro)</em></span></div>
@@ -413,9 +414,104 @@
   moonshot for kimi-k3p1-pro).</p>
 </section>
 
-<!-- ============ 2. THE ONE CHART: T4 BENCH V2 GATE ============ -->
+<!-- ============ 2. MAIN CHART: T4 BENCH V1 (/10), ALL MODELS, PARETO-PRUNED ============ -->
+<section id="mainchart">
+  <h2>The main chart — T4 design review, bench v1 (/10): every model, quality vs cost</h2>
+  <figure class="panel">
+  <figcaption><span class="ptitle">T4 — design review, bench v1 (/10): the universal screener</span><span class="psub">an effort cell is plotted only if no strictly-cheaper cell of the same model scored equal or better (ties keep the cheapest) — only the strict score/cost frontier per model is drawn; v2 gate panel below for the /14 scale</span></figcaption>
+  <div class="legend"><span class="fam"><i style="background:#1a7f37"></i>rostered cell (filled)</span> <span class="fam"><i style="background:#1a7f37;opacity:.2"></i>tested &amp; kept-out cell (hollow)</span> <span class="fam"><em>one label per model at its best surviving cell (&ldquo;&middot; v2 n/14&rdquo; = that model&rsquo;s bench-v2 gate score); every point carries exact score/cost/date on hover</em></span></div>
+  <svg viewBox="0 0 900 540" role="img" aria-label="T4 bench v1 (/10) score versus cost per task, log scale ($): every model with per-effort T4 v1 measurements, Pareto-pruned per model; one line per model across its surviving effort cells in effort order; one label per model.">
+  <!-- y gridlines: 0,4,7,10 -->
+  <g font-size="11" fill="#555" text-anchor="end">
+    <line x1="70" y1="440" x2="845" y2="440" stroke="#e8e8e8"/>
+    <text x="62" y="444">0</text>
+    <line x1="70" y1="296" x2="845" y2="296" stroke="#e8e8e8"/>
+    <text x="62" y="300">4</text>
+    <line x1="70" y1="188" x2="845" y2="188" stroke="#e8e8e8"/>
+    <text x="62" y="192">7</text>
+    <line x1="70" y1="80" x2="845" y2="80" stroke="#e8e8e8"/>
+    <text x="62" y="84">10</text>
+  </g>
+  <!-- x gridlines + ticks: log scale $0.005 .. $0.5 -->
+  <g font-size="11" fill="#666" text-anchor="middle">
+    <line x1="105.1" y1="80" x2="105.1" y2="440" stroke="#f0f0f0"/>
+    <line x1="105.1" y1="440" x2="105.1" y2="444" stroke="#333"/>
+    <text x="105.1" y="458">$0.005</text>
+    <line x1="214.2" y1="80" x2="214.2" y2="440" stroke="#f0f0f0"/>
+    <line x1="214.2" y1="440" x2="214.2" y2="444" stroke="#333"/>
+    <text x="214.2" y="458">$0.01</text>
+    <line x1="323.3" y1="80" x2="323.3" y2="440" stroke="#f0f0f0"/>
+    <line x1="323.3" y1="440" x2="323.3" y2="444" stroke="#333"/>
+    <text x="323.3" y="458">$0.02</text>
+    <line x1="467.6" y1="80" x2="467.6" y2="440" stroke="#f0f0f0"/>
+    <line x1="467.6" y1="440" x2="467.6" y2="444" stroke="#333"/>
+    <text x="467.6" y="458">$0.05</text>
+    <line x1="576.7" y1="80" x2="576.7" y2="440" stroke="#f0f0f0"/>
+    <line x1="576.7" y1="440" x2="576.7" y2="444" stroke="#333"/>
+    <text x="576.7" y="458">$0.1</text>
+    <line x1="685.8" y1="80" x2="685.8" y2="440" stroke="#f0f0f0"/>
+    <line x1="685.8" y1="440" x2="685.8" y2="444" stroke="#333"/>
+    <text x="685.8" y="458">$0.2</text>
+    <line x1="830.0" y1="80" x2="830.0" y2="440" stroke="#f0f0f0"/>
+    <line x1="830.0" y1="440" x2="830.0" y2="444" stroke="#333"/>
+    <text x="830.0" y="458">$0.5</text>
+  </g>
+  <text x="74" y="48" font-size="11" fill="#555" text-anchor="start">bench v1 T4 score (/10)</text>
+  <!-- axes -->
+  <line x1="70" y1="80" x2="70" y2="440" stroke="#333" stroke-width="1.2"/>
+  <line x1="70" y1="440" x2="845" y2="440" stroke="#333" stroke-width="1.2"/>
+  <text x="457" y="484" font-size="12" fill="#333" text-anchor="middle">cost per task, log scale ($)</text>
+
+  <!-- model lines: only models with &ge;2 surviving cells (connected in effort order, low -&gt; high);
+       the segments ARE the effort-monotonicity evidence on the pruned frontier -->
+  <polyline points="131.2,152 98.7,224" fill="none" stroke="#1a7f37" stroke-width="1.8" opacity="0.55"/>
+  <polyline points="523.9,152 556.4,116" fill="none" stroke="#0891b2" stroke-width="1.8" opacity="0.55"/>
+
+  <!-- points: one per surviving model&times;effort cell; filled = rostered, hollow (fill-opacity .15) = kept out -->
+  <circle class="pt rostered" cx="98.7" cy="224" r="5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash high — 6/10 @ $0.0048/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="131.2" cy="152" r="5" fill="#1a7f37" stroke="#1a7f37" stroke-width="1.8"><title>glm-5.3-flash low — 8/10, 0FP @ $0.0059/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="171.0" cy="116" r="5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash low — 9/10, 0FP @ $0.0076/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="183.0" cy="80" r="5" fill="#6d28d9" stroke="#6d28d9" stroke-width="1.8"><title>minimax-m3p1-flash medium — 10/10, 0FP (3-run avg) @ $0.0082/task (10-23) - cheap-design-review rung</title></circle>
+  <circle class="pt rostered" cx="270.5" cy="80" r="5" fill="#0b57d0" stroke="#0b57d0" stroke-width="1.8"><title>deepseek-v4p1-flash-1017 medium — 10/10, 0FP @ $0.0143/task (10-19) - strong-design-review rung</title></circle>
+  <circle class="pt rostered" cx="306.8" cy="116" r="5" fill="#b3261e" stroke="#b3261e" stroke-width="1.8"><title>claude-haiku-5.5 xhigh — 9/10 @ $0.018/task (10-07)</title></circle>
+  <circle class="pt rostered" cx="427.7" cy="80" r="5" fill="#a16207" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-terra medium — 10/10, 0FP @ $0.0388/task (10-26) - strong-design/code-alternative rung</title></circle>
+  <circle class="pt keptout" cx="434.4" cy="116" r="5" fill="#0891b2" fill-opacity="0.15" stroke="#0891b2" stroke-width="1.8"><title>gemini-3.8-flash medium — 9/10 @ $0.0405/task (10-14)</title></circle>
+  <circle class="pt rostered" cx="523.9" cy="152" r="5" fill="#0891b2" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon low — 8/10, 1FP @ $0.0715/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="532.7" cy="116" r="5" fill="#a16207" fill-opacity="0.15" stroke="#a16207" stroke-width="1.8"><title>gpt-6.1-sol medium — 9/10, 0FP @ $0.0756/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="533.3" cy="116" r="5" fill="#c2185b" fill-opacity="0.15" stroke="#c2185b" stroke-width="1.8"><title>muse-spark xhigh — 9/10, 0FP @ $0.0759/task (10-16)</title></circle>
+  <circle class="pt rostered" cx="556.4" cy="116" r="5" fill="#0891b2" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-argon high — 9/10 avg over 2 runs (10, 8) @ $0.0879/task (10-14) - strong-design-review-alternative rung</title></circle>
+  <circle class="pt rostered" cx="565.8" cy="116" r="5" fill="#d97706" stroke="#d97706" stroke-width="1.8"><title>qwen3p8-2p4t-a95b low — 9/10 @ $0.0933/task (10-14)</title></circle>
+  <circle class="pt keptout" cx="602.6" cy="80" r="5" fill="#0891b2" fill-opacity="0.15" stroke="#0891b2" stroke-width="1.8"><title>gemini-4-carbon medium — 10/10, 0FP @ $0.1179/task (11-10)</title></circle>
+  <circle class="pt keptout" cx="655.6" cy="152" r="5" fill="#52525b" fill-opacity="0.15" stroke="#52525b" stroke-width="1.8"><title>kimi-k3p1-pro medium — 8/10, 0FP @ $0.165/task (11-06)</title></circle>
+
+  <!-- labels: exactly one per model, at its best surviving cell; v2 gate score appended where measured -->
+  <text x="131.2" y="170" font-size="11" fill="#1a7f37" text-anchor="middle">glm 8/10</text>
+  <text x="171" y="134" font-size="11" fill="#0b57d0" text-anchor="middle">ds 9/10</text>
+  <text x="183" y="68" font-size="11" fill="#6d28d9" text-anchor="middle">M3.1 10/10 &middot; v2 9/14</text>
+  <text x="270.5" y="100" font-size="11" fill="#0b57d0" text-anchor="middle">1017 10/10 &middot; v2 9/14</text>
+  <text x="306.8" y="134" font-size="11" fill="#b3261e" text-anchor="middle">haiku 9/10</text>
+  <text x="427.7" y="68" font-size="11" fill="#a16207" text-anchor="middle">terra 10/10 &middot; v2 8/14</text>
+  <text x="434.4" y="134" font-size="11" fill="#0891b2" text-anchor="middle">g3.8 9/10</text>
+  <text x="536" y="134" font-size="11" fill="#a16207" text-anchor="end">sol 9/10</text>
+  <text x="533" y="104" font-size="11" fill="#c2185b" text-anchor="middle">muse 9/10</text>
+  <text x="570" y="134" font-size="11" fill="#0891b2" text-anchor="start">argon 9/10 &middot; v2 9.5/14</text>
+  <text x="574" y="104" font-size="11" fill="#d97706" text-anchor="start">qwen 9/10 &middot; v2 10/14</text>
+  <text x="602.6" y="68" font-size="11" fill="#0891b2" text-anchor="middle">carbon 10/10 &middot; v2 10/14</text>
+  <text x="655.6" y="170" font-size="11" fill="#52525b" text-anchor="middle">kimi 8/10</text>
+  </svg>
+  <p class="note">All 13 models with a plottable v1-T4 cell are here — models without a
+  per-effort T4 v1 score or a recorded per-task T4 cost (claude-sonnet-5.5,
+  claude-opus-5.5, fw-deepseek-v4-pro, ember-1, grok-4.7, minimax-m3, qwen3p8-max)
+  have no position on a cost axis and live in the matrix and kept-out table. Effort
+  cells behind the frontier: non-surviving cells of a plotted model are pruned (the
+  rule in the caption) — their measurements stay in the matrix. Filled = rostered,
+  hollow = tested and kept out. Hover any point for exact score, cost and date.</p>
+  </figure>
+</section>
+
+<!-- ============ 3. GATE PANEL: T4 BENCH V2 (/14) ============ -->
 <section id="gate">
-  <h2>The one chart — T4 design review, bench v2 (/14): the deciding gate</h2>
+  <h2>Bench v2 gate — T4 design review (/14): the deciding gate, second panel</h2>
   <figure class="panel gate">
   <figcaption><span class="ptitle">T4 — design review, bench v2 (/14)</span><span class="psub">deciding bench for the strong-design-review rungs; v1 and v2 are never compared</span></figcaption>
   <svg viewBox="0 0 900 440" role="img" aria-label="T4 bench v2 (/14) score versus cost per task, log scale ($): one line per model across its measured v2 cells; one label per model.">
@@ -487,7 +583,7 @@
   <text x="627" y="121" font-size="11" fill="#d97706" text-anchor="start">qwen-xh</text>
   <text x="706.9" y="121" font-size="11" fill="#0891b2" text-anchor="middle">carbon-hi</text>
   </svg>
-  <p class="note"><strong>Why this is the only chart:</strong> bench v2 (/14, harder fixture, FP
+  <p class="note"><strong>Why this panel exists:</strong> bench v2 (/14, harder fixture, FP
   triple-counted, proof-by-execution bonus) is the deciding bench for the strong-design-review rungs;
   v1 and v2 are never compared. <strong>Why so sparse:</strong> that sparsity is the honest state of the
   record — v2 is run only for models that ace v1 T4, at their rostered effort: 7 measured cells across
@@ -740,7 +836,7 @@
     <li><strong>Honesty blockers are score-zero events</strong> — a fabricated green baseline or hallucinated repo structure disqualifies the role regardless of other scores (qwen3p8-max, muse-spark `xhigh`).</li>
     <li><strong>Delegation rule</strong> — an eval arm's cost = parent + ALL child sessions, each child named: a model that delegates inside an eval is scored on the combined labor, never its own tokens alone.</li>
     <li><strong>Confirmation-run rule</strong> — single-run cells are provisional; rung arms get a second run (variance precedents: argon T4 10→8, qwen `low` T3 3/3→2/3, minimax-m3's 3-run oscillation).</li>
-    <li><strong>One chart, one matrix</strong> — the score matrix holds every measured cell (categorical scores — T1/T2 verdicts, T3 recall — belong in a table, not on a scatter); the single chart plots the deciding bench (v2 /14) only, cost per task on the log X axis; color = model family (<code>models.json</code> <code>family_hint</code>); a model&rsquo;s cells are connected in effort order, so the line itself is the effort-monotonicity evidence (carbon&rsquo;s 4→10 collapse is the cautionary example); filled markers = rostered cells, hollow = tested/kept-out; one label per model, interior points are hover-only. v2 is sparse by design — it exists only where a model aced v1 T4; every unmeasured slot shows <code>—</code> in the matrix.</li>
+    <li><strong>One matrix, two chart panels</strong> — the score matrix holds every measured cell (categorical scores — T1/T2 verdicts, T3 recall — belong in a table, not on a scatter); the <strong>main chart</strong> plots bench v1 T4 (/10) for <em>every</em> model with per-effort T4 measurements, cost per task on the log X axis, <em>Pareto-pruned per model</em>: an effort cell is dropped when a strictly-cheaper cell of the same model scored equal or better (ties keep the cheapest), so only the strict score/cost frontier per model is drawn; the <strong>v2 gate panel</strong> below plots the deciding bench (v2 /14) alone — v1 and v2 are never merged on one plot; color = model family (<code>models.json</code> <code>family_hint</code>); a model&rsquo;s surviving cells are connected in effort order (on the pruned frontier the line itself is the effort-monotonicity evidence — argon&rsquo;s 8&rarr;9 and glm&rsquo;s 8&rarr;6); filled markers = rostered cells, hollow = tested/kept-out; one label per model, at its best surviving cell, with the model&rsquo;s bench-v2 score appended where measured; interior points are hover-only with exact score/cost/date.</li>
     <li><strong>Effort grid</strong> — adoption is decided on the full effort×task grid, never a single variant: effort is non-monotone, and the roster assigns one effort per role, not one model-wide grade.</li>
     <li><strong>Role-decided per-task costs</strong> — a rung is decided on the task that rung performs (quality measured and cost paid on that task); the 4-task total is a budget sanity-check only, never an arbiter.</li>
     <li><strong>Price over speed + lineage</strong> — when two models sit in the same quality tier, the cheaper one takes the role; a reviewer is never from its producer's family (one documented exception: the `-alternative` re-review rung).</li>
