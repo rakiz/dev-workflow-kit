@@ -1,6 +1,6 @@
 # Bench v3 design — pipeline-named tasks, I-v2, design-authoring (D), calibration-first re-baseline
 
-**Status: DRAFT v2 — reworked after design review; owner review pending.**
+**Status: APPROVED (owner decisions 2026-11-12 recorded in §9) — cleared for fixture build; nothing built yet.**
 
 This document only proposes. No fixture is created, no `run-eval` script is
 touched, no `EVALS.md`/`README.md`/`MODELS.md` row changes until the owner
