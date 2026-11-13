@@ -902,6 +902,41 @@ HTML comments keep the original T-tokens.</p>
   </figure>
 </section>
 
+<!-- ============ 2bis. BENCH-V3 PILOT (NOT A GATE — NO-GO) ============ -->
+<section id="bench-v3-pilot">
+  <h2>Bench v3 pilot (I-v2 / D) — calibration status: NO-GO, redesign pending</h2>
+  <figure class="panel">
+  <figcaption><span class="ptitle">Bench v3 pilot — 2 rounds, 16 scored arms + 2 DNF re-runs (2026-11-12)</span><span class="psub">calibration bench for the strong-code/strong-design re-baseline; NOT a gate — both pilot rounds failed the frozen gates, the fleet stage never launched</span></figcaption>
+  <table>
+    <thead>
+      <tr><th>Bench</th><th>Round 1</th><th>Round 2 (rework)</th><th>Failing gates</th><th>What the rework fixed / what still fails</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>I-v2 (impl, RG2, /10)</td>
+        <td>4-way tie 6/10</td>
+        <td>opus 9 · sonnet 9 · glm 8 · terra 7</td>
+        <td>gate 1: best 9 &gt; 8; gate 2: pair gap 2 &lt; 3</td>
+        <td>fixed: defect (d) found 0/4 → 3/4, mandated baseline evidence 0/4 → 3/4; still failing: defect (c) missed 8/8 across both rounds</td>
+      </tr>
+      <tr>
+        <td>D (design authoring, D1, /11 — gate basis Part A /8)</td>
+        <td>Part A: sonnet 8 · terra 8 · opus 4.5 · glm 3.5</td>
+        <td>Part A 8/8 by ALL FOUR; totals: sonnet 11 · opus 11 · glm 8 · terra 7</td>
+        <td>gate 1: best 8 &gt; 6; gate 2: Part-A gap 1 &lt; 3</td>
+        <td>fixed: executed proofs earned (first ever on the kit&rsquo;s benches: 3/3 by sonnet+opus), grounding universal; still failing: Part A saturated at every tier, and the frozen gate basis cannot see the proof bonus</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note"><strong>Status:</strong> per §5.6 of <code>BENCH-V3-DESIGN.md</code> the 2-round pilot budget is spent — both tasks are
+  <strong>redesigned, not re-rolled</strong>. Round 1 failed on indiscrimination (ties, zero executed proofs, ungrounded designs passing);
+  round 2 failed on saturation from above — the rework fixed every round-1 bench defect and the strong models cleared the new bar.
+  Scores are <em>pilot</em> data: no rung decision may cite them, no cell enters the matrix below. Deviations recorded in
+  <code>evals/2026-11-12/RESULTS.md</code> §Round 2 (mid-round provider switch github-copilot → ai-gateway-anthropic for the claude arms
+  during the copilot outage; 1 DNF re-run). Campaign spend ≈ $6.7 of the approved $18 ceiling.</p>
+  </figure>
+</section>
+
 <!-- ============ 3. RUNG TABLE ============ -->
 <section id="rungs">
   <h2>The roster at a glance</h2>
