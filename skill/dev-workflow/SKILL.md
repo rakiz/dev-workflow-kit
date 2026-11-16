@@ -46,10 +46,11 @@ On an existing codebase you don't want to pollute with companions, set `companio
 
 If `workflow.conventions` of `dev-workflow.json` points to an existing file (e.g. `CONVENTIONS.md`), read it before writing or editing code and follow its rules.
 
-Two baseline rules apply **always** — even if the conventions file does not exist or has not been customized:
+Baseline rules that apply **always** — even if the conventions file does not exist or has not been customized:
 
 1. **Comments describe intent, not code.** A comment explains WHY the code does something (a decision, a constraint, a non-obvious tradeoff) — it never restates WHAT the next line already says in code.
 2. **Comments describe the current state, not its history.** Outside `CHANGELOG.md`, code comments never narrate evolution — no history-narrating phrasing ("previously", "used to be", "changed from"…). A past decision that matters belongs in `CHANGELOG.md` or a commit message, not in a comment describing what the code does today.
+3. **Reuse before writing — the ladder.** Before writing anything new, stop at the first rung that holds: (a) does it need to exist — maybe the requirement itself is wrong? (b) does the codebase already have it? (c) does the standard library? (d) does the platform/runtime? (e) an installed dependency? (f) can it be one line? A rung that holds means reuse it — write nothing new. If none holds, write the minimum that works, plus at least one small test if it carries logic — tests the acceptance criteria require are not capped by this. Lazy about the solution, never about validation, error handling or security: what the task needs is written in full.
 
 ## 4. Safety rules
 

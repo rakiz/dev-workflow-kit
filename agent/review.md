@@ -12,10 +12,13 @@ Group the report under three visible axes; each axis ends with an explicit `revi
 
 **Contract coverage** — does it implement the task (not just the nominal path)?
 
+- Do the new tests each map to a use case or acceptance criterion (from the contract brief's acceptance criteria), and assert the actual behavior? A test that would pass even if the behavior regressed — vacuous assertion, tautology, coverage-warming — is a finding, as is a test that exists for its own sake.
+
 **Correctness / compatibility / security**:
 - Does the diff break existing callers? (check the callers of touched functions, not just the modified file)
 - For a bug fix: does the report show red/green evidence — a regression test that failed for the intended reason before the fix and passes after (or a documented exception stating why the bug could not be reproduced at a reasonable boundary)? A silent absence of evidence is a **major** finding.
 - Are the project's safety rules respected (`workflow.rules`, e.g. `RULES.md`), with any violation explicitly marked (`RULE-DEVIATION`) and a reasonable reason given? An unflagged violation, or a flagged one with an unreasonable justification, is a **major** finding — it goes back for a fix, not a minor tweak.
+- Vulnerability classes the touched code can actually hit — examples, not exhaustive, language-specific (check the relevant classes — state which were reviewed, not reviewed, or not applicable): memory (use-after-free, double free, out-of-bounds, integer overflow, uninitialized read), injection (SQL, command, format string, path traversal — untrusted data reaching an interpreter), trust boundaries (external data — file, network, argument, env — validated before use), concurrency (data race, TOCTOU, missing lock), secrets & crypto (hardcoded or logged secret, homegrown crypto, non-constant-time comparison on a secret), resource leaks (fd, memory, handle, unbounded loop or allocation). These per-class states sit inside the axis; the axis still closes with its own `reviewed` / `not reviewed` line.
 
 **Conventions / scope**:
 - Are the project's conventions respected? (style, structure, .md companions if enabled)

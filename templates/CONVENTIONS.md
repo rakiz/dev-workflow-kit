@@ -27,6 +27,15 @@ longer needed but kept for compatibility" phrased as history. A past
 decision that matters belongs in `CHANGELOG.md` or a commit message — not in
 a comment describing what the code does today.
 
+## 3. Design patterns — simple and known
+
+When a problem matches a known pattern, use it in its standard form, under its
+usual name — a reader should recognize what they are looking at. Never
+introduce a pattern for its own sake: an abstraction, a layer or an
+indirection must earn its cost against the task's actual need, and the
+simplest thing that works is the default. A pattern added without a problem
+it solves is a finding, not a contribution.
+
 ## Project rules
 
 <!-- Add your project's own rules here, one subsection per rule, same style

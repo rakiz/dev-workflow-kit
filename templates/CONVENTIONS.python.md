@@ -268,3 +268,12 @@ docstring says which:
   Poetry — project decision) pins the resolved environment; dev dependencies
   form a separate group; nothing is ever installed into the system
   interpreter.
+
+## 13. Design patterns — simple and known
+
+When a problem matches a known pattern, use it in its standard form, under
+its usual name — a reader should recognize what they are looking at. Never
+introduce a pattern for its own sake: an abstraction, a layer or an
+indirection must earn its cost against the task's actual need, and the
+simplest thing that works is the default. A pattern added without a problem
+it solves is a finding, not a contribution.
