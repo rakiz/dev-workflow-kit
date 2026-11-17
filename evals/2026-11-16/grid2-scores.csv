@@ -5,7 +5,7 @@ haiku,medium,8,3,5.5,7,7,0.02,
 haiku,high,8*,3,7,9,7.25,0.05,
 haiku,xhigh,8*,3,7,7,7,0.03-0.42,I2 xhigh: 2 DNF then 7 (single valid); D xhigh 1 DNF then 7
 glm,low,5*,2.7,5.5,6,1,0.01,O re-scored 5* (was categorical PARTIAL; numeric arm had 2 DNFs)
-glm,high,7*,3,5,5.5,0.75,0.03,O re-scored 7* (was categorical PASS); D: FP H3 both runs; IR 2FP (10-14)
+glm,high,6,3,5,5.5,0.75,0.03,O 6 (3 runs: 7;5;6; was categorical PASS); D: FP H3 both runs; IR 2FP (10-14)
 dsflash,default,5,1.5,9,4.5,5,0.03,
 1017,low,6.75,2,7,8,6.75,0.07,
 1017,medium,7.25,2.5,5.5,4.5,6.5,0.10,

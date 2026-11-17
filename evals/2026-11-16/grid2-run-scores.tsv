@@ -303,6 +303,8 @@ O-gemini-4-hydrogen-high-p8r2	O	hydrogen	high	p8r2	superseded		none	2026-11-16/l
 O-gemini-4-hydrogen-medium-f41	O	hydrogen	medium	f41	scored	5	none	2026-11-16/logs/grid2/O-gemini-4-hydrogen-medium-f41.log
 O-gemini-4-hydrogen-medium-p8	O	hydrogen	medium	p8	superseded		none	2026-11-16/logs/T1-github-copilot-gemini-4-hydrogen-medium-p8.log
 O-gemini-4-hydrogen-medium-p8r2	O	hydrogen	medium	p8r2	superseded		none	2026-11-16/logs/T1-github-copilot-gemini-4-hydrogen-medium-p8r2.log
+O-glm-high-g31	O	glm	high	g31	scored		none	2026-11-16/logs/grid2/O-glm-high-g31.log
+O-glm-high-g32	O	glm	high	g32	scored		none	2026-11-16/logs/grid2/O-glm-high-g32.log
 O-gpt-6-astra-default-g21	O	astra	default	g21	scored	6	none	2026-11-16/logs/grid2/O-gpt-6-astra-default-g21.log
 O-gpt-6_1-terra-high-o21	O	terra	high	o21	scored	5	none	2026-11-16/logs/grid2/O-gpt-6_1-terra-high-o21.log
 O-gpt-6_1-terra-high-o22	O	terra	high	o22	scored	5	none	2026-11-16/logs/grid2/O-gpt-6_1-terra-high-o22.log

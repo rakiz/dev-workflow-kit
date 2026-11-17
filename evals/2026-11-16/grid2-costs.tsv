@@ -259,6 +259,8 @@ eval-2026-11-17-IV2-RG3-github-copilot-gpt-6-1-terra-high-f41|0.1071
 eval-2026-11-17-IV2-RG3-github-copilot-gpt-6-1-terra-low-f41|0.1090
 eval-2026-11-17-IV2-RG3-github-copilot-gpt-6-1-terra-xhigh-f41|0.1169
 eval-2026-11-17-IV2-RG3-github-copilot-gpt-6-astra-g21|1.5306
+eval-2026-11-17-T1-ai-gateway-misc-fw-glm-5-3-flash-high-g31|0.0067
+eval-2026-11-17-T1-ai-gateway-misc-fw-glm-5-3-flash-high-g32|0.0066
 eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-high-o21|0.0501
 eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-high-o22|0.0298
 eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-low-o21|0.0151

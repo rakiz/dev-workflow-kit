@@ -77,6 +77,12 @@ SLUG_TO_CSV = {
     "gpt-6-astra": "astra",
 }
 
+# Owner-frozen runs (2026-11-17 brief): the glm O confirmation runs g31/g32
+# complete the frozen cell (3 runs: 7;5;6 -> 6). Per-run attribution of the
+# 5 and 6 within the pair was never recorded by a scorer session, so these
+# rows are marked scored with NO individual score asserted.
+OWNER_FREEZE_SCORED = {"O-glm-high-g31", "O-glm-high-g32"}
+
 _cache = {}
 
 
@@ -567,6 +573,8 @@ def collect_runs():
         elif score:
             # a scored deliverable counts even if the arm was killed afterwards
             status = "retry" if is_retry else "scored"
+        elif run_id in OWNER_FREEZE_SCORED:
+            status = "scored"  # owner-frozen cell; per-run score not asserted
         elif log["arm_kill"]:
             status = "DNF"
         elif log.get("prov_error"):
