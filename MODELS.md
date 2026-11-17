@@ -164,14 +164,36 @@ Two rules bind the whole grid:
 
 | Function \ tier | cheap | strong | alternative | alternative2 |
 |---|---|---|---|---|
-| design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` terra 6.1 | `strong-design-alternative2` opus |
-| design-review | `cheap-design-review` **M3.1 `medium`** (10-23 confirmation: 10/10 avg 3 runs @ $0.0082, replaces old deepseek flash 9/10 @ $0.0076 — same price, +1 category) | `strong-design-review` 1017 `medium` (10-19: 10/10-0FP @ $0.0143, first T4 sweep; replaces sol — 9/10 @ $0.076+) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` grok-4.7 (pro's reported direct-Fireworks return probed unavailable 11-16 — 404 both providers; grok keeps the rung until it actually exists) |
-| code (impl) | `cheap-code` glm `high` | `strong-code` s5.5 `high` | `strong-code-alternative` terra 6.1 | `strong-code-alternative2` opus |
+| design (producer) | `cheap-design` **haiku `medium`** (v2 11-17: glm scored ≤1/11 on D at every effort — the H3 false-contract FP −3 every round; haiku `medium` D 7 @ ~$0.02) | `strong-design` **1017 `high`** (v2: D 8.25/11 — the best design authoring outside opus — @ $0.12/task; was s5.5 `high`, D 7 @ $0.40–1.26) | `strong-design-alternative` **hydrogen `high`** (v2: D 6 vs terra's 4; terra = documented fallback) | `strong-design-alternative2` opus |
+| design-review | `cheap-design-review` **M3.1 `medium`** (10-23 confirmation: 10/10 avg 3 runs @ $0.0082, replaces old deepseek flash 9/10 @ $0.0076 — same price, +1 category) | `strong-design-review` **M3.1 `xhigh`** (v2: DR2 11.5/14 with 4 executed proofs @ $0.03/task — the best design review measured; was 1017 `medium`, DR2 5.5. Dual rung with `cheap-design-review` — SPOF accepted, fallback argon `high` → opus) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` grok-4.7 (pro's reported direct-Fireworks return probed unavailable 11-16 — 404 both providers; grok keeps the rung until it actually exists) |
+| code (impl) | `cheap-code` **haiku `default`** (v2: I2 7.5/14 vs glm's 5.5, at ~$0.02/task vs $0.03. ⚠ Cliff: haiku prompts >100k tokens pay 5× — keep impl briefs under 90k; fallback 1017 `medium`) | `strong-code` s5.5 `high` | `strong-code-alternative` terra 6.1 | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
-| code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
-| orchestration | session default model: glm — the user's configured default model; **pin `high`** (T1: PASS @ `high` $0.0050, PARTIAL @ `low`); recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
+| code-review | `cheap-review` **glm `low`** (v2: lineage swap — the impl floor is now haiku (claude family), so the review floor must be a different family; glm `low` IR 3/3+2 0FP @ $0.0051, single run) | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
+| orchestration | session default model: glm — the user's configured default model; **pin `high`** (T1: PASS @ `high` $0.0050, PARTIAL @ `low`; O /8 re-read: PASS-equivalent 5–7 at 1/10 the cost of any claude); recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
-Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol (off the roster 10-26 — dominated by terra), opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = deepseek-v4-pro (OFF roster 11-16: old gateway id dead AND reported direct-Fireworks equivalent probed 404 — restore only when an id actually resolves), argon = gemini-4-argon, 1017 = deepseek-v4p1-flash-1017 (fireworks direct), M3.1 = minimax-m3p1-flash, terra = gpt-6.1-terra.
+**Roster v2 (owner-validated 2026-11-17)** — six seats changed on the
+bench-v3 full-grid evidence (`evals/2026-11-16/grid2-scores.csv`, cell-level
+source of truth): `cheap-code` glm→**haiku** `default` (I2 7.5 vs 5.5,
+cheaper), `cheap-review` haiku→**glm** `low` (forced lineage swap: impl and
+review can no longer both be claude-family), `cheap-design` glm→**haiku**
+`medium` (glm cannot author designs: ≤1/11 at every effort), `strong-design`
+s5.5→**1017** `high` (8.25 vs 7 at a quarter of the cost),
+`strong-design-review` 1017→**minimax** `xhigh` (11.5/14 vs 5.5),
+`strong-design-alternative` terra→**hydrogen** `high` (6 vs 4 on D; hydrogen
+is REFUTED for review rungs — IR 1–2 FP/run — keep it off review seats).
+The hard rule is unchanged: **impl and review are never the same family**.
+
+**Project vs global — impl/review pairing.** The two rosters now pair the
+same two models in opposite directions, and that is intentional: the project
+roster keeps `impl` glm / `review` haiku (the 09-29/10-07 pairing, unchanged
+— project pipelines that already run it have no measured reason to flip);
+the global roster runs `cheap-code` haiku / `cheap-review` glm `low` (the
+v2 grid: haiku implements better, glm reviews claude-family impl at the
+floor price). Both satisfy the only invariant that matters: **the reviewer's
+family differs from the implementer's.** The scopes sync independently
+(`--update` vs `--update --global`).
+
+Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol (off the roster 10-26 — dominated by terra), opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = deepseek-v4-pro (OFF roster 11-16: old gateway id dead AND reported direct-Fireworks equivalent probed 404 — restore only when an id actually resolves), argon = gemini-4-argon, hydrogen = gemini-4-hydrogen, 1017 = deepseek-v4p1-flash-1017 (fireworks direct), M3.1 = minimax-m3p1-flash, terra = gpt-6.1-terra.
 
 Eval 2026-09-30 addendum — qwen and pro join as the 7th/8th families
 (`evals/2026-09-30-qwen3p8/`, `evals/2026-09-30-deepseek-v4-pro/`): qwen

@@ -72,7 +72,7 @@ dev-workflow-kit/
 ├── VERSION                  # kit version (single line)
 ├── evals/                   # model-eval protocol, results and raw outputs — see evals/README.md
 │   ├── README.md            #   protocol, the 4 tasks, scoring checklist
-│   ├── run-eval.sh          #   one run: task × model × variant in a fresh repo copy
+│   ├── run-eval.sh          #   (superseded, git history only — retired 2026-11-17; current runners: run-eval-v4/v5.sh)
 │   ├── synccli-eval-repo/   #   test fixture (seeded defects), shipped as plain files
 │   └── 2026-09-29/          #   results (RESULTS.md) + archived outputs
 ├── agent/                   # 5 opencode agents → .opencode/agent/
@@ -90,7 +90,7 @@ dev-workflow-kit/
 │   ├── strong-code.md                       #   strong escalation rung (Claude), rare
 │   ├── strong-code-alternative.md           #   cross-vendor escalation implementer
 │   ├── strong-code-alternative2.md          #   terminal impl rung, before human
-│   ├── strong-design.md                     #   strong design rung (Claude), hard architectures
+│   ├── strong-design.md                     #   strong design rung (1017), hard architectures
 │   ├── strong-design-alternative.md         #   cross-vendor design escalation
 │   ├── strong-design-alternative2.md        #   terminal design rung, before human
 │   ├── strong-design-review.md              #   read-only cross-lineage critique of strong-design

@@ -1,7 +1,7 @@
 ---
 # Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
-description: "Strong design-review rung (fresh family): critiques a design produced by strong-design (Claude family) from a different lineage. Read-only. Also the right reviewer for any Claude-produced design needing more than cheap-design-review's depth. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
+description: "Strong design-review rung (fresh family): critiques a design produced by strong-design from a different lineage. Read-only. Also the right reviewer for any design needing more than cheap-design-review's depth. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 permission:
   edit: deny
 ---

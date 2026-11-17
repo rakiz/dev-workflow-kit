@@ -80,8 +80,13 @@ strong-design-review-alternative.
 
 ## Raw
 
-`2026-11-16/raw/` (32 run dirs), logs in `2026-11-16/logs/`. Costs via the
-opencode DB (session titles `eval-2026-11-16-*`).
+Run dirs were extracted on 2026-11-17 into `2026-11-16/runs/` (per-run
+artifacts: plan/review/critique text, I2 diffs, D designs, final assistant
+reports; per-run scores + statuses: `2026-11-16/grid2-run-scores.tsv`) and
+archived as `runs.tar.gz` — the `2026-11-16/raw/` trees are retired (git
+history only). Campaign logs stay gz-available in `2026-11-16/logs/`. Costs
+via the opencode DB (session titles `eval-2026-11-16-*`,
+`2026-11-16/grid2-costs.tsv`).
 
 ## grid2 — full matrix completion (164 runs + 24 fills, 2026-11-16/17)
 

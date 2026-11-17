@@ -12,7 +12,9 @@ release.
   `syncfeat-brief-d1`, code D1) tasks, calibration-first gates (§5), staged
   fleet and enforced caps (§5.7/§5.8, incl. the `run-eval-v3` script
   line-items).
-- `run-eval-v3.sh` — the v3 runner: `run-eval-v3.sh <IV2|D1> <model>
+- `run-eval-v3.sh` — the v3 runner (**SUPERSEDED, git history only** —
+  retired 2026-11-17; RG2 was replaced by RG3 / `run-eval-v4.sh` the same
+  day it ran): `run-eval-v3.sh <IV2|D1> <model>
   [variant]` — I-v2/D tasks only; copies the right fixture to a fresh temp
   work dir (plain copy, no git history), session title
   `eval-<date>-<IV2|D>-<RG2|D1>-<model>[-<variant>]`, **15-min wall-clock
@@ -22,7 +24,9 @@ release.
   format: `eval-YYYY-MM-DD-<CODE>-<FIXTURECODE>-<model>-<effort>`):
   - `synccli-eval-repo/` → `SYNC1` → O, I-v1, IR, DR-v1
   - `synccli-eval-repo-v2/` → `SYNC2` → DR-v2
-  - `reportgen-eval-repo-i2/` → `RG2` → I-v2
+  - `reportgen-eval-repo-i2/` → `RG2` → I-v2 (**SUPERSEDED, git history
+    only** — retired 2026-11-17; the current I2 fixture is
+    `reportgen-eval-repo-i3/`, code RG3)
   - `syncfeat-brief-d1/` → `D1` → D
 - `2026-11-01/` — **the current report** (`RESULTS.md`): first bench-v2
   campaign — the four v1-T4-perfect models scored on `synccli-eval-repo-v2`
@@ -31,7 +35,9 @@ release.
   validated the v2 rubric; the owner FP ruling (deduct only via rules a-d)
   is codified in `RUBRIC-T4V2.md`. No roster change. New Qwen releases
   (Flash-Next, 27B) are served by no configured provider — v1 grid postponed.
-- `run-eval-v2.sh` — v2 twin of `run-eval.sh`: T4-only, copies
+- `run-eval-v2.sh` — v2 twin of `run-eval.sh` (**SUPERSEDED, git history
+  only** — retired 2026-11-17, replaced by `run-eval-v5.sh` for the legacy
+  benches): T4-only, copies
   `synccli-eval-repo-v2`, no git history, session titles
   `eval-<date>-T4V2-<tag>`.
 - `synccli-eval-repo/` — the test fixture, shipped as plain files (no `.git`,
@@ -39,7 +45,8 @@ release.
   (`range(1, ...)`) + `incremental.py` carrying 3 seeded defects. **Do not
   fix**: it is the measuring tool.
 - `run-eval.sh` — launches a run (task × model × variant) in a fresh copy of
-  the repo, where it first recreates the 2-commit history (baseline
+  the repo (**SUPERSEDED, git history only** — retired 2026-11-17, replaced
+  by `run-eval-v5.sh`), where it first recreates the 2-commit history (baseline
   "Initial synccli", then the seeded-defect review commit that added
   `incremental.py`) so T3's `git show HEAD` has a real commit to review.
 - `2026-10-16/` — **the current report** (`RESULTS.md`): the muse-spark full

@@ -158,4 +158,6 @@ second round p4 $2.90 + hydrogen 4 arms $1.62 + fleet 8 arms $0.47 + scoring $0.
 ## 7. Raw
 
 `evals/2026-11-12/raw-round2/` — all p3/p4/fleet/QA run dirs (26 trees, DNFs included).
-Final reports extracted: `/tmp/opencode/p3-reports/` (copy into the eval dir before committing).
+RETIRED 2026-11-17 (superseded, git history only): the scoreable p3/p4 run
+dirs were extracted into `evals/2026-11-16/runs/` and archived as
+`runs.tar.gz`. Final reports extracted: `/tmp/opencode/p3-reports/` (copy into the eval dir before committing).

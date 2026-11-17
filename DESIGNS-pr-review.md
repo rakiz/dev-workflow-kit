@@ -20,14 +20,14 @@ Verifiable end state: given a PR number, the flow produces (a) an auditable repo
 
 | Pass (objective) | Checklist focus | Default binding |
 |---|---|---|
-| 1. defect risk | language-aware defects: C++ → use-after-free, dangling refs, RAII/ownership, const-correctness, iterator invalidation, races; Python/Go equivalents (unhandled exceptions, swallowed errors, goroutine leaks, race-prone shared state) — the kit ships CONVENTIONS templates per language, referenced by the brief | cheap-review (haiku 5.5) |
-| 2. security | injection, authz, secret handling, untrusted input | cheap-review (haiku 5.5) |
-| 3. style / conventions | compliance with the kit's `CONVENTIONS.md` | cheap-review (haiku 5.5) |
-| 4. code quality | minimalism, no over-engineering, architecture fit | cheap-review (haiku 5.5) |
-| 5. comments & docs accuracy | do comments/docstrings/README claims match the code — the "lying comment" trap | cheap-review (haiku 5.5) |
-| 6. tests | coverage of the diff, missing failure-first tests | cheap-review (haiku 5.5) |
-| Escalation rung (per objective) | strong-review | glm-flash `high` |
-| Doubt rung | strong-review-alternative / -alternative2 | per roster lineage rules |
+| 1. defect risk | language-aware defects: C++ → use-after-free, dangling refs, RAII/ownership, const-correctness, iterator invalidation, races; Python/Go equivalents (unhandled exceptions, swallowed errors, goroutine leaks, race-prone shared state) — the kit ships CONVENTIONS templates per language, referenced by the brief | cheap-review (glm `low`) |
+| 2. security | injection, authz, secret handling, untrusted input | cheap-review (glm `low`) |
+| 3. style / conventions | compliance with the kit's `CONVENTIONS.md` | cheap-review (glm `low`) |
+| 4. code quality | minimalism, no over-engineering, architecture fit | cheap-review (glm `low`) |
+| 5. comments & docs accuracy | do comments/docstrings/README claims match the code — the "lying comment" trap | cheap-review (glm `low`) |
+| 6. tests | coverage of the diff, missing failure-first tests | cheap-review (glm `low`) |
+| Escalation rung (per objective) | strong-review | when the battery runs glm (the v2 `cheap-review` binding): escalate PAST glm-flash `high` — same family AND same model as the battery, a no-op escalation — straight to **sonnet 5.5 `medium`** (`strong-review-alternative`). When a battery runs a non-glm family (e.g. project-roster haiku passes): `strong-review` glm-flash `high` as before |
+| Doubt rung | strong-review-alternative / -alternative2 | per roster lineage rules (sonnet `medium` → qwen `xhigh`) |
 | Large-context branch (same pass, different binding) | when a pass's brief needs the whole context >100k | deepseek-v4p1-flash-1017 `medium` (roster's documented cliff-free fallback) |
 
 The SAME model may run several passes — different briefs carry different lenses. **Lineage rule stays:** the battery must not be bound to the impl/author's family when that family is known (reviewer lineage ≠ author lineage). When the roster is re-arbitrated, only this table changes.
@@ -90,7 +90,7 @@ A reviewer's self-reported confidence is **evidence for the report, never a trig
 
 Findings come back in the existing one-line format (`severity — file:line — problem — expected action`) plus `reviewed`/`not reviewed` axis statements and an overall verdict. The orchestrator performs a **semantic merge across passes** — a judgment call, not a key match: the same defect surfacing on two different objectives (e.g. defect-risk and security) on the same file:line = corroborated (`confidence: 2 objectives`), severity takes the max; wording may differ and locations may be lines apart. A **conflict** (same location/category with opposite verdicts across passes, or a strong rung refuting a battery finding) is never self-resolved — it escalates that objective.
 
-**Corroboration by the strong rung is not independent confidence when bindings share a lineage** (strong-review binds glm-flash `high`, measured 2 FPs on v1 T3): a glm-only finding raises severity only with mechanism-level proof in its own text, and the glm brief carries the FP-discipline clause explicitly. glm never runs as a battery pass's corroborator AND its first escalation rung (no-op escalation). A finding no pass corroborates and the strongest rung does not confirm is staged `low-confidence` (posted only if the user keeps it) and flagged as a probable FP in the report, never silently dropped.
+**Corroboration by the strong rung is not independent confidence when bindings share a lineage** (strong-review binds glm-flash `high`, measured 2 FPs on v1 T3): a glm-only finding raises severity only with mechanism-level proof in its own text, and the glm brief carries the FP-discipline clause explicitly. glm never runs as a battery pass's corroborator AND its first escalation rung (no-op escalation). With the v2 `cheap-review` binding (glm `low`) the battery itself runs on glm — so the first escalation rung for a battery objective is `strong-review-alternative` (sonnet 5.5 `medium`), never `strong-review` (glm `high`, same family and model as the battery — escalation to it would be a no-op). A finding no pass corroborates and the strongest rung does not confirm is staged `low-confidence` (posted only if the user keeps it) and flagged as a probable FP in the report, never silently dropped.
 
 ## The mechanical approval gate
 
@@ -98,7 +98,7 @@ Findings come back in the existing one-line format (`severity — file:line — 
 
 ```markdown
 ## [F2] major — src/sync.py:87 — silent copy failure can report `done`
-- provenance: found by security pass (haiku 5.5, $0.002); corroborated by defect-risk pass
+- provenance: found by security pass (glm 5.3-flash `low`, ~$0.005); corroborated by defect-risk pass
 - confidence: high (2 objectives)   <!-- or: low — possible FP -->
 - status: [ ] approve / [x] reject / edited
 <!-- comment body below — this exact text is posted if approved -->
@@ -115,7 +115,7 @@ Findings come back in the existing one-line format (`severity — file:line — 
 
 ## Cost accounting
 
-The battery is ~N×cheap (N = number of objectives, 6 for v1; passes with the default binding are ~$0.0063/task each), so the always-on cost stays at the cheap tier — which is the point. Escalations are per-objective add-ons priced at the rung ladder: strong-review ~$0.008/task, strong-review-alternative ~$0.119/task, -alternative2 ~$0.151/task (per-task labels, from `MODELS.md`/`EVALS.md`), with a context-size qualifier: a pass routed to the large-context binding (deepseek-v4p1-flash-1017 `medium`, through cheap-review's slot) costs more and is priced as such. Actual costs come from the opencode sessions DB per pass, child sessions extracted by `session.parent_id` (not by title), applying the delegation rule (parent + all named children). Escalation beyond strong-review is behind the user gate.
+The battery is ~N×cheap (N = number of objectives, 6 for v1; passes with the default binding run the v2 `cheap-review` glm 5.3-flash `low`, ~$0.005/task), so the always-on cost stays at the cheap tier — which is the point. Escalations are per-objective add-ons priced at the rung ladder: strong-review ~$0.008/task (only reachable when the battery is not glm-family), strong-review-alternative (sonnet 5.5 `medium`, the first rung for the v2 glm battery) ~$0.119/task, -alternative2 ~$0.151/task (per-task labels, from `MODELS.md`/`EVALS.md`), with a context-size qualifier: a pass routed to the large-context binding (deepseek-v4p1-flash-1017 `medium`, through cheap-review's slot) costs more and is priced as such. Actual costs come from the opencode sessions DB per pass, child sessions extracted by `session.parent_id` (not by title), applying the delegation rule (parent + all named children). Escalation beyond the first rung is behind the user gate.
 
 ## Rollout
 

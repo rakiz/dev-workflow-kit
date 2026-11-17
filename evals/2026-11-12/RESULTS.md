@@ -9,7 +9,8 @@
   terra medium, glm-5p3-flash high (I-v2) / low (D). Fixture copied fresh per
   arm (`evals/run-eval-v3.sh`: 15-min watchdog, cost-cap poller, tier caps).
 - Session titles `eval-2026-11-12-<IV2|D>-<RG2|D1>-<model>-<effort>[-r2]`;
-  costs from the opencode DB (`raw/sessions.tsv`).
+  costs from the opencode DB (`raw/sessions.tsv` — retired with the raw
+  tree; the campaign cost rows live on in `evals/2026-11-16/grid2-costs.tsv`).
 - Scoring: frozen private rubrics `RUBRIC-IV2.md` / `RUBRIC-D1.md` v0 (sha256
   in `BENCH-V3-DESIGN.md` §3.6/§4.4); first-pass scorers executed every
   pre-registered probe on scratch copies; reference-fixed copy + §3.8 record
@@ -134,7 +135,10 @@
 ## Raw
 
 `raw/` — per-arm run dirs (candidate work trees, pristine test file NOT yet
-overlaid), `sessions.tsv` (titles + costs from the DB).
+overlaid), `sessions.tsv` (titles + costs from the DB). RETIRED 2026-11-17
+(superseded, git history only): the scoreable round-2 run dirs
+(`raw-round2/*-p3/p4`) were extracted into `evals/2026-11-16/runs/` and
+archived as `runs.tar.gz`.
 
 ---
 

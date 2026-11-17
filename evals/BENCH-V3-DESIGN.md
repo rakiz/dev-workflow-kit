@@ -86,7 +86,7 @@ enforced caps.
 |---|---|---|---|
 | **D** | design (authoring) | *new* (this doc) | `syncfeat-brief-d1/` |
 | **DR** | design-review | T4 → **DR-v1**; T4v2 → **DR-v2** | `synccli-eval-repo/`, `synccli-eval-repo-v2/` (existing dirs keep their names; a `fixtures/` column in README maps them) |
-| **I** | impl | T2 → **I-v1**; new task → **I-v2** | `synccli-eval-repo/` (v1), `reportgen-eval-repo-i2/` (v2, §3.1) |
+| **I** | impl | T2 → **I-v1**; new task → **I-v2** | `synccli-eval-repo/` (v1), `reportgen-eval-repo-i2/` (v2, §3.1 — **SUPERSEDED, git history only**: retired 2026-11-17, replaced same day by `reportgen-eval-repo-i3/`, code RG3) |
 | **IR** | impl-review | T3 → **IR** | `synccli-eval-repo/` (shared with I-v1) |
 | **O** | orchestration | T1 → **O** | `synccli-eval-repo/` (shared with I-v1) |
 
@@ -127,9 +127,13 @@ decided on.
   policy paragraph (~30 lines).
 - `EVALS.md`: mapping header + no row edits (historical rows keep T-names,
   interpreted via the table).
-- `run-eval.sh` / `run-eval-v2.sh`: title format update, fixture-code arg
+- `run-eval.sh` / `run-eval-v2.sh` (**both retired 2026-11-17 — SUPERSEDED,
+  git history only**, replaced by `run-eval-v5.sh` for the legacy benches):
+  title format update, fixture-code arg
   (or a new `run-eval-v3.sh`; the old scripts are historical records —
-  recommendation: new script, old ones frozen).
+  recommendation: new script, old ones frozen. `run-eval-v3.sh` itself was
+  also retired 2026-11-17 — SUPERSEDED, git history only — replaced by
+  `run-eval-v4.sh` when RG3 replaced RG2).
 - DB queries in future `RESULTS.md`s: new title pattern (§2.1).
 - `LEADERBOARD.html`: panel labels only (5 panels keep their constructs).
 - `MODELS.md`: nothing (it references rungs, not task codes).

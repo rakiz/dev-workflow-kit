@@ -16,6 +16,10 @@
 
 Retired benches (never decide a seat): I-v1 (T2), DR-v1 (T4), I-v2/RG2 (superseded by RG3 same day).
 
+O-bench evidence rule: the deliverable (the plan) lives in the campaign
+**log**, so O logs stay gz-available after a campaign closes (§3) — they are
+never deleted, only compressed.
+
 Private answer keys live in the SEPARATE local repo `../evals-keys/`
 (RUBRIC-IV2-RG3.md, RUBRIC-D1-v2.md) — never in this public repo; grep for
 leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
@@ -38,6 +42,14 @@ leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
 7. Lineage: review seat ≠ impl seat family. Strong tier must be a DIFFERENT
    family from the cheap tier it escalates. alternative2 = parking for good
    models we hesitate to drop (not a quality ladder).
+   Owner-accepted same-family EFFORT escalations (2026-11-17): the code-review
+   ladder glm `low` → glm `high` and the design-review ladder minimax
+   `medium` → minimax `xhigh` escalate effort within one family — accepted
+   because the escalation is effort-backed, not a fresh-family pass (the
+   fresh-family pass happens at the next rung). Same-family producer/
+   reviewer pairing in the gemini design rungs (hydrogen `high` produces,
+   argon `high` reviews) is likewise documented and accepted. The HARD rule
+   stands unchanged: **impl and review are never the same family.**
 8. Scoring is executed-evidence: paraphrase = 0; probes re-run by the scorer.
 
 ## 3. Campaign mechanics
@@ -45,8 +57,15 @@ leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
 - Cost guard: before each launch, SUM(cost) of the campaign's sessions in the
   opencode DB; driver hard-stops above the owner's cap ($120 for 11-16).
 - Queue: roster models first, expensive/unknown last.
-- Raw run dirs: `evals/<date>/raw/`, logs `evals/<date>/logs/`, status
-  `<date>/logs/grid*/_status.txt`. Costs via session titles `eval-<date>-*`.
+- Campaign lifecycle (2026-11-17): while a campaign is OPEN, its per-run
+  artifacts live in `evals/<date>/runs/` and its logs in `evals/<date>/logs/`
+  (plain files). Once closed (scored + folded into RESULTS.md/EVALS.md +
+  leaderboard regenerated), the runs are archived as `runs.tar.gz` and the
+  logs gzipped in place. **No `raw/` trees, ever** — run dirs are extracted
+  into `runs/` at extraction time and never committed as raw trees; retired
+  raw trees (`2026-11-16/raw/`, `2026-11-12/raw*`) are git history only.
+- Costs via session titles `eval-<date>-*` (parent + children roll-up,
+  `grid2-costs.tsv`). Status per run: `<date>/logs/grid*/_status.txt`.
 - After the grid: score everything (fresh scorer per run, rubric-strict),
   fold into EVALS.md (the aggregate) + `<date>/RESULTS.md` (the detail),
   then regenerate the HTML (below). Double-scoring (§5.2) when budget allows.
@@ -73,4 +92,6 @@ leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
 - Matrix/roster updates: edit the existing rows in place. Never regenerate
   the file from scratch, never `git checkout` a dirty tree, never delete
   sections to "simplify". History belongs in `EVALS.md`, not in deleting.
-- Every bench score shown must trace to a RESULTS.md line.
+- Every bench score shown must trace through the chain: **grid2-scores.csv
+  (cell) → grid2-run-scores.tsv (per-run rows) → runs.tar.gz + campaign logs
+  (evidence) → RESULTS.md (narrative)**.

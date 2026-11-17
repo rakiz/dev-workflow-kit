@@ -16,11 +16,12 @@
 
 **THE single aggregate**: one place for the results of every model eval ever
 run in this kit, blended across campaigns with the date each cell was
-measured. The per-eval detail was folded in here and the per-date
-`evals/` dirs removed (the current detail page is
+measured. Per-eval detail lives in the per-date `evals/<date>/RESULTS.md`
+pages that were kept (older campaigns are folded here; retired raw dirs are
+git history only). The current detail page is
 `evals/2026-11-16/RESULTS.md` — the bench-v3 matrix-completion campaign that
 re-arbitrated the roster on the new I-v2/D benches plus O/IR/DR-v2 backfill;
-the muse-spark grid detail lives in `evals/2026-10-16/RESULTS.md`).
+the muse-spark grid detail lives in `evals/2026-10-16/RESULTS.md`.
 **Checked: 2026-11-17 (grid2).**
 
 ## How to read this page
