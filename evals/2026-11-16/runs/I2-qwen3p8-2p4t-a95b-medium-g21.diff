@@ -1,0 +1,205 @@
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546: cache
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546/cache.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546/cache.py	2026-11-17 03:24:39
+@@ -40,12 +40,50 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _is_future_version(value):
++    """True when `value` is a version stamp greater than REGISTRY_VERSION.
++    Compared numerically when both sides parse as integers, so '10' ranks
++    above '2'; otherwise compared as text."""
++    if value is None:
++        return False
++    try:
++        return int(value) > int(REGISTRY_VERSION)
++    except (TypeError, ValueError):
++        return str(value) > REGISTRY_VERSION
++
++
++def _written_by_future_version(state):
++    """True when the loaded state carries a version stamp greater than
++    REGISTRY_VERSION, either at the top level or on any entry."""
++    for key in ("registry_version", "version", "schema_version"):
++        if _is_future_version(state.get(key)):
++            return True
++    for entry in state.values():
++        if isinstance(entry, dict) and _is_future_version(
++                entry.get("registry_version")):
++            return True
++    return False
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state; a missing file is just an empty cache.
++    A state file this version cannot interpret — malformed JSON, an
++    unexpected top-level shape, or a version stamp greater than
++    REGISTRY_VERSION (written by a future schema version) — is also
++    treated as an empty cache, so a run never crashes on it and
++    save_state() rewrites a valid state file."""
+     if not os.path.exists(path):
+         return {}
+     with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++        try:
++            state = json.load(fh)
++        except ValueError:
++            return {}
++    if not isinstance(state, dict):
++        return {}
++    if _written_by_future_version(state):
++        return {}
++    return state
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546/output: report.html
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546/output: report.json
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546/reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546/reportgen.py	2026-11-17 03:24:39
+@@ -13,6 +13,7 @@
+ 
+ import argparse
+ import csv
++import html as html_module
+ import json
+ import os
+ import sys
+@@ -80,6 +81,16 @@
+                     skipped_rows.append(
+                         {"row": row_no, "column": col, "reason": str(exc)})
+                     continue
++                except Exception as exc:
++                    # An unhandled crash inside a transform is a transform
++                    # failure like any other: record it so the run ends the
++                    # same way (no report, no cache state), never as a
++                    # traceback escaping mid-run.
++                    skipped_rows.append(
++                        {"row": row_no, "column": col,
++                         "reason": "transform crashed: %s: %s"
++                                   % (type(exc).__name__, exc)})
++                    continue
+             else:
+                 value = raw
+             stats = columns.setdefault(col, {"non_empty": 0, "values": set()})
+@@ -128,7 +139,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % html_module.escape(str(name)))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -136,16 +147,25 @@
+         summary = res["summary"]["columns"]
+         for col in sorted(summary):
+             stats = summary[col]
+-            sample = ", ".join(str(v) for v in stats["sample"])
++            sample = ", ".join(html_module.escape(str(v))
++                               for v in stats["sample"])
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (html_module.escape(str(col)), stats["non_empty"],
++                            stats["distinct"], sample))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+ 
+ 
+ def run(rules_path, input_dir, output_dir, cache_path):
+-    """Run one full pass over the input directory and write the report."""
++    """Run one full pass over the input directory and write the report.
++
++    Failure policy: every transform failure (a raised TransformError, an
++    unhandled crash inside a transform, or any failure the transform pass
++    catches and carries on from) is recorded in the summary's
++    `skipped_rows`; if any cell failed, validate_summary raises before any
++    output is produced, so such a run emits no report and writes no cache
++    state."""
+     state = cache.load_state(cache_path)
+ 
+     names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
+@@ -159,30 +179,41 @@
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++        if (isinstance(entry, dict)
++                and entry.get("digest") == digest
++                and entry.get("rules_fp") == rules_fp
++                and entry.get("registry_version") == cache.REGISTRY_VERSION):
+             results[name] = {"digest": digest, "rows": entry["rows"],
+                              "generated_from": entry["generated_from"],
+                              "summary": entry["summary"]}
+         else:
+             summary = summarize_file(header, data_rows, rules)
++            gen_from = generated_from(header, data_rows, rules)
+             results[name] = {"digest": digest, "rows": len(data_rows),
+-                             "generated_from": generated_from(header, data_rows, rules),
++                             "generated_from": gen_from,
+                              "summary": summary}
+-            pending[name] = cache.make_entry(path, digest, len(data_rows),
+-                                             summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
++            cache_entry = cache.make_entry(path, digest, len(data_rows),
++                                           summary, rules, rules_fp)
++            # The cache must mirror the report exactly, so store the same
++            # generated_from the report shows (make_entry's own count
++            # ignores the non-empty-cell rule).
++            cache_entry["generated_from"] = gen_from
++            pending[name] = cache_entry
+ 
++    for name in sorted(results):
++        validate_summary(results[name]["summary"])
++
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+     with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
++    if pending:
++        cache.save_state(pending, path=cache_path)
+     return report
+ 
+ 
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546: test_goal_features.py
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546: test_regressions.py
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546/transforms.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-50546/transforms.py	2026-11-17 03:24:39
+@@ -37,6 +37,17 @@
+         raise TransformError("not a currency amount: %r" % value)
+ 
+ 
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0, matched case-insensitively
++    (surrounding whitespace ignored, like the other numeric transforms)."""
++    cleaned = value.strip().lower()
++    if cleaned in ("yes", "true"):
++        return 1.0
++    if cleaned in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ def round2(value):
+     """Parse a float and round it to 2 decimals."""
+     try:
+@@ -61,6 +72,7 @@
+     "upper": upper,
+     "lower": lower,
+     "currency_amount": currency_amount,
++    "boolean": boolean,
+     "round2": round2,
+     "date_iso": date_iso,
+ }

@@ -1,0 +1,19 @@
+**Do not build this as written. The largest risks are correctness and recovery, not polling speed.**
+
+1. **Change detection will silently miss edits.** Whole-second `mtime + size` misses same-size writes within one second; preserved/restored timestamps break it further. “Mtime is guaranteed to change” is false. Use at least `mtime_ns + size` in a versioned manifest; use content hashing where byte-level correctness is required.
+
+2. **Debounce and backpressure claims are false.** A continuously written file may never reach 200 ms of quiet, so latency is unbounded. Pending entries also accumulate across polls when files remain hot, copies are slow, or errors persist. Define starvation behavior explicitly, bound queued files/bytes, track oldest-pending age, and prevent one slow copy from blocking scans.
+
+3. **Destination copies are not crash-safe.** Writing directly into `dst` exposes partial files to readers and leaves truncation after a crash. Re-statting afterward does not fix either problem. Copy to a temporary file on the destination filesystem, validate source stability, then atomically rename; add `fsync` according to the required power-loss guarantees.
+
+4. **Journal replay cannot reliably repair an in-place manifest rewrite.** A crash can leave the manifest unparseable, while a delta journal lacks the unchanged entries needed to reconstruct it. Journal appends and copied data also need durability and partial-tail handling. Prefer an atomic manifest commit (`temp + fsync + rename`); consider removing the journal and letting the next complete scan reconcile from the last valid manifest.
+
+5. **The lock does not ensure a single writer.** Releasing it before manifest commit permits overlapping daemons and concurrent destination writes. Whole-manifest writes are last-writer-wins, not “cleanly merging.” Hold an OS-level lock for the process lifetime; treat the PID file only as diagnostics.
+
+6. **Deletion can destroy valid destination data.** A partial `os.walk`, permission error, or transient filesystem failure can make files appear absent and trigger mass deletion. Reconcile deletions only after a complete successful scan; never convert scan errors into absence.
+
+7. **The load model is too optimistic.** The 100 ms scan likely assumes a warm local cache. Cold caches, network filesystems, antivirus, and build I/O will worsen it; 50,000 stats twice per second plus repeated manifest serialization remain constant overhead. Benchmark p95/p99 scan and copy latency during realistic bursts before rejecting a watcher-plus-periodic-rescan hybrid.
+
+8. **Observability is insufficient.** Pending count and commit duration will not reveal starvation or falling throughput. At minimum expose scan duration, copy duration/rate, oldest pending age, retries/failures, and last successful progress.
+
+**Change first:** atomic destination writes, atomic manifest recovery, nanosecond change detection, a lifetime lock, and safe deletion semantics. Then redesign queueing/debounce around measured copy throughput; polling-versus-watchers is secondary.

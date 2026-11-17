@@ -1,0 +1,1 @@
+Wrote `DESIGN-d1.md` in `/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-79003/DESIGN-d1.md` (306 lines), grounded in `synccli.py`, `snaputil.py`, and measured benchmarks run in this repo copy (`python3 -m unittest -v` passes: 6/6 tests OK).

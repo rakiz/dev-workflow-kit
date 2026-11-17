@@ -1,0 +1,11 @@
+I have analyzed `BRIEF.md` along with the existing implementations in `synccli.py`, `snaputil.py`, and `test_synccli.py`, and authored the complete design specification in `DESIGN-d1.md`.
+
+### Summary of `DESIGN-d1.md`:
+- **Grounded Architecture:** Extensively cites and leverages `synccli.py` (`MANIFEST_NAME`, `changed_files`, `collect_stale`, `scan_files`, `build_manifest`) and `snaputil.py` (`list_snapshots`, `prune_snapshots`, `snapshot_disk_usage`, `safe_snapshot_path`, `is_stale`), detailing explicit overrides for unbounded memory usage, unhandled file vanishing, and manifest-to-disk consistency.
+- **Concurrency & Atomicity:** Employs non-blocking `fcntl.flock` locks per target directory (`.backup.lock`) and per snapshot (`.read.lock`), combined with two-phase staging (`.staging-snap-*`) and atomic directory renaming (`os.rename`), ensuring readers never observe incomplete snapshots.
+- **Fault Tolerance & Self-Healing Index:** Provides automatic cleanup of dead staging directories on subsequent runs, and defines an automatic recovery loop that reconstructs missing or corrupt manifest indices directly from snapshot directory trees using `synccli.scan_files` and `synccli.build_manifest`.
+- **Transient File Handling:** Formulates a deterministic contract where vanished or unreadable files are cleanly excluded from both disk and manifest, logging warnings and returning exit code `1` across both scheduled and manual runs.
+- **Retention & Safe Pruning:** Defines a safe retention policy ($K \ge 1$) using two-phase tombstone renaming and shared read-lock inspection to ensure running restores are never disrupted.
+- **Incremental Deduplication & Blind Spots:** Uses filesystem hardlinks (`os.link`) for unchanged files at `(st_size, st_mtime_ns)` granularity, documenting specific blind spots (timestamp rollbacks, in-place edits with mtime preservation).
+- **Performance Budget & Derivation:** Establishes an empirical baseline and explicit derivation for an initial ~1 GB (20,000 files) backup, defining a formal budget of $\le 20.0\text{ seconds}$ with a $60\text{s}$ hard timeout.
+- **Scaling Bounds:** Provides explicit mathematical formulas and bounds across $N$ targets, $F$ files, and $B$ bytes, demonstrating that peak memory ($\le 26.5\text{ MB}$) and open file descriptors stay strictly flat across $N$, $B$, and retention depth $K$.

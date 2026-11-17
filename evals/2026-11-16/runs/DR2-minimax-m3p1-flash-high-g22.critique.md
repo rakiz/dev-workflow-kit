@@ -1,0 +1,57 @@
+Read DESIGN.md, GOAL.md, plus the code it describes (state.py, syncd.py). Critique below.
+
+## Verdict
+
+The design's central claim — "one stat per file, under 100 ms, so polling has headroom" — is unmeasured and probably 3–5x optimistic on the stated target (macOS workstation, 50k files, Python). Two of the three "rejected alternatives" are rejected for wrong reasons. And the new work in GOAL.md (`--verify`, journal compaction) inherits every one of these blind spots while adding two new crash windows. Fix the foundations before writing `--verify`.
+
+## Major risks (ranked)
+
+**1. The manifest read/write is the real cost, and the design never models it.** `syncd.py:30` re-reads and re-parses the entire manifest JSON *every 500 ms*, and `syncd.py:70` rewrites the whole thing — every cycle, even when nothing changed. At 50k files that's ~5 MB parsed and ~5 MB rewritten twice per second, forever: constant disk churn, SSD wear, and ~100 ms/cycle of pure JSON I/O that the "well under 100 ms" scan number ignores entirely. The manifest should be **in-memory state** (loaded once at startup, committed only when dirty), not a per-cycle file read.
+
+**2. `size + int(mtime)` misses real edits — silently.** `state.py:19` stores `int(st.st_mtime)` (whole seconds). Two writes in the same second with unchanged size are invisible → the file is never re-copied and dst diverges permanently. DESIGN.md's justification ("mtime is guaranteed to change on every edit") is false at 1-second resolution. Worse, tools that preserve timestamps (`cp -p`, `rsync -t`, `git checkout`, `unzip`) set mtime *backwards*, and `git checkout` is exactly your build case. This is the top correctness hole — and **`--verify` cannot detect it**, because verify re-stats the same lossy source state.
+
+**3. The lock is broken three ways, and DESIGN.md asserts a false safety property.** `acquire_lock` is check-then-create (`state.py:40-44`), so two daemons starting together both pass the check → two writers into dst. DESIGN.md:44-48 claims the commit doesn't need the lock because entries "merge cleanly" — false: `commit_manifest` rewrites the whole file, so the second instance **loses the first's entries** (last-writer-wins, not merge). And the lock is released before the commit and re-acquired per cycle, so during `time.sleep` there is no lock at all. Also, no stale-lock recovery: after a crash the PID file remains and the daemon can never restart (`state.py:41`). Use `O_CREAT|O_EXCL` or `fcntl.flock`, hold it for process lifetime.
+
+**4. "dst never ends up holding a truncated copy" (DESIGN.md:26-28) is false.** The payload copy is `open(dst,"wb")` (`syncd.py:48-50`) — truncate-then-write, no tmp+rename. A crash, OOM, or SIGTERM mid-copy leaves a truncated file in dst. The design applies crash-safety reasoning to the *manifest* and ignores the payload, where corruption actually lives. It also breaks readers: a dev server serving from dst sees the file truncated to zero. DESIGN.md:59-61 rejects tmp+rename — but the right place for tmp+rename is the **payload**, and the manifest too; the journal cannot repair either.
+
+**5. Journal compaction (GOAL.md:12) will lose data unless ordering is fixed.** "After a clean manifest commit, the journal may be truncated safely" — safe only if the manifest is *durably* committed first (fsync or atomic rename), and the truncation is itself atomic. Current `journal_append` does no fsync and no per-line atomicity; a crash leaves a torn last line, and `replay_journal` (`state.py:63-65`) calls `json.loads` on it → `JSONDecodeError` → startup crash loop. The same broken-parse path applies to the manifest: `load_manifest` on a half-written JSON raises before replay could ever "repair" it. DESIGN.md:32-34's repair path does not exist.
+
+**6. The journal records the wrong thing for a torn copy.** `syncd.py:60` sets `self.synced[rel] = state` and journals it even when the post-copy re-stat showed the file changed mid-copy (the requeue branch at :52-57). The manifest then claims "synced at state X" for a dst file holding an intermediate/torn version. This contradicts DESIGN.md:35-37's ordering claim.
+
+## Wrong assumptions
+
+- "mtime is guaranteed to change on every edit" — false at second resolution and under timestamp-preserving tools.
+- "a full scan of 50k files costs well under 100 ms" — unmeasured; Python-level overhead (`join`+`relpath`+dict per file, ~50k iterations) plus macOS per-file `stat` realistically puts this at 150–400 ms warm, seconds cold.
+- "memory stays flat under burst load" — true for the pending dict, but **throughput** is the real bound: `flush_one` is called serially inside the poll loop (`syncd.py:38-40`), so a 500-file burst blocks the next scan for the whole copy duration; the daemon falls behind with no error signalled.
+- "a transient source error never takes the daemon down" (DESIGN.md:49-51) — the code has **zero** exception handling. A file deleted mid-`os.walk` → `FileNotFoundError` → daemon dies. A dangling symlink → `os.stat` raises → dies. This contradicts the design.
+- "Deletions ... deleted from dst by the reconcile step" (DESIGN.md:38-40) — **there is no reconcile step.** Nothing in `poll()` ever removes a manifest entry or unlinks from dst; `manifest.update(self.synced)` re-adds deleted files forever. Rename-as-delete+create is likewise unhandled.
+- "dst is kept in sync" — the daemon only ever looks *at src*. dst files deleted or modified out-of-band are never restored.
+- "Each cycle logs pending count and commit duration" (DESIGN.md:66-68) — nothing logs anything; and commit duration is the wrong metric. The failure mode is scan+manifest cycle time vs. `POLL_SECONDS`, so **scan duration is the metric to measure and log**.
+
+## What breaks under real load
+
+1. **Large artifacts.** `open(src).read()` (`syncd.py:47`) loads the whole file into RAM — a 2 GB layer image OOMs the daemon. Stream it.
+2. **Cold cache / first scan.** 50k stats after reboot = seconds; the poll loop never sleeps.
+3. **Continuously-written files.** The quiet period restarts on every observed change, so a file being appended to forever is **never** copied (logs, SQLite, build intermediates). No max-wait escape hatch.
+4. **Latency is 2 polls, not "one poll + 200 ms".** Debounce (200 ms) is shorter than the poll interval (500 ms), so it never binds: a change is noticed at poll *N*, confirmed quiet at poll *N+1* → ~1 s latency. The debounce as specified adds latency without adding any coalescing.
+5. **Symlinks and permissions.** `os.stat` follows symlinks → dst gets a *regular file* copy of the target; broken symlink → crash. File modes are not preserved (`open(dst,"wb")` uses umask).
+6. **Dangling manifest/journal** → startup crash loop, and a stale lockfile → daemon can never restart.
+
+## Change these decisions first
+
+1. **Manifest = in-memory state; commit only when dirty, atomically** (tmp + `os.replace`, optional fsync). Kills the per-cycle 10 MB churn *and* fixes the corrupt-manifest crash loop.
+2. **Add `mtime_ns` (or `ctime_ns`) to the manifest state**, keeping the existing `size`/`mtime` keys for synccli compatibility. Fixes same-second edits and timestamp-preserving tools. Do this *before* writing `--verify`, or the audit inherits the blind spot.
+3. **Apply tmp+rename to the payload copy** (and stream in chunks). This is the only way "dst never holds a truncated copy" becomes true, and it protects dst readers.
+4. **Rewrite the lock**: `O_CREAT|O_EXCL` + PID-liveness stale detection, held for the process lifetime, acquired before the first scan. Then delete DESIGN.md:44-48 — it is a false safety argument.
+5. **Make the journal crash-tolerant**: append with fsync-or-batch, tolerant replay (skip an unparsable trailing line), and **record deletions as tombstones** so a crash between unlinking dst and committing the manifest is repairable. Then compaction = commit manifest durably → atomically replace the journal.
+6. **Implement the missing reconcile**: compare manifest ↔ src for deletions, and dst ↔ manifest for out-of-band changes, so dst converges rather than only pushing.
+7. **Wrap the scan in try/except** — a vanished file during `os.walk` is normal, not fatal.
+8. **Measure the scan on the actual target** (macOS, 50k files, warm and cold) before trusting 500 ms; consider pruning by directory mtime and measuring scan duration per cycle.
+
+## GOAL.md, specifically
+
+- `--verify` as specified checks *src vs manifest*. It will never detect a torn or corrupted **dst** file — the exact failure the design fears. It needs a dst-side check (size vs manifest, ideally content hash) or it validates the wrong side.
+- "missing_in_src must decide what happens to dst files" needs an explicit **policy** (delete vs. quarantine vs. leave) plus a journaled decision, or a crash mid-decide re-creates the divergence.
+- Journal compaction must be ordered *after* durable manifest commit — as written ("after a clean commit") it is only correct if "clean" includes durability, which the current code does not provide.
+
+If you want, I can turn items 1–5 into a concrete rewrite of DESIGN.md before any code is written.

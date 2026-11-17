@@ -1,0 +1,191 @@
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3: cache
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3/cache.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3/cache.py	2026-11-13 14:33:01
+@@ -22,7 +22,7 @@
+ 
+ DEFAULT_CACHE_PATH = os.path.join("cache", "state.json")
+ 
+-REGISTRY_VERSION = "2"
++REGISTRY_VERSION = "3"
+ 
+ 
+ def file_digest(path):
+@@ -45,7 +45,17 @@
+     if not os.path.exists(path):
+         return {}
+     with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++        state = json.load(fh)
++    version = state.get("version")
++    if version is not None and int(version) > int(REGISTRY_VERSION):
++        return {}
++    state.pop("version", None)
++    if any(isinstance(entry, dict) and
++           str(entry.get("registry_version", "")).isdigit() and
++           int(entry["registry_version"]) > int(REGISTRY_VERSION)
++           for entry in state.values()):
++        return {}
++    return state
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3/output: report.html
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3/output: report.json
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3/reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3/reportgen.py	2026-11-13 14:33:44
+@@ -13,6 +13,7 @@
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+@@ -128,7 +129,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % html.escape(name))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -136,9 +137,9 @@
+         summary = res["summary"]["columns"]
+         for col in sorted(summary):
+             stats = summary[col]
+-            sample = ", ".join(str(v) for v in stats["sample"])
++            sample = html.escape(", ".join(str(v) for v in stats["sample"]))
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (html.escape(col), stats["non_empty"], stats["distinct"], sample))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+@@ -146,44 +147,58 @@
+ 
+ def run(rules_path, input_dir, output_dir, cache_path):
+     """Run one full pass over the input directory and write the report."""
+-    state = cache.load_state(cache_path)
++    try:
++        state = cache.load_state(cache_path)
++        names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
++        results = {}
++        pending = {}
++        for name in names:
++            rules = load_rules(rules_path)
++            rules_fp = cache.rules_fingerprint(rules)
++            path = os.path.join(input_dir, name)
++            digest = cache.file_digest(path)
++            entry = state.get(name)
++            header, data_rows = load_rows(path)
++            print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
++            if (entry and entry["digest"] == digest and
++                    entry.get("rules_fp") == rules_fp and
++                    entry.get("registry_version") == cache.REGISTRY_VERSION):
++                results[name] = {"digest": digest, "rows": entry["rows"],
++                                 "generated_from": entry["generated_from"],
++                                 "summary": entry["summary"]}
++            else:
++                summary = summarize_file(header, data_rows, rules)
++                results[name] = {"digest": digest, "rows": len(data_rows),
++                                 "generated_from": generated_from(header, data_rows, rules),
++                                 "summary": summary}
++                pending[name] = cache.make_entry(path, digest, len(data_rows),
++                                                 summary, rules, rules_fp)
++                pending[name]["generated_from"] = results[name]["generated_from"]
+ 
+-    names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
+-    results = {}
+-    pending = {}
+-    for name in names:
+-        rules = load_rules(rules_path)
+-        rules_fp = cache.rules_fingerprint(rules)
+-        path = os.path.join(input_dir, name)
+-        digest = cache.file_digest(path)
+-        entry = state.get(name)
+-        header, data_rows = load_rows(path)
+-        print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
+-            results[name] = {"digest": digest, "rows": entry["rows"],
+-                             "generated_from": entry["generated_from"],
+-                             "summary": entry["summary"]}
+-        else:
+-            summary = summarize_file(header, data_rows, rules)
+-            results[name] = {"digest": digest, "rows": len(data_rows),
+-                             "generated_from": generated_from(header, data_rows, rules),
+-                             "summary": summary}
+-            pending[name] = cache.make_entry(path, digest, len(data_rows),
+-                                             summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
+-
+-    report = {"rules": rules_path,
+-              "total_rows": sum(r["rows"] for r in results.values()),
+-              "files": results}
+-    os.makedirs(output_dir, exist_ok=True)
+-    with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+-        fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+-    with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+-        json.dump(report, fh, indent=2, sort_keys=True)
+-        fh.write("\n")
+-    return report
++        for name in sorted(results):
++            validate_summary(results[name]["summary"])
++        for name, entry in state.items():
++            if name not in results and isinstance(entry, dict) and "summary" in entry:
++                validate_summary(entry["summary"])
++        report = {"rules": rules_path,
++                  "total_rows": sum(r["rows"] for r in results.values()),
++                  "files": results}
++        os.makedirs(output_dir, exist_ok=True)
++        with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
++            fh.write(render_html(report))
++        with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
++            json.dump(report, fh, indent=2, sort_keys=True)
++            fh.write("\n")
++        cache.save_state(pending, path=cache_path)
++        return report
++    except BaseException:
++        for path in (cache_path, os.path.join(output_dir, "report.html"),
++                     os.path.join(output_dir, "report.json")):
++            try:
++                os.remove(path)
++            except FileNotFoundError:
++                pass
++        raise
+ 
+ 
+ def main(argv=None):
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3: test_regressions.py
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3/transforms.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-terra-medium-p3/transforms.py	2026-11-13 14:33:01
+@@ -45,6 +45,16 @@
+         raise TransformError("not a number: %r" % value)
+ 
+ 
++def boolean(value):
++    """Parse affirmative and negative words as numeric boolean values."""
++    normalized = value.strip().lower()
++    if normalized in ("yes", "true"):
++        return 1.0
++    if normalized in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ def date_iso(value):
+     """'MM/DD/YYYY' -> 'YYYY-MM-DD'."""
+     parts = value.strip().split("/")
+@@ -62,6 +72,7 @@
+     "lower": lower,
+     "currency_amount": currency_amount,
+     "round2": round2,
++    "boolean": boolean,
+     "date_iso": date_iso,
+ }
+ 

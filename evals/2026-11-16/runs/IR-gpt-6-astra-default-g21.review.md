@@ -1,0 +1,5 @@
+- **Major — `incremental.py:23–24`: Failed copies are reported as completed.** `synccli.copy_file()` catches `OSError` and returns normally, so `copy_many()` appends the destination even when the source is missing or the write fails. Its promised list of completed destinations can therefore include missing, unchanged, or partially written files.
+
+- **Minor — `incremental.py:10–15`: Exclusions leak between calls.** The mutable default `excluded=[]` retains previous results. Calling `filter_excluded([".git/a"])` and then `filter_excluded(["src/a.py"])` returns `[".git/a"]` on the second call, violating the contract that the result is a subset of the supplied paths. Callers also share the same mutable result list.
+
+- **Minor — `incremental.py:38–39`: Valid replacement states are discarded when timestamps decrease.** Restoring a backup or copying a file with preserved timestamps can produce a changed file whose `mtime` is older than the recorded value. `merge_manifest()` silently retains the old state, even if the size changed. The resulting manifest misrepresents the current file and causes subsequent state comparisons to keep reporting it as changed.

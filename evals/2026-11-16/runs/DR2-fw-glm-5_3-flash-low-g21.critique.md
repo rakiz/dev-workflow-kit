@@ -1,0 +1,21 @@
+**Critical — fix before writing code:**
+
+1. **Whole-second mtimes + "mtime guaranteed to change" is wrong twice.** `snapshot()` stores mtime at whole-second resolution; an edit that lands in the same second as the previous sync (the common case under rapid iteration) with unchanged size is invisible — silent missed syncs. And "mtime always changes on every edit" is false (coarse timestamp granularity, editors restoring mtimes). You need `st_mtime_ns` at minimum, ideally size+mtime_ns and a content-hash fallback for cold-verification.
+
+2. **Debounce livelock.** "Every further observed change restarts the quiet period" means a continuously written file (logs, streamed output, an active editor's autosave) is *never* copied. You need a max-wait cap (e.g., force-copy after 2s regardless of quiet state).
+
+3. **Reconcile deletions can wipe `dst`.** A network volume that unmounts, a permission error on one directory, or a temporarily-empty `src` scan looks identical to "everything deleted." A manifest dropped from the corrupt-rewrite bug (next point) plus reconcile also deletes valid dst files. Guard: refuse to reconcile deletions if the scan returns abnormally few entries or errors.
+
+4. **In-place manifest rewrite is worse than claimed.** The journal only contains *copied* files, not *unchanged* ones — journal replay cannot reconstruct entries that were never journaled. A crash mid-rewrite loses the manifest for every file synced before the journal window existed (i.e., everything synced pre-restart-restart). Torn manifest = missing entries = reconcile deletes them from `dst`. The tmp+rename they rejected is the fix; cost is one rename, not "double write amplification."
+
+5. **No fsync between copy and journal append.** Crash after journaling but before the OS flushes data → replay marks the file synced while `dst` holds a truncated/partial file. This contradicts the stated "dst never ends up holding a truncated copy" guarantee.
+
+6. **Lock-release-before-manifest-commit race is real.** Two instances can concurrently copy the *same file* into `dst` (torn write); "entries merge cleanly" addresses manifest state, not concurrent writers to the same destination path. Hold the lock across the commit — the commit is microseconds.
+
+**Secondary:**
+
+- **Backpressure claim is unproven.** "Pending set bounded by one poll's worth" holds only if the copy loop drains faster than arrivals. Sustained build bursts (hundreds of files × multi-second copies every cycle) grow the dict without bound. Log queue depth and alert/warn on monotonic growth — currently only cycle duration is logged.
+- **Renames as delete+create re-copies large files and, worse, ordering matters:** if reconcile deletes before the create's copy lands, there's a window where the file is absent from `dst` — fine for sync semantics, but worth stating.
+- **50k `stat` calls every 500 ms** = 100k syscalls/sec of constant wakeups on a laptop battery. The "under 100 ms" measurement ignores energy and interference with the very builds being watched. Poll at 1–2 s, or go adaptive (fast poll when changes observed, slow when idle).
+
+**Decisions to change first:** (a) manifest commit → tmp-file + rename; (b) mtime_ns; (c) debounce max-wait; (d) empty-scan guard before deletions. The rest can follow.

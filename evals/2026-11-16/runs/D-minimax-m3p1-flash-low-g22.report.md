@@ -1,0 +1,7 @@
+Wrote `DESIGN-d1.md` (no other files changed; the 6 existing tests still pass).
+
+Key content:
+- **Grounding**: cites exact symbols/lines (`synccli.scan_files:10`, `build_manifest:28`, `changed_files:36`, `collect_stale:45`, `file_state:22`, `copy_file:62`, `sync:72`; `snaputil.list_snapshots:8`, `prune_snapshots:23`, `snapshot_disk_usage:39`, `safe_snapshot_path:54`, `is_stale:66`) and lists 8 explicit overrides with reasons (float mtime → `st_mtime_ns`, hidden-dir filter, 81 MB whole-file read, non-atomic index write, corrupt-manifest crash, `rmtree`-while-reading, `is_stale` misuse, logical-vs-physical size).
+- **Correctness**: `flock` + fail-fast exit 3 for colliding runs; build in `.tmp-run-*` then atomic `os.rename` publish; crash sweep via pid-liveness + age; corrupt published index → preserve as `index.json.corrupt`, re-derive from the tree, report; vanished/unreadable files omitted + recorded in `index.missing`, exit 4, self-healing next run.
+- **Performance**: measured on this machine on a real 1.047 GB / 20,020-file tree (scan 0.69 s, full copy 5.81 s @180 MB/s, fsync 7,466 files/s, rename 115 µs, link 2,980/s) → budget **≤ 20 s** for the first full backup, derived as ≈9.25 s of measured components + 2.2× headroom.
+- **Scaling**: explicit formulas over N/F/B/C (work, memory 460 B/entry measured, disk growth = changed bytes only via hardlink dedup, flat in N and B), plus the ≥200k-file mitigation.

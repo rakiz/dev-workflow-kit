@@ -1,0 +1,37 @@
+**Verdict: not ready to build.** Several sections are wrong, not just under-tuned. Line refs are to DESIGN.md.
+
+**Data loss and corruption (fix first)**
+
+1. **Mass deletion on a bad scan.** `os.walk` ignores errors by default. A transient EACCES/EIO on a subdirectory, a directory renamed mid-walk, or an unmounted `src` yields a partial or empty listing, and reconcile (38-40) deletes those files from `dst`. Abort the cycle on walk errors, refuse deletes when the scan is incomplete, require two consecutive absent scans before deleting, and add a mass-delete threshold.
+2. **Lock released before commit (41-48).** The lock is per-cycle, so it is free between cycles and "refuses to start" is false for any start that lands in a gap. The manifest commit is an unlocked in-place overwrite, so two processes can interleave and truncate it. "Merge cleanly" is not a mechanism: last writer wins and drops the other's entries. Hold an `flock` for the process lifetime. A PID file goes stale after `kill -9`.
+3. **Non-atomic copy (25-28).** Writing directly to the final path lets readers see a truncated file during the copy. The "never holds a truncated copy" guarantee also fails for a file that keeps changing: it never reaches a clean pass, so `dst` keeps the torn copy indefinitely. Copy to a temp file in the same directory, then `os.replace`.
+
+**Wrong assumptions**
+
+4. **Change detection (72-73, 57-58).** Whole-second mtime plus size misses two edits in the same second and same-size rewrites. "mtime is guaranteed to change on every edit" is false: `cp -p`, `rsync -t`, `tar -x` and `touch -r` restore old mtimes, HFS+ has 1 s resolution, and FAT has 2 s. Use `(size, st_mtime_ns, st_ctime_ns, st_ino)`. Tools cannot set ctime. Hashing during copy is nearly free because the bytes are already read, so the rejection at 57-58 is wrong.
+5. **Debounce claim is false (16-20).** Continuous writes restart the quiet period forever, so the file is never copied and latency is unbounded. The doc claims the opposite. The quiet period is also only evaluated at 500 ms poll boundaries, so the 200 ms is never the binding constraint. Real latency is about one poll plus copy time. Add a max-wait cap that forces a copy.
+6. **Journal has no checkpoint (29-34).** Replay from the start is the only repair path, but the journal is never truncated, so it grows without bound. Any compaction removes the repair path. Deletions are not journaled, so replay resurrects deleted files. No fsync is mentioned, so power loss drops the tail. This is a hand-built SQLite.
+7. **Special files.** A FIFO in `src` makes `open()` block forever inside the single copy loop, and the daemon hangs silently. Use lstat, copy regular files only, and define a symlink policy (loops and links outside `src` are unaddressed).
+
+**Breaks under real load**
+
+8. **Scan cost is asserted, not measured (13-14).** No benchmark is referenced. A 50k-file `stat` walk every 500 ms is continuous CPU and disk I/O on a laptop to detect a few changes per minute. A cold cache after sleep on macOS could take seconds. If scan plus copy exceeds 500 ms in one loop, the cadence collapses silently.
+9. **No backpressure (21-24).** The pending-set bound holds only if copy throughput exceeds the change rate, and nothing slows the producer. Scanner and copier need separate concurrency and a defined behavior when a cycle overruns the poll.
+10. **Per-cycle manifest rewrite.** At 50k entries, a JSON manifest is roughly 5 MB (my estimate), so about 10 MB/s of writes at a 500 ms cadence. That is the write amplification the doc wants to avoid, and it comes from the rewrite cadence, not the fsync it rejects.
+
+**Rejected alternatives: the reasoning does not hold**
+
+- **Watchers:** overflow is handled by a periodic full reconcile every few minutes, not a full scan every 500 ms. FSEvents and inotify also coalesce events natively, which gives the debounce for free.
+- **Hashing:** see item 4.
+- **tmp+rename:** the design already rewrites full state every cycle, so the fsync is not the cost driver. An in-place rewrite without fsync is not crash-safe either.
+
+**Decisions to change first**
+
+1. **State:** replace journal, manifest and PID file with one SQLite DB in WAL mode, one transaction per cycle, plus `flock`. This removes replay, compaction and the commit race.
+2. **Scan safety:** raise on walk errors, two-scan delete grace, mass-delete guard, abort if the `src` root is missing.
+3. **Change key:** `(size, mtime_ns, ctime_ns, ino)`, with hash-while-copy if certainty is needed.
+4. **Copy:** temp file plus `os.replace`, regular files only, max-wait cap on the debounce.
+5. **Concurrency:** scanner separate from copy workers, bounded queue, explicit overrun behavior.
+6. **Benchmark before committing to polling:** 50k files, warm and cold, on the target laptop. If the scan uses more than about 5% of a core, switch to FSEvents/inotify with periodic reconcile.
+7. **Coupling:** syncd reuses synccli's whole-second snapshot format (72-73). If synccli can also write to `dst`, the single-writer claim at line 43 is false. Decide on a separate state file or a shared lock.
+8. **Observability:** log end-to-end lag (source mtime to dst visible) and error counts, not a line per cycle.

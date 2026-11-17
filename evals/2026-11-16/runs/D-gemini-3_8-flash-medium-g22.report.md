@@ -1,0 +1,1 @@
+I have completed the design for `backupctl` per the requirements and constraints in `BRIEF.md`, grounded in `synccli.py` and `snaputil.py`, and written the complete design specification to `DESIGN-d1.md`.

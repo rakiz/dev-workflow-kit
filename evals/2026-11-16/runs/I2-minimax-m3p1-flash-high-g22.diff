@@ -1,0 +1,478 @@
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-43238/cache.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-43238/cache.py	2026-11-17 03:24:39
+@@ -13,6 +13,11 @@
+ processed in the previous run and the rules mapping is unchanged;
+ save_state() rewrites the state file after every run so it always mirrors
+ what the last run saw.
++
++The registry version doubles as the schema version of the state file: an
++entry produced under another registry version is never reused, and a state
++file written by a *future* schema version cannot be read safely, so it is
++treated as an empty cache instead of breaking the run.
+ """
+ 
+ import csv
+@@ -24,7 +29,11 @@
+ 
+ REGISTRY_VERSION = "2"
+ 
++# Keys a state document may use to carry its schema version.
++VERSION_KEYS = ("version", "schema_version", "state_version",
++                "registry_version", "format_version")
+ 
++
+ def file_digest(path):
+     """sha256 of the file bytes (streamed, constant memory)."""
+     h = hashlib.sha256()
+@@ -40,21 +49,84 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
+-def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++def _version_key(value):
++    """Comparable form of a version marker; numeric markers compare
++    numerically, so "10" is newer than "9"."""
++    try:
++        return (1, int(value))
++    except (TypeError, ValueError):
++        return (0, str(value))
++
++
++def is_current(entry):
++    """True when a cache entry was produced by the current registry."""
++    if not isinstance(entry, dict):
++        return False
++    return (_version_key(entry.get("registry_version"))
++            == _version_key(REGISTRY_VERSION))
++
++
++def is_reusable(entry):
++    """True when a cache entry can be reused as-is: it comes from the
++    current registry and carries the fields a report needs."""
++    if not is_current(entry):
++        return False
++    summary = entry.get("summary")
++    return (isinstance(summary, dict)
++            and isinstance(summary.get("columns"), dict))
++
++
++def _is_future_version(value):
++    """True when a version marker is newer than the current registry."""
++    return _version_key(value) > _version_key(REGISTRY_VERSION)
++
++
++def _read_document(path):
++    """Raw state document, or None when there is nothing readable."""
+     if not os.path.exists(path):
++        return None
++    try:
++        with open(path, "r", encoding="utf-8") as fh:
++            return json.load(fh)
++    except (OSError, ValueError):
++        return None
++
++
++def _document_entries(doc):
++    """Entries mapping of a state document. Both the flat layout (file
++    name -> entry) and a wrapped {"version": ..., "entries": {...}} one
++    are understood."""
++    if not isinstance(doc, dict):
+         return {}
+-    with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++    inner = doc.get("entries")
++    if isinstance(inner, dict):
++        return inner
++    return {k: v for k, v in doc.items() if k not in VERSION_KEYS}
+ 
+ 
++def load_state(path=DEFAULT_CACHE_PATH):
++    """Load the cache state; a missing file is just an empty cache. A
++    state file written by a future schema version is treated as an empty
++    cache too: the run starts from scratch and rewrites a valid file."""
++    doc = _read_document(path)
++    if doc is None:
++        return {}
++    if isinstance(doc, dict):
++        for key in VERSION_KEYS:
++            if key in doc and _is_future_version(doc[key]):
++                return {}
++    entries = _document_entries(doc)
++    return {name: entry for name, entry in entries.items()
++            if is_current(entry)}
++
++
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+     """Merge `entries` into the state file, keeping entries for inputs the
+-    run did not touch (a run may cover a subset of the inputs)."""
++    run did not touch (a run may cover a subset of the inputs). Entries
++    from another registry version are dropped, so the file that is
++    written always describes the current registry."""
+     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+-    merged = {}
+-    if os.path.exists(path):
+-        merged = load_state(path)
++    merged = load_state(path)
+     merged.update(entries)
+     tmp = path + ".tmp"
+     with open(tmp, "w", encoding="utf-8") as fh:
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-43238/reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-43238/reportgen.py	2026-11-17 03:24:39
+@@ -13,6 +13,7 @@
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+@@ -76,7 +77,7 @@
+             if tname:
+                 try:
+                     value = transforms.apply(tname, raw)
+-                except transforms.TransformError as exc:
++                except Exception as exc:
+                     skipped_rows.append(
+                         {"row": row_no, "column": col, "reason": str(exc)})
+                     continue
+@@ -128,7 +129,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % html.escape(name))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -138,30 +139,61 @@
+             stats = summary[col]
+             sample = ", ".join(str(v) for v in stats["sample"])
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (html.escape(col), stats["non_empty"],
++                            stats["distinct"], html.escape(sample)))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+ 
+ 
++def discard_outputs(output_dir, cache_path):
++    """Remove the artifacts a failed run must not leave behind: the
++    report files and the cache state file."""
++    for name in ("report.json", "report.html"):
++        try:
++            os.remove(os.path.join(output_dir, name))
++        except OSError:
++            pass
++    try:
++        os.remove(cache_path)
++    except OSError:
++        pass
++
++
+ def run(rules_path, input_dir, output_dir, cache_path):
+-    """Run one full pass over the input directory and write the report."""
++    """Run one full pass over the input directory and write the report.
++
++    Nothing is written before every input file has been transformed
++    without a single failure: a run in which a cell failed its transform
++    leaves neither a report nor a cache state behind."""
++    try:
++        return _run(rules_path, input_dir, output_dir, cache_path)
++    except Exception:
++        discard_outputs(output_dir, cache_path)
++        raise
++
++
++def _run(rules_path, input_dir, output_dir, cache_path):
+     state = cache.load_state(cache_path)
+ 
++    rules = load_rules(rules_path)
++    rules_fp = cache.rules_fingerprint(rules)
++
+     names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
+     results = {}
+     pending = {}
+     for name in names:
+-        rules = load_rules(rules_path)
+-        rules_fp = cache.rules_fingerprint(rules)
+         path = os.path.join(input_dir, name)
+         digest = cache.file_digest(path)
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
+-            results[name] = {"digest": digest, "rows": entry["rows"],
+-                             "generated_from": entry["generated_from"],
++        if (entry and entry.get("digest") == digest
++                and entry.get("rules_fp") == rules_fp
++                and cache.is_reusable(entry)):
++            results[name] = {"digest": digest,
++                             "rows": entry.get("rows", len(data_rows)),
++                             "generated_from": entry.get("generated_from", 0),
+                              "summary": entry["summary"]}
+         else:
+             summary = summarize_file(header, data_rows, rules)
+@@ -170,19 +202,22 @@
+                              "summary": summary}
+             pending[name] = cache.make_entry(path, digest, len(data_rows),
+                                              summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
+ 
++    # No report and no cache entry may be derived from an incomplete
++    # transform pass: validate every summary before writing anything.
++    for name in sorted(results):
++        validate_summary(results[name]["summary"])
++
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+     with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
++    cache.save_state(pending, path=cache_path)
+     return report
+ 
+ 
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/test_reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-43238/test_reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/test_reportgen.py	2026-11-13 04:48:28
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-43238/test_reportgen.py	2026-11-17 03:24:39
+@@ -131,5 +131,186 @@
+         self.assertEqual(before, after)
+ 
+ 
++class BooleanTransformTests(unittest.TestCase):
++    def test_boolean_accepts_affirmative_forms(self):
++        for value in ("yes", "YES", "Yes", "true", "TRUE", "True"):
++            self.assertEqual(transforms.apply("boolean", value), 1.0)
++
++    def test_boolean_accepts_negative_forms(self):
++        for value in ("no", "NO", "No", "false", "FALSE", "False"):
++            self.assertEqual(transforms.apply("boolean", value), 0.0)
++
++    def test_boolean_rejects_anything_else(self):
++        for value in ("", "maybe", "1", "0", "y", "n", "truthy", "yes please"):
++            with self.assertRaises(transforms.TransformError):
++                transforms.apply("boolean", value)
++
++    def test_boolean_rule_end_to_end(self):
++        tmp = tempfile.mkdtemp(prefix="rg3-bool-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "t.csv"), "w") as fh:
++            fh.write("item,flag\n1,yes\n2,No\n3,TRUE\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nflag = "boolean"\n')
++        out = os.path.join(tmp, "out")
++        report = reportgen.run(rules_path, inp, out,
++                               os.path.join(tmp, "cache", "state.json"))
++        cols = report["files"]["t.csv"]["summary"]["columns"]
++        self.assertEqual(cols["flag"]["distinct"], 2)
++        self.assertEqual(cols["flag"]["sample"], [0.0, 1.0])
++        self.assertEqual(cols["flag"]["numeric_sum"], 1.0)
++
++
++class HtmlEscapingTests(unittest.TestCase):
++    def test_markup_in_names_and_values_is_escaped(self):
++        tmp = tempfile.mkdtemp(prefix="rg3-escape-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "we<i>ird.csv"), "w") as fh:
++            fh.write("co<b>l,label\nx,red & <b> bold\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nco<b>l = "trim"\n')
++        out = os.path.join(tmp, "out")
++        reportgen.run(rules_path, inp, out,
++                      os.path.join(tmp, "cache", "state.json"))
++        with open(os.path.join(out, "report.html")) as fh:
++            html = fh.read()
++        self.assertNotIn("<b>", html)
++        self.assertNotIn("<i>", html)
++        self.assertIn("we&lt;i&gt;ird.csv", html)
++        self.assertIn("co&lt;b&gt;l", html)
++        self.assertIn("red &amp; &lt;b&gt; bold", html)
++
++
++class FailurePolicyTests(unittest.TestCase):
++    """A transform failure must end the same way whatever it looks like:
++    no report, no cache state."""
++
++    def setUp(self):
++        self.tmp = tempfile.mkdtemp(prefix="rg3-fail-")
++        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
++        self.inp = os.path.join(self.tmp, "in")
++        os.makedirs(self.inp)
++        self.csv = os.path.join(self.inp, "t.csv")
++        self.rules = os.path.join(self.tmp, "rules.toml")
++        self.out = os.path.join(self.tmp, "out")
++        self.cache_path = os.path.join(self.tmp, "cache", "state.json")
++
++    def write_input(self, body):
++        with open(self.csv, "w") as fh:
++            fh.write("item,label\n%s" % body)
++
++    def write_rules(self, mapping):
++        with open(self.rules, "w") as fh:
++            fh.write("[transforms]\n%s\n" % mapping)
++
++    def run_tool(self):
++        return reportgen.run(self.rules, self.inp, self.out, self.cache_path)
++
++    def assert_no_artifacts(self):
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.json")))
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.html")))
++        self.assertFalse(os.path.exists(self.cache_path))
++
++    def test_failed_transform_leaves_no_report_and_no_cache(self):
++        self.write_input("1,alpha\nbogus,beta\n")
++        self.write_rules('item = "round2"')
++        with self.assertRaises(reportgen.ValidationError):
++            self.run_tool()
++        self.assert_no_artifacts()
++
++    def test_crashing_transform_leaves_no_report_and_no_cache(self):
++        def boom(value):
++            raise RuntimeError("boom")
++        transforms.REGISTRY["boom"] = boom
++        self.addCleanup(transforms.REGISTRY.pop, "boom", None)
++        self.write_input("1,alpha\n")
++        self.write_rules('item = "boom"')
++        with self.assertRaises(reportgen.ValidationError):
++            self.run_tool()
++        self.assert_no_artifacts()
++
++    def test_failed_run_removes_artifacts_of_an_earlier_run(self):
++        self.write_input("1,alpha\n")
++        self.write_rules('item = "round2"')
++        self.run_tool()
++        self.assertTrue(os.path.exists(self.cache_path))
++        self.assertTrue(os.path.exists(os.path.join(self.out, "report.json")))
++        self.write_input("1,alpha\nbogus,beta\n")
++        with self.assertRaises(reportgen.ValidationError):
++            self.run_tool()
++        self.assert_no_artifacts()
++
++
++class CacheHygieneTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.mkdtemp(prefix="rg3-hygiene-")
++        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
++        self.inp = os.path.join(self.tmp, "in")
++        os.makedirs(self.inp)
++        with open(os.path.join(self.inp, "t.csv"), "w") as fh:
++            fh.write("item,label\n1,alpha\n2,beta\n")
++        self.rules = os.path.join(self.tmp, "rules.toml")
++        with open(self.rules, "w") as fh:
++            fh.write('[transforms]\nitem = "round2"\n')
++        self.out = os.path.join(self.tmp, "out")
++        self.cache_path = os.path.join(self.tmp, "cache", "state.json")
++
++    def run_tool(self):
++        return reportgen.run(self.rules, self.inp, self.out, self.cache_path)
++
++    def future_version(self):
++        return str(int(cache.REGISTRY_VERSION) + 1)
++
++    def read_state(self):
++        with open(self.cache_path) as fh:
++            return json.load(fh)
++
++    def write_state(self, state):
++        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
++        with open(self.cache_path, "w") as fh:
++            json.dump(state, fh)
++
++    def test_future_registry_version_entries_are_not_reused(self):
++        self.run_tool()
++        state = self.read_state()
++        for entry in state.values():
++            entry["registry_version"] = self.future_version()
++            entry["rows"] = 999
++            entry["summary"] = {"columns": {}}
++        self.write_state(state)
++        report = self.run_tool()
++        self.assertEqual(report["total_rows"], 2)
++        state = self.read_state()
++        self.assertEqual(set(state), {"t.csv"})
++        self.assertEqual(state["t.csv"]["rows"], 2)
++        self.assertEqual(state["t.csv"]["registry_version"],
++                         cache.REGISTRY_VERSION)
++
++    def test_future_schema_version_document_is_treated_as_empty(self):
++        self.run_tool()
++        state = self.read_state()
++        self.write_state({"version": self.future_version(), "entries": state})
++        report = self.run_tool()
++        self.assertEqual(report["total_rows"], 2)
++        state = self.read_state()
++        self.assertNotIn("version", state)
++        self.assertNotIn("entries", state)
++        self.assertEqual(set(state), {"t.csv"})
++
++    def test_unreadable_cache_file_is_treated_as_empty(self):
++        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
++        with open(self.cache_path, "w") as fh:
++            fh.write("{not json")
++        report = self.run_tool()
++        self.assertEqual(report["total_rows"], 2)
++        self.assertEqual(set(self.read_state()), {"t.csv"})
++
++
+ if __name__ == "__main__":
+     unittest.main()
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-43238/transforms.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-43238/transforms.py	2026-11-17 03:24:39
+@@ -2,8 +2,8 @@
+ 
+ A rules file maps a column name to a transform name; the registry below is
+ the single source of truth for what those names mean. Each transform takes
+-the raw string cell and returns the transformed value — numeric transforms
+-return floats, everything else returns strings.
++the raw string cell and returns the transformed value — the numeric
++transforms and `boolean` return floats, everything else returns strings.
+ 
+ The registry is versioned: every cache entry is stamped with the registry
+ version it was produced under (cache.REGISTRY_VERSION, stamped by
+@@ -56,6 +56,21 @@
+     return "%s-%02d-%02d" % (year, int(month), int(day))
+ 
+ 
++BOOLEAN_TRUE = ("yes", "true")
++BOOLEAN_FALSE = ("no", "false")
++
++
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0 (case-insensitive).
++    Anything else is not a boolean value."""
++    token = value.strip().lower()
++    if token in BOOLEAN_TRUE:
++        return 1.0
++    if token in BOOLEAN_FALSE:
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ REGISTRY = {
+     "trim": trim,
+     "upper": upper,
+@@ -63,6 +78,7 @@
+     "currency_amount": currency_amount,
+     "round2": round2,
+     "date_iso": date_iso,
++    "boolean": boolean,
+ }
+ 
+ 

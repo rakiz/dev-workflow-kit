@@ -1,0 +1,23 @@
+Critique of DESIGN.md (reviewer also checked the existing `state.py`/`syncd.py` read-only). **Verdict: stop — 4 blockers produce silent corruption or an unbootable daemon.**
+
+## Blockers
+
+1. **Whole-second mtime misses changes** — `snapshot()` stores `int(st_mtime)`; two edits within 1s with same size → identical manifest entry → `dst` stale forever. This also defeats the "mtime is guaranteed to change" claim used to reject hashing. Fix: store `st_mtime_ns`.
+2. **Debounce self-contradiction** — "every further change restarts the quiet period" + "at most 200ms latency even while written continuously" can't both hold: a continuously-written file never syncs. Fix: max-delay cap (e.g. 2s) + min-delay scheme, ns-mtime change detection.
+3. **Lock doesn't prevent two instances** — released before manifest commit; two daemons interleave writes into the same `dst` files. Also the lockfile isn't `O_EXCL` and doesn't check PID liveness → a SIGKILL leaves a stale lock and the daemon can never restart. Fix: lifetime lock, `O_CREAT|O_EXCL`, temp+rename for dst writes.
+4. **In-place manifest rewrite is unsafe and the repair path doesn't exist** — crash mid-write → invalid JSON → crash loop on startup; `replay_journal` is never called in `syncd.py`, and can't repair a manifest it must load first. Journal has no fsync. Fix: temp+`os.replace`+fsync, replay with sequence numbers before load.
+
+## Should-fix
+
+- **Re-stat checks source only, never dst** — copies go straight to the final path, so consumers see half-written files. Use tmp+rename+fsync, verify dst size.
+- **`flush_one` has no error handling** — a file deleted between scan and copy raises `FileNotFoundError` and kills the daemon (contradicting the doc's "transient error never takes it down").
+- **Replay resurrects deleted/stale files** (folds every entry, no seq numbers) and the journal grows unbounded.
+- **Poll-cost math ignores `load_manifest`** — re-parsing a ~2MB/50k-entry JSON twice per second; "well under 100ms" is warm-SSD optimistic. Keep the manifest in memory.
+- **Atomic-save editors** (tmp+rename) get their tmp files synced into `dst` as junk.
+- **Constants + stdout-only** — untunable on slow disks, invisible crashes. Env overrides with sanity guard; JSON logs to stderr.
+
+## Sound, keep
+
+Polling over inotify (portable, bounded), full-scan diff/reconcile model, per-file state decomposition, reconcile-based deletion, mtime+size manifest *once upgraded to ns*.
+
+Fix blockers 1–4 first (ns-mtime, debounce cap, lifetime atomic lock, atomic manifest + real replay), then re-review before writing code.

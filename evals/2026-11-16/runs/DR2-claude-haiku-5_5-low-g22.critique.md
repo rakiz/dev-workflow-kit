@@ -1,0 +1,34 @@
+## Critique of DESIGN.md (syncd v2)
+
+**Blocking issues**
+
+1. **Mtime at whole-second resolution breaks change detection.** Two edits in the same second with the same size are invisible. Tools that preserve mtime (`cp -p`, `rsync -t`, `git checkout`, archive extraction) can also produce changes with no mtime change. The claim "mtime is guaranteed to change on every edit" is false. Use `st_mtime_ns` plus `st_size` and `st_ino`, or hash on suspicion. Note that the integrity re-stat uses the same signature, so it inherits the same blind spot.
+
+2. **Debounce can starve.** Every observed change restarts the 200 ms quiet period, so a file written continuously (a log, a long build artifact, a large download) is never copied. The claim that latency stays under "one poll plus 200 ms" does not hold. Add a max-wait cap, for example force a copy after 2 s of pending.
+
+3. **Mass deletion from a partial scan.** Reconcile deletes from `dst` anything missing from `src`. A walk that fails midway (permission error, unmounted volume, a `src` directory temporarily renamed by a build tool) looks like mass deletion. The "transient source error never takes the daemon down" rule makes this worse, because the daemon survives and keeps deleting. Require a complete walk before reconcile, and cap deletions per cycle or require a guard threshold.
+
+4. **Lock released before manifest commit contradicts the single-writer goal.** Two instances can overlap at the commit point, and the in-place manifest rewrite is last-writer-wins. "Entries merge cleanly" is asserted but no merge rule is defined. Hold the lock through the commit. Commit cost is small at this change rate.
+
+**Wrong or unsupported assumptions**
+
+5. **Backpressure claim is wrong.** Continuously written files stay pending indefinitely, so the pending set is bounded by changes in the debounce window, not "one poll's worth." Memory is not the real risk here; starvation is (see 2).
+
+6. **Scan cost is unmeasured for the target.** "Well under 100 ms" is not stated for cold cache, macOS with Spotlight, or network-mounted `src`. At 500 ms polling that means about 100k `stat` calls per second on a laptop, continuously. Scan time can exceed the interval, and the design has no overlap guard. Measure it, and make the scan loop skip or extend a cycle when the previous one is still running.
+
+7. **Manifest and journal lifecycle is undefined.** Journal growth, when the journal is truncated or compacted, and idempotent replay are all unspecified. A torn last line after a crash needs explicit handling. "A partially written manifest is repaired by journal replay" only holds if the journal is never truncated before a successful manifest write. Write the manifest atomically (tmp + rename), or state why not, and define the replay and compaction order.
+
+8. **PID lockfile is fragile.** Stale locks after a crash and PID reuse both cause problems. Use `flock`/`fcntl` on a held fd, which the kernel releases on exit.
+
+9. **Renames as delete+create.** This re-copies the full file. Acceptable for small files, but for large assets (video, model weights) it doubles I/O on every rename. Note it as a known cost or detect renames by inode.
+
+**Decisions to change first (in order)**
+
+1. Replace the mtime/size signature with `mtime_ns + size + inode`, and state the residual gap.
+2. Add a max-wait cap to the debounce.
+3. Guard reconcile: fail the cycle on an incomplete walk, and cap deletions per cycle.
+4. Move the lock to cover the manifest commit, and use `flock`.
+5. Specify the manifest write (atomic rename) and the journal lifecycle.
+6. Benchmark the scan on the real target (cold, macOS, network mount) before accepting 500 ms.
+
+Points 1 to 4 are correctness bugs that the current text states as guarantees. Fix the doc before any code is written.

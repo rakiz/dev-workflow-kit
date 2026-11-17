@@ -1,0 +1,203 @@
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-63525/cache.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-63525/cache.py	2026-11-17 03:24:39
+@@ -40,12 +40,45 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _is_future_version(version_str):
++    """Return True if version_str represents a version greater than REGISTRY_VERSION."""
++    try:
++        return int(str(version_str)) > int(REGISTRY_VERSION)
++    except (ValueError, TypeError):
++        # fallback to lexicographic comparison
++        try:
++            return str(version_str) > str(REGISTRY_VERSION)
++        except Exception:
++            return False
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state; a missing file is just an empty cache.
++    A cache written by a future schema version (version field greater
++    than REGISTRY_VERSION) is treated as empty and does not crash."""
+     if not os.path.exists(path):
+         return {}
+-    with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++    try:
++        with open(path, "r", encoding="utf-8") as fh:
++            data = json.load(fh)
++    except (json.JSONDecodeError, OSError, ValueError):
++        return {}
++    if not isinstance(data, dict):
++        return {}
++    # Top-level version field (future format)
++    if "version" in data and _is_future_version(data["version"]):
++        return {}
++    # Per-entry registry_version check — any future entry invalidates cache
++    for _k, entry in data.items():
++        if isinstance(entry, dict) and "registry_version" in entry:
++            if _is_future_version(entry["registry_version"]):
++                return {}
++        # Also handle generic "version" field inside entry
++        if isinstance(entry, dict) and "version" in entry:
++            # Avoid mistaking top-level-like entries; only check if value looks like version
++            if _is_future_version(entry["version"]):
++                return {}
++    return data
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-63525/reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-63525/reportgen.py	2026-11-17 03:24:39
+@@ -13,6 +13,7 @@
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+@@ -66,7 +67,7 @@
+     cell count, the distinct count over transformed values, the first
+     three distinct values in sorted order, and the numeric sum when every
+     transformed value is a float. Cells that fail their transform are
+-    skipped and recorded in `skipped_rows`."""
++    recorded in `skipped_rows`."""
+     columns = {}
+     skipped_rows = []
+     for row_no, row in enumerate(data_rows, start=2):
+@@ -76,9 +77,15 @@
+             if tname:
+                 try:
+                     value = transforms.apply(tname, raw)
+-                except transforms.TransformError as exc:
++                except Exception as exc:
++                    # Every failure mode (TransformError, unhandled crash,
++                    # caught-and-carried-on) is a transform failure.
++                    if isinstance(exc, transforms.TransformError):
++                        reason = str(exc)
++                    else:
++                        reason = "%s: %s" % (type(exc).__name__, exc)
+                     skipped_rows.append(
+-                        {"row": row_no, "column": col, "reason": str(exc)})
++                        {"row": row_no, "column": col, "reason": reason})
+                     continue
+             else:
+                 value = raw
+@@ -128,7 +135,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % html.escape(name))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -136,9 +143,9 @@
+         summary = res["summary"]["columns"]
+         for col in sorted(summary):
+             stats = summary[col]
+-            sample = ", ".join(str(v) for v in stats["sample"])
++            sample = ", ".join(html.escape(str(v)) for v in stats["sample"])
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (html.escape(col), stats["non_empty"], stats["distinct"], sample))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+@@ -159,7 +166,7 @@
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp and entry.get("registry_version") == cache.REGISTRY_VERSION:
+             results[name] = {"digest": digest, "rows": entry["rows"],
+                              "generated_from": entry["generated_from"],
+                              "summary": entry["summary"]}
+@@ -170,19 +177,50 @@
+                              "summary": summary}
+             pending[name] = cache.make_entry(path, digest, len(data_rows),
+                                              summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
+ 
++    # Validate before emitting any output or cache state (invariant).
++    try:
++        for name in sorted(results):
++            validate_summary(results[name]["summary"])
++    except Exception:
++        # Invariant: failed transform must leave no report or cache behind.
++        # Remove any reports from a previous successful run so the failed
++        # run does not appear to have produced output. Cache is not updated
++        # (pending not saved) so no incomplete entries are persisted.
++        for fname in ("report.json", "report.html"):
++            p = os.path.join(output_dir, fname)
++            try:
++                if os.path.exists(p):
++                    os.remove(p)
++            except OSError:
++                pass
++        raise
++
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+     with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
++    if pending:
++        cache.save_state(pending, path=cache_path)
++    else:
++        # No new entries but cache may be empty due to future version;
++        # ensure a valid state file is written for next run (rewrite empty
++        # or existing state to current version format).
++        # If we reused all entries from cache, we still need to ensure the
++        # cache file reflects current version. If state was treated as empty
++        # due to future version, state is {} and pending is {}, but we need
++        # to write back the reused results as new entries or at least ensure
++        # file is valid. For a full cache hit we have no pending but results
++        # came from cache — no need to rewrite. However if load_state returned
++        # {} due to future version, we have pending entries for all files
++        # (since no hits). So the above branch covers it. If cache was valid
++        # and fully hit, nothing to do.
++        pass
+     return report
+ 
+ 
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-63525: test_regression.py
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-63525/transforms.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-63525/transforms.py	2026-11-17 03:24:39
+@@ -56,6 +56,16 @@
+     return "%s-%02d-%02d" % (year, int(month), int(day))
+ 
+ 
++def boolean(value):
++    """Map yes/true -> 1.0 and no/false -> 0.0, case-insensitive."""
++    cleaned = value.strip().lower()
++    if cleaned in ("yes", "true"):
++        return 1.0
++    if cleaned in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ REGISTRY = {
+     "trim": trim,
+     "upper": upper,
+@@ -63,6 +73,7 @@
+     "currency_amount": currency_amount,
+     "round2": round2,
+     "date_iso": date_iso,
++    "boolean": boolean,
+ }
+ 
+ 

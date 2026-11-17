@@ -1,0 +1,30 @@
+Read it, plus `state.py`/`syncd.py` (the design's claims are testable against the code). Blocking issues first.
+
+## Wrong assumptions that invalidate the design
+
+1. **Whole-second mtime is not a change detector.** `int(st.st_mtime)` (`state.py:19`) + DESIGN:58 "mtime is guaranteed to change on every edit" — false. Same-second rewrites of equal size are silently missed: build tools writing twice in 1 ms, atomic editor saves, `git checkout`, FAT/coarse FS (1–2 s granularity). This is core correctness. Store `st_mtime_ns` (+ `st_ctime_ns`) with size, or hash. Note: this also breaks the "manifest format compatible with synccli" claim (GOAL) — check synccli's format before deciding.
+
+2. **The crash-safety story is self-contradictory.** Manifest is rewritten in place (`state.py:33`, `open("w")` truncates). A crash mid-write leaves invalid JSON; `json.load` (`state.py:28`) throws *before* `replay_journal` runs — so "repaired by journal replay" is false. Also neither dst nor journal is fsynced, so the journal can record a copy power-loss then loses. Rejecting tmp+rename "because fsync doubles write amplification" is the wrong trade: it's small, once per cycle, and it's the only thing making the manifest atomic.
+
+3. **The lock is not a lock.** `acquire_lock` (`state.py:40-44`) is check-then-create (TOCTOU) — two instances both pass. Releasing before the manifest commit (DESIGN:44-48) means two daemons commit concurrently; "entries merge cleanly" is wrong — B loads a stale manifest and its commit overwrites A's entries. Lost updates + both writing dst. Use a real `flock` held for the process lifetime, with stale-PID handling.
+
+4. **"never marked synced until a clean pass" is false in code.** `flush_one` (`syncd.py:60-61`) sets `synced[rel]=state` and journals `state` even when the re-stat shows the file changed mid-copy. A mid-write/truncated copy gets recorded as synced and isn't retried until a *new* mtime change. Only mark/journal on the clean branch.
+
+## What breaks under real load
+
+5. **Scan cost isn't "one stat / under 100 ms."** `snapshot` does getdents + `stat` + `os.path.relpath` per file and rebuilds a fresh dict-of-dicts every 500 ms — >100 k syscalls and heavy allocation at 2 Hz forever, even idle. On cold cache, HDD/network FS, or >50 k files, scan ≫ 500 ms and the loop is synchronous (scan→copy→sleep), so cycles run back-to-back: CPU pegged, latency unbounded. Measure cold+warm before assuming; use elapsed-time cadence, drop `relpath`, avoid reallocating unchanged state.
+
+6. **Pending isn't bounded and copies aren't streaming.** `flush_one` reads the whole file into RAM (`syncd.py:47`) — a 2 GB file = 2 GB RSS and stalls every other file; "memory stays flat" is false. Continuously-written files restart the quiet period, so `pending` grows until writes stop. Need chunked copy + bounded concurrency + coalescing.
+
+7. **Trivial conditions crash or hang the daemon.** DESIGN:49 says transient errors never kill it, but `flush_one` has no try/except: file deleted between scan and copy, permission error, or a broken symlink in `snapshot` (`state.py:18`, `os.stat` raises) kills the poll. A FIFO/socket in src makes `f.read()` block forever → daemon hangs. Specify per-file error isolation and a non-regular-file policy.
+
+8. **Deletions can wipe dst on a transient src error.** Reconcile deletes dst entries missing from src; an unmounted/EPERM/unreadable scan looks like mass deletion. Abort reconcile on scan error; require two consecutive observations (or a tombstone) before deleting dst.
+
+## Decide before writing code
+- Change detection: `(size, mtime_ns, ctime_ns)` vs hash — fix the manifest format now.
+- Durable commit: tmp+rename manifest, fsync journal+dst before journaling a copy; compact journal only after a durably-renamed manifest (GOAL item 3).
+- Locking: `flock` for process lifetime, not per poll.
+- Copy: streaming, per-file failure isolation, non-regular-file handling.
+- Deletion: guarded/two-phase, never on an ambiguous scan.
+
+Minor: fixed 500 ms can't adapt to slow disks (the "quiet period exceeds poll budget" rationale is a non-issue); hidden-dir/symlink semantics undocumented; status line has no backpressure signal (pending growth is the metric that matters).

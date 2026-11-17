@@ -1,0 +1,362 @@
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15001/cache.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15001/cache.py	2026-11-17 03:24:38
+@@ -40,12 +40,35 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _as_version(value):
++    try:
++        return int(value)
++    except (TypeError, ValueError):
++        return None
++
++
++def is_future_state(state):
++    """True when the state was written by a schema newer than this code:
++    a top-level version marker or any entry's registry_version is greater
++    than REGISTRY_VERSION."""
++    current = int(REGISTRY_VERSION)
++    markers = [state.get("version"), state.get("registry_version")]
++    markers += [e.get("registry_version") for e in state.values()
++                if isinstance(e, dict)]
++    return any((_as_version(m) or 0) > current for m in markers)
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state. A missing file, a non-object document, or a
++    state from a future schema is an empty cache (the run then does a full
++    pass and save_state rewrites a valid file)."""
+     if not os.path.exists(path):
+         return {}
+     with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++        state = json.load(fh)
++    if not isinstance(state, dict) or is_future_state(state):
++        return {}
++    return state
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+@@ -64,8 +87,9 @@
+ 
+ 
+ def make_entry(path, digest, rows, summary, rules, rules_fp):
+-    """Build a cache entry for `path`. `generated_from` is the number of
+-    header columns covered by the rules mapping."""
++    """Build a cache entry for `path`. Its `generated_from` is a placeholder
++    (header columns covered by the rules); reportgen.run overwrites it with
++    the same value it reports for fresh results."""
+     with open(path, "r", encoding="utf-8", newline="") as fh:
+         header = next(csv.reader(fh))
+     generated_from = sum(1 for col in header if col in rules)
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15001/reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15001/reportgen.py	2026-11-17 03:24:38
+@@ -13,6 +13,7 @@
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+@@ -128,7 +129,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % html.escape(name))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -136,16 +137,31 @@
+         summary = res["summary"]["columns"]
+         for col in sorted(summary):
+             stats = summary[col]
+-            sample = ", ".join(str(v) for v in stats["sample"])
++            sample = ", ".join(html.escape(str(v)) for v in stats["sample"])
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (html.escape(col), stats["non_empty"],
++                            stats["distinct"], sample))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+ 
+ 
++def discard_outputs(output_dir, cache_path):
++    """Remove the report files and the cache state so a failed run leaves
++    neither a report nor cache state behind."""
++    for path in (os.path.join(output_dir, "report.html"),
++                 os.path.join(output_dir, "report.json"),
++                 cache_path, cache_path + ".tmp"):
++        if os.path.exists(path):
++            os.remove(path)
++
++
+ def run(rules_path, input_dir, output_dir, cache_path):
+-    """Run one full pass over the input directory and write the report."""
++    """Run one full pass over the input directory and write the report.
++
++    Nothing is written until every summary has passed validation: a run
++    in which any cell failed its transform emits no report and leaves no
++    cache state (see discard_outputs)."""
+     state = cache.load_state(cache_path)
+ 
+     names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
+@@ -159,33 +175,44 @@
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++        if (entry and entry["digest"] == digest
++                and entry.get("rules_fp") == rules_fp
++                and entry.get("registry_version") == cache.REGISTRY_VERSION):
+             results[name] = {"digest": digest, "rows": entry["rows"],
+                              "generated_from": entry["generated_from"],
+                              "summary": entry["summary"]}
+         else:
+             summary = summarize_file(header, data_rows, rules)
++            generated = generated_from(header, data_rows, rules)
+             results[name] = {"digest": digest, "rows": len(data_rows),
+-                             "generated_from": generated_from(header, data_rows, rules),
++                             "generated_from": generated,
+                              "summary": summary}
+             pending[name] = cache.make_entry(path, digest, len(data_rows),
+                                              summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
++            pending[name]["generated_from"] = generated
+ 
++    try:
++        for name in sorted(results):
++            validate_summary(results[name]["summary"])
++    except ValidationError:
++        discard_outputs(output_dir, cache_path)
++        raise
++
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+     with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
++    if pending:
++        cache.save_state(pending, path=cache_path)
+     return report
+ 
+ 
++
+ def main(argv=None):
+     parser = argparse.ArgumentParser(
+         description="summarize CSV inputs through per-column transforms")
+@@ -206,4 +233,4 @@
+ 
+ 
+ if __name__ == "__main__":
+-    main()
++    sys.exit(0 if main() is not None else 1)
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/test_reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15001/test_reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/test_reportgen.py	2026-11-13 04:48:28
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15001/test_reportgen.py	2026-11-17 03:24:38
+@@ -4,6 +4,8 @@
+ import json
+ import os
+ import shutil
++import subprocess
++import sys
+ import tempfile
+ import unittest
+ 
+@@ -129,6 +131,148 @@
+         self.run_tool()
+         after = json.load(open(self.cache_path))
+         self.assertEqual(before, after)
++
++
++class BooleanTransformTests(unittest.TestCase):
++    def test_affirmative_and_negative_forms(self):
++        for raw in ("yes", "YES", "true", "True"):
++            self.assertEqual(transforms.apply("boolean", raw), 1.0)
++        for raw in ("no", "NO", "false", "False"):
++            self.assertEqual(transforms.apply("boolean", raw), 0.0)
++
++    def test_other_input_raises(self):
++        for raw in ("", "1", "0", "y", "maybe", " yes", "yes "):
++            with self.assertRaises(transforms.TransformError):
++                transforms.apply("boolean", raw)
++
++
++class FutureStateTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.mkdtemp(prefix="rg3-future-")
++        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
++        self.out = os.path.join(self.tmp, "out")
++        self.cache_path = os.path.join(self.tmp, "cache", "state.json")
++        os.makedirs(os.path.dirname(self.cache_path))
++
++    def test_future_state_is_treated_as_empty_and_rewritten(self):
++        digest = cache.file_digest(os.path.join(INPUT_DIR, "small_devices.csv"))
++        with open(self.cache_path, "w") as fh:
++            json.dump({"small_devices.csv": {
++                "digest": digest, "rows": 0, "generated_from": 0,
++                "summary": {"columns": {}, "skipped_rows": []},
++                "registry_version": "3"}, "version": 3}, fh)
++        report = reportgen.run(RULES, INPUT_DIR, self.out, self.cache_path)
++        self.assertEqual(report["total_rows"], 12012)
++        state = cache.load_state(self.cache_path)
++        self.assertEqual(state["small_devices.csv"]["registry_version"],
++                         cache.REGISTRY_VERSION)
++        self.assertNotIn("version", state)
++
++    def test_future_entry_marker_alone_is_treated_as_empty(self):
++        with open(self.cache_path, "w") as fh:
++            json.dump({"x.csv": {"digest": "d", "registry_version": "9"}}, fh)
++        self.assertEqual(cache.load_state(self.cache_path), {})
++
++
++class CacheRegistryVersionTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.mkdtemp(prefix="rg3-regver-")
++        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
++        self.out = os.path.join(self.tmp, "out")
++        self.cache_path = os.path.join(self.tmp, "cache", "state.json")
++
++    def test_entry_from_older_registry_is_not_reused(self):
++        reportgen.run(RULES, INPUT_DIR, self.out, self.cache_path)
++        state = json.load(open(self.cache_path))
++        state["small_devices.csv"]["registry_version"] = "1"
++        state["small_devices.csv"]["summary"]["columns"] = {
++            "device_id": {"non_empty": 99, "distinct": 99, "sample": ["bogus"]}}
++        with open(self.cache_path, "w") as fh:
++            json.dump(state, fh)
++        report = reportgen.run(RULES, INPUT_DIR, self.out, self.cache_path)
++        cols = report["files"]["small_devices.csv"]["summary"]["columns"]
++        self.assertNotEqual(cols["device_id"]["sample"], ["bogus"])
++        self.assertEqual(cols["device_id"]["distinct"], 3)
++
++
++class GeneratedFromConsistencyTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.mkdtemp(prefix="rg3-genfrom-")
++        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
++        self.inp = os.path.join(self.tmp, "in")
++        os.makedirs(self.inp)
++        # 'b' is mapped but empty in every row: header-mapped count is 2,
++        # non-empty mapped count is 1.
++        with open(os.path.join(self.inp, "t.csv"), "w") as fh:
++            fh.write("a,b,c\n1,,x\n2,,y\n")
++        self.rules = os.path.join(self.tmp, "rules.toml")
++        with open(self.rules, "w") as fh:
++            fh.write('[transforms]\na = "trim"\nb = "trim"\n')
++        self.out = os.path.join(self.tmp, "out")
++        self.cache_path = os.path.join(self.tmp, "cache", "state.json")
++
++    def test_fresh_and_cached_runs_report_same_generated_from(self):
++        first = reportgen.run(self.rules, self.inp, self.out, self.cache_path)
++        second = reportgen.run(self.rules, self.inp, self.out, self.cache_path)
++        self.assertEqual(first["files"]["t.csv"]["generated_from"], 1)
++        self.assertEqual(second["files"]["t.csv"]["generated_from"], 1)
++        self.assertEqual(cache.load_state(self.cache_path)["t.csv"]["generated_from"], 1)
++
++
++class InvariantTests(unittest.TestCase):
++    """A run in which any cell failed its transform emits no report and
++    leaves no cache state."""
++
++    def setUp(self):
++        self.tmp = tempfile.mkdtemp(prefix="rg3-invariant-")
++        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
++        self.inp = os.path.join(self.tmp, "in")
++        os.makedirs(self.inp)
++        self.rules = os.path.join(self.tmp, "rules.toml")
++        with open(self.rules, "w") as fh:
++            fh.write('[transforms]\nflag = "boolean"\n')
++        self.out = os.path.join(self.tmp, "out")
++        self.cache_path = os.path.join(self.tmp, "cache", "state.json")
++
++    def write_input(self, body):
++        with open(os.path.join(self.inp, "f.csv"), "w") as fh:
++            fh.write("flag\n" + body)
++
++    def assert_no_outputs(self):
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.html")))
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.json")))
++        self.assertFalse(os.path.exists(self.cache_path))
++
++    def test_failing_cell_emits_nothing(self):
++        self.write_input("yes\nmaybe\n")
++        with self.assertRaises(reportgen.ValidationError):
++            reportgen.run(self.rules, self.inp, self.out, self.cache_path)
++        self.assert_no_outputs()
++
++    def test_failing_cell_removes_previous_outputs(self):
++        self.write_input("yes\nno\n")
++        reportgen.run(self.rules, self.inp, self.out, self.cache_path)
++        self.assertTrue(os.path.exists(self.cache_path))
++        self.write_input("yes\nmaybe\n")
++        with self.assertRaises(reportgen.ValidationError):
++            reportgen.run(self.rules, self.inp, self.out, self.cache_path)
++        self.assert_no_outputs()
++
++    def test_cli_failing_run_exits_nonzero(self):
++        self.write_input("yes\nmaybe\n")
++        proc = subprocess.run(
++            [sys.executable, os.path.join(BASE, "reportgen.py"),
++             "--rules", self.rules, "--input", self.inp,
++             "--output", self.out, "--cache", self.cache_path],
++            cwd=BASE, capture_output=True, text=True)
++        self.assertNotEqual(proc.returncode, 0)
++        self.assert_no_outputs()
++
++
++class DateIsoDigitsTests(unittest.TestCase):
++    def test_superscript_digits_fail_the_cell_not_the_run(self):
++        with self.assertRaises(transforms.TransformError):
++            transforms.apply("date_iso", "\u00b2/15/2026")
+ 
+ 
+ if __name__ == "__main__":
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15001/transforms.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15001/transforms.py	2026-11-17 03:24:38
+@@ -51,11 +51,24 @@
+     if len(parts) != 3 or len(parts[2]) != 4:
+         raise TransformError("not a MM/DD/YYYY date: %r" % value)
+     month, day, year = (p.strip() for p in parts)
+-    if not (month.isdigit() and day.isdigit() and year.isdigit()):
++    # isdecimal, not isdigit: isdigit accepts superscripts ('²') that int()
++    # rejects, which would crash the run instead of failing the cell.
++    if not (month.isdecimal() and day.isdecimal() and year.isdecimal()):
+         raise TransformError("not a MM/DD/YYYY date: %r" % value)
+     return "%s-%02d-%02d" % (year, int(month), int(day))
+ 
+ 
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0, matched case-insensitively
++    with no whitespace stripping; any other input is an error."""
++    key = value.lower()
++    if key in ("yes", "true"):
++        return 1.0
++    if key in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ REGISTRY = {
+     "trim": trim,
+     "upper": upper,
+@@ -63,6 +76,7 @@
+     "currency_amount": currency_amount,
+     "round2": round2,
+     "date_iso": date_iso,
++    "boolean": boolean,
+ }
+ 
+ 

@@ -1,0 +1,90 @@
+## Baseline facts (from reading the repo)
+
+- `synccli.py:72` `sync(src_root, dst_root, dry_run=False)` — only callers are `main()` (`synccli.py:96`) and `test_synccli.py`; returns `list[str]` of copied relative paths. `incremental.py` imports `copy_file` only. So "signature stable" = **do not change params or the return type** (existing tests assert `copied == ["a.txt"]` / `== []`).
+- Only one stdout write site: `synccli.py:97-98`.
+- **Pre-existing test failure on `main`**: `collect_stale` (`synccli.py:55` starts at `range(1, len(items))`) vs `test_synccli.py:24` → `Ran 6 tests … FAILED (failures=1)` *before* any change. Must not be confused with regressions, and fixing it is out of GOAL scope (see T8, needs your explicit yes).
+- `DESIGN.md` describes a v2 daemon (`syncd`) — **out of scope** for this GOAL.
+- Python 3.10.11, stdlib only, `python3 -m unittest -v` / `python3 -m synccli --help` both work.
+
+---
+
+## Execution plan
+
+### T1 — Reconnaissance & contract lock
+- **Objective:** confirm the exact pre-change contract that the JSON feature must not break: `sync()` params/return type, stdout call sites, exit-code path, current test baseline, and the exact set of internal/external callers of `sync()`.
+- **Files:** read-only — `synccli.py`, `test_synccli.py`, `incremental.py`, `README.md`, `GOAL.md`, `DESIGN.md`.
+- **Agent:** `explore`
+- **Risks:** missing a hidden caller (e.g. in git history/other branches) → contract violation.
+- **Acceptance:** report lists (a) every `sync()`/`copy_file()`/`collect_stale()` call site with `file:line`, (b) the frozen `sync()` signature + return type, (c) baseline `python3 -m unittest -v` result with the exact pre-existing failure name, (d) the list of stdout write sites.
+
+### T2 — Design review: resolve GOAL ambiguities
+- **Objective:** settle the underspecified parts of GOAL.md before code exists, so impl and tests can't diverge.
+- **Files:** no production edits; a decision record only (recommend a short `DECISIONS-json-mode.md`, or the decisions embedded as a comment block in `synccli.py` — your call).
+- **Agent:** `cheap-design-review`
+- **Decisions to force (recommended defaults):**
+  - **D1 `skipped`:** count of source files *not* copied (up-to-date) = `len(scan_files(src)) - len(copied)`; in dry-run = `total − len(would_copy)`. (Alternative reading "failed copies" → recommend against.)
+  - **D2 wire format:** exactly one line, `json.dumps(payload)` + `print()`; keys `copied`, `skipped`, `src`, `dst` in that order.
+  - **D3 `src`/`dst`:** verbatim CLI arguments (not `abspath`).
+  - **D4 failed copies:** `copy_file` swallows `OSError` (`synccli.py:68`) so `sync()` over-reports success; keep `sync()` semantics unchanged (JSON matches human-mode output) and document the known limitation — do **not** change `copy_file`'s signature (used by `incremental.py:23`).
+  - **D5 seam:** add a new `sync_report(src, dst, dry_run=False) -> dict` helper; `sync()` stays byte-identical; `main()` branches on `--json`.
+  - **D6 stdout purity:** exactly one `print()` in the JSON branch; no prints on any error path.
+- **Risks:** picking a `skipped` semantics that later contradicts user expectation; changing `sync()` to make reporting easier (forbidden).
+- **Acceptance:** every one of D1–D6 has a single decided default with rationale; written statement that `sync()`'s signature and return type are untouched; no proposal that adds a dependency or a non-stdlib import.
+
+### T3 — Implementation: JSON output mode
+- **Objective:** add `--json` to `synccli.py`, emitting one JSON object on stdout in `--json` mode, one-path-per-line in human mode, with `--dry-run` listing would-be copies.
+- **Files:** modify `synccli.py` only.
+- **Agent:** `cheap-code`
+- **Implementation notes:** add `parser.add_argument("--json", action="store_true")`; add `sync_report()` per D5; in `main()`: `if args.json: print(json.dumps(report))` else the existing per-line loop; `return 0` unchanged (exit code unchanged in both modes).
+- **Risks:** stray `print` in JSON mode; `--json` accidentally changing copy semantics; `skipped` computed from the wrong total; human mode output drifting (e.g. adding a summary line).
+- **Acceptance:** `python3 -m synccli --json SRC DST` prints exactly one line, `json.loads` of it yields a dict with keys exactly `{copied, skipped, src, dst}`, `copied` a list of relative paths, `skipped` an int, `src`/`dst` equal to the CLI args; `python3 -m synccli --json --dry-run SRC DST` lists the same paths but copies nothing and writes no `.sync_manifest.json` in DST; `python3 -m synccli SRC DST` output is byte-identical to the pre-change behavior (one path per line, no JSON, exit 0).
+
+### T4 — Implementation: unit tests
+- **Objective:** unit tests for the JSON shape, key presence, dry-run semantics, stdout purity, and unchanged human mode.
+- **Files:** modify `test_synccli.py` (add a `TestJsonMode` class; use `contextlib.redirect_stdout` + `io.StringIO`, and `synccli.main([...])` directly).
+- **Agent:** `cheap-code` (fresh session or resume T3's session — same file family, so resuming is cheaper)
+- **Required test cases:** JSON parses; exact key set; `copied` contents correct; `skipped` value correct; `--json --dry-run` ⇒ `copied` = would-be list **and** destination stays empty **and** no manifest written; stdout contains exactly one JSON object and no extra lines; human mode stdout is not JSON and is one path per line; exit code `0` in all modes.
+- **Risks:** tests asserting on implementation internals rather than the contract; tests not cleaning up temp dirs; flaky ordering assumptions (manifest scan is sorted, so `copied` is sorted — assert on sorted lists).
+- **Acceptance:** `python3 -m unittest -v` runs the new tests, all pass; the suite shows **no new failures beyond** the pre-existing `test_first_item_stale_is_included`; `python3 -m unittest -v` before/after diff shows failures count unchanged (1 → 1).
+
+### T5 — Review
+- **Objective:** independent review of the diff against GOAL.md's 4 requirements + constraints.
+- **Files:** read-only review of `synccli.py`, `test_synccli.py` (diff vs `6ba3ecd`).
+- **Agent:** `cheap-review`
+- **Review checklist:** stdlib-only; `sync()` signature **and** return type unchanged; human mode unchanged (one path per line, no added/removed lines); JSON mode prints nothing else to stdout; exit code unchanged; `--json --dry-run` semantics correct; `skipped` definition matches D1 and is documented; no `abspath`/mutation surprises; no dead code or duplicated logic between human and JSON branches; tests actually assert the contract.
+- **Risks:** reviewer missing the stdout-purity edge (e.g. an exception path printing); approval of a change that quietly alters `sync()`.
+- **Acceptance:** written verdict with findings classified minor/major; **zero major findings**; every minor mapped to a concrete file+line fix instruction.
+
+### T6 — Fix round (conditional)
+- **Objective:** apply T5's minor findings.
+- **Files:** as flagged by the reviewer.
+- **Agent:** `cheap-code` resumed on the T3/T4 session (same files, same contract → reuse context), or `cheap-mech` if purely mechanical.
+- **Risks:** fix drift reintroducing a GOAL violation; touching the pre-existing failing test.
+- **Acceptance:** all minors closed, `python3 -m unittest -v` failures count still exactly 1 (the pre-existing `collect_stale` one), T5 reviewer re-checks the touched lines and confirms closure.
+
+### T7 — Final verification
+- **Objective:** end-to-end confirmation that the release goal is met.
+- **Files:** none (read-only), unless the review demands a change → back to T6.
+- **Agent:** `cheap-review` (fresh reviewer, self-contained brief) or `strong-review` if T5 escalated
+- **Acceptance:** a written checklist mapping each GOAL.md item (1–4) and each constraint (no deps, py3.10 stdlib, `sync()` stable) to a concrete command + observed output; manual CLI demo of all four flag combinations (`{}`, `--json`, `--dry-run`, `--json --dry-run`) showing exit code 0 and expected stdout shape.
+
+### T8 — Optional, needs your explicit approval (out of GOAL scope)
+- **Objective:** fix the pre-existing `collect_stale` bug (`synccli.py:55` skips `items[0]`, contradicting `test_synccli.py:24`).
+- **Files:** `synccli.py` (one-line: iterate from index 0) — `collect_stale` has no production caller.
+- **Agent:** `cheap-mech`
+- **Risks:** changing behavior an unknown external caller might depend on; conflating this with the GOAL delivery.
+- **Acceptance:** `python3 -m unittest -v` → 0 failures, all 6+ tests green. **Only if you say yes; otherwise it stays red and T4/T6/T7 must treat "1 pre-existing failure" as the baseline.**
+
+### T9 — Optional docs, needs your approval
+- **Objective:** document the new flags in `README.md` (currently only points at `--help`).
+- **Files:** `README.md`.
+- **Agent:** `cheap-mech`
+- **Acceptance:** README shows the four flag combinations and the JSON shape; `python3 -m synccli --help` still renders the new flags.
+
+---
+
+**Critical path:** T1 → T2 → T3 → T4 → T5 → (T6) → T7. T8/T9 are parallel, optional, and gated on your approval.
+
+**Cross-cutting risks to watch:** (a) `sync()` must stay untouched — it is the stated-stable seam; (b) the suite is red *before* we start — baseline it explicitly in every acceptance criterion; (c) `copy_file` swallows `OSError`, so `copied` can over-report — decide once in T2 and keep JSON and human mode consistent; (d) `collect_stale` is dead code whose only consumer is a failing test — don't let an implementer "fix" it unasked.
+
+No files were modified.

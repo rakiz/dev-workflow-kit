@@ -1,0 +1,38 @@
+Read DESIGN.md, syncd.py, state.py, GOAL.md. Critique below.
+
+## Claimed-vs-actual gaps (the design's core promises aren't met by the code it's paired with)
+
+1. **Journal replay is never called.** `replay_journal` exists (state.py:57) but nothing in syncd.py invokes it. So the entire crash-safety story (DESIGN:29-34) is unimplemented — a crash loses the last cycle's copies silently.
+2. **Partial manifest → crash on start, not "repaired by replay".** `load_manifest` (state.py:23) does a bare `json.load`; a truncated manifest raises JSONDecodeError *before* any replay could run. DESIGN:33-34's repair path cannot work as written. Use tmp+`os.replace` (atomic) instead of the "journal repairs it" argument.
+3. **Whole-second mtime breaks the design's central claim.** `int(st.st_mtime)` (state.py:19, syncd.py:52). DESIGN:58 says "mtime is guaranteed to change on every edit" — false for same-second edits with unchanged size. That simultaneously breaks (a) change detection (poll diff), (b) the debounce (`observed != state`), and (c) the integrity re-stat check (syncd.py:52) — a file rewritten in place with identical size inside one second is copied once and never recopied. This also means a file written continuously *can* end up truncated in dst, contradicting DESIGN:28. Fix: store `st_mtime_ns` (add a key; keep the int `mtime` for synccli compat — see open question below). Same-second changes are the normal case for build tools, not the exception.
+4. **Deletions are never implemented.** DESIGN:38-40 promises reconcile-and-delete; `poll()` (syncd.py:27-40) never removes anything from the manifest or dst. Deleted/renamed-away files stay in dst forever, and `observed`/`quiet_since`/`synced` grow without bound — contradicting "memory stays flat" (DESIGN:22-24).
+5. **Errors do take the daemon down.** `flush_one` (syncd.py:46-51) has no try/except: a file vanishing between scan and copy raises FileNotFoundError out of `run()` and kills the process — the most common race in this design, and the one DESIGN:50-51 explicitly claims is handled. `snapshot()`'s `os.stat` (state.py:18) has the same exposure, plus broken symlinks and permission errors.
+6. **The lock doesn't do what DESIGN:41-48 claims.** It's acquired/released *per poll cycle* (syncd.py:65-67), so a second instance can start between cycles — "exactly one daemon ever writes into dst" is false. `acquire_lock` is `exists()` + `open()` (state.py:40-44): TOCTOU, two simultaneous starts both pass. A crash leaves the lockfile behind and the daemon then refuses to start forever (no stale-lock handling). And the justification for releasing early ("entries merge cleanly") is wrong: the manifest commit is a whole-file rewrite, so two writers produce last-writer-wins data loss, not a merge — and interleaved writes produce invalid JSON that kills the next start.
+7. **Destination writes are not atomic.** `open(dst,"wb")` (syncd.py:49-50) truncates then writes: a crash mid-copy leaves a truncated file with an old manifest entry, i.e. permanently corrupt and considered synced. Needs tmp+rename.
+
+## What breaks under real load
+
+- **The manifest is re-read and fully rewritten every 500 ms** (syncd.py:68-70). 50k entries ≈ 3 MB JSON → ~6 MB/s of writes plus a full `json.load`+`json.dump` per cycle. That alone can exceed the 500 ms poll budget; the loop silently stretches to ~1 s+ and falls further behind on a busy machine. The manifest must live in memory, be written only when dirty, and be written atomically.
+- **Full `os.walk` every 500 ms** (state.py:13-19): 100k stats/s. The "well under 100 ms" measurement is a warm-cache figure; under a running build with a busy disk, a full walk can take seconds — and it's synchronous with the copy phase.
+- **Copies run inline in the poll thread, one file at a time** (syncd.py:38-40). One 500 MB artifact blocks scanning entirely; the claimed "latency stays under one poll plus 200 ms" (DESIGN:19-20) collapses under any large file or a burst of hundreds.
+- **Whole file read into RAM** (`f.read()`, syncd.py:47): a 2 GB artifact means a 2 GB buffer — directly contradicts the flat-memory claim. Use `shutil.copy2` (streamed, and preserves mtime).
+- **No ignore rules.** `snapshot` skips hidden *directories* only, so `.git`, `node_modules`, `venv`, `target/` are synced. If those exist, "50k files, few change per minute" is the wrong model and every number above gets worse.
+- **Journal grows without bound** and one `open`/`write`/`close` per copied file (state.py:51-54); no fsync, so on power loss the journal can be lost after the copy but before the manifest commit.
+
+## Change these decisions first (in order)
+
+1. **Manifest durability:** keep it in memory, write only when dirty, via tmp+`os.replace`, and fsync. Keep the journal as the per-file durability layer and *actually replay it at startup* (or drop it if atomic manifest writes make it redundant — that's a decision to make explicitly, since GOAL item 3 requires a compaction rule that only makes sense if the ordering "journal appended → copy durable → manifest committed atomically → truncate journal" is defined).
+2. **Change detection:** `mtime_ns` + size. Verify synccli's manifest reader first — if it compares `mtime` (int), keep that key byte-compatible and add `mtime_ns`; if it round-trips unknown keys, storing ns in a new key is free. This decision blocks the debounce, the integrity check and GOAL's `--verify` ("re-stat and re-copy anything whose current state differs" is meaningless at second resolution).
+3. **Locking:** one exclusive lock for the daemon's lifetime, held for the whole run, atomic (`O_CREAT|O_EXCL` or `fcntl.flock`), in a run dir outside dst, with stale-lock detection. Delete the "release before commit" reasoning.
+4. **Implement deletions** (reconcile src vs manifest) and bound the in-memory dicts. GOAL item 2 ("missing_in_src must decide what happens to dst files") depends on this existing first — otherwise the audit mode's decision is unmotivated.
+5. **Per-file error containment**: wrap scan, copy, stat, journal append individually so one bad file can't end the daemon; plus a supervisor that catches the rest.
+6. **Copy strategy**: `shutil.copy2` to a temp name in the destination dir, then `os.replace` — streamed, atomic, preserves mtime.
+7. **Concurrency**: decouple scan from copy (a small worker pool, bounded queue) so a big file can't stall detection. Decide the queue bound explicitly — that bound, not the "one poll's worth of changes" (DESIGN:22-24), is the real backpressure limit, and it must be a real limit, not an assumption.
+8. **Ignore rules** for `.git`, `node_modules`, `venv`, editor temp files, and dst-if-nested-under-src (currently infinite recursion).
+
+## Open questions to resolve before coding
+
+- Exactly what does synccli's manifest reader/writer do with the `mtime` field (int seconds)? Is unknown-key tolerant? This decides whether ns resolution is compatible.
+- Is `dst` allowed to live under `src` (or vice versa)? No guard exists.
+- What is the intended behaviour when the source file is *being written* — copy the partial content, or skip until stable? The debounce implies "skip until stable", but the design never says so, and that's what makes the truncation claim true or false.
+- GOAL item 4 wants a per-cycle status line; at 2 cycles/s that's 2 lines/s on stdout forever. Confirm it's a periodic (not per-cycle) line, and that stdout is a file or journald, not a terminal.

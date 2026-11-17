@@ -303,14 +303,29 @@ separate from the public repo), sha256:
 
 RG2 prototype tree hash (the audit flagged that fixtures had no recorded
 hash; computed over `evals/reportgen-eval-repo-i2/` with `find . -type f |
-sort | xargs shasum -a 256 | shasum -a 256`):
+sort | xargs shasum -a 256 | shasum -a 256`. HISTORICAL: RG2 is retired —
+superseded by RG3 the same day; the `reportgen-eval-repo-i2/` tree is git
+history only):
 
-- round-1 prototype: `4065cd630f0a398d88ff1bf5317b986d6cfb9d8b96f3e6d388f9c16e7e007213`
+- round-1 prototype:
+  `4065cd630f0a398d88ff1bf5317b986d6cfb9d8b96f3e6d388f9c16e7e007213`
 - **round-2 reworked prototype (2026-11-12 — GOAL.md reworded (mandated
   baseline step + invariant scope clarification); reportgen.py gained a
   per-input stdout work line, a findability reseed whose rationale is
   recorded privately in RUBRIC-IV2.md §5):**
   `d32d51e438341ba29fffda8422d9ff792a5f61f24a1c61a8cc74f4c7dfa003fd`
+
+RG3 (current I2 fixture, `evals/reportgen-eval-repo-i3/`) and D1
+(`evals/syncfeat-brief-d1/`) tree hashes, recorded 2026-11-17 with
+`__pycache__/` excluded (computed with `find <fixture> -type f -not -path
+'*__pycache__*' | sort | xargs shasum -a 256 | shasum -a 256`; earlier
+hashes above were computed over the whole tree including any `__pycache__`
+content, which is why they are not directly comparable):
+
+- RG3 `reportgen-eval-repo-i3`:
+  `3d2c1a301730cdf3c54a8f98e61121d9a4e789dc6b10737758fbc38f351743ac`
+- D1 `syncfeat-brief-d1`:
+  `904d10f45979019947a484eddcdf3919518a6d7c3904f1121189a19e1fe5d73a`
 
 Round-2 §3.8 re-verification: every probe ×3 consecutive rounds in fresh
 scratch copies against BOTH the reworked prototype (must fail) and the

@@ -1,0 +1,3 @@
+Wrote `DESIGN-d1.md` (896 lines) covering the full `backupctl` design: atomic snapshot publication, crash/index recovery, run/reader locking, source-race semantics, stat-based change detection with hardlink reuse, retention, path containment, scaling bounds, and a measurement-derived 1 GB full-backup budget.
+
+Grounded in this repo's code with exact citations and verified failure demos: `synccli.copy_file`/`sync` promising absent files, `snaputil.safe_snapshot_path` escaping the snapshot, hardlink double-counting in `snapshot_disk_usage`, and symlink leakage in `list_snapshots`. All 6 existing tests pass; benchmarks are in Appendix A.

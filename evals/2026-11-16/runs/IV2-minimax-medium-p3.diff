@@ -1,0 +1,233 @@
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-minimax-medium-p3/cache.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-minimax-medium-p3/cache.py	2026-11-13 22:53:43
+@@ -40,12 +40,74 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _version_key(value):
++    """Ordering key for a version value.
++
++    Versions may be written as an int or as a string; the two must compare
++    without raising (and "10" must sort above "2"), so numeric values are
++    compared as numbers and non-numeric ones as strings in a separate
++    group."""
++    if isinstance(value, bool) or value is None:
++        return (0, "")
++    if isinstance(value, (int, float)):
++        return (1, float(value))
++    if isinstance(value, str):
++        text = value.strip()
++        try:
++            return (1, float(text))
++        except ValueError:
++            return (0, text)
++    return (0, "")
++
++
++def is_newer_version(value, current=REGISTRY_VERSION):
++    """True when `value` names a schema version newer than `current`."""
++    return _version_key(value) > _version_key(current)
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state; a missing file is just an empty cache.
++
++    A state file written by a future schema version cannot be interpreted
++    safely, so it is treated as an empty cache: the run then does the full
++    work and rewrites a valid state file. Entries written under another
++    registry version are not reusable and are dropped."""
+     if not os.path.exists(path):
+         return {}
+-    with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++    try:
++        with open(path, "r", encoding="utf-8") as fh:
++            state = json.load(fh)
++    except (ValueError, OSError):
++        return {}
++    if not isinstance(state, dict):
++        return {}
++    if "version" in state and not isinstance(state.get("version"), dict):
++        payload = state.get("entries")
++        if not isinstance(payload, dict):
++            payload = {}
++        if is_newer_version(state.get("version")):
++            return {}
++        state = payload
++    usable = {}
++    for name, entry in state.items():
++        if not isinstance(entry, dict):
++            continue
++        if is_newer_version(entry.get("registry_version")):
++            # Future schema: the whole cache is unusable.
++            return {}
++        if entry.get("registry_version") != REGISTRY_VERSION:
++            continue
++        usable[name] = entry
++    return usable
++
++
++def discard_state(path=DEFAULT_CACHE_PATH):
++    """Remove the state file (and any leftover temporary file)."""
++    for candidate in (path, path + ".tmp"):
++        try:
++            os.remove(candidate)
++        except OSError:
++            pass
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-minimax-medium-p3/reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-minimax-medium-p3/reportgen.py	2026-11-13 22:53:55
+@@ -13,6 +13,7 @@
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+@@ -80,6 +81,15 @@
+                     skipped_rows.append(
+                         {"row": row_no, "column": col, "reason": str(exc)})
+                     continue
++                except Exception as exc:
++                    # A transform that fails in any other way is still a
++                    # transform failure: record it, do not let it escape
++                    # and leave a half-transformed run behind.
++                    skipped_rows.append(
++                        {"row": row_no, "column": col,
++                         "reason": "unexpected transform failure: %s: %s"
++                                   % (type(exc).__name__, exc)})
++                    continue
+             else:
+                 value = raw
+             stats = columns.setdefault(col, {"non_empty": 0, "values": set()})
+@@ -128,7 +138,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % html.escape(name))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -138,14 +148,39 @@
+             stats = summary[col]
+             sample = ", ".join(str(v) for v in stats["sample"])
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (html.escape(col), stats["non_empty"],
++                            stats["distinct"], html.escape(sample)))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+ 
+ 
++def discard_outputs(output_dir, cache_path):
++    """Remove the report files and the cache state a failed run must not
++    leave behind."""
++    for name in ("report.json", "report.html"):
++        path = os.path.join(output_dir, name)
++        try:
++            os.remove(path)
++        except OSError:
++            pass
++    cache.discard_state(cache_path)
++
++
+ def run(rules_path, input_dir, output_dir, cache_path):
+-    """Run one full pass over the input directory and write the report."""
++    """Run one full pass over the input directory and write the report.
++
++    Nothing is written before every cell has been transformed: a run in
++    which any cell failed its transform emits no report and leaves no
++    cache state behind."""
++    try:
++        return _run(rules_path, input_dir, output_dir, cache_path)
++    except Exception:
++        discard_outputs(output_dir, cache_path)
++        raise
++
++
++def _run(rules_path, input_dir, output_dir, cache_path):
+     state = cache.load_state(cache_path)
+ 
+     names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
+@@ -159,7 +194,10 @@
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++        if (entry and entry.get("digest") == digest
++                and entry.get("rules_fp") == rules_fp
++                and entry.get("registry_version") == cache.REGISTRY_VERSION
++                and not (entry.get("summary") or {}).get("skipped_rows")):
+             results[name] = {"digest": digest, "rows": entry["rows"],
+                              "generated_from": entry["generated_from"],
+                              "summary": entry["summary"]}
+@@ -170,19 +208,22 @@
+                              "summary": summary}
+             pending[name] = cache.make_entry(path, digest, len(data_rows),
+                                              summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
+ 
++    # A summary derived from a failed cell must reach neither the report
++    # nor the cache: reject the whole run before writing anything.
++    for name in sorted(results):
++        validate_summary(results[name]["summary"])
++
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+     with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
++    cache.save_state(pending, path=cache_path)
+     return report
+ 
+ 
+@@ -206,4 +247,5 @@
+ 
+ 
+ if __name__ == "__main__":
+-    main()
++    # A run that failed its transforms produced no report: exit non-zero.
++    sys.exit(1 if main() is None else 0)
+Only in /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-minimax-medium-p3: test_regressions.py
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-minimax-medium-p3/transforms.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-12/raw-round2/IV2-minimax-medium-p3/transforms.py	2026-11-13 22:52:30
+@@ -45,6 +45,16 @@
+         raise TransformError("not a number: %r" % value)
+ 
+ 
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0 (case-insensitive)."""
++    text = value.strip().lower()
++    if text in ("yes", "true"):
++        return 1.0
++    if text in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ def date_iso(value):
+     """'MM/DD/YYYY' -> 'YYYY-MM-DD'."""
+     parts = value.strip().split("/")
+@@ -62,6 +72,7 @@
+     "lower": lower,
+     "currency_amount": currency_amount,
+     "round2": round2,
++    "boolean": boolean,
+     "date_iso": date_iso,
+ }
+ 

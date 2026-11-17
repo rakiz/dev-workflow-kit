@@ -1,0 +1,73 @@
+# Design review — syncd v2
+
+**Verdict: GO with reservations.** Shape (poll → debounce → copy → journal → manifest) is sound, but 4 load-bearing claims are false and 3 assumptions don't hold under real load. Fix before coding.
+
+## 1. Scan / polling — cost model wrong by ~10×
+
+Design claims "50k files <100ms, one `stat` each". Reality: `snapshot()` is pure Python `stat` + `join` + `relpath` + dict = 0.4–0.8s, cold cache 2.5–5s. Plus every cycle does `load_manifest` + `json.dump` of 4MB manifest = 230–550ms. Total cycle 0.8–1.5s > `POLL_SECONDS=0.5` → **permanently behind**.
+
+Also `snapshot()` has bare `os.stat` — dangling symlink crashes the whole daemon, contradicting "transient error never takes daemon down".
+
+**Change:** Keep manifest in memory, write only on change. Wrap `stat` in try/except. Guard `dst ⊂ src` self-copy.
+
+## 2. Debounce / latency — claim is self-contradictory
+
+"At most 200ms latency even while file is being written continuously" — a continuously-written file *never* goes quiet, so latency is **unbounded/starved**, not 200ms. Quiet check only evaluated inside `poll()`, so real latency = 500ms(detect) + 200ms + 500ms(next poll) ≈ 1.2s. Also debounce key is `(size, mtime)` with 1s resolution — same-size rewrite in same second is invisible.
+
+**Change:** Add max-wait (copy anyway after N seconds). Fix latency docs. Compare `mtime_ns`.
+
+## 3. Backpressure / memory — "bounded" is false
+
+Pending drains only quiet files; continuously-written files never drain → unbounded. Plus three hidden unbounded structures:
+- `observed`/`synced` hold 50k×2 dicts, never pruned on deletion
+- Journal never truncated → restart time grows with uptime, `open("a")` per file
+- `f.read()` loads entire file into memory — 2GB artifact = 2GB RSS spike
+
+**Change:** `copyfileobj` with buffer. Prune on deletion. Compact journal at commit. Cap pending.
+
+## 4. Integrity — torn copy claimed impossible, actually guaranteed
+
+Design re-stats source *after* `open(dst,"wb")` already truncated dst. If daemon dies mid-copy, manifest holds old state, journal never appended, next scan sees `src == manifest` → **dst stays truncated forever**. No `dst vs manifest` check exists. Also `synced[rel]=state` on requeue branch records wrong state.
+
+**Change:** Copy to `dst/.tmp-*` then `os.replace()`. Compare `mtime_ns`. Fix synced assignment. Add dst-size-vs-manifest check.
+
+## 5. Crash safety — repair path doesn't exist
+
+- **Torn manifest:** Design says "repaired by journal replay". Reality: `load_manifest` does `json.load` on truncated file → `JSONDecodeError` → **daemon unstartable**, journal never consulted.
+- **Ordering inverted:** Manifest committed *after* journal, but replay applies older journal over newer manifest → regresses, re-copies everything.
+- **Deletions designed, not implemented:** No reconcile/delete code. `dst` accumulates forever. Torn manifest + future deletion logic = mass deletion.
+- **Lock scope contradicts claim:** Lock taken/released *per cycle*, not held. Second daemon started between cycles finds no lock → two writers interleaving `open(manifest,"w")` → corrupt JSON. Lock also has TOCTOU (`exists` then `open`) and stale lock never cleared (PID never read).
+
+**Change:** Manifest via tmp+rename+fsync only on change. Journal: add `del` events, truncate at commit. Lock: `O_EXCL` held for lifetime with PID liveness check.
+
+## 6. Rejected alternatives — reasoning inverted
+
+- **Hashing:** Rejected as "extra read per poll" but daemon already reads every changed file fully. Hashing changed-set costs nothing extra. Just scope it to `--verify`.
+- **tmp+rename:** Rejected to avoid "one fsync" while keeping 8MB/s manifest rewrite — wrong tradeoff. Tmp+rename is cheaper and the only atomic option.
+- **Watchers:** Dismissed as "unbounded" while claiming polling is "bounded" — polling is O(N) per cycle, unbounded in tree size.
+
+**Change:** Invert tmp+rename decision. Hashing only for `--verify`.
+
+## 7. Observability — wrong metric
+
+Logs pending count + commit duration (of the thing that should be deleted). Pending count can't detect falling behind. Logs 2 lines/sec forever with no rotation.
+
+**Change:** Log cycle/scan/copy duration, pending age, journal size, error count. Emit ~1/min or on change.
+
+## 8. Rollout / `mtime` — most consequential wrong assumption
+
+Whole-second `mtime` is root cause of integrity hole. "mtime guaranteed to change on every edit" is false. Same-size edit in same second = silent permanent divergence, baked as "synced". `cp -p`/`rsync -t`/`git checkout` all preserve mtimes.
+
+**Change:** Store `mtime_ns` alongside `mtime` now (backwards compat, synccli keeps `mtime`). Compare on `mtime_ns` when present. Cheap now, expensive migration later.
+
+---
+
+## Change before coding (blocking)
+
+1. Manifest: in-memory, tmp+replace+fsync, write only on change
+2. Journal: `del` events, truncate at commit, bound replay
+3. Lock: `O_EXCL`, lifetime-held, liveness check
+4. Integrity: per-file tmp+replace, `mtime_ns`, dst-vs-manifest check
+5. Manifest format: add `mtime_ns` now
+6. Reconcile/deletion: implement (assumed but missing)
+7. Scan: handle stat failures, exclude `dst`/journal, max-wait debounce

@@ -1,0 +1,5 @@
+`DESIGN-d1.md` written (1065 lines), worked alone. Highlights:
+
+- **Grounded, verified**: every reuse/override cites exact `file:line` (`synccli.scan_files/build_manifest/changed_files`, all five `snaputil` helpers); 13 behavioral claims executed against the real code (Appendix A) — including two real `safe_snapshot_path` escape holes (absolute paths, net-leading `..`), `synccli.sync`'s manifest promising files the destination lacks, and its crash on a corrupt manifest — each mapped to a named override (O1-O9).
+- **Design**: flock single-writer + staging + atomic directory-rename publish; per-snapshot self-contained index built from copy/link *results*; hardlink dedup; rename-then-destroy pruning; crash-window table with sweep-at-start and corrupt-index re-derivation via `build_manifest`.
+- **Budgets measured, not guessed**: real 1 GB/20k-file tree on this machine — full backup measured 9.6-10.5 s, committed ≤ 60 s with derivation formula; scaling bounds as explicit formulas over N/F/B/K with measured constants (e.g. RAM ≈ 0.9 KB/file, index 76 B/entry, prune 85 µs/file).

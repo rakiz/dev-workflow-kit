@@ -1,0 +1,329 @@
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15074/cache.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15074/cache.py	2026-11-17 03:24:38
+@@ -22,7 +22,7 @@
+ 
+ DEFAULT_CACHE_PATH = os.path.join("cache", "state.json")
+ 
+-REGISTRY_VERSION = "2"
++REGISTRY_VERSION = "3"
+ 
+ 
+ def file_digest(path):
+@@ -40,12 +40,30 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _from_future_schema(entry):
++    """True when an entry carries a registry version this code does not
++    understand as current-or-older (greater, or not an integer)."""
++    if not isinstance(entry, dict) or entry.get("registry_version") is None:
++        return False
++    try:
++        return int(entry["registry_version"]) > int(REGISTRY_VERSION)
++    except (TypeError, ValueError):
++        return True
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state; a missing file is just an empty cache. A state
++    written by a newer schema (or of an unrecognised shape) is discarded as
++    a whole and treated as empty, so the caller does a full run."""
+     if not os.path.exists(path):
+         return {}
+     with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++        data = json.load(fh)
++    if not isinstance(data, dict):
++        return {}
++    if any(_from_future_schema(entry) for entry in data.values()):
++        return {}
++    return data
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15074/reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15074/reportgen.py	2026-11-17 03:24:38
+@@ -13,6 +13,7 @@
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+@@ -82,18 +83,24 @@
+                     continue
+             else:
+                 value = raw
+-            stats = columns.setdefault(col, {"non_empty": 0, "values": set()})
++            stats = columns.setdefault(
++                col, {"non_empty": 0, "values": set(), "numeric": [], "non_numeric": 0})
+             if raw != "":
+                 stats["non_empty"] += 1
+             stats["values"].add(value)
++            if isinstance(value, float):
++                stats["numeric"].append(value)
++            else:
++                stats["non_numeric"] += 1
+     out = {}
+     for col in sorted(columns):
+         stats = columns[col]
+         values = stats["values"]
+         entry = {"non_empty": stats["non_empty"], "distinct": len(values),
+                  "sample": sorted(values, key=str)[:3]}
+-        numeric = [v for v in values if isinstance(v, float)]
+-        if numeric and len(numeric) == len(values):
++        # Summed per row, not per distinct value: duplicate cells all count.
++        numeric = stats["numeric"]
++        if numeric and stats["non_numeric"] == 0:
+             entry["numeric_sum"] = round(sum(sorted(numeric)), 2)
+         out[col] = entry
+     return {"columns": out, "skipped_rows": skipped_rows}
+@@ -128,7 +135,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % html.escape(name))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -136,9 +143,10 @@
+         summary = res["summary"]["columns"]
+         for col in sorted(summary):
+             stats = summary[col]
+-            sample = ", ".join(str(v) for v in stats["sample"])
++            sample = ", ".join(html.escape(str(v)) for v in stats["sample"])
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (html.escape(col), stats["non_empty"],
++                            stats["distinct"], sample))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+@@ -159,7 +167,8 @@
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++        if (entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp
++                and entry.get("registry_version") == cache.REGISTRY_VERSION):
+             results[name] = {"digest": digest, "rows": entry["rows"],
+                              "generated_from": entry["generated_from"],
+                              "summary": entry["summary"]}
+@@ -170,16 +179,19 @@
+                              "summary": summary}
+             pending[name] = cache.make_entry(path, digest, len(data_rows),
+                                              summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
+ 
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
++    # Validate before anything is written: a pass with a failed cell must
++    # leave neither a report nor cache state behind.
++    for name in sorted(results):
++        validate_summary(results[name]["summary"])
++    if pending:
++        cache.save_state(pending, path=cache_path)
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+     with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/test_reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15074/test_reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/test_reportgen.py	2026-11-13 04:48:28
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15074/test_reportgen.py	2026-11-17 03:24:38
+@@ -6,6 +6,7 @@
+ import shutil
+ import tempfile
+ import unittest
++import unittest.mock
+ 
+ import cache
+ import reportgen
+@@ -41,7 +42,24 @@
+         with self.assertRaises(transforms.TransformError):
+             transforms.apply("nope", "x")
+ 
++    def test_boolean_maps_affirmative_and_negative_forms(self):
++        for raw in ("yes", "YES", " True ", "tRuE"):
++            self.assertEqual(transforms.apply("boolean", raw), 1.0)
++        for raw in ("no", "No", "FALSE", " false"):
++            self.assertEqual(transforms.apply("boolean", raw), 0.0)
+ 
++    def test_boolean_rejects_other_input(self):
++        for raw in ("", "maybe", "1", "0", "y", "nope"):
++            with self.assertRaises(transforms.TransformError):
++                transforms.apply("boolean", raw)
++
++    def test_date_iso_rejects_non_ascii_digits_as_transform_error(self):
++        # '\u00b9' passes str.isdigit() but int() rejects it; it must surface
++        # as TransformError, not as an unhandled ValueError.
++        with self.assertRaises(transforms.TransformError):
++            transforms.apply("date_iso", "\u00b9/15/2026")
++
++
+ class RulesTests(unittest.TestCase):
+     def test_rules_loader_ignores_other_tables(self):
+         tmp = tempfile.mkdtemp(prefix="rg3-rules-")
+@@ -97,7 +115,44 @@
+         self.assertEqual(cols["item"]["numeric_sum"], 3.0)
+         self.assertEqual(cols["label"]["sample"], ["alpha", "beta"])
+ 
++    def test_boolean_column_end_to_end(self):
++        inp = os.path.join(self.tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "f.csv"), "w") as fh:
++            fh.write("flag\nYes\nno\nTRUE\n")
++        rules_path = os.path.join(self.tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nflag = "boolean"\n')
++        report = self.run_tool(rules=rules_path, input_dir=inp)
++        col = report["files"]["f.csv"]["summary"]["columns"]["flag"]
++        self.assertEqual(col["numeric_sum"], 2.0)
++        self.assertEqual(col["distinct"], 2)
+ 
++    def test_numeric_sum_counts_duplicate_cells(self):
++        inp = _write_inputs(self.tmp, {"d.csv": "amount\n10.00\n10.00\n5\n"})
++        rules_path = _write_rules(self.tmp, '[transforms]\namount = "round2"\n')
++        report = self.run_tool(rules=rules_path, input_dir=inp)
++        col = report["files"]["d.csv"]["summary"]["columns"]["amount"]
++        self.assertEqual(col["numeric_sum"], 25.0)
++        self.assertEqual(col["distinct"], 2)
++
++
++def _write_inputs(root, files):
++    inp = os.path.join(root, "in")
++    os.makedirs(inp)
++    for name, text in files.items():
++        with open(os.path.join(inp, name), "w") as fh:
++            fh.write(text)
++    return inp
++
++
++def _write_rules(root, body):
++    path = os.path.join(root, "rules.toml")
++    with open(path, "w") as fh:
++        fh.write(body)
++    return path
++
++
+ class CacheTests(unittest.TestCase):
+     def setUp(self):
+         self.tmp = tempfile.mkdtemp(prefix="rg3-cache-")
+@@ -129,6 +184,71 @@
+         self.run_tool()
+         after = json.load(open(self.cache_path))
+         self.assertEqual(before, after)
++
++    def test_future_schema_state_is_discarded_and_rewritten(self):
++        os.makedirs(os.path.dirname(self.cache_path))
++        with open(self.cache_path, "w") as fh:
++            json.dump({"small_devices.csv": {
++                "digest": "x", "rows": 1, "generated_from": 1, "rules_fp": "y",
++                "registry_version": str(int(cache.REGISTRY_VERSION) + 1),
++                "summary": {"shape": "future"}}}, fh)
++        report = self.run_tool()
++        self.assertEqual(report["total_rows"], 12012)
++        self.assertEqual(report["files"]["small_devices.csv"]["summary"]["columns"]
++                         ["device_id"]["distinct"], 3)
++        state = cache.load_state(self.cache_path)
++        self.assertEqual(len(state), 4)
++        for entry in state.values():
++            self.assertEqual(entry["registry_version"], cache.REGISTRY_VERSION)
++
++    def test_entry_with_older_registry_version_is_not_reused(self):
++        rules = reportgen.load_rules(RULES)
++        os.makedirs(os.path.dirname(self.cache_path))
++        digest = cache.file_digest(os.path.join(INPUT_DIR, "small_devices.csv"))
++        stale = {"digest": digest, "rows": 3, "generated_from": 1,
++                 "rules_fp": cache.rules_fingerprint(rules),
++                 "registry_version": str(int(cache.REGISTRY_VERSION) - 1),
++                 "summary": {"columns": {"device_id": {
++                     "non_empty": 99, "distinct": 99, "sample": ["stale"]}},
++                     "skipped_rows": []}}
++        with open(self.cache_path, "w") as fh:
++            json.dump({"small_devices.csv": stale}, fh)
++        report = self.run_tool()
++        col = report["files"]["small_devices.csv"]["summary"]["columns"]["device_id"]
++        self.assertEqual(col["distinct"], 3)
++
++    def test_failed_cell_run_writes_no_report_and_no_cache(self):
++        root = tempfile.mkdtemp(prefix="rg3-fail-")
++        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
++        inp = _write_inputs(root, {"a.csv": "amount\n$1\n",
++                                   "b.csv": "amount\nsee invoice\n"})
++        rules_path = _write_rules(root, '[transforms]\namount = "currency_amount"\n')
++        out = os.path.join(root, "out")
++        cache_path = os.path.join(root, "cache", "state.json")
++        with self.assertRaises(reportgen.ValidationError):
++            reportgen.run(rules_path, inp, out, cache_path)
++        self.assertFalse(os.path.exists(os.path.join(out, "report.html")))
++        self.assertFalse(os.path.exists(os.path.join(out, "report.json")))
++        self.assertFalse(os.path.exists(cache_path))
++
++    def test_crash_mid_run_writes_no_report_and_no_cache(self):
++        root = tempfile.mkdtemp(prefix="rg3-crash-")
++        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
++        inp = _write_inputs(root, {"a.csv": "item\n1\n", "b.csv": "item\n2\n"})
++        rules_path = _write_rules(root, '[transforms]\nitem = "round2"\n')
++        out = os.path.join(root, "out")
++        cache_path = os.path.join(root, "cache", "state.json")
++
++        def boom(value):
++            if value == "2":
++                raise RuntimeError("unexpected")
++            return float(value)
++
++        with unittest.mock.patch.dict(transforms.REGISTRY, {"round2": boom}):
++            with self.assertRaises(RuntimeError):
++                reportgen.run(rules_path, inp, out, cache_path)
++        self.assertFalse(os.path.exists(cache_path))
++        self.assertFalse(os.path.exists(os.path.join(out, "report.html")))
+ 
+ 
+ if __name__ == "__main__":
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15074/transforms.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-15074/transforms.py	2026-11-17 03:24:38
+@@ -51,11 +51,24 @@
+     if len(parts) != 3 or len(parts[2]) != 4:
+         raise TransformError("not a MM/DD/YYYY date: %r" % value)
+     month, day, year = (p.strip() for p in parts)
+-    if not (month.isdigit() and day.isdigit() and year.isdigit()):
++    # isdecimal, not isdigit: isdigit accepts characters such as '\u00b9'
++    # that int() rejects, which would escape as an unhandled ValueError.
++    if not (month.isdecimal() and day.isdecimal() and year.isdecimal()):
+         raise TransformError("not a MM/DD/YYYY date: %r" % value)
+     return "%s-%02d-%02d" % (year, int(month), int(day))
+ 
+ 
++BOOLEAN_VALUES = {"yes": 1.0, "true": 1.0, "no": 0.0, "false": 0.0}
++
++
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0, case-insensitive."""
++    key = value.strip().lower()
++    if key not in BOOLEAN_VALUES:
++        raise TransformError("not a boolean: %r" % value)
++    return BOOLEAN_VALUES[key]
++
++
+ REGISTRY = {
+     "trim": trim,
+     "upper": upper,
+@@ -63,6 +76,7 @@
+     "currency_amount": currency_amount,
+     "round2": round2,
+     "date_iso": date_iso,
++    "boolean": boolean,
+ }
+ 
+ 

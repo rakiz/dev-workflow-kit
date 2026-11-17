@@ -1,0 +1,59 @@
+I read GOAL.md, README.md, and the three Python files (`synccli.py`, `test_synccli.py`, `incremental.py`). I made no changes.
+
+**Findings that shape the plan**
+
+- `sync()` already returns the to-copy list and skips writing in dry-run mode, so `copied` in dry-run is already correct. The gap is `skipped`: `sync()` returns only the copied list, so the total file count is not available to `main()`. The fix must not change the `sync()` signature.
+- `main()` is the only place that prints. Adding `--json` there is contained.
+- `copy_file()` swallows `OSError`, but `sync()` still reports the file as copied. The JSON `copied` list can therefore overstate what landed on disk. This is pre-existing and outside the goal. I'm flagging it, not fixing it (per your "ask before acting" rule).
+- Out of scope, noted only: `collect_stale()` starts its loop at index 1 (skips the first item), and `filter_excluded()` has a mutable default argument. Neither is touched by this goal.
+
+**Execution plan**
+
+**T1. Verify call sites and stdout discipline**
+- Objective: confirm internal callers of `sync()` and that nothing else prints to stdout on the `main()` path.
+- Files: read-only (`synccli.py`, `incremental.py`, any other callers).
+- Agent: `explore`.
+- Risks: a hidden caller depends on the exact return value, or a print exists outside `main()`.
+- Acceptance: a written list of all `sync(` and `print(` references, with the conclusion that `sync()`'s return contract must stay as-is.
+
+**T2. Design the skipped-count plumbing (short design note)**
+- Objective: choose how `main()` gets the total file count without changing `sync()`'s signature. Recommended: extract a helper (e.g. `plan_sync(src, dst)` returning `(to_copy, total)`), have `sync()` delegate to it with identical behavior, and have `main()` use it for `--json`. The alternative (calling `build_manifest` twice in `main()`) is simpler but scans the tree twice.
+- Files: none modified; a short design note in the task report.
+- Agent: `cheap-design`. Escalate to `cheap-design-review` only if the helper approach has a real tradeoff you want checked.
+- Risks: double scan cost; accidental behavior change in `sync()`.
+- Acceptance: the note fixes the helper name, its return shape, and confirms `sync(src, dst, dry_run=False)` is unchanged.
+
+**T3. Implement `--json` and dry-run interplay**
+- Objective: add `--json` to the argparse parser. In JSON mode, print exactly one object: `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` where `skipped = total - len(copied)`. With `--dry-run`, `copied` lists would-copy files. Human mode prints one path per line, unchanged. Exit code stays `0`.
+- Files to modify: `synccli.py` (`main()`, plus the helper from T2). No new dependencies; stdlib only, Python 3.10 compatible.
+- Agent: `cheap-code`.
+- Risks: a stray print on the JSON path; `skipped` miscounted in dry-run; path values not the ones passed on the CLI.
+- Acceptance: `python3 -m synccli --json SRC DST` emits one parseable JSON object on stdout and nothing else; `python3 -m unittest -v` still passes for existing tests.
+
+**T4. Add JSON tests**
+- Objective: add unit tests to `test_synccli.py` covering: valid JSON; the four keys present with correct types; `skipped` count on first and second sync; dry-run in JSON mode lists would-copy files and writes no files and no manifest in `dst`; stdout contains only the JSON object (use `contextlib.redirect_stdout` or `capsys`-style capture); human mode output unchanged.
+- Files to modify: `test_synccli.py`.
+- Agent: `cheap-code`, after T3 (same session only if T3 needs a minor fix; otherwise a fresh session with a self-contained brief).
+- Risks: tests that rely on `tempfile` leftovers or on mtime resolution; flaky second-sync assertions.
+- Acceptance: `python3 -m unittest -v` passes with the new tests; each new test fails if the feature is removed (spot check one).
+
+**T5. Review of T3 + T4 diff**
+- Objective: check the diff against GOAL.md: stdout purity, `sync()` signature unchanged, no new deps, dry-run semantics, human-mode output unchanged.
+- Files: read-only.
+- Agent: `cheap-review`, a fresh reviewer with a self-contained prompt.
+- Classification: minor findings go back to `cheap-code`; a major finding escalates to `strong-code`, announced to you first.
+- Acceptance: review verdict with no open major findings.
+
+**T6. Final verification (no agent needed beyond a shell check)**
+- Objective: run the full suite and two manual checks: `python3 -m synccli --json SRC DST` and `python3 -m synccli --json --dry-run SRC DST` on a temp tree. Confirm JSON parses and `dst` is untouched in the dry-run case.
+- Files: none.
+- Agent: run directly by the orchestrator; this is a check, not an implementation.
+- Risks: a dirty test environment masking failures.
+- Acceptance: suite green; both manual runs behave as specified; `git diff` touches only `synccli.py` and `test_synccli.py`.
+
+**T7. Escalation gate (conditional, not booked)**
+- Run `strong-review` only if T5 or T6 shows a major finding that cheap rungs did not settle. Do not pre-book it.
+
+**Optional, needs your yes:** update README.md to mention `--json` (README currently only points to `--help`, which will show the flag automatically). Not included in the tasks above.
+
+**Open question for you:** should `copied` in JSON mode reflect what was actually written (requires changing `copy_file` error reporting, which alters human-mode output too), or the planned list as today? The plan assumes today's semantics, which matches GOAL.md's wording.

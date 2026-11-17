@@ -1,0 +1,36 @@
+## Critique of DESIGN.md
+
+The design rests on several claims that are false. Fix these before writing any code.
+
+### Wrong assumptions (each one breaks correctness)
+
+1. **"Debounce adds at most 200 ms" (line 16–20) is false.** The quiet period restarts on every change, so a file written continuously (a log, a long build output) never gets copied. Latency has no upper bound. **Fix:** add a max-wait cap (copy after N seconds no matter what).
+2. **"Pending set bounded by one poll's worth" (line 21–24) contradicts point 1.** Files that keep changing stay pending, and a big burst (`git checkout`, a full rebuild) adds thousands of entries at once. Memory is bounded only by the tree size, and you have no backpressure. **Fix:** cap the pending set or the copy rate, and measure it.
+3. **The integrity re-stat (line 25–28) doesn't stop torn copies.** The copy writes straight into `dst`, so between the write and the re-stat, and after any crash during the copy, `dst` holds a truncated file. Also, size and mtime at 1 s resolution won't detect a change made within the same second. **Fix:** copy to a temp file in `dst`, fsync, then rename. Compare before and after using ns mtime + size (+ inode).
+4. **"mtime is guaranteed to change on every edit" (line 57–58) is false.** Tools like `touch -d`, `rsync -t`, `cp -p`, git checkouts and archive extraction can set mtime back or keep it the same. Coarse filesystem timestamps and storing whole seconds (line 72–73) make it worse: two edits in the same second look identical. **Fix:** store `st_mtime_ns`, `st_size`, `st_ino` and `st_ctime_ns`, and hash when they're ambiguous. Don't let synccli's old manifest format drive syncd's change detection.
+5. **The "<100 ms scan of 50k files" figure is a warm-cache best case.** On a cold cache, under build I/O load, on network or encrypted filesystems, or with antivirus on macOS, a scan can take seconds. A walk every 500 ms (~100k stat calls/s) then runs constantly, competes with the build, and drains the battery on a workstation. **Fix:** benchmark under load, and either use adaptive polling or watchers.
+
+### Crash safety and concurrency (will lose or corrupt data)
+
+6. **Rewriting the manifest in place, repaired by the journal (line 32–34, 59–61), only works if the journal is complete and durable.** Nothing says the journal is fsynced, compacted or truncated. If the manifest is torn and the journal has been trimmed, state is lost. If the journal is never trimmed, it grows forever and replay slows down. **Fix:** write the manifest to a temp file, fsync, rename (one fsync per cycle is cheap), and truncate the journal after each commit. The "double write amplification" argument doesn't hold.
+7. **Replaying in append order (line 35–37) ignores deletions.** If deletes aren't written to the journal, replay brings deleted files back into the manifest. **Fix:** journal deletes too, and replay the latest event per path.
+8. **The lock scope (line 44–48) contradicts the single-instance claim (line 41–43).** Releasing the lock before the manifest commit lets two instances run at once and overwrite each other's manifest. "Merges cleanly" is not true for a whole-file rewrite. A PID lockfile is also stale after a crash, and PIDs get reused. **Fix:** hold an `flock`/`fcntl` lock for the whole life of the process. The kernel releases it if the process dies.
+
+### Deletion risks
+
+9. **A transient error can delete files from `dst`.** If `src` is temporarily unreadable (unmounted, a permission error, an `os.walk` error swallowed by the default `onerror=None`), the walk looks empty and the reconcile step deletes all of `dst`. **Fix:** treat walk errors as "unknown", not "gone". Refuse a mass delete (for example more than X% of files) without confirmation. Check that the `src` root exists and is the same device.
+10. **Handling renames as delete + create** means a large directory rename copies everything again and leaves a window where `dst` is missing the files. That's acceptable at this scale, but say so explicitly. Using inode tracking would avoid it.
+11. **Not covered at all:** symlinks (and loops), permissions and modes, empty directories, `dst` living inside `src`, case-insensitive filesystems on macOS, and files that can't be read (a retry storm every 500 ms with no backoff).
+
+### Operations
+
+12. **Hard-coded constants and logging to stdout are weak for a daemon.** Make the intervals configurable with validation instead of fixing them. Expose a lag metric (age of the oldest pending file) and an error count. "Pending count" alone won't show that one file has been starving forever.
+
+### Change first, in priority order
+1. Copy via temp file + fsync + rename into `dst`.
+2. Hold an flock-based lock for the whole process life.
+3. Commit the manifest atomically, journal deletes, and compact the journal.
+4. Detect changes with ns mtime + size + inode/ctime, not whole-second mtime.
+5. Cap the debounce with a max-wait and bound the pending set.
+6. Add a mass-delete guard and handle walk errors explicitly.
+7. Benchmark the scan under build load before rejecting watchers. FSEvents/inotify with a fallback rescan is the standard approach.

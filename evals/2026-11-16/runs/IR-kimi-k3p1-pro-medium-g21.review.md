@@ -1,0 +1,5 @@
+- **Major — Failed copies are reported as completed** (`incremental.py:23-25`). `copy_file()` suppresses `OSError` and returns `None` for both success and failure. Consequently, `copy_many()` appends the destination to `done` even when nothing was copied or the destination was only partially written. Callers can therefore treat unsynchronized or truncated files as successfully synced.
+
+- **Major — Manifest merging can retain stale state for updated files** (`incremental.py:38-39`). An entry from `new_manifest` is ignored whenever its mtime is lower than the old entry’s mtime. Restored files, timestamp-preserving copies, and clock corrections can all legitimately move mtimes backward while content or size changes. The returned manifest then disagrees with the current file state, causing incorrect change detection and potentially repeated synchronization.
+
+- **Minor — Exclusions leak between calls** (`incremental.py:11`). The mutable default `excluded=[]` is shared across invocations. Paths collected by one call appear in later calls’ results even when those paths are absent from the later input, violating the function’s filtering contract.

@@ -1,0 +1,5 @@
+`DESIGN-d1.md` written (716 lines), repo otherwise untouched, suite still green. Worked alone; the design was grounded by executing, not just reading:
+
+- **Measured, not guessed**: prototyped the run algorithm against the real `synccli`/`snaputil` on a 1 GB / 30k-file tree — first full backup **10.5 s** → budget ≤ 60 s with derivation; steady runs 13.4 s; all scaling bounds given as formulas with measured constants (387 B/manifest entry, 79 B/index entry, 54 MB peak RSS, 1,048 MiB real vs 2,064 MB apparent disk).
+- **20/20 behavior checks verified**: flock serialization, atomic rename publish (reader thread: 35 observations, 0 partial), staging GC via `collect_stale`, corrupt-index discard/re-derive/report/fallback, ENOENT/EACCES skip handling, prune-vs-open-fd, interrupted-prune self-heal.
+- **Real bugs found and named as overrides**: `safe_snapshot_path` leading-`..` escape (snaputil.py:62), `is_stale` docstring/code mismatch (snaputil.py:73), `copy_file` error swallow + `sync`'s lying manifest (synccli.py:68-69, 85-86), and a prototype-surfaced sequence-number collision after prune (fixed as max+1).

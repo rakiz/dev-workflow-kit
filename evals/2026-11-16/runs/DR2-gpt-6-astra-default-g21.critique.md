@@ -1,0 +1,17 @@
+**Change the design before implementation.** Several guarantees contradict the proposed mechanisms.
+
+1. **Silent missed edits — lines 58, 72–73.** Whole-second mtime + size misses same-size edits within a second; the destination can remain stale indefinitely. Timestamps can also be preserved deliberately. **Change first:** version the manifest for nanosecond metadata and define a content-verification strategy if exact convergence is required. Higher timestamp precision alone is not a correctness guarantee.
+
+2. **Single-instance protection has a hole — lines 41–48.** Releasing the lock before committing lets another daemon scan/copy while the first commits. Self-describing entries do not make concurrent whole-manifest rewrites merge safely; updates can be lost. **Change:** hold an OS-backed lock for the daemon’s lifetime, keyed to the destination, covering copies, journal operations, and commits.
+
+3. **Re-statting cannot protect destination integrity — lines 25–28.** An in-place copy exposes partial contents immediately. A crash leaves them behind; detecting a source change afterward does not undo that. **Change:** copy to a same-filesystem temporary file, validate the source, then atomically replace the destination. Define what happens when the source never stabilizes; metadata checks cannot guarantee a coherent snapshot of arbitrary concurrent writes.
+
+4. **The journal is not a specified recovery protocol — lines 29–36, 59–61.** A torn manifest may be unparseable, and replay cannot reconstruct unchanged entries unless the journal retains sufficient history. Copy completion order alone says nothing about durable write order. **Change:** specify atomic manifest checkpoints, journal record framing/torn-tail handling, flush ordering, checkpoint/truncation rules, and recovery for a published copy without a journal record. Distinguish process-crash from power-loss guarantees.
+
+5. **The debounce latency guarantee is false — lines 16–20.** Continuous observed changes reset the timer forever. If eligibility is checked only each poll, a 200 ms quiet period also waits for the next 500 ms tick. **Change:** choose explicitly between waiting for stability and bounded freshness; use independent deadlines and a maximum deferral where appropriate. Do not promise both stable snapshots and bounded latency for continuously modified files without source cooperation.
+
+6. **Load is bounded by neither the scan measurement nor one poll — lines 12–24, 65–68.** This proposes roughly **100,000 file stats/second**, plus traversal and full-manifest rewrites. Cold caches and slow storage invalidate the assumed headroom. When arrivals exceed copy throughput, pending work spans many polls; one huge copy can delay everything. **Change:** benchmark representative storage, separate scanning from bounded copy scheduling, coalesce by path, and track oldest pending age, queued bytes, scan time, and errors. A dict bounds duplicate entries, not backlog latency.
+
+7. **Absence must not be inferred from a failed scan — lines 38–40, 49–51.** An inaccessible subtree or unavailable source can look like mass deletion and trigger destructive reconciliation. **Change:** authorize deletes only from successfully enumerated regions; suspend them when source availability is uncertain.
+
+**Priority:** settle change detection, locking, atomic publication, and recovery first. Then establish achievable latency and overload behavior.

@@ -1,0 +1,85 @@
+## Execution Plan: JSON Output Mode + Dry-Run UX (`GOAL.md`)
+
+### Overview & Constraints
+- **Goal:** Add `--json` machine-readable output (`{"copied": [...], "skipped": N, "src": ..., "dst": ...}`) to `synccli`, preserve `--dry-run` and default human-mode behavior, and cover the new behavior with unit tests in `test_synccli.py`.
+- **Hard Constraints (`GOAL.md` & `README.md`):**
+  - Python 3.10 stdlib only; no third-party dependencies.
+  - Keep `sync(src_root, dst_root, dry_run=False)` signature and return contract (`list[str]`) unchanged for existing callers.
+  - Verification command: `python3 -m unittest -v` and `python3 -m synccli --help`.
+- **Orchestrator Routing Policy:** Default to the cheap pipeline (`explore` → `cheap-design-review` → `cheap-code` → `cheap-review`). Never pre-book `strong-*` agents; escalate to `strong-code` / `strong-review` only on a demonstrated stall (2–3 failed attempts) or a major review finding.
+
+---
+
+### Task 1: Baseline Codebase & Test Audit
+- **Objective:** Inspect `synccli.py` and `test_synccli.py` to map the current CLI entrypoint (`main(argv=None)`), confirm how `sync()` computes `to_copy` vs. total source files, and establish the baseline status of `python3 -m unittest -v`.
+- **Files to create/modify:** None (read-only).
+- **Pipeline agent:** `explore` (subagent: `explore`).
+- **Risks:**
+  - Pre-existing unrelated test failures in `test_synccli.py` (e.g., `collect_stale` in `synccli.py:55` starts at index `1`, which affects `TestCollectStale.test_first_item_stale_is_included` when running the full test suite). Must be flagged to the user rather than fixed silently out of scope.
+  - Misidentifying how `skipped` should be counted if `sync()` only returns `to_copy`.
+- **Verifiable acceptance criterion:** Produces a short baseline report documenting: (1) exact `sync()` signature and return type, (2) how total source files vs. copied files are derived, and (3) exact output of `python3 -m unittest -v` on the unmodified tree.
+
+---
+
+### Task 2: Interface & Skipped-Count Design Check
+- **Objective:** Validate the minimal design for computing `"skipped"` and emitting JSON in `main()` without altering `sync(src_root, dst_root, dry_run=False)`'s signature or return value (e.g., computing `skipped = len(scan_files(args.src)) - len(copied)` or via an internal helper while keeping `sync()` intact).
+- **Files to create/modify:** None (read-only design critique of the proposed approach before edits).
+- **Pipeline agent:** `design-review` (subagent: `cheap-design-review`; note: task is small enough that full `cheap-design` doc generation is optional, or kept to an inline contract check).
+- **Risks:**
+  - Breaking backwards compatibility if `sync()` is changed to return a tuple `(copied, skipped)` or dict instead of `list[str]`.
+  - Double-scanning edge cases or inconsistent path formatting for `"src"` and `"dst"` (must echo `args.src` and `args.dst` as passed).
+  - Unintended extra stdout writes when `--json` is enabled.
+- **Verifiable acceptance criterion:** Approved design contract specifying:
+  1. `sync(src_root, dst_root, dry_run=False) -> list[str]` remains untouched in signature and return type.
+  2. `main(argv=None)` adds `--json` (`action="store_true"`).
+  3. JSON payload schema is exact: `{"copied": copied, "skipped": skipped, "src": args.src, "dst": args.dst}` printed as a single JSON object to `stdout`, with exit code `0`.
+
+---
+
+### Task 3: Implement `--json` Flag and `--dry-run` Interplay
+- **Objective:** Update `synccli.py` (`main`) to accept `--json`, compute `skipped` (`len(scan_files(args.src)) - len(copied)`), emit solely the single JSON object on stdout when `--json` is set (both with and without `--dry-run`), and preserve one-path-per-line stdout output when `--json` is omitted.
+- **Files to create/modify:**
+  - Modify: `synccli.py`
+- **Pipeline agent:** `impl` (subagent: `cheap-code`; escalate to `strong-code` only on demonstrated stall).
+- **Risks:**
+  - Printing per-file lines in addition to the JSON payload when `--json` is passed.
+  - Mutating the destination directory or writing `.sync_manifest.json` when `--dry-run` is combined with `--json`.
+  - Altering exit code behavior (must still return `0`).
+  - Negative or inaccurate `skipped` count when all or some files are unchanged across consecutive runs.
+- **Verifiable acceptance criterion:**
+  - `python3 -m synccli --help` displays `--json` and `--dry-run`.
+  - Running `main(["<src>", "<dst>", "--json"])` emits valid single-line/single-object JSON parsable by `json.loads()` containing exact keys `{"copied", "skipped", "src", "dst"}` and returns `0`.
+  - Running `main(["<src>", "<dst>", "--dry-run", "--json"])` reports would-be-copied paths in `"copied"` and leaves `<dst>` untouched.
+  - Running `main(["<src>", "<dst>"])` (human mode) still prints one relative path per line and nothing else.
+
+---
+
+### Task 4: Add Unit Tests for JSON Mode, Dry-Run Interplay, and Human Mode
+- **Objective:** Add unit tests to `test_synccli.py` covering `--json` output validity, required keys and values (`copied`, `skipped`, `src`, `dst`), second-run `skipped` increment (`copied == []`, `skipped == N`), `--json --dry-run` non-mutation semantics, and human-mode regression check.
+- **Files to create/modify:**
+  - Modify: `test_synccli.py`
+- **Pipeline agent:** `impl` (subagent: `cheap-code`, resuming Task 3's `task_id` session since it shares the exact file context and contract).
+- **Risks:**
+  - Not capturing `stdout` cleanly (must use `io.StringIO` + `contextlib.redirect_stdout`) or leaking temporary directories.
+  - Testing only first-run sync where `skipped == 0`, missing the case where `skipped > 0` on subsequent syncs.
+  - Failing to assert that `--dry-run --json` does not create destination files or `.sync_manifest.json`.
+- **Verifiable acceptance criterion:**
+  - `python3 -m unittest test_synccli.TestSync -v` (and any new `TestCliJson` test class in `test_synccli.py`) passes 100%, verifying JSON parsing, exact keys, `skipped` counts on initial and repeat runs, `--dry-run` interplay, and human mode output.
+
+---
+
+### Task 5: Mandatory Diff & Test Review
+- **Objective:** Review the `git diff` across `synccli.py` and `test_synccli.py` against all requirements and constraints in `GOAL.md`. Classify any findings as `minor` or `major`.
+- **Files to create/modify:** None (read-only review).
+- **Pipeline agent:** `review` (subagent: `cheap-review`, fresh session with self-contained brief).
+- **Risks:**
+  - Overlooking subtle stdout pollution (e.g., trailing logs or blank lines in human mode when `copied` is empty).
+  - Overlooking changes to `sync()` signature or stdlib-only constraint violations.
+- **Verifiable acceptance criterion:**
+  - Reviewer produces a structured verdict with zero `major` or `minor` unresolved findings, explicitly confirming:
+    1. `sync()` signature and return value are unchanged.
+    2. Only Python 3.10 stdlib modules are used.
+    3. `--json` prints strictly one JSON object with `copied`, `skipped`, `src`, `dst` and exit code `0`.
+    4. `--dry-run` + `--json` lists would-be-copied files without modifying `dst`.
+    5. All new and existing `TestSync` / CLI tests pass.
+  - *(Conditional remediation)*: If `minor` findings exist, resume the Task 3/4 `cheap-code` `task_id` to fix them and re-verify with a fresh `cheap-review`. If `major` findings exist, notify the user and escalate to `strong-code` → `strong-review`.

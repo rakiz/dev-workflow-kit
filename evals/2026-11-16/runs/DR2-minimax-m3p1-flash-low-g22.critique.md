@@ -1,0 +1,41 @@
+Read DESIGN.md, GOAL.md, state.py, syncd.py. Critique below — the design has several claims that are simply false, and two of them are false *in the code as written*, not just in prose.
+
+## Claims that don't survive contact with the code
+
+**1. "Exactly one daemon ever writes into `dst`" — false.** The lock is taken and released *every poll cycle* (syncd.py:65-67), so it is not a single-instance lock at all; two daemons interleave freely. And the DESIGN sentence "the commit does not need the lock … a second instance … produces entries that merge cleanly" contradicts the single-instance guarantee in the same document. Worse, the commit is `load → update → write` (syncd.py:68-70): two instances lose each other's manifest entries, and their journal appends to one file interleave. Also `acquire_lock` is check-then-write (state.py:40-44), a TOCTOU race, and there is no staleness check — a `kill -9` leaves a lock file and the daemon can never restart.
+
+**2. "A partially written manifest is repaired by journal replay on the next start" — false.** `load_manifest` does `json.load` (state.py:29); a truncated manifest raises `JSONDecodeError` and the daemon dies on startup. Replay folds journal entries *into* a manifest; it cannot repair a corrupt one. `replay_journal` is never even called in syncd.py.
+
+**3. "the manifest after a restart reflects exactly the last copy of each file" — false.** In `flush_one`, the changed-during-copy branch requeues the new state but still journals and `self.synced[rel] = state` the *old* state (syncd.py:60-61), i.e. it records a state that does not match what is in `dst`. The journal and the manifest both lie after a requeue.
+
+**4. "a transient source error never takes the daemon down" — there is no error handling at all.** `open(src)` in `flush_one` (syncd.py:46) raises `FileNotFoundError` if the file vanished, and `snapshot` raises on a broken symlink or a stat error. The exception propagates out of `run()` and kills the daemon. The DESIGN describes behavior the implementation must add, but never states it as a requirement.
+
+**5. "mtime is guaranteed to change on every edit" — false at the stored resolution.** `int(st.st_mtime)` (state.py:19) is whole-second: same-second rewrite with the same size is invisible, and both `snapshot()` and the post-copy `os.stat` compare use it. This is a silent correctness hole, not a performance one. Store `st_mtime_ns` (and consider `st_ctime_ns`) — at 1s filesystem granularity you also need a content hash fallback.
+
+**6. Debounce latency is not "poll + 200 ms".** The quiet-period check only runs *inside* a poll (syncd.py:38-40), so the effective debounce quantum is the poll interval, not 200 ms — a file changed just after a poll waits ~500 ms to be noticed, plus 200 ms, plus up to another poll to drain: ~1.2 s real. And "every further observed change restarts the quiet period" means a file rewritten more often than every 200 ms **never syncs at all** — permanent divergence for append-style files (logs, caches, DB files). The design treats this as a feature ("coalesces build bursts") with no starvation bound.
+
+## What breaks at 50 000 files
+
+- **The full-manifest rewrite per cycle is the killer.** `commit_manifest` writes the entire manifest as JSON every cycle — ~4–6 MB for 50 k files — and `load_manifest` re-parses that same blob at the start of every cycle. That is ~10 MB/s of writes and ~100 ms+ of parse, forever, on a laptop. Combined with the scan, the effective cycle is > 1 s, so the "500 ms poll" doesn't exist and latency is seconds, not 700 ms.
+- **The scan claim is an optimistic one.** "well under 100 ms" for 50 k stats is a warm-cache, fast-SSD, best-case number. Cold cache or a spinning disk puts a full scan at seconds, and Python's per-file overhead alone (walk + stat + dict) is ~0.3–0.5 s. On a workstation daemon, a full scan every 500 ms also means the disk never idles — battery and wear.
+- **Memory is not flat.** `pending` + `observed` + `synced` + the per-poll `snapshot()` dict = three full copies of tree state in Python dicts (tens of MB, ~50 k small dicts each), with 50 k fresh dict allocations per poll for GC to chew on.
+- **The copy is not atomic.** `open(dst, "wb")` truncates in place: a reader of `dst` sees a partial file, and a crash mid-write leaves a permanently truncated file in `dst` with no journal entry to repair it. The DESIGN's "dst never ends up holding a truncated copy" is false. Destination files need tmp+rename too, not just the manifest.
+- **No fsync anywhere.** `journal_append` and `commit_manifest` don't flush. Power loss can leave an empty manifest (→ crash on next start) or lose a journal entry.
+- **Deletion is specified but not implemented**, and once implemented it is dangerous: "file disappeared from src → delete from dst" turns a transient src unmount / flaky mount / permission error on the src root into a *mass deletion of dst*. Deletion needs a guard (src root successfully scanned + N consecutive absences) and must never run from the audit path.
+- **No SIGTERM handling** → shutdown leaves a stale lock and an uncommitted manifest.
+- **Unaddressed scope:** symlinks (broken → crash on stat), FIFOs/devices (`open()` on a FIFO blocks the daemon forever), empty directories (never created in dst), file permissions/exec bit (not preserved), hardlinks (broken into separate copies), and `src`/`dst` nested or identical (catastrophic — no validation).
+
+## Decisions to change first, in order
+
+1. **Lock for the daemon's lifetime**, using `fcntl.flock` on a lock file (atomic, auto-released on process death, no stale-lock problem). Delete the per-cycle lock and the "commit doesn't need the lock" argument — they are incompatible with the single-instance claim.
+2. **Atomic + durable manifest**: write tmp → `fsync` → `os.replace` → fsync dir. Then the journal is optional for the manifest path, and the "corrupt manifest repaired by replay" argument disappears. This must land before journal compaction (GOAL #3), otherwise compaction + non-atomic commit = permanent data loss.
+3. **Journal compaction is wrong as stated** — "after a clean manifest commit, truncate" is only safe once (2) is atomic and fsynced. Also: the journal lives inside `dst`, which is supposed to mirror `src` — it pollutes the output tree.
+4. **Stop rewriting the whole manifest every cycle.** Commit at most every N seconds or on quiescence, and/or shard it. Otherwise the 50 k-file case fails on I/O before it fails on anything else.
+5. **Replace size+mtime with size+mtime_ns (+ctime_ns)** and keep a content-hash fallback for the same-second-rewrite case. Otherwise the daemon silently misses edits.
+6. **Give the debounce a starvation bound**: flush after a max wait regardless of continued changes (e.g. flush at 2 s even if still changing) instead of restarting forever, and treat "still changing" as a copy-of-best-effort with a follow-up requeue, not an infinite deferral.
+7. **Define the deletion policy explicitly and safely** (guard on successful scan + consecutive absences + never during `--verify`).
+8. **Make GOAL #1/#2's `missing_in_src` non-destructive by default** — an audit mode that deletes files is a footgun. Require an explicit `--prune` and print the decision, as GOAL #2 says.
+9. **Add the missing robustness requirements to DESIGN**: try/except per file with bounded retry, skip-and-continue on scan errors, SIGTERM handler with lock release and final commit, symlink/FIFO/special-file policy, permission preservation, and src/dst sanity validation.
+10. **Reconsider the scan cost.** Even if the manifest is fixed, a full 50 k-file walk twice a second is the design's weakest assumption. A platform watcher (FSEvents on macOS, inotify on Linux) plus a *periodic* full scan as a safety net is the standard shape; the DESIGN rejects watchers for portability, but the daemon ships per-platform anyway (the repo is a dev workstation tool) — a `stat`-only fallback behind a platform check keeps portability without paying the scan cost every poll.
+
+One more: DESIGN's "content hashing: an extra full read of every changed file per poll" is a strawman — hashing is only needed for the rare same-second-same-size case, not every file every poll, so it costs almost nothing when scoped correctly.

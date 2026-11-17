@@ -1,0 +1,42 @@
+Read `DESIGN.md`, `syncd.py`, `state.py`, `GOAL.md`. The design's *reasons* are largely wrong even where the conclusions happen to be OK — that's the bigger problem. Ordered by severity.
+
+## Wrong assumptions (each is a live bug in the code as specced)
+
+1. **"mtime is guaranteed to change on every edit" + whole-second resolution.** `state.py:19` stores `int(st.st_mtime)`. Two edits in the same second with the same size produce an *identical* state → the daemon never sees the change. This is guaranteed to happen in build bursts (hundreds of files written within seconds). Everything downstream (debounce, integrity re-check at `syncd.py:52`) inherits the blindness. Fix: `st_mtime_ns`. Note the GOAL.md constraint "manifest format compatible with synccli" — decide now whether to add an `mtime_ns` key (additive) or bump the format.
+
+2. **"dst never ends up holding a truncated copy."** False. `syncd.py:49` opens `dst` with `"wb"`, which truncates immediately, then writes. Any consumer of `dst` (the whole point — a dev build reading outputs) can read a half-written file. The re-stat check only prevents *marking as synced*; it doesn't prevent the partial file existing. The design rejected tmp-file+rename — but it rejected it for the *manifest*, where atomicity is irrelevant, and kept a plain rewrite for the *copies*, where atomicity is the entire requirement. **Flip this decision**: write to `dst/.tmp` + `os.replace`.
+
+3. **"exactly one daemon ever writes into dst."** Contradicted by the lock-scope paragraph two sections later. The lock is released before the manifest commit, so a second daemon can be mid-poll. And `acquire_lock` (`state.py:40`) is a TOCTOU race: `os.path.exists` then `open(..., "w")` is not atomic — two daemons can both pass. Needs `O_CREAT|O_EXCL`.
+
+4. **"a second instance ... produces entries that merge cleanly."** False. `commit_manifest` rewrites the *entire* file. B's commit is last-writer-wins over a manifest B loaded *before* A's commit → A's entries are silently clobbered. There is no merge; there is data loss.
+
+5. **"a transient source error never takes the daemon down."** False. `flush_one` has no `try/except`: a source file deleted between scan and copy raises `FileNotFoundError` → propagates out of `run()` → daemon dead. Same for `snapshot()`: `os.stat` on a dangling symlink raises and kills the daemon permanently. One broken symlink in the tree = permanent outage.
+
+6. **"a partially written manifest is repaired by journal replay."** `replay_journal` is **never called** anywhere, and `load_manifest` doesn't catch `json.JSONDecodeError`. Crash during commit → next start raises → daemon crash-loops forever. Also `acquire_lock` writes a PID but never checks liveness → a crashed daemon leaves a stale lock and syncd can never restart.
+
+7. **"pending set is bounded, memory stays flat" / "at most 200 ms latency."** Both false for a file under continuous write: it never reaches a quiet period, so it is *never* copied — unbounded latency, and `pending`/`observed`/`synced` are never pruned, so they grow without bound. The 200 ms debounce is also a fiction: quiet periods are only evaluated at poll boundaries, so the real debounce granularity is the 500 ms poll. Worst-case single-file latency is ~500 ms detection + ~500 ms + copy ≈ 1 s, not 700 ms.
+
+8. **"a measured full scan ... well under 100 ms ... ample headroom."** Unverified. `os.walk` + `os.stat` + 50k small dict allocations in Python is plausibly 150–400 ms — i.e. 30–80% of the poll budget before any copying. Measure it before betting on it; the design treats the one number the whole architecture rests on as settled.
+
+## What breaks under real load
+
+- **Per-cycle O(N) manifest I/O.** The manifest is loaded **twice** per cycle (`syncd.py:30` and `syncd.py:68`) and unconditionally dumped in full every 500 ms. At 50k entries that's ~3 MB parsed twice and written once, per cycle, forever (~6 MB/s write amplification) — and it's the dominant cost, far more than the scan. It is linear in file count; it breaks at 100k files.
+- **Copies are serial, full-file, and buffered in RAM.** `data = f.read()` (`syncd.py:47`) loads the whole file into memory — a multi-GB artifact OOMs the daemon. No incremental copy, no per-cycle work cap: a burst of hundreds of files blocks the poll loop for seconds, and latency spikes exactly when it matters.
+- **Deletions are never implemented**, though the design claims a reconcile step deletes from `dst`. `poll()` only iterates files present in the scan. `dst` drifts forever.
+- **`snapshot()` filters dot-*directories* but not dot-*files*** (`state.py:14`): `.env` is copied, `.git/` is skipped. Inconsistent and surprising.
+- **Logging to stdout every cycle** (2 lines/s, unbounded): if stdout is a pipe with a gone reader → `BrokenPipeError` crash. And "pending count" is the wrong falling-behind metric — cycle duration vs. poll interval is the right one.
+
+## Decisions to change first
+
+1. **Copy atomically** (tmp + `os.replace`) — consumers must never see a partial file.
+2. **`st_mtime_ns`** in the manifest; decide synccli compat explicitly.
+3. **Manifest in memory, written only when dirty**, via tmp+rename+fsync. This removes the per-cycle O(N) rewrite *and* makes journal compaction trivial.
+4. **One daemon-lifetime lock**, `O_CREAT|O_EXCL`, with stale-PID detection.
+5. **Wrap all per-file I/O in try/except.** ENOENT → treat as deletion; a single bad file must never kill the loop.
+6. **Chunked copy** (`shutil.copyfileobj`) + a per-cycle copy time budget.
+7. **Fix `snapshot()`**: `os.lstat` (no symlink following), consistent dotfile policy, per-file error tolerance.
+8. **Implement reconciliation/deletion** or delete the claim from the design.
+9. **Measure the scan**, then revisit polling vs. watch+periodic-rescan (the rejection of FSEvents is asserted, not argued).
+10. **Log to stderr, rate-limited**, with cycle duration as the metric.
+
+The design's stated goals are sound; the failure is that its justifications are asserted rather than verified, and the crash-safety and single-instance claims are the ones the code most directly contradicts.

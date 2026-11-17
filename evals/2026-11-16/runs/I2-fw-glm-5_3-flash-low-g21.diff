@@ -1,0 +1,248 @@
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-25677/cache.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/cache.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-25677/cache.py	2026-11-17 03:24:38
+@@ -40,12 +40,33 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _version_int(value):
++    try:
++        return int(value)
++    except (TypeError, ValueError):
++        return None
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state; a missing file is just an empty cache. A
++    state file that cannot be parsed, or that was written by a future
++    schema version (a top-level "version" greater than REGISTRY_VERSION),
++    is treated as an empty cache so the run can proceed and rewrite a
++    valid state file."""
+     if not os.path.exists(path):
+         return {}
+-    with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++    try:
++        with open(path, "r", encoding="utf-8") as fh:
++            state = json.load(fh)
++    except (OSError, ValueError):
++        return {}
++    if not isinstance(state, dict):
++        return {}
++    version = _version_int(state.get("version"))
++    if state.get("version") is not None and (
++            version is None or version > int(REGISTRY_VERSION)):
++        return {}
++    return state
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-25677/reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/reportgen.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-25677/reportgen.py	2026-11-17 03:24:38
+@@ -16,6 +16,7 @@
+ import json
+ import os
+ import sys
++from html import escape
+ 
+ import cache
+ import transforms
+@@ -76,7 +77,9 @@
+             if tname:
+                 try:
+                     value = transforms.apply(tname, raw)
+-                except transforms.TransformError as exc:
++                except Exception as exc:
++                    # Any failure of the transform (a raised TransformError
++                    # or an unexpected crash) is a failed cell.
+                     skipped_rows.append(
+                         {"row": row_no, "column": col, "reason": str(exc)})
+                     continue
+@@ -128,7 +131,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % escape(name))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -136,9 +139,10 @@
+         summary = res["summary"]["columns"]
+         for col in sorted(summary):
+             stats = summary[col]
+-            sample = ", ".join(str(v) for v in stats["sample"])
++            sample = ", ".join(escape(str(v)) for v in stats["sample"])
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (escape(col), stats["non_empty"], stats["distinct"],
++                            sample))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+@@ -159,22 +163,31 @@
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
+-            results[name] = {"digest": digest, "rows": entry["rows"],
+-                             "generated_from": entry["generated_from"],
+-                             "summary": entry["summary"]}
++        if (entry and entry.get("digest") == digest
++                and entry.get("rules_fp") == rules_fp
++                and entry.get("registry_version") == cache.REGISTRY_VERSION):
++            summary = entry["summary"]
++            rows = entry["rows"]
++            gen_from = entry["generated_from"]
+         else:
+             summary = summarize_file(header, data_rows, rules)
+-            results[name] = {"digest": digest, "rows": len(data_rows),
+-                             "generated_from": generated_from(header, data_rows, rules),
+-                             "summary": summary}
+-            pending[name] = cache.make_entry(path, digest, len(data_rows),
++            rows = len(data_rows)
++            gen_from = generated_from(header, data_rows, rules)
++            pending[name] = cache.make_entry(path, digest, rows,
+                                              summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
++        # Validate before anything is written: a summary derived from a
++        # failed transform pass (freshly computed or read back from the
++        # cache) must yield neither a report nor a cache entry.
++        validate_summary(summary)
++        results[name] = {"digest": digest, "rows": rows,
++                         "generated_from": gen_from,
++                         "summary": summary}
+ 
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
++    if pending:
++        cache.save_state(pending, path=cache_path)
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/test_reportgen.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-25677/test_reportgen.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/test_reportgen.py	2026-11-13 04:48:28
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-25677/test_reportgen.py	2026-11-17 03:24:38
+@@ -41,7 +41,20 @@
+         with self.assertRaises(transforms.TransformError):
+             transforms.apply("nope", "x")
+ 
++    def test_boolean_affirmative(self):
++        for raw in ("yes", "YES", "Yes", "true", "TRUE", " true "):
++            self.assertEqual(transforms.apply("boolean", raw), 1.0)
+ 
++    def test_boolean_negative(self):
++        for raw in ("no", "NO", "false", "False", " FALSE "):
++            self.assertEqual(transforms.apply("boolean", raw), 0.0)
++
++    def test_boolean_rejects_other_input(self):
++        for raw in ("y", "1", "maybe", "", "nope"):
++            with self.assertRaises(transforms.TransformError):
++                transforms.apply("boolean", raw)
++
++
+ class RulesTests(unittest.TestCase):
+     def test_rules_loader_ignores_other_tables(self):
+         tmp = tempfile.mkdtemp(prefix="rg3-rules-")
+@@ -129,6 +142,76 @@
+         self.run_tool()
+         after = json.load(open(self.cache_path))
+         self.assertEqual(before, after)
++
++    def test_future_cache_version_treated_as_empty(self):
++        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
++        with open(self.cache_path, "w") as fh:
++            json.dump({"version": cache.REGISTRY_VERSION + "0",
++                       "big_transactions.csv": {"digest": "x"}}, fh)
++        report = self.run_tool()
++        self.assertEqual(report["total_rows"], 12012)
++        with open(self.cache_path) as fh:
++            state = json.load(fh)
++        self.assertNotIn("version", state)
++        self.assertEqual(state["small_transactions.csv"]["registry_version"],
++                         cache.REGISTRY_VERSION)
++
++    def test_unparseable_cache_treated_as_empty(self):
++        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
++        with open(self.cache_path, "w") as fh:
++            fh.write("{not json")
++        report = self.run_tool()
++        self.assertEqual(report["total_rows"], 12012)
++        self.assertTrue(os.path.exists(self.cache_path))
++
++    def test_stale_registry_version_entry_not_reused(self):
++        self.run_tool()
++        with open(self.cache_path) as fh:
++            state = json.load(fh)
++        for entry in state.values():
++            entry["registry_version"] = "1"
++        with open(self.cache_path, "w") as fh:
++            json.dump(state, fh)
++        report = self.run_tool()
++        self.assertEqual(report["total_rows"], 12012)
++        with open(self.cache_path) as fh:
++            state = json.load(fh)
++        self.assertTrue(all(e["registry_version"] == cache.REGISTRY_VERSION
++                            for e in state.values()))
++
++    def test_failed_transform_leaves_no_report_and_no_cache(self):
++        inp = os.path.join(self.tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "bad.csv"), "w") as fh:
++            fh.write("item\nn/a\n")
++        rules_path = os.path.join(self.tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nitem = "round2"\n')
++        with self.assertRaises(reportgen.ValidationError):
++            reportgen.run(rules_path, inp, self.out, self.cache_path)
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.html")))
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.json")))
++        self.assertFalse(os.path.exists(self.cache_path))
++
++    def test_transform_crash_counts_as_failure(self):
++        inp = os.path.join(self.tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "crash.csv"), "w") as fh:
++            fh.write("item\nx\n")
++        rules_path = os.path.join(self.tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nitem = "boom"\n')
++        original = dict(transforms.REGISTRY)
++        transforms.REGISTRY["boom"] = lambda v: (_ for _ in ()).throw(
++            RuntimeError("crash"))
++        try:
++            with self.assertRaises(reportgen.ValidationError):
++                reportgen.run(rules_path, inp, self.out, self.cache_path)
++        finally:
++            transforms.REGISTRY.clear()
++            transforms.REGISTRY.update(original)
++        self.assertFalse(os.path.exists(self.cache_path))
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.html")))
+ 
+ 
+ if __name__ == "__main__":
+diff -ru --exclude=__pycache__ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-25677/transforms.py
+--- /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/reportgen-eval-repo-i3/transforms.py	2026-11-13 04:48:02
++++ /Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/raw/grid2/bench-v3-25677/transforms.py	2026-11-17 03:24:38
+@@ -56,7 +56,18 @@
+     return "%s-%02d-%02d" % (year, int(month), int(day))
+ 
+ 
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0 (case-insensitive)."""
++    v = value.strip().lower()
++    if v in ("yes", "true"):
++        return 1.0
++    if v in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ REGISTRY = {
++    "boolean": boolean,
+     "trim": trim,
+     "upper": upper,
+     "lower": lower,

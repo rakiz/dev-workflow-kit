@@ -1,0 +1,76 @@
+Here is the ordered execution plan to fulfill `GOAL.md` (`--json` output mode + `--dry-run` interplay + unit tests) while preserving all existing constraints (Python 3.10 stdlib only, zero new dependencies, unchanged `sync(src_root, dst_root, dry_run=False)` signature and return value).
+
+---
+
+### Execution Plan
+
+#### Task 1: Baseline Codebase & Caller Exploration
+- **Objective:** Audit `synccli.py`, `test_synccli.py`, and internal callers across the repo (e.g., `incremental.py`) to verify all call sites of `sync()`, `scan_files()`, and `main()`, confirm how `skipped` count should be derived without altering `sync()`'s signature/return contract, and check baseline test state.
+- **Files to create/modify:** None (read-only exploration).
+- **Pipeline agent:** `explore`
+- **Risks:**
+  - Computing `skipped` via a naive second directory scan (`len(scan_files(src)) - len(copied)`) could experience a TOCTOU mismatch if files change mid-run, versus introducing a private/internal helper (e.g., `_sync_with_stats()` or `sync_report()`) that `sync()` delegates to while keeping `sync(src_root, dst_root, dry_run=False) -> list[str]` untouched.
+  - Existing pre-existing test failures in unrelated functions (e.g., `collect_stale` in `synccli.py`) could obscure new test results if not noted upfront.
+- **Verifiable acceptance criterion:** Exploration report documenting: (1) all callers of `sync()` and `main()`, (2) exact current output of `python3 -m unittest -v`, and (3) the chosen helper structure to obtain `skipped` (`len(src_manifest) - len(to_copy)`) cleanly in a single scan without changing `sync()`'s signature or return type.
+
+---
+
+#### Task 2: Design Check on JSON Contract & `sync()` Compatibility
+- **Objective:** Validate the exact data contract and helper boundary before coding:
+  - Internal helper (e.g., `_sync_detailed(src_root, dst_root, dry_run=False) -> tuple[list[str], int]`) called by both `sync()` (returning `copied` list as before) and `main()` (receiving `(copied, skipped)`).
+  - Exact JSON schema on `stdout`: `{"copied": [...], "skipped": N, "src": args.src, "dst": args.dst}` serialized as a single JSON object via `json.dumps(...)`, with nothing else printed to `stdout` when `--json` is passed.
+  - `--dry-run` + `--json` semantics: `copied` lists files that *would* be copied, `skipped` counts unchanged files in `src`, neither destination files nor `.sync_manifest.json` are written, exit code remains `0`.
+- **Files to create/modify:** None (read-only design critique of the proposed approach).
+- **Pipeline agent:** `design-review` (`cheap-design-review`)
+- **Risks:**
+  - Ambiguity around `src` and `dst` values in JSON output (must preserve the exact `args.src` / `args.dst` strings passed on CLI rather than unexpectedly normalizing/resolving symlinks unless tested otherwise).
+  - Accidental `dst_root` directory creation or manifest mutation during `--dry-run`.
+  - Extra trailing lines or human-mode path lines leaking to `stdout` when `--json` is active.
+- **Verifiable acceptance criterion:** Written design-review sign-off confirming zero signature drift on `sync(src_root, dst_root, dry_run=False)`, deterministic single-scan calculation of `skipped = len(src_manifest) - len(to_copy)` (always `>= 0`), and strict stdout isolation in `--json` mode.
+
+---
+
+#### Task 3: Implement `--json` Flag and `--dry-run` Interplay in `synccli.py`
+- **Objective:** Add `--json` CLI flag to `ArgumentParser` in `synccli.main()`, extract shared sync statistics logic so `skipped` is computed from the same `src_manifest` snapshot without changing `sync(src_root, dst_root, dry_run=False)`, emit the single JSON object `{"copied": copied, "skipped": skipped, "src": args.src, "dst": args.dst}` on `stdout` when `--json` is set, and preserve human mode (one path per line) and exit code `0`.
+- **Files to create/modify:**
+  - Modify: `synccli.py`
+- **Pipeline agent:** `impl` (`cheap-code`)
+- **Risks:**
+  - Breaking backwards compatibility of `sync(src_root, dst_root, dry_run=False)` for external/internal callers if keyword/positional arguments or return type (`list[str]`) are altered.
+  - `argparse` attribute naming: `--json` maps to `args.json` (ensure no shadowing of the `import json` module inside `main()`).
+  - Non-empty/empty `copied` edge cases in human mode vs `--json` mode (human mode prints nothing when `copied == []`; `--json` mode must still print the single JSON object with `"copied": []`).
+- **Verifiable acceptance criterion:**
+  - `inspect.signature(synccli.sync)` equals `(src_root, dst_root, dry_run=False)` and `sync()` returns `list[str]`.
+  - Running `python3 -m synccli <src> <dst> --json` outputs a single line/object of valid JSON parseable by `json.loads()` containing exact keys `{"copied", "skipped", "src", "dst"}` and exits with code `0`.
+  - Running `python3 -m synccli <src> <dst> --dry-run --json` lists candidate paths in `"copied"`, leaves `<dst>` untouched, and exits with code `0`.
+  - Running `python3 -m synccli <src> <dst>` (without `--json`) prints one copied relative path per line as before.
+
+---
+
+#### Task 4: Implement Unit Tests for JSON Mode, Human Mode, and Dry-Run Interplay
+- **Objective:** Add comprehensive `unittest` test cases to `test_synccli.py` covering `--json` output validity, required keys and types, `skipped` count accuracy across initial and subsequent syncs, `--json` + `--dry-run` non-mutation semantics, human mode preservation, exit code `0`, and `sync()` signature stability.
+- **Files to create/modify:**
+  - Modify: `test_synccli.py` ( strictly within scope of `GOAL.md`; do not modify unrelated functions/tests unless instructed).
+- **Pipeline agent:** `impl` (`cheap-code`)
+- **Risks:**
+  - Not capturing `sys.stdout` cleanly (`io.StringIO` / `contextlib.redirect_stdout`), causing test pollution or missing stray stdout output assertions.
+  - Leaving temporary directories uncleaned or sharing mutable state across tests.
+  - Only testing non-empty syncs and missing the second-run (`copied == []`, `skipped == N`) and partial-update (`copied == [changed]`, `skipped == M`) cases.
+- **Verifiable acceptance criterion:** `python3 -m unittest -v test_synccli.TestJsonOutput` (or the newly added test class(es) in `test_synccli.py`) passes 100%, verifying:
+  1. Valid single JSON object on `stdout` (and no extra lines/text) when `--json` is passed.
+  2. Exact presence and values of `"copied"`, `"skipped"`, `"src"`, `"dst"`.
+  3. Partial/repeat sync updates `"skipped"` accurately (`skipped == N` on no-op second sync).
+  4. `--dry-run --json` reports what *would* be copied without writing files or `.sync_manifest.json` in `dst`.
+  5. Human mode (`main([src, dst])`) still prints one path per line and returns `0`.
+
+---
+
+#### Task 5: Code & Test Review Gate
+- **Objective:** Review all changes in `synccli.py` and `test_synccli.py` against every requirement and constraint in `GOAL.md` and `README.md`.
+- **Files to create/modify:** None (read-only review; any minor findings are routed back to `impl`, major findings escalated per pipeline policy).
+- **Pipeline agent:** `review` (`cheap-review`)
+- **Risks:**
+  - Subtle scope creep (touching `incremental.py`, `DESIGN.md`, or unrelated functions in `synccli.py` without permission).
+  - Stdlib-only / Python 3.10 compatibility regressions (e.g., 3.11+ stdlib features).
+  - Incomplete stdout assertions (e.g., `json.loads` passing on multi-object output if whitespace/line structure isn't checked, though `json.loads` rejects trailing data).
+- **Verifiable acceptance criterion:** Reviewer verdict with zero open major/minor findings, `git diff -- name-only` showing only `synccli.py` and `test_synccli.py` modified, zero third-party imports, unchanged `sync()` signature, and all new and existing `Sync` / `ScanFiles` / JSON unit tests passing under `python3 -m unittest -v`.
