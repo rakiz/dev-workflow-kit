@@ -9,11 +9,15 @@
      itself, then either (a) references it from its own CONVENTIONS.md's
      "Project rules" section with a one-line pointer, or (b) appends its
      content directly into that section. Its MUST/SHOULD/MAY keywords are
-     used as in RFC 2119. -->
+     used as in RFC 2119. CONVENTIONS.md's two default rules (comments
+     describe intent, not code; comments describe the current state, not its
+     history) always apply underneath everything here. -->
 
 ## 1. Comments
 
-Prefer self-explanatory code; a comment never replaces clean code.
+Prefer self-explanatory code; a comment never replaces clean code. The two
+CONVENTIONS.md baseline rules always apply as written (comments describe
+intent, not code; comments describe the current state, not its history).
 
 - **No duplication** — if the code is clear, restating it adds nothing.
   Bad: `i = i + 1; // Add one to 'i'`.

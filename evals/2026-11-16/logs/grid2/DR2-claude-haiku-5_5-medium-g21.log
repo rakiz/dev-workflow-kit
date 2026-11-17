@@ -1,0 +1,45 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead DESIGN.md
+**Critique of DESIGN.md (syncd v2), before any code**
+
+Based on DESIGN.md alone. I did not check `state.py` or `syncd.py`, and the doc's own claims are the basis below.
+
+**Blocking: wrong assumptions**
+
+1. **Continuously written files starve.** The debounce "restarts the quiet period on every observed change," so a file that is written every 100 ms is never copied. The doc says latency stays under "one poll + 200 ms even while a file is being written continuously." That is false. Fix: add a max-age, e.g. copy if quiet for 200 ms or pending for more than 2 s.
+2. **`mtime` changes on every edit.** False. `touch -d`, `cp -p`, `tar x`, `git checkout` and `rsync -t` can all set an older mtime, and those files are never synced. Storing mtime at whole-second resolution also misses two same-size edits in one second. Fix: key on `st_ctime_ns` (cannot be set by the user) plus `st_size` and `st_ino`, with mtime_ns as an extra signal.
+3. **"mtime is enough, so no hashing"** is also the reason the manifest format is weak. Fix: keep the cheap stat key, and hash only when a stat key changed but the content may not have (or run a periodic verify).
+4. **"Pending bounded by one poll's worth"** is not true. Pending holds every changed file until its quiet period ends, so a build touching 500 files in 1 s holds 500 entries. Memory is fine at this size, but the stated invariant is wrong and the real risk is copy throughput: if the copy loop for a burst exceeds 500 ms, the poll cadence slips with no defined overrun behaviour.
+
+**Will break under real load**
+
+5. **Deletes can wipe `dst`.** If `src` is unmounted, renamed, or temporarily empty, the next scan sees everything missing and reconcile deletes the whole tree. The doc treats "transient source error" as harmless, but a scan error is not the same as a deletion. Fix: refuse deletes if the `src` root is missing or if more than N% (e.g. 20%) of tracked files vanished in one pass; delete only after a debounce.
+6. **Scan cost is asserted, not shown.** "Measured well under 100 ms" has no source. On darwin, 50 000 `stat` calls from Python on a cold cache often take several hundred ms. Scanning every 500 ms then costs a constant core share and battery on a laptop. Fix: benchmark on the real tree (cold and warm, with CPU%) before fixing the 500 ms constant.
+7. **Copies are not atomic.** Copying straight into `dst` means builds and readers see truncated files for the copy duration, and a crash leaves a truncated file. The "`dst` never holds a truncated copy" claim covers only source changes. Fix: write to a temp name in `dst`, then `rename`.
+8. **Atomic-save editors and build tools cause churn.** A write-temp-then-rename save produces a transient create and delete in `src`. The delete path has no debounce, so `dst` loses a file briefly and consumers can fail.
+
+**Concurrency and crash safety**
+
+9. **Lock released before the manifest commit is a race, not a merge.** The manifest is rewritten in place. Two writers doing read-modify-write produce last-writer-wins, so entries are lost. "Entries merge cleanly" has no merge logic behind it. Fix: hold the lock through the commit, or use one atomic manifest write (tmp + fsync + rename) under the lock.
+10. **The journal has no compaction rule.** It is replayed on every start, but the doc never says when it is truncated. It grows without bound, and startup time grows with it. Also, journal appends are not fsynced, so a crash can lose the tail that the repair path depends on.
+11. **The "rejected" tmp-file + rename for the manifest** is the cheapest atomic-write option. Rejecting it on the basis of an extra fsync per cycle is weak, given that a 50k-entry manifest is rewritten at most twice a second. The doc should either measure this or drop the claim.
+12. **Stale PID lock** after a crash, or a PID reused by another process, is not handled. The lock is also checked every 500 ms, so the single-instance guarantee holds only per poll.
+
+**Missing scope**
+
+13. Symlinks (loops, and `dst` inside `src`), hidden files, `.gitignore`-style excludes (node_modules, build outputs), file permissions, and case-only renames on APFS are not mentioned. Each can cause a loop, a copy storm, or a wrong state.
+
+**Decisions to change first**
+
+- Add max-age to the debounce (item 1).
+- Change the change key to ctime_ns + size + inode (item 2).
+- Add delete guards and a debounced delete path (items 5 and 8).
+- Use atomic temp + rename for copies and for the manifest; hold the lock through the commit (items 7 and 9).
+- Specify journal compaction and fsync (item 10).
+- Benchmark scan cost on the real 50k tree, and set the poll interval from the result (item 6).
+- Drop the "measured" and "guaranteed" language until these are verified.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 14913 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 14914 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-14900 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-medium-g21)

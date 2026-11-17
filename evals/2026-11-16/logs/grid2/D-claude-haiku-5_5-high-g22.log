@@ -1,0 +1,495 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead BRIEF.md
+[0m
+[0m$ [0mls -la && wc -l *.py 2>/dev/null
+total 40
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 22:26 __pycache__
+drwxr-xr-x@   7 sebastien.mendez  staff    224 Nov 16 22:26 .
+drwx------@ 884 sebastien.mendez  staff  28288 Nov 16 22:26 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 22:26 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 22:26 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 22:26 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 22:26 test_synccli.py
+      92 snaputil.py
+     103 synccli.py
+      55 test_synccli.py
+     250 total
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516 && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v 2>&1 | tail -15; python3 --version; df -h /private/var/folders 2>/dev/null | tail -1; nproc; sysctl -n hw.ncpu hw.memsize 2>/dev/null
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+OK
+Python 3.10.11
+/dev/disk3s5   926Gi   572Gi   336Gi    64%    5.8M  3.5G    0%   /System/Volumes/Data
+zsh:1: command not found: nproc
+14
+38654705664
+[0m
+[0m✗ [0mmkdir -p /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516 && PYTHONDONTWRITEBYTECODE=1 python3 - <<'EOF'
+import os, tempfile, json, time
+import synccli, snaputil
+print("safe ../:", snaputil.safe_snapshot_path("/b", "snap-x", "../../etc/passwd"))
+print("safe abs:", snaputil.safe_snapshot_path("/b", "snap-x", "/etc/passwd"))
+d = tempfile.mkdtemp(); p = os.path.join(d, "s"); os.makedirs(p)
+t = os.stat(p).st_mtime
+print("is_stale equal epoch:", snaputil.is_stale(p, t), "(docstring says False)")
+# copy failure recorded as success
+src = tempfile.mkdtemp(); dst = tempfile.mkdtemp()
+f = os.path.join(src, "locked.txt"); open(f, "w").write("x"); os.chmod(f, 0)
+print("sync copied:", synccli.sync(src, dst))
+print("dst has locked.txt:", os.path.exists(os.path.join(dst, "locked.txt")))
+print("second sync copied:", synccli.sync(src, dst), "(unreadable file never retried)")
+os.chmod(f, 0o644)
+# corrupt manifest
+open(os.path.join(dst, ".sync_manifest.json"), "w").write('{"a.txt": {"si')
+try: synccli.sync(src, dst)
+except Exception as e: print("corrupt manifest ->", type(e).__name__)
+# vanish race
+src2 = tempfile.mkdtemp(); open(os.path.join(src2,"a"),"w").write("1")
+orig = synccli.scan_files
+synccli.scan_files = lambda r: orig(r) + ["ghost.txt"]
+try: synccli.build_manifest(src2)
+except Exception as e: print("vanished-after-listing ->", type(e).__name__)
+synccli.scan_files = orig
+# same-size edit with restored mtime
+src3 = tempfile.mkdtemp(); dst3 = tempfile.mkdtemp()
+g = os.path.join(src3, "c.txt"); open(g,"w").write("AAAA")
+synccli.sync(src3, dst3)
+st = os.stat(g); open(g,"w").write("BBBB"); os.utime(g, ns=(st.st_atime_ns, st.st_mtime_ns))
+print("same-size edit w/ preserved mtime copied:", synccli.sync(src3, dst3), "dst content:", open(os.path.join(dst3,"c.txt")).read())
+# deletion not propagated
+os.remove(g); print("after src delete, sync:", synccli.sync(src3, dst3), "dst still has c.txt:", os.path.exists(os.path.join(dst3,"c.txt")))
+# hidden dirs pruned from scan
+h = tempfile.mkdtemp(); os.makedirs(os.path.join(h,".git")); open(os.path.join(h,".git","x"),"w").write("1"); open(os.path.join(h,".env"),"w").write("2")
+print("scan with .git dir and .env:", synccli.scan_files(h))
+# prune counts incomplete dirs
+b = tempfile.mkdtemp()
+for n in ["snap-20261110-100000-01","snap-20261111-100000-01","snap-20261112-100000-01"]:
+    os.makedirs(os.path.join(b,n))
+open(os.path.join(b,"snap-20261112-100000-01","f"),"w").write("z")
+print("prune keep=2 deleted:", snaputil.prune_snapshots(b, 2), "left:", snaputil.list_snapshots(b))
+# disk usage on dangling symlink
+s = tempfile.mkdtemp(); os.makedirs(os.path.join(s,"snap-1")); os.symlink("/nonexistent", os.path.join(s,"snap-1","L"))
+try: print("usage dangling:", snaputil.snapshot_disk_usage(s,"snap-1"))
+except Exception as e: print("usage dangling ->", type(e).__name__)
+EOF failed
+[91m[1mError: [0mNotFound: FileSystem.access (/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe)
+[0m✗ [0mmkdir -p /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516 && PYTHONDONTWRITEBYTECODE=1 python3 - <<'EOF'
+import os, tempfile, json, time
+import synccli, snaputil
+print("safe ../:", snaputil.safe_snapshot_path("/b", "snap-x", "../../etc/passwd"))
+print("safe abs:", snaputil.safe_snapshot_path("/b", "snap-x", "/etc/passwd"))
+d = tempfile.mkdtemp(); p = os.path.join(d, "s"); os.makedirs(p)
+t = os.stat(p).st_mtime
+print("is_stale equal epoch:", snaputil.is_stale(p, t), "(docstring says False)")
+# copy failure recorded as success
+src = tempfile.mkdtemp(); dst = tempfile.mkdtemp()
+f = os.path.join(src, "locked.txt"); open(f, "w").write("x"); os.chmod(f, 0)
+print("sync copied:", synccli.sync(src, dst))
+print("dst has locked.txt:", os.path.exists(os.path.join(dst, "locked.txt")))
+print("second sync copied:", synccli.sync(src, dst), "(unreadable file never retried)")
+os.chmod(f, 0o644)
+# corrupt manifest
+open(os.path.join(dst, ".sync_manifest.json"), "w").write('{"a.txt": {"si')
+try: synccli.sync(src, dst)
+except Exception as e: print("corrupt manifest ->", type(e).__name__)
+# vanish race
+src2 = tempfile.mkdtemp(); open(os.path.join(src2,"a"),"w").write("1")
+orig = synccli.scan_files
+synccli.scan_files = lambda r: orig(r) + ["ghost.txt"]
+try: synccli.build_manifest(src2)
+except Exception as e: print("vanished-after-listing ->", type(e).__name__)
+synccli.scan_files = orig
+# same-size edit with restored mtime
+src3 = tempfile.mkdtemp(); dst3 = tempfile.mkdtemp()
+g = os.path.join(src3, "c.txt"); open(g,"w").write("AAAA")
+synccli.sync(src3, dst3)
+st = os.stat(g); open(g,"w").write("BBBB"); os.utime(g, ns=(st.st_atime_ns, st.st_mtime_ns))
+print("same-size edit w/ preserved mtime copied:", synccli.sync(src3, dst3), "dst content:", open(os.path.join(dst3,"c.txt")).read())
+# deletion not propagated
+os.remove(g); print("after src delete, sync:", synccli.sync(src3, dst3), "dst still has c.txt:", os.path.exists(os.path.join(dst3,"c.txt")))
+# hidden dirs pruned from scan
+h = tempfile.mkdtemp(); os.makedirs(os.path.join(h,".git")); open(os.path.join(h,".git","x"),"w").write("1"); open(os.path.join(h,".env"),"w").write("2")
+print("scan with .git dir and .env:", synccli.scan_files(h))
+# prune counts incomplete dirs
+b = tempfile.mkdtemp()
+for n in ["snap-20261110-100000-01","snap-20261111-100000-01","snap-20261112-100000-01"]:
+    os.makedirs(os.path.join(b,n))
+open(os.path.join(b,"snap-20261112-100000-01","f"),"w").write("z")
+print("prune keep=2 deleted:", snaputil.prune_snapshots(b, 2), "left:", snaputil.list_snapshots(b))
+# disk usage on dangling symlink
+s = tempfile.mkdtemp(); os.makedirs(os.path.join(s,"snap-1")); os.symlink("/nonexistent", os.path.join(s,"snap-1","L"))
+try: print("usage dangling:", snaputil.snapshot_disk_usage(s,"snap-1"))
+except Exception as e: print("usage dangling ->", type(e).__name__)
+EOF failed
+[91m[1mError: [0mNotFound: FileSystem.access (/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe)
+[0m
+[0m$ [0mmkdir -p /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516 && PYTHONDONTWRITEBYTECODE=1 python3 - <<'EOF'
+import os, tempfile, json, time
+import synccli, snaputil
+print("safe ../:", snaputil.safe_snapshot_path("/b", "snap-x", "../../etc/passwd"))
+print("safe abs:", snaputil.safe_snapshot_path("/b", "snap-x", "/etc/passwd"))
+d = tempfile.mkdtemp(); p = os.path.join(d, "s"); os.makedirs(p)
+t = os.stat(p).st_mtime
+print("is_stale equal epoch:", snaputil.is_stale(p, t), "(docstring says False)")
+# copy failure recorded as success
+src = tempfile.mkdtemp(); dst = tempfile.mkdtemp()
+f = os.path.join(src, "locked.txt"); open(f, "w").write("x"); os.chmod(f, 0)
+print("sync copied:", synccli.sync(src, dst))
+print("dst has locked.txt:", os.path.exists(os.path.join(dst, "locked.txt")))
+print("second sync copied:", synccli.sync(src, dst), "(unreadable file never retried)")
+os.chmod(f, 0o644)
+# corrupt manifest
+open(os.path.join(dst, ".sync_manifest.json"), "w").write('{"a.txt": {"si')
+try: synccli.sync(src, dst)
+except Exception as e: print("corrupt manifest ->", type(e).__name__)
+# vanish race
+src2 = tempfile.mkdtemp(); open(os.path.join(src2,"a"),"w").write("1")
+orig = synccli.scan_files
+synccli.scan_files = lambda r: orig(r) + ["ghost.txt"]
+try: synccli.build_manifest(src2)
+except Exception as e: print("vanished-after-listing ->", type(e).__name__)
+synccli.scan_files = orig
+# same-size edit with restored mtime
+src3 = tempfile.mkdtemp(); dst3 = tempfile.mkdtemp()
+g = os.path.join(src3, "c.txt"); open(g,"w").write("AAAA")
+synccli.sync(src3, dst3)
+st = os.stat(g); open(g,"w").write("BBBB"); os.utime(g, ns=(st.st_atime_ns, st.st_mtime_ns))
+print("same-size edit w/ preserved mtime copied:", synccli.sync(src3, dst3), "dst content:", open(os.path.join(dst3,"c.txt")).read())
+# deletion not propagated
+os.remove(g); print("after src delete, sync:", synccli.sync(src3, dst3), "dst still has c.txt:", os.path.exists(os.path.join(dst3,"c.txt")))
+# hidden dirs pruned from scan
+h = tempfile.mkdtemp(); os.makedirs(os.path.join(h,".git")); open(os.path.join(h,".git","x"),"w").write("1"); open(os.path.join(h,".env"),"w").write("2")
+print("scan with .git dir and .env:", synccli.scan_files(h))
+# prune counts incomplete dirs
+b = tempfile.mkdtemp()
+for n in ["snap-20261110-100000-01","snap-20261111-100000-01","snap-20261112-100000-01"]:
+    os.makedirs(os.path.join(b,n))
+open(os.path.join(b,"snap-20261112-100000-01","f"),"w").write("z")
+print("prune keep=2 deleted:", snaputil.prune_snapshots(b, 2), "left:", snaputil.list_snapshots(b))
+# disk usage on dangling symlink
+s = tempfile.mkdtemp(); os.makedirs(os.path.join(s,"snap-1")); os.symlink("/nonexistent", os.path.join(s,"snap-1","L"))
+try: print("usage dangling:", snaputil.snapshot_disk_usage(s,"snap-1"))
+except Exception as e: print("usage dangling ->", type(e).__name__)
+EOF
+safe ../: /b/snap-x/../../etc/passwd
+safe abs: /etc/passwd
+is_stale equal epoch: True (docstring says False)
+sync copied: ['locked.txt']
+dst has locked.txt: False
+second sync copied: [] (unreadable file never retried)
+corrupt manifest -> JSONDecodeError
+vanished-after-listing -> FileNotFoundError
+same-size edit w/ preserved mtime copied: [] dst content: AAAA
+after src delete, sync: [] dst still has c.txt: True
+scan with .git dir and .env: ['.env']
+prune keep=2 deleted: ['snap-20261110-100000-01'] left: ['snap-20261111-100000-01', 'snap-20261112-100000-01']
+usage dangling -> FileNotFoundError
+[0m
+[0m$ [0mcat > /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe/bench.py <<'EOF'
+import os, sys, time, json, shutil
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516")
+import synccli
+
+base = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe/tree"
+src, dst = base + "/src", base + "/dst"
+shutil.rmtree(base, ignore_errors=True)
+N_DIRS, FILES_PER_DIR, SIZE = 300, 100, 33_333   # 30,000 files, ~1.0 GB
+t0 = time.perf_counter()
+for d in range(N_DIRS):
+    p = f"{src}/d{d:03d}"; os.makedirs(p)
+    blob = os.urandom(SIZE)
+    for f in range(FILES_PER_DIR):
+        with open(f"{p}/f{f:03d}.bin", "wb") as fh:
+            fh.write(blob)
+print(f"generated in {time.perf_counter()-t0:.1f}s", flush=True)
+total = sum(os.path.getsize(os.path.join(r, n)) for r, _, fs in os.walk(src) for n in fs)
+print("files", N_DIRS*FILES_PER_DIR, "bytes", total, flush=True)
+
+for label, fn in [
+    ("scan_files", lambda: synccli.scan_files(src)),
+    ("build_manifest (scan+stat)", lambda: synccli.build_manifest(src)),
+]:
+    times = []
+    for _ in range(3):
+        t = time.perf_counter(); fn(); times.append(time.perf_counter()-t)
+    print(label, ["%.3f" % x for x in times], flush=True)
+
+t = time.perf_counter(); copied = synccli.sync(src, dst); t_init = time.perf_counter()-t
+print("initial sync (copy all)", "%.2fs" % t_init, "copied", len(copied), flush=True)
+t = time.perf_counter(); copied = synccli.sync(src, dst); t_noop = time.perf_counter()-t
+print("second sync (no-op)", "%.2fs" % t_noop, "copied", len(copied), flush=True)
+
+# cold-cache-ish: drop nothing (cannot purge page cache without root); report as warm
+# fresh destination again to repeat the full copy
+shutil.rmtree(dst)
+t = time.perf_counter(); copied = synccli.sync(src, dst); t2 = time.perf_counter()-t
+print("initial sync repeat (fresh dst)", "%.2fs" % t2, flush=True)
+shutil.rmtree(base)
+EOF
+cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && PYTHONDONTWRITEBYTECODE=1 timeout 900 python3 bench.py
+zsh:42: command not found: timeout
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && PYTHONDONTWRITEBYTECODE=1 python3 bench.py
+generated in 3.7s
+files 30000 bytes 999990000
+scan_files ['0.236', '0.241', '0.245']
+build_manifest (scan+stat) ['0.294', '0.316', '0.318']
+initial sync (copy all) 7.71s copied 30000
+second sync (no-op) 0.41s copied 0
+initial sync repeat (fresh dst) 7.07s
+[0m
+[0m$ [0mcat > /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe/bench2.py <<'EOF'
+import os, time, shutil
+base = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe/tree2"
+src = base + "/src"; shutil.rmtree(base, ignore_errors=True)
+for d in range(300):
+    p = f"{src}/d{d:03d}"; os.makedirs(p); blob = os.urandom(33_333)
+    for f in range(100):
+        open(f"{p}/f{f:03d}.bin", "wb").write(blob)
+files = [os.path.join(r, n) for r, _, fs in os.walk(src) for n in fs]
+def run(label, fsync, chunked):
+    dst = base + "/dst_" + label; shutil.rmtree(dst, ignore_errors=True)
+    t = time.perf_counter()
+    for f in files:
+        rel = os.path.relpath(f, src); out = os.path.join(dst, rel)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        tmp = out + ".part"
+        with open(f, "rb") as fi, open(tmp, "wb") as fo:
+            if chunked:
+                shutil.copyfileobj(fi, fo, 1 << 20)
+            else:
+                fo.write(fi.read())
+            if fsync:
+                fo.flush(); os.fsync(fo.fileno())
+        os.replace(tmp, out)
+    el = time.perf_counter() - t
+    print(f"{label}: {el:.2f}s", flush=True)
+run("tmp_rename_chunked", False, True)
+run("tmp_rename_chunked_fsync", True, True)
+shutil.rmtree(base)
+EOF
+cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && PYTHONDONTWRITEBYTECODE=1 python3 bench2.py
+tmp_rename_chunked: 44.03s
+tmp_rename_chunked_fsync: 30.59s
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && sed -i 's/^run("tmp_rename_chunked", False, True)$/run("fsync_first", True, True)\nrun("tmp_rename_chunked", False, True)\nrun("fsync_again", True, True)/; s/^run("tmp_rename_chunked_fsync", True, True)$//' bench2.py && PYTHONDONTWRITEBYTECODE=1 python3 bench2.py
+sed: 1: "bench2.py": undefined label 'ench2.py'
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && python3 - <<'EOF'
+s = open("bench2.py").read()
+s = s.replace('run("tmp_rename_chunked", False, True)\nrun("tmp_rename_chunked_fsync", True, True)\n',
+ 'run("fsync_first", True, True)\nrun("nofsync", False, True)\nrun("fsync_again", True, True)\nrun("nofsync_again", False, True)\n')
+open("bench2.py","w").write(s)
+print(s[-200:])
+EOF
+PYTHONDONTWRITEBYTECODE=1 python3 bench2.py
+nter() - t
+    print(f"{label}: {el:.2f}s", flush=True)
+run("fsync_first", True, True)
+run("nofsync", False, True)
+run("fsync_again", True, True)
+run("nofsync_again", False, True)
+shutil.rmtree(base)
+
+fsync_first: 9.53s
+nofsync: 9.40s
+fsync_again: 9.25s
+nofsync_again: 9.70s
+[0m
+[0m$ [0mcat > /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe/bench3.py <<'EOF'
+import os, sys, time, shutil, hashlib, tracemalloc
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516")
+import synccli
+base = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe/tree3"
+src, snap, snap2 = base + "/src", base + "/snap", base + "/snap2"
+shutil.rmtree(base, ignore_errors=True)
+for d in range(300):
+    p = f"{src}/d{d:03d}"; os.makedirs(p); blob = os.urandom(33_333)
+    for f in range(100):
+        open(f"{p}/f{f:03d}.bin", "wb").write(blob)
+time.sleep(5)  # let dirty pages flush so timings reflect steady state
+files = [os.path.join(r, n) for r, _, fs in os.walk(src) for n in fs]
+
+def timed(label, fn, reps=3):
+    ts = []
+    for _ in range(reps):
+        t = time.perf_counter(); r = fn(); ts.append(time.perf_counter() - t)
+    print(f"{label}: " + " ".join(f"{x:.2f}" for x in ts) + " s", flush=True)
+    return r
+
+def sha_only():
+    for f in files:
+        h = hashlib.sha256()
+        with open(f, "rb") as fi:
+            for chunk in iter(lambda: fi.read(1 << 20), b""):
+                h.update(chunk)
+        h.hexdigest()
+timed("sha256 read-only pass over 1GB", sha_only)
+
+def copy_hash_fsync(dst):
+    def run():
+        shutil.rmtree(dst, ignore_errors=True)
+        for f in files:
+            out = os.path.join(dst, os.path.relpath(f, src))
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            h = hashlib.sha256(); part = out + ".part"
+            with open(f, "rb") as fi, open(part, "wb") as fo:
+                for chunk in iter(lambda: fi.read(1 << 20), b""):
+                    h.update(chunk); fo.write(chunk)
+                fo.flush(); os.fsync(fo.fileno())
+            os.utime(part, ns=(os.stat(f).st_atime_ns, os.stat(f).st_mtime_ns))
+            os.replace(part, out)
+    return run
+timed("copy+sha256+fsync+rename (1GB, 30k files)", copy_hash_fsync(snap), reps=2)
+
+def link_all():
+    shutil.rmtree(snap2, ignore_errors=True)
+    for f in files:
+        out = os.path.join(snap2, os.path.relpath(f, src))
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        os.link(os.path.join(snap, os.path.relpath(f, src)), out)
+timed("hardlink-reuse 30k files (no data copy)", link_all)
+
+tracemalloc.start()
+synccli.build_manifest(src)
+cur, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+print(f"build_manifest peak heap: {peak/1e6:.1f} MB for {len(files)} files = {peak/len(files):.0f} B/file", flush=True)
+
+# symlink behaviour of existing scan_files
+sl = base + "/sl"; os.makedirs(sl + "/realdir"); open(sl + "/realdir/x", "w").write("1")
+open(sl + "/file.txt", "w").write("2"); os.symlink(sl + "/realdir", sl + "/linkdir"); os.symlink(sl + "/file.txt", sl + "/linkfile")
+print("scan_files with symlinks:", synccli.scan_files(sl))
+shutil.rmtree(base)
+EOF
+cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && PYTHONDONTWRITEBYTECODE=1 python3 bench3.py
+sha256 read-only pass over 1GB: 2.37 2.39 2.57 s
+copy+sha256+fsync+rename (1GB, 30k files): 11.13 17.06 s
+hardlink-reuse 30k files (no data copy): 17.56 64.16 19.21 s
+build_manifest peak heap: 11.9 MB for 30000 files = 398 B/file
+scan_files with symlinks: ['file.txt', 'linkfile', 'realdir/x']
+[0m
+[0m$ [0mcat > /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe/bench4.py <<'EOF'
+import os, time, shutil
+base = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe/tree4"
+src, snap, snap2 = base + "/src", base + "/snap", base + "/snap2"
+shutil.rmtree(base, ignore_errors=True)
+for d in range(300):
+    p = f"{src}/d{d:03d}"; os.makedirs(p); blob = os.urandom(33_333)
+    for f in range(100):
+        open(f"{p}/f{f:03d}.bin", "wb").write(blob)
+for d in range(300):
+    os.makedirs(f"{snap}/d{d:03d}")
+    for f in range(100):
+        open(f"{snap}/d{d:03d}/f{f:03d}.bin", "wb").write(b"")  # placeholder, replaced below
+time.sleep(5)
+rels = [os.path.relpath(os.path.join(r, n), src) for r, _, fs in os.walk(src) for n in fs]
+for label in ["link pass A", "link pass B", "link pass C"]:
+    shutil.rmtree(snap2, ignore_errors=True); time.sleep(1)
+    for d in range(300): os.makedirs(f"{snap2}/d{d:03d}", exist_ok=True)
+    t = time.perf_counter()
+    for rel in rels:
+        os.link(os.path.join(snap, rel), os.path.join(snap2, rel))
+    print(label, f"{time.perf_counter()-t:.2f}s for {len(rels)} links", flush=True)
+shutil.rmtree(base)
+EOF
+cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe && PYTHONDONTWRITEBYTECODE=1 python3 bench4.py
+link pass A 9.98s for 30000 links
+link pass B 10.40s for 30000 links
+link pass C 10.35s for 30000 links
+[0m
+I have the three source files and the test results. Before writing, I'll check the remaining claims I plan to make about the existing code, plus the cost of hardlink reuse, which I expect to matter for the design.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516 && PYTHONDONTWRITEBYTECODE=1 python3 - <<'EOF'
+import os, tempfile, synccli, snaputil
+print("normpath keeps leading ..:", os.path.normpath("../../etc/passwd"))
+print("os.path.join absolute:", os.path.join("/b/snap-x", "/etc/passwd"))
+# float mtime precision at current epoch
+import time; t = time.time_ns(); f = float(t)/1e9
+print("float mtime roundtrip error (ns):", int(f*1e9) - t)
+# unchanged-state probe: ctime-visible restore
+d = tempfile.mkdtemp(); p = os.path.join(d, "x"); open(p,"w").write("AAAA")
+st = os.lstat(p); open(p,"w").write("BBBB"); os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns))
+st2 = os.lstat(p); print("ctime changed after mtime-restoring edit:", st2.st_ctime_ns != st.st_ctime_ns, "| mtime same:", st2.st_mtime_ns == st.st_mtime_ns, "| ino same:", st2.st_ino == st.st_ino)
+EOF
+normpath keeps leading ..: ../../etc/passwd
+os.path.join absolute: /etc/passwd
+float mtime roundtrip error (ns): -16
+ctime changed after mtime-restoring edit: True | mtime same: True | ino same: True
+[0m
+Verified. Writing the design now.
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516/DESIGN-d1.md
+@@ -292,10 +292,10 @@
+ 
+ ### 9.1 Initial full backup budget
+ 
+ **Budget: 120 s wall-clock** for the initial full backup of ~1.0 GB in 30,000
+-files (100 directories' worth of files, as in the probe fixture), on this
+-laptop class.
++files (the probe fixture: 300 directories of 100 files each), on this laptop
++class.
+ 
+ **Measurements** (fixture: 300 directories x 100 files x 33,333 B = 999,990,000
+ bytes, 30,000 files; warm cache):
+ 
+
+[0m
+[0m$ [0mrm -rf /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-17516 && ls -la && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest 2>&1 | tail -3
+total 104
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 22:26 __pycache__
+drwxr-xr-x@   8 sebastien.mendez  staff    256 Nov 16 22:38 .
+drwx------@ 943 sebastien.mendez  staff  30176 Nov 16 22:38 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 22:26 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff  29320 Nov 16 22:38 DESIGN-d1.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 22:26 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 22:26 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 22:26 test_synccli.py
+Ran 6 tests in 0.005s
+
+OK
+[0m
+I wrote the design to `DESIGN-d1.md` at the top of the repo copy. I did all the work myself, with no subagents. The existing 6 tests still pass, and I changed no code.
+
+The design's main points:
+
+- **Snapshots:** each run covers all N directories and publishes one immutable `snap-<UTC>-<ordinal>` directory. It becomes visible only through an atomic rename of a fully fsynced staging directory.
+- **Change detection:** per file, on `lstat` metadata including `ctime_ns`, plus a 2 s racy-timestamp guard. I checked that the existing `(size, mtime)` state misses an edit whose mtime is restored with `utime`. `ctime` catches it.
+- **Locking and crashes:** a global `flock` serializes runs and pruning. Restore takes a per-snapshot shared lease, and prune skips leased snapshots. Staging left by a dead run is discarded at the next run, and a corrupt published index is reported and never used as a baseline.
+- **Vanished or unreadable files:** they are left out of the snapshot and listed under `skipped` in its metadata. The run exits 3. Scheduler and person runs behave identically.
+- **Retention:** keep the newest K valid snapshots, K >= 1. Pruning runs only after a new publish, and it renames before deleting.
+- **Budget:** 120 s for the initial backup of ~1 GB / 30k files. Measured steady state is 11–17 s, so the margin rests on a single SSD measurement.
+
+Grounding: the design reuses `changed_files` and `list_snapshots`. It overrides the others, with file and line references. Several existing behaviors are defects, verified by running them:
+- `scan_files` drops `.git/` and symlinked directories.
+- `copy_file` swallows read errors, so an unreadable file is recorded as synced and never retried.
+- `sync` raises on a truncated manifest and never deletes files removed from the source.
+- `safe_snapshot_path` does not contain `..` or absolute paths.
+- `is_stale` returns True on equality, contrary to its docstring.
+
+A finding that changes the design: hardlinking an unchanged file costs about 0.33 ms here. A no-change run over 30k files takes about 10.5 s, not 0.3 s. The savings are in bytes and disk, not wall-clock. I kept hardlinks because they keep snapshots as plain browsable trees. The design names a switch to a content store if a no-change run exceeds 10 minutes.
+
+Open decisions for you are in section 13. The main one is macOS power-loss durability. `os.fsync` is what I measured, and `F_FULLFSYNC` would need its own measurement and could change the budget.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 31594 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 17538 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-17516 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-high-g22 above)

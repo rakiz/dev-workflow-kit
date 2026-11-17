@@ -1,0 +1,278 @@
+[0m
+> build · claude-sonnet-5.5
+[0m
+[0m→ [0mRead BRIEF.md
+[0m
+[0m$ [0mls -la
+total 40
+drwxr-xr-x@   4 sebastien.mendez  staff    128 Nov 16 15:35 __pycache__
+drwxr-xr-x@   7 sebastien.mendez  staff    224 Nov 16 15:35 .
+drwx------@ 325 sebastien.mendez  staff  10400 Nov 16 15:35 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 15:35 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 15:35 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 15:35 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 15:35 test_synccli.py
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-74504 && python3 --version && df -h /private/var/folders | tail -1 && python3 -m unittest 2>&1 | tail -5; uname -sm; sysctl -n machdep.cpu.brand_string; python3 - <<'EOF'
+import os, tempfile, json, shutil, snaputil, synccli
+t=tempfile.mkdtemp()
+# safe_snapshot_path escapes
+print(snaputil.safe_snapshot_path(t,"snap-1","../../etc/passwd"))
+print(snaputil.safe_snapshot_path(t,"snap-1","/etc/passwd"))
+print(snaputil.safe_snapshot_path(t,"snap-1","a/../../x"))
+# prune keep 0 / -1
+for k in (0,-1):
+    r=tempfile.mkdtemp()
+    for n in ("snap-20260101-000000-00","snap-20260102-000000-00","snap-20260103-000000-00"): os.mkdir(os.path.join(r,n))
+    print(k, snaputil.prune_snapshots(r,k))
+# list counts non-complete
+r=tempfile.mkdtemp(); os.mkdir(os.path.join(r,"snap-20260101-000000-00.tmp")); os.mkdir(os.path.join(r,"snap-20260101-000000-100")); os.mkdir(os.path.join(r,"snap-20260101-000000-99"))
+print(snaputil.list_snapshots(r))
+# synccli: corrupt manifest
+s=tempfile.mkdtemp(); d=tempfile.mkdtemp(); open(os.path.join(s,"a"),"w").write("x")
+open(os.path.join(d,".sync_manifest.json"),"w").write('{"a": {"si')
+try: synccli.sync(s,d)
+except Exception as e: print("corrupt manifest ->",type(e).__name__)
+# broken symlink / vanish
+os.symlink("/nonexistent", os.path.join(s,"dangling"))
+try: synccli.build_manifest(s)
+except Exception as e: print("dangling symlink ->",type(e).__name__)
+os.unlink(os.path.join(s,"dangling"))
+# hidden dirs skipped
+os.makedirs(os.path.join(s,".hidden")); open(os.path.join(s,".hidden","f"),"w").write("y")
+print(synccli.scan_files(s))
+# copy_file swallow
+d2=tempfile.mkdtemp(); open(os.path.join(s,"u"),"w").write("z"); os.chmod(os.path.join(s,"u"),0)
+print(synccli.sync(s,d2), os.path.exists(os.path.join(d2,"u")), "u" in json.load(open(os.path.join(d2,".sync_manifest.json"))))
+print(synccli.sync(s,d2))
+os.chmod(os.path.join(s,"u"),0o644)
+print("after fix:", synccli.sync(s,d2))
+# mtime test: same size edit with restored mtime
+p=os.path.join(s,"a"); st=os.stat(p); open(p,"w").write("Q"); os.utime(p,ns=(st.st_atime_ns,st.st_mtime_ns))
+print("same-size same-mtime edit detected:", synccli.sync(s,d2))
+print(os.stat(p).st_mtime, os.stat(p).st_mtime_ns)
+EOF
+Python 3.10.11
+/dev/disk3s5   926Gi   523Gi   385Gi    58%    4.4M  4.0G    0%   /System/Volumes/Data
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+Darwin arm64
+Apple M3 Max
+/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpfsrpde_b/snap-1/../../etc/passwd
+/etc/passwd
+/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpfsrpde_b/snap-1/../x
+0 ['snap-20260101-000000-00', 'snap-20260102-000000-00', 'snap-20260103-000000-00']
+-1 ['snap-20260101-000000-00', 'snap-20260102-000000-00', 'snap-20260103-000000-00']
+['snap-20260101-000000-00.tmp', 'snap-20260101-000000-100', 'snap-20260101-000000-99']
+corrupt manifest -> JSONDecodeError
+dangling symlink -> FileNotFoundError
+['a']
+['a', 'u'] False True
+[]
+after fix: []
+same-size same-mtime edit detected: []
+1794839790.8473675 1794839790847367578
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-74504 && cat > /tmp/bench_d1.py <<'EOF'
+import os, time, tempfile, json, shutil, resource, random, sys
+sys.path.insert(0,'.')
+import synccli
+random.seed(1)
+base=tempfile.mkdtemp(prefix="bk_")
+src=os.path.join(base,"src"); dst=os.path.join(base,"dst"); os.makedirs(src)
+N=30000; total=0
+t=time.time()
+for i in range(N):
+    d=os.path.join(src,"r%03d"%(i%300),"s%02d"%(i%17)); os.makedirs(d,exist_ok=True)
+    sz=int(random.lognormvariate(9.5,1.6)); sz=min(sz,20_000_000)
+    with open(os.path.join(d,"f%d.dat"%i),"wb") as f: f.write(os.urandom(min(sz,1<<20)) * (sz//(1<<20)+1) if sz>(1<<20) else os.urandom(sz))
+print("gen",round(time.time()-t,1))
+def rss(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1e6
+t=time.time(); files=synccli.scan_files(src); t_scan=time.time()-t
+tot=sum(os.stat(os.path.join(src,f)).st_size for f in files)
+print("files",len(files),"bytes",tot, "scan_files s",round(t_scan,3))
+t=time.time(); m=synccli.build_manifest(src); print("build_manifest s",round(time.time()-t,3))
+print("manifest json bytes",len(json.dumps(m,indent=2)), "compact", len(json.dumps(m)))
+t=time.time(); tmp=synccli.sync(src,dst); print("full sync s",round(time.time()-t,2),"copied",len(tmp),"rss MB(peak)",round(rss(),1))
+t=time.time(); c=synccli.sync(src,dst); print("noop sync s",round(time.time()-t,3),"copied",len(c))
+# hardlink-based snapshot: link all
+t=time.time(); l=os.path.join(base,"lnk")
+for f in files:
+    p=os.path.join(l,f); os.makedirs(os.path.dirname(p),exist_ok=True); os.link(os.path.join(dst,f),p)
+print("hardlink all s",round(time.time()-t,2))
+# fsync pass cost estimate: open+fsync each file in dst
+t=time.time()
+for f in files:
+    fd=os.open(os.path.join(dst,f),os.O_RDONLY); os.fsync(fd); os.close(fd)
+print("fsync pass (already flushed) s",round(time.time()-t,2))
+# streaming copy with F_FULLFSYNC? plain copy via shutil to new tree
+t=time.time(); d3=os.path.join(base,"d3")
+for f in files:
+    p=os.path.join(d3,f); os.makedirs(os.path.dirname(p),exist_ok=True); shutil.copyfile(os.path.join(src,f),p)
+print("shutil.copyfile full s",round(time.time()-t,2))
+t=time.time(); shutil.rmtree(l); print("rmtree linked tree s",round(time.time()-t,2))
+shutil.rmtree(base)
+EOF
+python3 /tmp/bench_d1.py
+gen 13.9
+files 30000 bytes 1500577250 scan_files s 0.767
+build_manifest s 1.305
+manifest json bytes 2459498 compact 2039496
+full sync s 20.34 copied 30000 rss MB(peak) 124.2
+noop sync s 2.56 copied 0
+hardlink all s 19.08
+fsync pass (already flushed) s 3.5
+shutil.copyfile full s 21.08
+rmtree linked tree s 3.43
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-74504 && cat > /tmp/bench2_d1.py <<'EOF'
+import os, time, tempfile, random, resource, shutil, sys
+random.seed(1)
+base=tempfile.mkdtemp(prefix="bk2_")
+src=os.path.join(base,"src"); os.makedirs(src)
+files=[]; tot=0
+for i in range(30000):
+    d=os.path.join(src,"r%03d"%(i%300),"s%02d"%(i%17)); os.makedirs(d,exist_ok=True)
+    sz=min(int(random.lognormvariate(9.2,1.5)),20_000_000)
+    p=os.path.join(d,"f%d.dat"%i)
+    with open(p,"wb") as f: f.write(os.urandom(sz))
+    files.append(os.path.relpath(p,src)); tot+=sz
+print("files",len(files),"bytes",tot)
+def copy(fsync, dstroot, fullfsync=False):
+    import fcntl
+    made=set()
+    for rel in files:
+        s=os.path.join(src,rel); d=os.path.join(dstroot,rel); dd=os.path.dirname(d)
+        if dd not in made: os.makedirs(dd,exist_ok=True); made.add(dd)
+        with open(s,"rb") as a, open(d,"wb") as b:
+            st0=os.fstat(a.fileno())
+            while True:
+                buf=a.read(1<<20)
+                if not buf: break
+                b.write(buf)
+            st1=os.fstat(a.fileno())
+            assert st0.st_mtime_ns==st1.st_mtime_ns
+            if fsync:
+                b.flush()
+                if fullfsync: fcntl.fcntl(b.fileno(), fcntl.F_FULLFSYNC)
+                else: os.fsync(b.fileno())
+for name,kw in (("stream no fsync",dict(fsync=False)),("stream + fsync",dict(fsync=True)),("stream + F_FULLFSYNC",dict(fsync=True,fullfsync=True))):
+    dstroot=os.path.join(base,name.replace(" ","_")); t=time.time(); copy(dstroot=dstroot,**kw); print(name, round(time.time()-t,1),"s")
+print("peak rss MB", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1e6)
+shutil.rmtree(base)
+EOF
+python3 /tmp/bench2_d1.py
+files 30000 bytes 911145385
+stream no fsync 8.0 s
+stream + fsync 8.8 s
+stream + F_FULLFSYNC 171.6 s
+peak rss MB 67.469312
+[0m
+[0m$ [0mcat > /tmp/bench3_d1.py <<'EOF'
+import os, sys, time, tempfile, random, json, shutil, resource, tracemalloc
+sys.path.insert(0,'/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-74504')
+import synccli
+random.seed(2)
+base=tempfile.mkdtemp(prefix="bk3_"); src=os.path.join(base,"src"); os.makedirs(src)
+tot=0
+for i in range(30000):
+    d=os.path.join(src,"r%03d"%(i%300),"s%02d"%(i%17)); os.makedirs(d,exist_ok=True)
+    sz=min(int(random.lognormvariate(9.2,1.5)),20_000_000); tot+=sz
+    with open(os.path.join(d,"f%d.dat"%i),"wb") as f: f.write(os.urandom(sz))
+print("bytes",tot)
+def tolerant_manifest(root):
+    m={}
+    for rel in synccli.scan_files(root):
+        st=os.lstat(os.path.join(root,rel)); m[rel]={"size":st.st_size,"mtime_ns":st.st_mtime_ns,"mode":st.st_mode&0o7777}
+    return m
+def run(prev, name):
+    t0=time.time(); stg=os.path.join(base,".staging-"+name); os.makedirs(stg+"/tree")
+    m=tolerant_manifest(src); t1=time.time()
+    old=json.load(open(prev+"/manifest.json"))["files"] if prev else {}
+    ch=set(synccli.changed_files(old,m)); t2=time.time()
+    made=set(); nl=nc=0
+    for rel in m:
+        d=os.path.join(stg,"tree",rel); dd=os.path.dirname(d)
+        if dd not in made: os.makedirs(dd,exist_ok=True); made.add(dd)
+        if rel in ch:
+            s=os.path.join(src,rel)
+            with open(s,"rb") as a, open(d,"wb") as b:
+                while True:
+                    buf=a.read(1<<20)
+                    if not buf: break
+                    b.write(buf)
+                b.flush(); os.fsync(b.fileno())
+            os.utime(d,ns=(m[rel]["mtime_ns"],m[rel]["mtime_ns"])); nc+=1
+        else:
+            os.link(os.path.join(prev,"tree",rel),d); nl+=1
+    t3=time.time()
+    # verify pass
+    for rel,s in m.items():
+        assert os.lstat(os.path.join(stg,"tree",rel)).st_size==s["size"]
+    t4=time.time()
+    json.dump({"files":m},open(stg+"/manifest.json.tmp","w")); os.replace(stg+"/manifest.json.tmp",stg+"/manifest.json")
+    os.rename(stg,os.path.join(base,name)); t5=time.time()
+    print(f"{name}: scan {t1-t0:.2f} load+diff {t2-t1:.2f} copy/link {t3-t2:.2f} (copied {nc} linked {nl}) verify {t4-t3:.2f} commit {t5-t4:.2f} TOTAL {t5-t0:.2f}")
+    return os.path.join(base,name)
+s1=run(None,"snap-1")
+s2=run(s1,"snap-2")
+# modify 1% files
+files=list(synccli.scan_files(src))
+for rel in random.sample(files,300):
+    with open(os.path.join(src,rel),"ab") as f: f.write(b"x")
+s3=run(s2,"snap-3")
+tracemalloc.start(); m=tolerant_manifest(src); cur,peak=tracemalloc.get_traced_memory(); print("manifest mem MB",cur/1e6,"per file B",cur/len(m)); 
+s=json.dumps({"files":m}); print("json B/file",len(s)/len(m))
+t=time.time(); shutil.rmtree(s1); print("rmtree 1 snapshot (links mostly shared)",round(time.time()-t,2))
+shutil.rmtree(base)
+EOF
+python3 /tmp/bench3_d1.py
+bytes 934590436
+snap-1: scan 1.82 load+diff 0.00 copy/link 22.66 (copied 30000 linked 0) verify 3.42 commit 0.44 TOTAL 28.33
+snap-2: scan 7.80 load+diff 0.03 copy/link 61.84 (copied 0 linked 30000) verify 3.59 commit 0.58 TOTAL 73.84
+snap-3: scan 7.26 load+diff 0.02 copy/link 48.60 (copied 300 linked 29700) verify 2.63 commit 0.43 TOTAL 58.95
+manifest mem MB 13.15385 per file B 438.46166666666664
+json B/file 85.12306666666667
+rmtree 1 snapshot (links mostly shared) 10.6
+[0m
+[0m$ [0muptime; python3 /tmp/bench3_d1.py
+15:47  up  5:56, 19 users, load averages: 115.62 64.96 30.35
+bytes 934590436
+snap-1: scan 1.28 load+diff 0.00 copy/link 8.95 (copied 30000 linked 0) verify 0.55 commit 0.07 TOTAL 10.85
+snap-2: scan 1.22 load+diff 0.02 copy/link 12.05 (copied 0 linked 30000) verify 0.62 commit 0.07 TOTAL 13.97
+snap-3: scan 1.16 load+diff 0.01 copy/link 11.51 (copied 300 linked 29700) verify 0.68 commit 0.07 TOTAL 13.44
+manifest mem MB 13.15385 per file B 438.46166666666664
+json B/file 85.12306666666667
+rmtree 1 snapshot (links mostly shared) 3.5
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-74504 && python3 - <<'EOF'
+import os, tempfile, snaputil, synccli
+r=tempfile.mkdtemp(); sn=os.path.join(r,"snap-20260101-000000-00","tree"); os.makedirs(sn)
+open(os.path.join(sn,"a"),"w").write("abc"); os.symlink("/nonexistent",os.path.join(sn,"dangling"))
+try: print(snaputil.snapshot_disk_usage(r,"snap-20260101-000000-00"))
+except Exception as e: print("usage ->",type(e).__name__)
+s=tempfile.mkdtemp(); os.makedirs(os.path.join(s,"real")); open(os.path.join(s,"real","x"),"w").write("1")
+os.symlink("real",os.path.join(s,"dlink")); os.makedirs(os.path.join(s,"locked")); open(os.path.join(s,"locked","y"),"w").write("2"); os.chmod(os.path.join(s,"locked"),0)
+print(synccli.scan_files(s)); os.chmod(os.path.join(s,"locked"),0o755)
+EOF
+git -C . status 2>&1 | head -1; ls
+usage -> FileNotFoundError
+['real/x']
+fatal: not a git repository (or any of the parent directories): .git
+__pycache__
+BRIEF.md
+snaputil.py
+synccli.py
+test_synccli.py
+[0m
+./run-eval-v4.sh: line 185: 74523 Terminated: 15          opencode run --dir "$WORK" --model "$MODEL" --variant "$VARIANT" --title "$TITLE" --auto "$PROMPT"
+./run-eval-v4.sh: line 167: 81460 Terminated: 15          sleep 300
+./run-eval-v4.sh: line 116: 85852 Terminated: 15          sleep 5
+arm-killed-timeout: eval-2026-11-16-D-D1-github-copilot-claude-sonnet-5-5-high-p5 hit the 15-min watchdog; run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-74504

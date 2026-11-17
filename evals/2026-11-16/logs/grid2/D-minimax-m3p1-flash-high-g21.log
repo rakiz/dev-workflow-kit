@@ -1,0 +1,530 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3p1-flash
+[0m
+[0m$ [0mls -la
+total 40
+drwxr-xr-x@    5 sebastien.mendez  staff    160 Nov 16 23:08 __pycache__
+drwxr-xr-x@    7 sebastien.mendez  staff    224 Nov 16 23:08 .
+drwx------@ 1105 sebastien.mendez  staff  35360 Nov 16 23:08 ..
+-rw-r--r--@    1 sebastien.mendez  staff   4974 Nov 16 23:08 BRIEF.md
+-rw-r--r--@    1 sebastien.mendez  staff   3072 Nov 16 23:08 snaputil.py
+-rw-r--r--@    1 sebastien.mendez  staff   3169 Nov 16 23:08 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff   1834 Nov 16 23:08 test_synccli.py
+[0m
+I'll start by reading the brief.
+[0m→ [0mRead BRIEF.md
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mpython3 -V; df -h /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-43317 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode; sysctl -n hw.ncpu 2>/dev/null; uname -a
+Python 3.10.11
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   926Gi   568Gi   340Gi    63%    5.6M  3.6G    0%   /System/Volumes/Data
+/dev/disk3s5   926Gi   568Gi   340Gi    63%    5.6M  3.6G    0%   /System/Volumes/Data
+14
+Darwin M-M2F74HXTVH 24.6.0 Darwin Kernel Version 24.6.0: Sun Aug 23 20:37:27 PDT 2026; root:xnu-11417.140.69.712.69~1/RELEASE_ARM64_T6031 arm64
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1 | tail -20
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+[0m
+[0m$ [0mpython3 - <<'EOF'
+import os, tempfile, json
+import synccli, snaputil
+
+# 1. hidden dirs vs hidden files in scan_files
+t = tempfile.mkdtemp()
+os.makedirs(os.path.join(t, ".hidden_dir"))
+os.makedirs(os.path.join(t, "vis"))
+open(os.path.join(t, ".hidden_dir", "x.txt"), "w").write("x")
+open(os.path.join(t, ".hidden_file"), "w").write("y")
+open(os.path.join(t, "vis", "z.txt"), "w").write("z")
+print("scan_files:", synccli.scan_files(t))
+
+# 2. safe_snapshot_path with absolute path
+root = tempfile.mkdtemp()
+snap = "snap-20261112-150000-07"
+for p in ["a/b.txt", "../../etc/passwd", "/etc/passwd", "../other"]:
+    print(repr(p), "->", repr(snaputil.safe_snapshot_path(root, snap, p)))
+
+# 3. changed_files with deletions
+old = {"a": {"size":1,"mtime":1.0}, "b": {"size":2,"mtime":2.0}}
+new = {"a": {"size":1,"mtime":1.0}}
+print("changed_files:", synccli.changed_files(old, new))
+
+# 4. prune semantics
+root2 = tempfile.mkdtemp()
+for n in ["snap-20261111-100000-01","snap-20261112-100000-02","snap-20261113-100000-03"]:
+    os.makedirs(os.path.join(root2,n))
+open(os.path.join(root2,"junk"),"w").write("x")
+print("list_snapshots:", snaputil.list_snapshots(root2))
+print("prune keep=1:", snaputil.prune_snapshots(root2, 1))
+print("after:", os.listdir(root2))
+EOF
+scan_files: ['.hidden_file', 'vis/z.txt']
+'a/b.txt' -> '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp00sex1qe/snap-20261112-150000-07/a/b.txt'
+'../../etc/passwd' -> '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp00sex1qe/snap-20261112-150000-07/../../etc/passwd'
+'/etc/passwd' -> '/etc/passwd'
+'../other' -> '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp00sex1qe/snap-20261112-150000-07/../other'
+changed_files: []
+list_snapshots: ['snap-20261111-100000-01', 'snap-20261112-100000-02', 'snap-20261113-100000-03']
+prune keep=1: ['snap-20261111-100000-01', 'snap-20261112-100000-02']
+after: ['junk', 'snap-20261113-100000-03']
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py 2>&1 | tail -40
+tree build                                3.980 s
+files=20200 bytes=1101004800 (1.03 GiB)
+synccli.scan_files (enumerate)                    0.108 s
+synccli.build_manifest (stat per file)            0.466 s
+full backup copy (chunked+fsync)                 10.488 s
+full copy via synccli.copy_file                   7.422 s
+json index write (2-space indent)                 0.035 s
+   index size for 20200 files: 1574401 bytes (77.9 B/file)
+incremental run (hardlink only, no data)          8.571 s
+Traceback (most recent call last):
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py", line 163, in <module>
+    main()
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py", line 144, in main
+    t_mixed, _ = timed("incremental run (1%% changed: %d files)" % len(changed), mixed_run)
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py", line 60, in timed
+    out = fn()
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py", line 143, in mixed_run
+    os.link(os.path.join(dst, rel), target)
+FileExistsError: [Errno 17] File exists: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench/dst/d00/f05800.bin' -> '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench/snap-20261116-120000-01/files/d00/f05800.bin'
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py
+Wrote file successfully.
+[0m
+[0m$ [0mrm -rf /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench/dst2; python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py 2>&1 | tail -40
+tree: files=20200 bytes=1101004800 (1.03 GiB)
+stat-only pass over 20200 files                   0.351 s
+   -> 17.4 us/file
+scan_files + build_manifest                       0.460 s
+incremental run, 0 changed (hardlink)             6.951 s
+   linked=20200 copied=0 bytes_copied=0
+incremental run, 200 of 20200 changed             6.875 s
+   linked=20000 copied=200 bytes_copied=16793600
+json index dump (indent=2)                        0.034 s
+json index dump (compact, separators)             0.013 s
+   indent=2: 1574401 bytes (77.9 B/file); compact: 1190600 bytes (58.9 B/file)
+hardlink sharing: same inode for unchanged file? False nlink=2
+Traceback (most recent call last):
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py", line 108, in <module>
+    main()
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py", line 103, in main
+    t_prune, _ = timed("snaputil.prune_snapshots(rmtree of 1 snapshot)",
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py", line 60, in timed
+    out = fn()
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py", line 104, in <lambda>
+    lambda: snaputil.prune_snapshots(SCRATCH, 1))
+NameError: name 'snaputil' is not defined
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench3.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench3.py 2>&1 | tail -30
+files: 20200
+create 20200 empty files                          1.935 s
+hardlink 20200 files                              6.709 s
+clonefile 20200 files                             3.729 s
+byte-copy 20200 files (1.03 GiB, fsync each)     10.832 s
+
+per-file cost:
+  empty file create :    95.8 us
+  hardlink          :   332.1 us
+  clonefile         :   184.6 us
+  byte copy         :   536.3 us
+
+clone: same inode? False | same size? True | content equal? True
+clone: source unchanged after writing to clone? True
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && du -sk src dst link clone copy empty 2>/dev/null; echo "---"; du -sk --apparent-size clone copy 2>/dev/null || true; echo "--- df"; df -h . | tail -1
+1075200	src
+1075200	dst
+0	link
+1075200	clone
+1075200	copy
+0	empty
+---
+--- df
+/dev/disk3s5   926Gi   571Gi   337Gi    63%    5.7M  3.5G    0%   /System/Volumes/Data
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import os
+for d in ["src","dst","clone","copy","link"]:
+    tot_blocks = 0; tot_size = 0; n=0
+    for dp,dn,fn in os.walk(d):
+        for f in fn:
+            st = os.stat(os.path.join(dp,f))
+            tot_blocks += st.st_blocks; tot_size += st.st_size; n+=1
+    print("%-6s files=%5d apparent=%12d allocated=%12d" % (d, n, tot_size, tot_blocks*512))
+EOF
+src    files=20200 apparent=  1101004800 allocated=  1101004800
+dst    files=20200 apparent=  1101004800 allocated=  1101004800
+clone  files=20200 apparent=  1101004800 allocated=  1101004800
+copy   files=20200 apparent=  1101004800 allocated=  1101004800
+link   files=20200 apparent=  1101004800 allocated=  1101004800
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import ctypes, ctypes.util, os, shutil, statvfs
+libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+def free():
+    s = os.statvfs(".")
+    return s.f_bavail * s.f_frsize
+def clonefile(a,b):
+    if libc.clonefile(a.encode(), b.encode(), ctypes.c_uint(1)) != 0:
+        raise OSError(ctypes.get_errno(), "clonefile")
+shutil.rmtree("clonetest", ignore_errors=True)
+os.makedirs("clonetest")
+f0 = free()
+for i in range(200):
+    clonefile("src/d%02d/f%05d.bin" % (i%40, i), "clonetest/f%05d.bin" % i)
+f1 = free()
+tot = sum(os.stat(os.path.join("clonetest", f)).st_size for f in os.listdir("clonetest"))
+print("cloned bytes (apparent): %d" % tot)
+print("free before: %d after: %d  delta: %d" % (f0, f1, f1-f0))
+# now hardlink them
+shutil.rmtree("linktest", ignore_errors=True); os.makedirs("linktest")
+f2 = free()
+for i in range(200):
+    os.link("src/d%02d/f%05d.bin" % (i%40, i), "linktest/f%05d.bin" % i)
+f3 = free()
+print("hardlink free delta: %d" % (f3-f2))
+EOF
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ModuleNotFoundError: No module named 'statvfs'
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import ctypes, ctypes.util, os, shutil
+libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+def free():
+    s = os.statvfs(".")
+    return s.f_bavail * s.f_frsize
+def clonefile(a,b):
+    if libc.clonefile(a.encode(), b.encode(), ctypes.c_uint(1)) != 0:
+        raise OSError(ctypes.get_errno(), "clonefile")
+shutil.rmtree("clonetest", ignore_errors=True); os.makedirs("clonetest")
+f0 = free()
+for i in range(200):
+    clonefile("src/d%02d/f%05d.bin" % (i%40, i), "clonetest/f%05d.bin" % i)
+f1 = free()
+tot = sum(os.stat(os.path.join("clonetest", f)).st_size for f in os.listdir("clonetest"))
+print("cloned apparent bytes: %d ; free delta: %d" % (tot, f1-f0))
+shutil.rmtree("linktest", ignore_errors=True); os.makedirs("linktest")
+f2 = free()
+for i in range(200):
+    os.link("src/d%02d/f%05d.bin" % (i%40, i), "linktest/f%05d.bin" % i)
+f3 = free()
+print("hardlink free delta: %d" % (f3-f2))
+EOF
+cloned apparent bytes: 3276800 ; free delta: -20480
+hardlink free delta: 0
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import fcntl, os, time
+F_NOCACHE = 48
+tot = 0
+t0 = time.perf_counter()
+files = 0
+for dp, dn, fn in os.walk("src"):
+    for f in fn:
+        p = os.path.join(dp, f)
+        fd = os.open(p, os.O_RDONLY)
+        try:
+            fcntl.fcntl(fd, F_NOCACHE, 1)
+        except OSError as e:
+            print("F_NOCACHE failed:", e); raise SystemExit
+        while True:
+            b = os.read(fd, 1 << 20)
+            if not b: break
+            tot += len(b)
+        os.close(fd); files += 1
+dt = time.perf_counter() - t0
+print("cold-ish read: %d files, %d bytes in %.3f s -> %.1f MiB/s" % (files, tot, dt, tot/(1<<20)/dt))
+EOF
+cold-ish read: 20200 files, 1101004800 bytes in 1.581 s -> 664.0 MiB/s
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode && python3 - <<'EOF'
+import fcntl, os, shutil, tempfile
+root = tempfile.mkdtemp()
+# flock behaviour
+lp = os.path.join(root, "run.lock")
+fd = os.open(lp, os.O_CREAT | os.O_RDWR, 0o644)
+fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+print("locked ok")
+fd2 = os.open(lp, os.O_CREAT | os.O_RDWR, 0o644)
+try:
+    fcntl.flock(fd2, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    print("second lock acquired (unexpected)")
+except OSError as e:
+    print("second lock blocked:", e.errno, e.strerror)
+# same-process second fd on flock: BSD flock is per-file-descriptor, so second fd blocks
+print("---- rename atomicity ----")
+a = os.path.join(root, "staging/run-1"); b = os.path.join(root, "snap-1")
+os.makedirs(a); open(os.path.join(a, "index.json"), "w").write("{}")
+os.rename(a, b)
+print("published:", os.path.exists(os.path.join(b, "index.json")), "staging gone:", not os.path.exists(a))
+# rename dir over existing non-empty dir
+try:
+    os.rename(b, b)
+    print("rename onto itself ok")
+except OSError as e:
+    print("err", e)
+# commonpath containment
+print("commonpath:", os.path.commonpath([os.path.realpath(root), os.path.realpath(os.path.join(root, "snap-1"))]))
+outside = os.path.realpath("/etc/passwd")
+print("outside commonpath:", os.path.commonpath([os.path.realpath(root), outside]))
+EOF
+locked ok
+second lock blocked: 35 Resource temporarily unavailable
+---- rename atomicity ----
+published: True staging gone: True
+rename onto itself ok
+commonpath: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp5zzghzr_
+outside commonpath: /private
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import json, os, resource, shutil, sys, time, tracemalloc
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-43317")
+import synccli
+
+src = "src"
+# --- memory of the manifest dict (RAM per index entry) ---
+tracemalloc.start()
+man = synccli.build_manifest(src)
+cur, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+print("manifest entries=%d  traced current=%.2f MiB -> %.1f B/entry  peak=%.2f MiB"
+      % (len(man), cur/2**20, cur/len(man), peak/2**20))
+# index json size + parse time
+blob = json.dumps(man, separators=(",", ":")).encode()
+t=time.perf_counter(); back = json.loads(blob); dt=time.perf_counter()-t
+print("index compact=%d bytes (%.1f B/entry); json.loads %.3f s" % (len(blob), len(blob)/len(man), dt))
+
+# --- metadata bytes per file on disk (empty file creation) ---
+def free():
+    s = os.statvfs("."); return s.f_bavail*s.f_frsize
+shutil.rmtree("metatest", ignore_errors=True); os.makedirs("metatest")
+f0 = free()
+rels = synccli.scan_files(src)
+made=set()
+for rel in rels:
+    p = os.path.join("metatest", rel)
+    d = os.path.dirname(p)
+    if d not in made:
+        os.makedirs(d, exist_ok=True); made.add(d)
+    open(p,"wb").close()
+f1 = free()
+print("empty-file metadata: %d files, free delta = %d bytes -> %.1f B/file" % (len(rels), f1-f0, (f1-f0)/len(rels)))
+shutil.rmtree("metatest", ignore_errors=True)
+EOF
+manifest entries=20200  traced current=7.25 MiB -> 376.4 B/entry  peak=7.41 MiB
+index compact=1190600 bytes (58.9 B/entry); json.loads 0.006 s
+empty-file metadata: 20200 files, free delta = -4042752 bytes -> -200.1 B/file
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import os, shutil, time, sys
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-43317")
+import snaputil
+t=time.perf_counter()
+shutil.rmtree("copy")
+print("rmtree of 20200 files / 1.03 GiB: %.3f s" % (time.perf_counter()-t))
+t=time.perf_counter()
+shutil.rmtree("empty")
+print("rmtree of 20200 empty files: %.3f s" % (time.perf_counter()-t))
+EOF
+rmtree of 20200 files / 1.03 GiB: 1.520 s
+rmtree of 20200 empty files: 1.218 s
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-43317 && python3 - <<'EOF'
+import json, os, tempfile, sys
+import synccli
+
+# (5) copy_file leaves a partial destination file when the read fails mid-way
+class Boom:
+    def __init__(self, f): self.f = f
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self, *a):
+        data = self.f.read(*a)
+        if data:
+            raise OSError(5, "simulated I/O error")
+        return data
+    def __exit__(self, *a): pass
+    def close(self): self.f.close()
+
+real_open = open
+def fake_open(path, mode="r", *a, **k):
+    if isinstance(path, str) and path.endswith("src.bin") and "rb" in mode:
+        return Boom(real_open(path, mode, *a, **k))
+    return real_open(path, mode, *a, **k)
+
+d = tempfile.mkdtemp()
+src = os.path.join(d, "src.bin"); dst = os.path.join(d, "dst.bin")
+real_open(src, "wb").write(b"x" * 100000)
+synccli.open = fake_open
+synccli.copy_file(src, dst)
+synccli.open = real_open
+print("after simulated mid-read failure: dst exists =", os.path.exists(dst),
+      "size =", os.stat(dst).st_size if os.path.exists(dst) else None,
+      "(source was 100000 bytes)")
+
+# (6) a truncated manifest makes the next sync() call die
+d2 = tempfile.mkdtemp()
+with real_open(os.path.join(d2, synccli.MANIFEST_NAME), "w") as f:
+    f.write('{"a.txt": {"size": 5, "mtim')   # half-written manifest
+try:
+    synccli.sync(d2, os.path.join(d2, "dst"))
+    print("sync survived")
+except Exception as e:
+    print("sync died on half-written manifest:", type(e).__name__, e)
+EOF
+after simulated mid-read failure: dst exists = True size = 0 (source was 100000 bytes)
+sync survived
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-43317 && python3 - <<'EOF'
+import os, tempfile
+import synccli
+
+# (5) partial destination file when the read fails mid-way
+class Boom:
+    def __init__(self, f): self.f = f; self.sent = False
+    def __enter__(self): return self
+    def __exit__(self, *a): self.f.close(); return False
+    def read(self, n=-1):
+        if not self.sent:
+            self.sent = True
+            data = self.f.read(40000)
+            return data
+        raise OSError(5, "simulated I/O error")
+
+real_open = open
+def fake_open(path, mode="r", *a, **k):
+    if isinstance(path, str) and path.endswith("src.bin") and "rb" in mode:
+        return Boom(real_open(path, mode, *a, **k))
+    return real_open(path, mode, *a, **k)
+
+d = tempfile.mkdtemp()
+src = os.path.join(d, "src.bin"); dst = os.path.join(d, "dst.bin")
+real_open(src, "wb").write(b"x" * 100000)
+synccli.open = fake_open
+synccli.copy_file(src, dst)
+synccli.open = real_open
+print("source=%d bytes; destination after mid-read failure exists=%s size=%d"
+      % (100000, os.path.exists(dst), os.stat(dst).st_size))
+
+# (6) a half-written manifest in the DESTINATION kills the next sync()
+d2 = tempfile.mkdtemp(); dst2 = tempfile.mkdtemp()
+real_open(os.path.join(d2, "a.txt"), "wb").write(b"hello")
+with real_open(os.path.join(dst2, synccli.MANIFEST_NAME), "w") as f:
+    f.write('{"a.txt": {"size": 5, "mtim')      # run died mid json.dump
+try:
+    synccli.sync(d2, dst2)
+    print("sync survived a half-written manifest")
+except Exception as e:
+    print("sync died on half-written manifest:", type(e).__name__, e)
+EOF
+source=100000 bytes; destination after mid-read failure exists=True size=40000
+sync died on half-written manifest: JSONDecodeError Unterminated string starting at: line 1 column 23 (char 22)
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode && python3 - <<'EOF'
+import ctypes, ctypes.util, os, tempfile
+libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+def clonefile(a,b):
+    if libc.clonefile(a.encode(), b.encode(), ctypes.c_uint(1)) != 0:
+        raise OSError(ctypes.get_errno(), "clonefile")
+d = tempfile.mkdtemp()
+s = os.path.join(d,"s"); c = os.path.join(d,"c")
+open(s,"wb").write(b"hi")
+os.utime(s, (1000000, 1000000))
+clonefile(s,c)
+st_s = os.stat(s); st_c = os.stat(c)
+print("source mtime", st_s.st_mtime, "clone mtime", st_c.st_mtime, "equal:", st_s.st_mtime==st_c.st_mtime)
+print("mode src=%o clone=%o" % (st_s.st_mode & 0o777, st_c.st_mode & 0o777))
+EOF
+source mtime 1000000.0 clone mtime 1000000.0 equal: True
+mode src=644 clone=644
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import gzip, json, sys, time, zlib
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-43317")
+import synccli
+man = synccli.build_manifest("src")
+blob = json.dumps(man, separators=(",", ":")).encode()
+t=time.perf_counter(); g = gzip.compress(blob, 6); tg=time.perf_counter()-t
+print("index compact=%d bytes; gzip6=%d bytes (%.1f B/entry, %.1fx) in %.3f s" % (len(blob), len(g), len(g)/len(man), len(blob)/len(g), tg))
+t=time.perf_counter(); u = gzip.decompress(g); tu=time.perf_counter()-t
+print("gzip decompress %.3f s (%.1f us/entry)" % (tu, tu/len(man)*1e6))
+EOF
+index compact=1190600 bytes; gzip6=166543 bytes (8.2 B/entry, 7.1x) in 0.010 s
+gzip decompress 0.001 s (0.0 us/entry)
+[0m
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import json, sys
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-43317")
+import synccli
+man = synccli.build_manifest("src")
+full = {rel: {"size": s["size"], "mtime": s["mtime"], "mode": 420, "kind": "file",
+              "target": None, "dedup": "clone"} for rel, s in man.items()}
+blob = json.dumps(full, separators=(",", ":")).encode()
+print("full-schema index: %d bytes = %.1f B/entry" % (len(blob), len(blob)/len(man)))
+core = json.dumps(man, separators=(",", ":")).encode()
+print("core-schema index: %d bytes = %.1f B/entry" % (len(core), len(core)/len(man)))
+import gzip
+print("full gzip6: %.1f B/entry" % (len(gzip.compress(blob,6))/len(man)))
+EOF
+full-schema index: 2301600 bytes = 113.9 B/entry
+core-schema index: 1190600 bytes = 58.9 B/entry
+full gzip6: 9.0 B/entry
+[0m
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench && python3 - <<'EOF'
+import json, sys, gzip
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-43317")
+import synccli
+man = synccli.build_manifest("src")
+lean = {rel: {"size": s["size"], "mtime": s["mtime"], "mode": 420, "kind": "file"} for rel, s in man.items()}
+b = json.dumps(lean, separators=(",", ":")).encode()
+print("lean index: %d bytes = %.1f B/entry ; gzip6 %.1f B/entry" % (len(b), len(b)/len(man), len(gzip.compress(b,6))/len(man)))
+EOF
+lean index: 1695600 bytes = 83.9 B/entry ; gzip6 8.7 B/entry
+[0m
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 185: 43328 Terminated: 15          opencode run --dir "$WORK" --model "$MODEL" --variant "$VARIANT" --title "$TITLE" --auto "$PROMPT"
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 48676 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 116: 49907 Terminated: 15          sleep 5
+arm-killed-timeout: eval-2026-11-16-D-D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g21 hit the 15-min watchdog; run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-43317

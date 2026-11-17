@@ -1,0 +1,76 @@
+# EVAL PROTOCOL — how this kit measures models (stable contract, do not improvise)
+
+> This file is the single source of truth for the eval machinery. Every new
+> session MUST read it before touching `LEADERBOARD.html`, the runners, or
+> launching runs. Last amended: 2026-11-16 (grid completion campaign).
+
+## 1. The five decision benches
+
+| Code | Task | Fixture | Runner | Scale |
+|---|---|---|---|---|
+| O | Orchestration: grounded plan, pipeline agents, verifiable criteria, red-baseline trap | `synccli-eval-repo` (2-commit history recreated) | `run-eval-v5.sh T1` | **/8**: baseline 2 + grounding 2 + agents 2 + criteria 2 − 3/hallucination (v2 rubric; runs scored PASS/PARTIAL/FAIL before 11-16 are re-scored from logs; lost texts are RE-RUN, never left categorical) |
+| IR | Impl review: 3 seeded defects + bonus − FPs | `synccli-eval-repo` | `run-eval-v5.sh T3` | n/3 (+2 max bonus) |
+| DR2 | Design review (bench v2) | `synccli-eval-repo-v2` | `run-eval-v5.sh T4V2` | /14 |
+| I2 | Impl, bench v3 (4 seeded defects + regression tests) | `reportgen-eval-repo-i3` | `run-eval-v4.sh IV2` | /14 |
+| D | Design authoring, bench v3 (4 execution-revealed hazards in snaputil.py) | `syncfeat-brief-d1` | `run-eval-v4.sh D1` | /11 |
+
+Retired benches (never decide a seat): I-v1 (T2), DR-v1 (T4), I-v2/RG2 (superseded by RG3 same day).
+
+Private answer keys live in the SEPARATE local repo `../evals-keys/`
+(RUBRIC-IV2-RG3.md, RUBRIC-D1-v2.md) — never in this public repo; grep for
+leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
+
+## 2. Measurement rules (frozen — consistency beats cleverness)
+
+1. **Two valid runs per cell**, score = mean. Expensive models (opus, fable,
+   astra, and any model >$1/run) may be single-run by owner decision.
+2. A run is valid only if it produced a scoreable deliverable. Nulls (provider
+   error, timeout, cost-cap kill) are DNF: **re-run them, never score 0**.
+   Gemini-family arms die silently ("Failed to process successful response")
+   — always re-run a null before recording anything.
+3. **Never compare scores across bench versions.** A seat cites ONE bench.
+4. Cost per task = parent + delegated children (DB roll-up via parent_id).
+5. Every arm runs with an explicit cost cap (fail-closed: `EVAL_ARM_CAP` or
+   `EVAL_TIER`, kill at 2×) and a watchdog (default 15 min; sonnet+opus on D
+   need `EVAL_TIMEOUT_SECS=1800`).
+6. Model effort grid: full effort sweep for cheap/mid models; ONE effort for
+   expensive ones (owner rule 11-16). `max` never pays — never roster it.
+7. Lineage: review seat ≠ impl seat family. Strong tier must be a DIFFERENT
+   family from the cheap tier it escalates. alternative2 = parking for good
+   models we hesitate to drop (not a quality ladder).
+8. Scoring is executed-evidence: paraphrase = 0; probes re-run by the scorer.
+
+## 3. Campaign mechanics
+
+- Cost guard: before each launch, SUM(cost) of the campaign's sessions in the
+  opencode DB; driver hard-stops above the owner's cap ($120 for 11-16).
+- Queue: roster models first, expensive/unknown last.
+- Raw run dirs: `evals/<date>/raw/`, logs `evals/<date>/logs/`, status
+  `<date>/logs/grid*/_status.txt`. Costs via session titles `eval-<date>-*`.
+- After the grid: score everything (fresh scorer per run, rubric-strict),
+  fold into EVALS.md (the aggregate) + `<date>/RESULTS.md` (the detail),
+  then regenerate the HTML (below). Double-scoring (§5.2) when budget allows.
+
+## 4. LEADERBOARD.html — structure (DO NOT restructure or delete sections)
+
+`evals/LEADERBOARD.html` is the owner-facing summary. Current layout (~583 lines):
+
+1. `#roster` — one row per seat: model·effort, deciding bench, score, $/task,
+   fallback. Plus the "why haiku over glm" note. THIS IS THE PAGE'S POINT.
+2. `#charts` — 4 scatter SVGs (D, DR2, I2, IR): cost X (log), score Y, dot per
+   model (blue = seat holder, grey = no seat, hollow = single run), dotted
+   frontier line, seat names on HOVER only. Plus O (text block, no chart) and
+   the "why the best-and-cheaper is not always the seat" table.
+3. `#codes` — the 5 bench definitions, one line each.
+4. `#matrix` — all measurements (Model, Effort, O, IR, DR2, I2, D, cost).
+   Model-cell rowspans: first row of each block, 8 tds; continuation rows 7 tds.
+5. `#keptout` — rejected models and why.
+6. `#method` — 3 lines.
+
+**Regeneration procedure (the part that keeps getting broken):**
+- Chart data lives in `evals/gen-charts.py` (CHARTS lists) — edit data there,
+  run `python3 gen-charts.py`, it rewrites ONLY the `#charts` section.
+- Matrix/roster updates: edit the existing rows in place. Never regenerate
+  the file from scratch, never `git checkout` a dirty tree, never delete
+  sections to "simplify". History belongs in `EVALS.md`, not in deleting.
+- Every bench score shown must trace to a RESULTS.md line.

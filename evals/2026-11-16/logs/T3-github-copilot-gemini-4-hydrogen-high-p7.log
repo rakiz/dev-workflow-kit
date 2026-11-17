@@ -1,0 +1,99 @@
+[0m
+> build · gemini-4-hydrogen
+[0m
+[0m$ [0mgit show HEAD --stat && git show HEAD
+commit 61901b3e6fae86b3c1ef41196c30198547855bcd
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 18:18:25 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+commit 61901b3e6fae86b3c1ef41196c30198547855bcd
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 18:18:25 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m✱ [0mGlob "**/*"[90m 8 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead incremental.py
+Real defects in `61901b3` (`incremental.py`):
+
+1. **`copy_many` reports failed copies as completed (`incremental.py:18-27`, `synccli.py:65-69`) — major**
+   - `synccli.copy_file` catches `OSError` around `open`/`read`/`write` and returns `None` without raising. Because `copy_many` only skips appending `dst` when `copy_file` raises `Exception`, any unreadable source, permission failure, or write error is silently ignored and `dst` is still added to `done`—causing silent data loss and violating the return contract ("list of dst paths done").
+
+2. **`filter_excluded` uses a mutable default argument `excluded=[]` (`incremental.py:10-15`) — major**
+   - Calling `filter_excluded(paths)` without passing `excluded` mutates and returns the shared default list across calls, leaking excluded paths from previous invocations into subsequent results (corrupted state).
+
+3. **`merge_manifest` never writes to `dst_manifest_path` (`incremental.py:30-40`) — major**
+   - The function takes `dst_manifest_path` and its contract states *"Merge new file states into the destination manifest"*, yet it only returns `merged` in memory without writing it back to `dst_manifest_path`, leaving the destination manifest file stale/unupdated.
+
+4. **`merge_manifest` drops updates when `state["mtime"] < old[rel]["mtime"]` (`incremental.py:38`) — major**
+   - The condition `old[rel]["mtime"] <= state["mtime"]` refuses to update `merged[rel]` when a file in `new_manifest` has an older `mtime` (e.g. file revert, `git checkout`, archive extraction, or clock skew), leaving stale size/mtime metadata in the manifest.
+
+5. **`filter_excluded` only checks `p.split(os.sep)[0]` (`incremental.py:7,13`) — minor**
+   - Matching only the first path segment misses nested `__pycache__` directories (e.g. `pkg/__pycache__/a.pyc`), paths prefixed with `./` (e.g. `./.git/config`), and paths using `/` on platforms where `os.sep` differs.
+
+6. **`copy_many` swallows non-I/O exceptions (`incremental.py:25-26`) — minor**
+   - `except Exception: continue` silently discards `os.makedirs` `OSError`s and non-I/O bugs (such as `TypeError` or malformed pair unpacking) with no error reporting or failure indication.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 115: 37420 Terminated: 15          ( while :; do
+    sleep 300; if ! cost="$(sqlite3 "$OC_DB" "$COST_Q" 2>/dev/null)"; then
+        continue;
+    fi; [ -z "$cost" ] && continue; if [ "$(awk -v c="$cost" -v cap="$EVAL_ARM_CAP" 'BEGIN { print (c + 0 > 2 * cap) ? 1 : 0 }')" = 1 ]; then
+        date +%s > "$WORK/arm-killed-costcap"; kill_arm; break;
+    fi;
+done )
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37351 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T3-github-copilot-gemini-4-hydrogen-high-p7)

@@ -1,0 +1,214 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3p1-flash
+[0m
+I'll review the last commit.
+[0m$ [0mgit show HEAD --stat
+commit fa587446e490903189ebc369c451dcdba06e7bc9
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 23:00:00 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+[0m
+[0m$ [0mgit log --oneline -5
+fa58744 v0.2: add exclude filter, batch copy and manifest merge
+c65defe Initial synccli
+[0m
+[0m$ [0mgit show HEAD
+commit fa587446e490903189ebc369c451dcdba06e7bc9
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 23:00:00 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mls -la && git show HEAD --stat -- . | cat
+total 48
+drwxr-xr-x@    4 sebastien.mendez  staff    128 Nov 16 23:00 __pycache__
+drwxr-xr-x@   10 sebastien.mendez  staff    320 Nov 16 23:00 .
+drwx------@ 1083 sebastien.mendez  staff  34656 Nov 16 23:00 ..
+drwxr-xr-x@   13 sebastien.mendez  staff    416 Nov 16 23:00 .git
+-rw-r--r--@    1 sebastien.mendez  staff   1317 Nov 16 23:00 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff    657 Nov 16 23:00 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff   1157 Nov 16 23:00 incremental.py
+-rw-r--r--@    1 sebastien.mendez  staff    210 Nov 16 23:00 README.md
+-rw-r--r--@    1 sebastien.mendez  staff   3172 Nov 16 23:00 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff   1834 Nov 16 23:00 test_synccli.py
+commit fa587446e490903189ebc369c451dcdba06e7bc9
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 23:00:00 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-41826 && grep -rn "incremental\|filter_excluded\|copy_many\|merge_manifest" --include="*.py" --include="*.md" . | grep -v "^./incremental.py"
+(no output)
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-41826 && python3 - <<'EOF'
+import json, os, tempfile, stat
+import incremental
+from incremental import filter_excluded, copy_many, merge_manifest
+
+# 1. mutable default leak
+print("call1:", filter_excluded([".git/config", "a.txt"]))
+print("call2:", filter_excluded(["b.txt"]))
+
+# 2. copy_many false success: copy_file swallows OSError
+d = tempfile.mkdtemp()
+src = os.path.join(d, "s.txt")
+dst = os.path.join(d, "out", "s.txt")
+open(src, "w").write("hello")
+# make dst dir read-only so open(dst,"wb") fails
+os.makedirs(os.path.dirname(dst))
+os.chmod(os.path.dirname(dst), 0o500)
+done = copy_many([(src, dst)])
+print("copy_many done:", done, "dst exists:", os.path.exists(dst))
+os.chmod(os.path.dirname(dst), 0o700)
+
+# 3. merge_manifest: corrupt json / missing mtime
+mp = os.path.join(d, "m.json")
+open(mp, "w").write("{corrupt")
+try:
+    merge_manifest(mp, {"a": {"mtime": 1.0}})
+except Exception as e:
+    print("merge corrupt ->", type(e).__name__, e)
+
+mp2 = os.path.join(d, "m2.json")
+json.dump({"a": {"size": 3}}, open(mp2, "w"))
+try:
+    merge_manifest(mp2, {"a": {"size": 3, "mtime": 2.0}})
+except Exception as e:
+    print("merge missing mtime ->", type(e).__name__, e)
+
+# 4. merge_manifest keeps deleted entries + does not write
+mp3 = os.path.join(d, "m3.json")
+json.dump({"gone.txt": {"size": 1, "mtime": 1.0}}, open(mp3, "w"))
+m = merge_manifest(mp3, {"new.txt": {"size": 1, "mtime": 2.0}})
+print("merged:", m, "| file on disk unchanged:", json.load(open(mp3)))
+
+# 5. nested .git not excluded
+print("nested:", filter_excluded(["sub/.git/config", "sub/__pycache__/x.pyc", ".sync_manifest.json"], []))
+EOF
+call1: ['.git/config']
+call2: ['.git/config']
+copy_many done: ['/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp502iv8rx/out/s.txt'] dst exists: False
+merge corrupt -> JSONDecodeError Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+merge missing mtime -> KeyError 'mtime'
+merged: {'gone.txt': {'size': 1, 'mtime': 1.0}, 'new.txt': {'size': 1, 'mtime': 2.0}} | file on disk unchanged: {'gone.txt': {'size': 1, 'mtime': 1.0}}
+nested: ['.sync_manifest.json']
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-41826 && python3 - <<'EOF'
+import os, tempfile
+from incremental import copy_many
+d = tempfile.mkdtemp()
+src = os.path.join(d,"s.txt"); dst = os.path.join(d,"d.txt")
+open(src,"w").write("ORIGINAL CONTENT")
+open(dst,"w").write("ORIGINAL CONTENT")
+# make source unreadable -> copy_file swallows OSError
+os.chmod(src, 0o000)
+done = copy_many([(src,dst)])
+os.chmod(src, 0o600)
+print("done:", done)
+print("dst content after 'successful' copy:", repr(open(dst).read()))
+EOF
+done: ['/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpcw3ovik1/d.txt']
+dst content after 'successful' copy: 'ORIGINAL CONTENT'
+[0m
+[0m→ [0mRead incremental.py
+Review of `fa58744` (adds `incremental.py`). All findings below were reproduced locally against the repo code.
+
+## Major
+
+**1. `filter_excluded` — mutable default argument leaks state across calls** (`incremental.py:10`)
+`excluded=[]` is a single shared list for every call that omits the argument, and the list is both mutated and returned. Verified:
+
+```
+filter_excluded([".git/config", "a.txt"])  -> ['.git/config']
+filter_excluded(["b.txt"])                  -> ['.git/config']   # leak from the previous call
+```
+
+The returned set is not "the subset of paths" from the current input — it contains paths from unrelated earlier calls. Any caller that uses the return value for pruning, logging, or "excluded from this batch" decisions acts on the wrong set (e.g. deleting files it was never asked about). Fix: default `None` → `excluded = []` inside the function.
+
+**2. `copy_many` reports files as "done" that were never copied** (`incremental.py:18-27`)
+`copy_file` (`synccli.py:62-69`) swallows `OSError` internally and returns `None` in both the success and failure case, so the `except` in `copy_many` never fires for copy failures, and every `dst` is appended to `done`. Verified with an unwritable destination directory:
+
+```
+copy_many([(src, dst)]) -> ['/…/out/s.txt']   # dst does not exist on disk
+```
+
+The docstring contract ("list of dst paths done") is therefore false, and a caller that feeds `done` into the manifest records the file as synced while the destination is missing or (for a mid-copy failure, since `copy_file` opens the destination with `"wb"` and truncates it) left empty/partial. Silent divergence between src and dst. Secondary aspect: `except Exception: continue` discards the error entirely — no log, no error list — contradicting the "log and continue" error policy in `DESIGN.md:18`.
+
+## Minor
+
+**3. `merge_manifest` never writes the merged result** (`incremental.py:30-40`)
+The docstring says "Merge new file states into the destination manifest", but the function only returns a dict; `dst_manifest_path` is left byte-identical (verified). A caller trusting the docstring loses the merge silently.
+
+**4. `merge_manifest` crashes on a corrupt or foreign manifest** (`incremental.py:33-38`)
+- Truncated/empty manifest → `json.JSONDecodeError` propagates (verified).
+- An existing entry without an `"mtime"` key → `KeyError: 'mtime'` (verified).
+`DESIGN.md:13-14` plans in-place, non-atomic rewrites of the manifest on every poll, so a truncated manifest is an expected state, not an exotic one; unhandled, it aborts the whole sync cycle instead of rebuilding the manifest.
+
+**5. `merge_manifest` never prunes deleted files** (`incremental.py:36-39`)
+Only keys present in `new_manifest` are touched, so entries for files removed from the source survive forever (verified: `gone.txt` persists after merging a manifest that no longer contains it). The merged manifest grows without bound and keeps advertising files that no longer exist in `src`.
+
+**6. Exclusions only apply at the top level** (`incremental.py:7,13`)
+The match is on `p.split(os.sep)[0]`, so `sub/.git/config` and `sub/__pycache__/x.pyc` are *not* excluded (verified) — only their top-level counterparts are. Additionally, `EXCLUDE_TOP_DIRS` holds a filename (`.sync_manifest.json`), not a directory, so the manifest is only excluded when it sits at the root of the scanned tree; the constant name does not describe what it holds or what the check does.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 41854 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 41855 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-41826 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-g22)

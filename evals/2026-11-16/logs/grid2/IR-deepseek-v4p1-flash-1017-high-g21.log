@@ -1,0 +1,302 @@
+[0m
+> build · accounts/fireworks/models/deepseek-v4p1-flash-1017
+[0m
+[0m$ [0mgit -C /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-37158 show HEAD
+commit 2e556df5a33843ab546af796f7c5eb2753c19c15
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 22:45:20 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-37158 && ls -la && git log --oneline -5
+total 48
+drwxr-xr-x@    4 sebastien.mendez  staff    128 Nov 16 22:45 __pycache__
+drwxr-xr-x@   10 sebastien.mendez  staff    320 Nov 16 22:45 .
+drwx------@ 1010 sebastien.mendez  staff  32320 Nov 16 22:45 ..
+drwxr-xr-x@   13 sebastien.mendez  staff    416 Nov 16 22:45 .git
+-rw-r--r--@    1 sebastien.mendez  staff   1317 Nov 16 22:45 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff    657 Nov 16 22:45 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff   1157 Nov 16 22:45 incremental.py
+-rw-r--r--@    1 sebastien.mendez  staff    210 Nov 16 22:45 README.md
+-rw-r--r--@    1 sebastien.mendez  staff   3172 Nov 16 22:45 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff   1834 Nov 16 22:45 test_synccli.py
+2e556df v0.2: add exclude filter, batch copy and manifest merge
+9890fdd Initial synccli
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-37158 && cat synccli.py 2>/dev/null; ls tests 2>/dev/null
+"""synccli: synchronize a source directory into a destination using a manifest."""
+import argparse
+import json
+import os
+import sys
+
+MANIFEST_NAME = ".sync_manifest.json"
+
+
+def scan_files(root):
+    """Return sorted list of relative file paths under root."""
+    result = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for name in filenames:
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, root)
+            result.append(rel)
+    return sorted(result)
+
+
+def file_state(path):
+    """Return (size, mtime) for a file."""
+    st = os.stat(path)
+    return {"size": st.st_size, "mtime": st.st_mtime}
+
+
+def build_manifest(root):
+    """Build a manifest {relpath: state} for all files under root."""
+    manifest = {}
+    for rel in scan_files(root):
+        manifest[rel] = file_state(os.path.join(root, rel))
+    return manifest
+
+
+def changed_files(old_manifest, new_manifest):
+    """Return files whose state changed or that are new in new_manifest."""
+    changed = []
+    for rel, state in new_manifest.items():
+        if rel not in old_manifest or old_manifest[rel] != state:
+            changed.append(rel)
+    return changed
+
+
+def collect_stale(items, seen=None):
+    """Collect stale entries: items not yet marked fresh.
+
+    Args:
+        items: iterable of (path, fresh) tuples.
+        seen: set of paths already marked fresh; defaults to a fresh set.
+    """
+    if seen is None:
+        seen = set()
+    stale = []
+    for i in range(1, len(items)):
+        path, fresh = items[i]
+        if path not in seen and not fresh:
+            stale.append(path)
+    return stale
+
+
+def copy_file(src, dst):
+    """Copy src to dst, creating parent directories as needed."""
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    try:
+        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+            fdst.write(fsrc.read())
+    except OSError:
+        pass  # unreadable source: skip it, next pass will retry
+
+
+def sync(src_root, dst_root, dry_run=False):
+    """Sync src_root into dst_root; return list of copied relative paths."""
+    src_manifest = build_manifest(src_root)
+    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+    old_manifest = {}
+    if os.path.exists(dst_manifest_path):
+        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+            old_manifest = json.load(f)
+    to_copy = changed_files(old_manifest, src_manifest)
+    if dry_run:
+        return to_copy
+    for rel in to_copy:
+        copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+        json.dump(src_manifest, f, indent=2)
+    return to_copy
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="synccli")
+    parser.add_argument("src")
+    parser.add_argument("dst")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args(argv)
+    copied = sync(args.src, args.dst, dry_run=args.dry_run)
+    for rel in copied:
+        print(rel)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-37158 && cat GOAL.md DESIGN.md README.md test_synccli.py
+# Goal: JSON output mode + dry-run UX (next release)
+
+Add to synccli:
+
+1. `--json` flag: machine-readable output. Must print a single JSON object on
+   stdout: `{"copied": [...], "skipped": N, "src": ..., "dst": ...}`. Nothing
+   else may be printed to stdout in that mode. Exit code unchanged.
+2. `--dry-run` interplay: with both flags, `copied` lists what WOULD be copied.
+3. Human mode unchanged (one path per line).
+4. Tests: unit tests for the JSON shape (valid JSON, keys present, dry-run
+   semantics) added to test_synccli.py.
+
+Constraints: no new dependencies, keep Python 3.10 stdlib only, keep
+`sync()` signature stable (internal callers exist).
+# Design: continuous sync engine (v2)
+
+## Context
+
+synccli today is a manual one-shot sync. We want a daemon that keeps `dst`
+continuously in sync with `src` for a user workstation (up to ~50 000 files,
+files change a few times per minute).
+
+## Proposed design
+
+- **Detection:** a polling loop that scans the full source tree every 500 ms
+  and diffs against the manifest (simplest possible approach, no kernel APIs).
+- **State:** the manifest is one JSON file rewritten in full on every poll
+  cycle. Atomicity is not needed: the file is small and we rewrite it in place.
+- **Change detection:** mtime + size only (no content hashing). Good enough:
+  mtime always changes on edit.
+- **Copying:** on change, copy the file immediately, one file at a time.
+- **Errors:** if a file is unreadable mid-copy, log to stdout and continue.
+- **Concurrency:** single process, single thread; a long copy delays the next
+  poll, which is fine because polling is cheap.
+- **Config:** hardcode poll interval (500 ms) — configuring it invites misuse.
+
+## Rejected alternatives
+
+- inotify/FSEvents watchers: platform-specific, complex lifecycle.
+- content hashing: too expensive on every poll.
+- SQLite state: another dependency for little gain.
+
+## Rollout
+
+Ship the daemon as `syncd` in the same repo, reusing `sync()` directly.
+# synccli
+
+Small CLI that synchronizes a source directory into a destination directory
+using a manifest file (`.sync_manifest.json`).
+
+- `python3 -m synccli --help` for usage.
+- Tests: `python3 -m unittest -v`
+import os
+import tempfile
+import unittest
+
+import synccli
+
+
+class TestScanFiles(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "sub"))
+        with open(os.path.join(self.tmp, "a.txt"), "w") as f:
+            f.write("a")
+        with open(os.path.join(self.tmp, "sub", "b.txt"), "w") as f:
+            f.write("b")
+
+    def test_scan_sorted_relative(self):
+        self.assertEqual(synccli.scan_files(self.tmp), ["a.txt", os.path.join("sub", "b.txt")])
+
+
+class TestCollectStale(unittest.TestCase):
+    def test_first_item_stale_is_included(self):
+        items = [("x.txt", False), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+
+    def test_fresh_items_skipped(self):
+        items = [("x.txt", True), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items), ["y.txt"])
+
+    def test_seen_is_respected(self):
+        items = [("x.txt", False), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items, seen={"x.txt"}), ["y.txt"])
+
+
+class TestSync(unittest.TestCase):
+    def setUp(self):
+        self.src = tempfile.mkdtemp()
+        self.dst = tempfile.mkdtemp()
+        with open(os.path.join(self.src, "a.txt"), "w") as f:
+            f.write("hello")
+
+    def test_sync_copies_and_writes_manifest(self):
+        copied = synccli.sync(self.src, self.dst)
+        self.assertEqual(copied, ["a.txt"])
+        self.assertTrue(os.path.exists(os.path.join(self.dst, "a.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.dst, ".sync_manifest.json")))
+
+    def test_second_sync_is_noop(self):
+        synccli.sync(self.src, self.dst)
+        copied = synccli.sync(self.src, self.dst)
+        self.assertEqual(copied, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
+[0m
+Reviewed `git show HEAD` (adds `incremental.py`). Real defects:
+
+**1. Major — `filter_excluded` mutable default `excluded=[]`**
+`incremental.py:11`. The list is created once and shared by every call; each call appends to it. In a polling loop (DESIGN.md targets 500 ms polls) this leaks memory forever and returns entries from prior batches, i.e. paths not in the current `paths` argument. Callers get silently contaminated exclusion results. Should be `excluded=None` → new list.
+
+**2. Major — `copy_many` reports success for copies that failed**
+`incremental.py:21-29`. It calls `synccli.copy_file`, which swallows `OSError` (`synccli.py:70-72`) and returns normally on unreadable source or a failed/partial write. `copy_many` then appends `dst` to `done`, so failed or truncated copies are reported as completed. The `except Exception: continue` is unreachable for copy failures (the exception never propagates) while still hiding any other error. The API exposes no failure list, so data loss is undetectable.
+
+**3. Minor — `merge_manifest` ignores `size`, only compares `mtime`**
+`incremental.py:39`. Two states with equal mtime but different size/content resolve to the old entry, leaving the merged manifest stale (contradicts DESIGN.md's "mtime + size" detection). Additionally `old[rel]["mtime"]` / `state["mtime"]` raise `KeyError` on any manifest entry missing `mtime` (external/legacy manifest) instead of treating it as changed.
+
+**4. Minor — `filter_excluded` only matches plain relative paths**
+`incremental.py:14-15`: `p.split(os.sep)[0]`. Absolute paths (`/x/.git/...` → first component `""`) or `./`-prefixed paths never match, so exclusion silently does nothing when callers pass anything but bare relative paths. Worth pinning the expected path form given there is no caller yet.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 37186 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 37187 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37158 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T3-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-high-g21)

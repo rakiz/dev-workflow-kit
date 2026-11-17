@@ -1,0 +1,523 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m$ [0mcat BRIEF.md
+# BRIEF — design `backupctl` (fixture D1)
+
+## Context
+
+This repository's `evals/` workflow accumulates result directories that must
+be backed up. Today nothing backs them up. You are designing `backupctl`,
+a command-line backup tool for exactly this job.
+
+This directory is your starting point. It already contains working code for
+a neighboring problem: `synccli.py` synchronizes a source directory into a
+destination using a manifest file (`.sync_manifest.json`), and
+`test_synccli.py` is its test suite (run it with `python3 -m unittest`).
+A small helper module, `snaputil.py`, also lives here — snapshot
+listing/pruning/size/path helpers a previous experiment left behind;
+reuse it rather than re-implementing what it covers. `backupctl` will
+live alongside this code and ship in the same repo.
+
+## What `backupctl` must do
+
+`backupctl` covers a configured set of directories (N directories — a
+handful today, a few dozen over time) and produces snapshots:
+point-in-time copies of those directories, kept under a backup root.
+
+The evals workflow makes demands a naive "copy everything, every time" loop
+does not meet:
+
+- **The scheduler and a person both trigger runs, and the timings can
+  collide.** Two runs may execute at the same time, and a restore —
+  separate tooling that reads a snapshot and copies it back — may be
+  reading a snapshot while a run is writing a new one. No combination of
+  these may corrupt a snapshot or each other's work.
+- **A reader never asks whether the run that produced a snapshot is
+  finished.** Anything that reads a snapshot later — a restore, a human,
+  the next run — must see a complete, self-consistent image: never a mix
+  of "some files from this run, some from the previous one", and never a
+  snapshot index that promises files the snapshot does not contain.
+- **The process can die at any point.** Ctrl-C, laptop sleep, a killed
+  process — a run may stop mid-flight. An interrupted run must leave
+  nothing behind that a later reader could mistake for a complete
+  snapshot, and the next run must make progress without manual cleanup.
+  This includes the index itself: when a run finds a corrupt or
+  half-written index left behind by a dead run, the design must define
+  the recovery — what is discarded, what is re-derived from the tree,
+  and what the run reports.
+- **A source file can disappear without warning.** It can vanish between
+  listing and copying, or be unreadable when the copy reaches it. The
+  design must say what a snapshot then contains and what the run reports —
+  the same behavior whether the run was started by the scheduler or by a
+  person.
+- **The backup root only ever grows.** Snapshots accumulate; a retention
+  policy the design defines decides which old ones are deleted. Deletion
+  must never leave the user without a usable snapshot, and must be safe
+  while something else may be reading the snapshot being deleted.
+- **Most files do not change between one run and the next.** After the
+  first full backup of a directory, later runs must recognize the files
+  that have not changed since the last snapshot instead of copying them
+  again. The design must state at what granularity "unchanged" is decided
+  and what edits that granularity can miss.
+- **The first full backup has a clock on it.** The design must state its
+  performance budget for the initial full backup of a ~1 GB tree (on the
+  order of tens of thousands of files) and show where the number comes
+  from — a measurement or an explicit derivation, not a guess. The
+  existing code and tests in this directory may be run to check claims.
+- **Three directories today, a few dozen over time.** Say what grows with
+  what (per-run work, memory, disk) and what stays flat — every such
+  claim stated as an explicit bound: a number, a formula over N
+  (directories) and the tree's files and bytes, or a measured constant.
+  "Stays bounded" or "stays flat" without the bound itself is not an
+  answer.
+
+## Grounding
+
+`backupctl` must build on the code in this directory rather than
+re-implement it: wherever your design touches scanning, manifests, change
+detection, or copying, name the exact existing file and function it builds
+on. Grounding is verified, not taken on faith: a reference counts only
+when the artifact it names actually exists in this directory and does
+what you claim it does — cite the file and the function (with line
+numbers when you have them). Where your design must behave differently
+from what the existing code does today, say so explicitly: name the
+exact function or behavior you override, where it lives, and the reason —
+an override of unnamed "current behavior" grounds nothing. A design that
+could have been written without reading `synccli.py` is not grounded in
+this codebase.
+
+## Deliverable and working mode
+
+- Write your design to `DESIGN-d1.md` at the top of this directory.
+- Work alone: no subagents, no delegation. Every part of the design is
+  yours.
+[0m
+[0m$ [0mls -la; wc -l *.py; cat synccli.py; cat snaputil.py
+total 40
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 22:01 __pycache__
+drwxr-xr-x@   7 sebastien.mendez  staff    224 Nov 16 22:01 .
+drwx------@ 766 sebastien.mendez  staff  24512 Nov 16 22:01 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 22:01 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 22:01 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 22:01 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 22:01 test_synccli.py
+      92 snaputil.py
+     103 synccli.py
+      55 test_synccli.py
+     250 total
+"""synccli: synchronize a source directory into a destination using a manifest."""
+import argparse
+import json
+import os
+import sys
+
+MANIFEST_NAME = ".sync_manifest.json"
+
+
+def scan_files(root):
+    """Return sorted list of relative file paths under root."""
+    result = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for name in filenames:
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, root)
+            result.append(rel)
+    return sorted(result)
+
+
+def file_state(path):
+    """Return (size, mtime) for a file."""
+    st = os.stat(path)
+    return {"size": st.st_size, "mtime": st.st_mtime}
+
+
+def build_manifest(root):
+    """Build a manifest {relpath: state} for all files under root."""
+    manifest = {}
+    for rel in scan_files(root):
+        manifest[rel] = file_state(os.path.join(root, rel))
+    return manifest
+
+
+def changed_files(old_manifest, new_manifest):
+    """Return files whose state changed or that are new in new_manifest."""
+    changed = []
+    for rel, state in new_manifest.items():
+        if rel not in old_manifest or old_manifest[rel] != state:
+            changed.append(rel)
+    return changed
+
+
+def collect_stale(items, seen=None):
+    """Collect stale entries: items not yet marked fresh.
+
+    Args:
+        items: iterable of (path, fresh) tuples.
+        seen: set of paths already marked fresh; defaults to a fresh set.
+    """
+    if seen is None:
+        seen = set()
+    stale = []
+    for i in range(len(items)):
+        path, fresh = items[i]
+        if path not in seen and not fresh:
+            stale.append(path)
+    return stale
+
+
+def copy_file(src, dst):
+    """Copy src to dst, creating parent directories as needed."""
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    try:
+        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+            fdst.write(fsrc.read())
+    except OSError:
+        pass  # unreadable source: skip it, next pass will retry
+
+
+def sync(src_root, dst_root, dry_run=False):
+    """Sync src_root into dst_root; return list of copied relative paths."""
+    src_manifest = build_manifest(src_root)
+    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+    old_manifest = {}
+    if os.path.exists(dst_manifest_path):
+        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+            old_manifest = json.load(f)
+    to_copy = changed_files(old_manifest, src_manifest)
+    if dry_run:
+        return to_copy
+    for rel in to_copy:
+        copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+        json.dump(src_manifest, f, indent=2)
+    return to_copy
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="synccli")
+    parser.add_argument("src")
+    parser.add_argument("dst")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args(argv)
+    copied = sync(args.src, args.dst, dry_run=args.dry_run)
+    for rel in copied:
+        print(rel)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+"""snaputil: snapshot helpers for backup roots (listing, pruning, sizes)."""
+import argparse
+import os
+import shutil
+import sys
+
+
+def list_snapshots(backup_root):
+    """Return the snapshot directory names under backup_root, oldest first.
+
+    Snapshot directories live directly under backup_root and are named
+    like snap-20261112-150000-07: a date, a time, and a run sequence
+    number, separated by dashes. Entries that are not such directories
+    are ignored.
+    """
+    names = []
+    for entry in os.scandir(backup_root):
+        if entry.name.startswith("snap-") and entry.is_dir():
+            names.append(entry.name)
+    return sorted(names)
+
+
+def prune_snapshots(backup_root, keep):
+    """Delete all but the newest keep snapshots under backup_root.
+
+    Snapshots are ordered oldest first and only the oldest ones are
+    removed, so the newest snapshot is never deleted. Returns the list
+    of deleted snapshot names, oldest first.
+    """
+    names = list_snapshots(backup_root)
+    if len(names) <= keep:
+        return []
+    doomed = names[:len(names) - keep]
+    for name in doomed:
+        shutil.rmtree(os.path.join(backup_root, name))
+    return doomed
+
+
+def snapshot_disk_usage(backup_root, snapshot_name):
+    """Return the total size in bytes of all regular files in one snapshot.
+
+    Files are counted recursively; an empty or missing snapshot counts
+    as zero bytes.
+    """
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(
+        os.path.join(backup_root, snapshot_name)
+    ):
+        for name in filenames:
+            total += os.stat(os.path.join(dirpath, name)).st_size
+    return total
+
+
+def safe_snapshot_path(backup_root, snapshot_name, rel_path):
+    """Map a relative path stored in a snapshot manifest back under the
+    snapshot directory.
+
+    The returned path never points outside backup_root/<snapshot_name>:
+    any ".." segments in rel_path are normalized away before the join,
+    so a stored path cannot climb out of its snapshot.
+    """
+    rel = os.path.normpath(rel_path)
+    return os.path.join(backup_root, snapshot_name, rel)
+
+
+def is_stale(snapshot_dir, ref_epoch):
+    """Return True when the snapshot directory is older than ref_epoch.
+
+    ref_epoch is a reference time in seconds since the epoch, as captured
+    earlier by the caller (e.g. from a previous stat). A snapshot whose
+    directory was modified at exactly ref_epoch is not stale.
+    """
+    return os.stat(snapshot_dir).st_mtime <= ref_epoch
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="snaputil")
+    parser.add_argument("backup_root")
+    parser.add_argument("--prune", type=int, metavar="KEEP", default=None)
+    args = parser.parse_args(argv)
+    if args.prune is not None:
+        deleted = prune_snapshots(args.backup_root, args.prune)
+        for name in deleted:
+            print("deleted", name)
+    for name in list_snapshots(args.backup_root):
+        size = snapshot_disk_usage(args.backup_root, name)
+        print(name, size)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+[0m
+[0m$ [0mcat test_synccli.py; python3 -m unittest 2>&1 | tail -5; python3 -c "
+import snaputil,os
+print(repr(snaputil.safe_snapshot_path('/b','snap-1','../../etc/x')))
+print(repr(snaputil.safe_snapshot_path('/b','snap-1','/etc/passwd')))
+"; python3 - <<'EOF'
+import tempfile,os,synccli
+d=tempfile.mkdtemp(); s=os.path.join(d,'s'); t=os.path.join(d,'t'); os.makedirs(s); os.makedirs(t)
+open(os.path.join(s,'a'),'w').write('x'); os.chmod(os.path.join(s,'a'),0)
+print(synccli.sync(s,t)); print(open(os.path.join(t,'.sync_manifest.json')).read()[:80]); print(os.path.exists(os.path.join(t,'a')))
+EOF
+python3 -c "
+import synccli,tempfile,os
+d=tempfile.mkdtemp(); s=os.path.join(d,'s'); os.makedirs(s); open(os.path.join(s,'a'),'w').write('x')
+m=synccli.build_manifest(s); os.remove(os.path.join(s,'a'))
+" ; python3 -c "
+import synccli,os,tempfile
+d=tempfile.mkdtemp(); os.makedirs(d+'/s'); open(d+'/s/a','w').write('x')
+import builtins
+orig=synccli.scan_files
+synccli.scan_files=lambda r:['a','gone']
+try: synccli.build_manifest(d+'/s')
+except Exception as e: print('crash:',type(e).__name__)
+"; whoami
+import os
+import tempfile
+import unittest
+
+import synccli
+
+
+class TestScanFiles(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "sub"))
+        with open(os.path.join(self.tmp, "a.txt"), "w") as f:
+            f.write("a")
+        with open(os.path.join(self.tmp, "sub", "b.txt"), "w") as f:
+            f.write("b")
+
+    def test_scan_sorted_relative(self):
+        self.assertEqual(synccli.scan_files(self.tmp), ["a.txt", os.path.join("sub", "b.txt")])
+
+
+class TestCollectStale(unittest.TestCase):
+    def test_first_item_stale_is_included(self):
+        items = [("x.txt", False), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+
+    def test_fresh_items_skipped(self):
+        items = [("x.txt", True), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items), ["y.txt"])
+
+    def test_seen_is_respected(self):
+        items = [("x.txt", False), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items, seen={"x.txt"}), ["y.txt"])
+
+
+class TestSync(unittest.TestCase):
+    def setUp(self):
+        self.src = tempfile.mkdtemp()
+        self.dst = tempfile.mkdtemp()
+        with open(os.path.join(self.src, "a.txt"), "w") as f:
+            f.write("hello")
+
+    def test_sync_copies_and_writes_manifest(self):
+        copied = synccli.sync(self.src, self.dst)
+        self.assertEqual(copied, ["a.txt"])
+        self.assertTrue(os.path.exists(os.path.join(self.dst, "a.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.dst, ".sync_manifest.json")))
+
+    def test_second_sync_is_noop(self):
+        synccli.sync(self.src, self.dst)
+        copied = synccli.sync(self.src, self.dst)
+        self.assertEqual(copied, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+'/b/snap-1/../../etc/x'
+'/etc/passwd'
+['a']
+{
+  "a": {
+    "size": 1,
+    "mtime": 1794862921.0851119
+  }
+}
+False
+crash: FileNotFoundError
+sebastien.mendez
+[0m
+Confirmed several defects in the existing code. Next I'll measure the initial-backup cost on a ~1 GB, 30k-file tree using the existing functions.
+[0m$ [0mcd /tmp && rm -rf bench-d1 && mkdir bench-d1 && cd bench-d1 && python3 - <<'EOF'
+import os
+root='tree'
+n=30000; size=1024*1024*1024//n
+for i in range(n):
+    d=os.path.join(root,f'd{i%300}'); os.makedirs(d,exist_ok=True)
+    with open(os.path.join(d,f'f{i}.bin'),'wb') as f: f.write(os.urandom(size))
+EOF
+cd /tmp/bench-d1 && PYTHONPATH="$OLDPWD" python3 - <<'EOF'
+import time,synccli,os
+t=time.time(); m=synccli.build_manifest('tree'); t1=time.time()-t
+t=time.time(); c=synccli.sync('tree','dst'); t2=time.time()-t
+print(f"scan+manifest {t1:.2f}s  full sync(scan+copy) {t2:.2f}s  files {len(c)}")
+t=time.time(); c=synccli.sync('tree','dst'); print(f"noop resync {time.time()-t:.2f}s copied={len(c)}")
+EOF
+rm -rf /tmp/bench-d1 "$OLDPWD"/__pycache__ 2>/dev/null; ls
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ModuleNotFoundError: No module named 'synccli'
+[0m
+[0m$ [0mpwd; ls
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-6745
+__pycache__
+BRIEF.md
+snaputil.py
+synccli.py
+test_synccli.py
+[0m
+[0m$ [0mR=/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-6745; mkdir -p /tmp/bench-d1 && cd /tmp/bench-d1 && rm -rf tree dst && python3 - <<'EOF'
+import os
+n=30000; size=1024*1024*1024//n
+for i in range(n):
+    d=os.path.join('tree',f'd{i%300}'); os.makedirs(d,exist_ok=True)
+    with open(os.path.join(d,f'f{i}.bin'),'wb') as f: f.write(os.urandom(size))
+EOF
+PYTHONPATH="$R" python3 - <<'EOF'
+import time,synccli
+t=time.time(); synccli.build_manifest('tree'); print(f"scan+manifest {time.time()-t:.2f}s")
+t=time.time(); c=synccli.sync('tree','dst'); print(f"full sync {time.time()-t:.2f}s files={len(c)}")
+t=time.time(); c=synccli.sync('tree','dst'); print(f"noop resync {time.time()-t:.2f}s copied={len(c)}")
+EOF
+cd /tmp && rm -rf /tmp/bench-d1
+scan+manifest 2.29s
+full sync 12.43s files=30000
+noop resync 2.37s copied=0
+[0m
+Measured on this machine: full sync of the 1 GB / 30k-file tree takes 12.4 s, and a no-op resync takes 2.4 s. I'll also measure the costs the design adds (fsync, hashing, manifest memory) so the budget is grounded.
+[0m$ [0mmkdir -p /tmp/bench-d2 && cd /tmp/bench-d2 && python3 - <<'EOF'
+import os,time,hashlib,tracemalloc,json
+# fsync per file on 3000 small files (extrapolate to 30000)
+os.makedirs('fs',exist_ok=True)
+t=time.time()
+for i in range(3000):
+    with open(f'fs/{i}','wb') as f:
+        f.write(b'x'*4096); f.flush(); os.fsync(f.fileno())
+print(f"fsync per file: {(time.time()-t)/3000*1000:.2f} ms -> 30k files {(time.time()-t)/3000*30000:.1f}s")
+# sha256 throughput on 256MB
+buf=os.urandom(1<<20)
+t=time.time(); h=hashlib.sha256()
+for _ in range(256): h.update(buf)
+print(f"sha256: {256/(time.time()-t):.0f} MB/s")
+# manifest memory for 30k entries
+tracemalloc.start()
+m={f"d{i%300}/f{i}.bin":{"size":34359,"mtime_ns":1794862921085111900+i,"ctime_ns":1794862921085111900+i,"ino":100000+i,"sha256":"a"*64} for i in range(30000)}
+cur,peak=tracemalloc.get_traced_memory()
+print(f"manifest mem 30k entries: {cur/30000:.0f} B/entry; json bytes/entry {len(json.dumps(m))/30000:.0f}")
+EOF
+cd /tmp && rm -rf /tmp/bench-d2
+fsync per file: 0.12 ms -> 30k files 3.5s
+sha256: 2905 MB/s
+manifest mem 30k entries: 447 B/entry; json bytes/entry 194
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-6745 && grep -n "^def \|pass  #\|json.dump\|fsrc.read\|startswith(\".\")\|st.st_size\|rmtree\|normpath\|return sorted\|st_mtime <=" synccli.py snaputil.py
+synccli.py:10:def scan_files(root):
+synccli.py:14:        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+synccli.py:19:    return sorted(result)
+synccli.py:22:def file_state(path):
+synccli.py:25:    return {"size": st.st_size, "mtime": st.st_mtime}
+synccli.py:28:def build_manifest(root):
+synccli.py:36:def changed_files(old_manifest, new_manifest):
+synccli.py:45:def collect_stale(items, seen=None):
+synccli.py:62:def copy_file(src, dst):
+synccli.py:67:            fdst.write(fsrc.read())
+synccli.py:69:        pass  # unreadable source: skip it, next pass will retry
+synccli.py:72:def sync(src_root, dst_root, dry_run=False):
+synccli.py:86:        json.dump(src_manifest, f, indent=2)
+synccli.py:90:def main(argv=None):
+snaputil.py:8:def list_snapshots(backup_root):
+snaputil.py:20:    return sorted(names)
+snaputil.py:23:def prune_snapshots(backup_root, keep):
+snaputil.py:35:        shutil.rmtree(os.path.join(backup_root, name))
+snaputil.py:39:def snapshot_disk_usage(backup_root, snapshot_name):
+snaputil.py:54:def safe_snapshot_path(backup_root, snapshot_name, rel_path):
+snaputil.py:62:    rel = os.path.normpath(rel_path)
+snaputil.py:66:def is_stale(snapshot_dir, ref_epoch):
+snaputil.py:73:    return os.stat(snapshot_dir).st_mtime <= ref_epoch
+snaputil.py:76:def main(argv=None):
+[0m
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+I wrote the design to `DESIGN-d1.md` in the repo root. I worked alone, with no subagents, and did not modify any existing file.
+
+I checked the existing code by running it. Four defects in it shaped the design:
+
+- **Unreadable file reported as copied.** `copy_file` swallows read errors (`synccli.py:69`), and `sync` then writes the full source manifest anyway (`synccli.py:86`). A mode-000 file was listed as copied but was absent from the destination.
+- **Vanished file crashes the scan.** `build_manifest` has no error handling, so a file deleted between listing and stat raises `FileNotFoundError`.
+- **Path escape in `snaputil.safe_snapshot_path`.** `normpath("../../etc/x")` keeps the `..`, and an absolute path makes `os.path.join` discard the snapshot prefix. The docstring's claim that it cannot climb out is false.
+- **`copy_file` reads each whole file into memory** (`synccli.py:67`).
+
+**First full backup budget: 60 s** for the ~1 GiB, 30k-file tree on this machine, warm cache. The derivation: a measured 12.4 s for the existing `sync` on that tree, plus about 3.9 s for fsync and sha256 that I measured separately and scaled. That gives about 16 s, and 60 s leaves a 3.7x margin. The budget is not validated on a cold cache, spinning disk, or the target machine.
+
+**Core design:**
+- Each run is built in a staging directory and committed with one atomic `rename`. Only `snap-*` directories count as snapshots.
+- A global `flock` serializes writers. Readers take no lock, but hold a per-snapshot lease so pruning cannot delete a snapshot mid-read.
+- Unchanged files are hard-linked from the previous snapshot, decided by inode, size, mtime_ns and ctime_ns, with a 2 s racy-timestamp guard. Missed edits are covered by a periodic sha256 verify pass.
+- Recovery deletes `.tmp-*` and quarantines any snapshot whose index fails validation. The next run baselines on the newest valid snapshot.
+
+**Open items:**
+- Memory is about 447 B per file, measured on a synthetic manifest rather than a real run.
+- Index size at 1M files is about 194 MB uncompressed per snapshot. The compression ratio is unmeasured.
+- Per-run work is serial over N directories, so wall time grows linearly with N. This is accepted for a few dozen directories.

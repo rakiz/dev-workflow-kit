@@ -1,0 +1,44 @@
+[0m
+> build · gemini-4-hydrogen
+[0m
+[0m→ [0mRead DESIGN.md
+[0m✱ [0mGlob "*"[90m in . · 7 matches[0m
+### Major risks & wrong assumptions
+
+1. **In-place manifest rewrite breaks crash safety:** Truncating and rewriting the manifest in place means a crash mid-write leaves a corrupt/empty manifest. Journal replay only holds recent copies since the last commit—it cannot reconstruct the other ~50 000 untouched entries.
+2. **Whole-second `mtime` + `size` silently drops updates:** `state.py` stores `mtime` at 1-second resolution. Any two edits within the same second that preserve file size (e.g., `sed -i`, formatters, rapid rebuilds, `git checkout` preserving timestamps) produce an identical `(size, mtime)` tuple and are permanently skipped.
+3. **500 ms poll vs. 200 ms debounce math is broken:**
+   - Polling every 500 ms cannot observe sub-500 ms edits, so a 200 ms quiet period is meaningless—minimum latency is 1–2 poll cycles (500–1000 ms), not `< poll + 200 ms`.
+   - Restarting the timer on every observed change means a continuously written file is **starved indefinitely**, contradicting the bounded-latency claim.
+4. **Lock scope contradicts single-instance guarantee:** Releasing the PID lock before the manifest commit allows a second daemon to start in that window. Two instances will concurrently rewrite the manifest in place (corrupting it) and race on `dst` writes/deletes and journal appends.
+5. **Non-atomic writes to `dst`:** Writing directly into `dst` and re-statting `src` afterward still leaves `dst` with a torn/truncated file during the copy and until the next poll if `src` changed mid-copy or the daemon crashed.
+6. **Vanished-file retry is wrong:** A file that disappears between scan and copy shouldn't be "retried"—it's deleted (e.g., compiler temp file) and should be dropped from pending / removed from `dst`.
+
+---
+
+### What will break under real load
+
+- **500 ms `os.walk` assumes a warm cache and idle disk:** Under a real build burst (or macOS APFS / antivirus / container bind mounts), 50 000 `stat` calls every 500 ms will exceed the 500 ms budget, pinning a core and thrashing I/O.
+- **Synchronous copy loop stalls everything:** Copying hundreds of changed files in-line blocks scanning, debouncing, deletion reconciliation, and manifest commits for seconds.
+- **Full manifest rewrite every cycle:** Rewriting a 50 000-entry manifest every 500 ms (or on every small edit) causes massive write amplification (~hundreds of MB/min) and latency spikes.
+- **No exclusions / temp-file filtering:** Build bursts (`target/`, `node_modules/`, `.git/`, editor `.swp`/`.tmp` files) will trigger constant churn and failed-copy races.
+
+---
+
+### Decisions to change first
+
+1. **Atomic writes everywhere:** Write `dst` files via temp-file + `fsync` + `os.replace` (same filesystem); commit the manifest the same way, and only rewrite the manifest when dirty (or compact the journal periodically rather than every cycle).
+2. **Hold the lock for the daemon's entire lifetime:** Acquire an OS file lock (`flock`/`fcntl`) once at startup and hold it until exit—remove the per-cycle release/re-acquire window.
+3. **Use nanosecond `mtime` (`st_mtime_ns`) + `inode`/`ctime` (or content hash on same-second/same-size ties):** Do not rely on whole-second `mtime`.
+4. **Decouple scanning from copying & bound the queue:** Put copy/delete work in a bounded worker queue, keep the scanner non-blocking, and add a max-age cap on debounce so continuously written files aren't starved.
+5. **Reconsider OS watchers (FSEvents/inotify) with periodic slow rescan:** Use kernel events for low-latency/low-CPU steady state, backed by an infrequent (e.g., 30–60 s) full scan for overflow/missed events—or at minimum back off the poll interval dynamically when scan duration approaches `POLL_SECONDS`.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 98: 36897 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 115: 36895 Terminated: 15          ( while :; do
+    sleep 300; if ! cost="$(sqlite3 "$OC_DB" "$COST_Q" 2>/dev/null)"; then
+        continue;
+    fi; [ -z "$cost" ] && continue; if [ "$(awk -v c="$cost" -v cap="$EVAL_ARM_CAP" 'BEGIN { print (c + 0 > 2 * cap) ? 1 : 0 }')" = 1 ]; then
+        date +%s > "$WORK/arm-killed-costcap"; kill_arm; break;
+    fi;
+done )
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 107: 36898 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-36857 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T4V2-github-copilot-gemini-4-hydrogen-medium-p7)

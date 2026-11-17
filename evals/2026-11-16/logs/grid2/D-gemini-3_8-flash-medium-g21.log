@@ -1,0 +1,209 @@
+[0m
+> build · gemini-3.8-flash
+[0m
+[0m→ [0mRead BRIEF.md
+[0m✱ [0mGlob "*"[90m in . · 7 matches[0m
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mpython3 -m unittest
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+[0m
+[0m$ [0mpython3 -c '
+import os, time, tempfile, shutil
+
+# Create 10,000 files in a temp directory
+tmp = tempfile.mkdtemp(prefix="bench_")
+try:
+    t0 = time.perf_counter()
+    for i in range(10000):
+        d = os.path.join(tmp, f"dir_{i % 100}")
+        if i % 100 == 0:
+            os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, f"file_{i}.txt"), "w") as f:
+            f.write("test content\n")
+    t1 = time.perf_counter()
+    print(f"Created 10,000 files in {t1 - t0:.3f}s")
+
+    import synccli
+    t0 = time.perf_counter()
+    files = synccli.scan_files(tmp)
+    t1 = time.perf_counter()
+    print(f"synccli.scan_files: {len(files)} files in {t1 - t0:.3f}s")
+
+    t0 = time.perf_counter()
+    manifest = synccli.build_manifest(tmp)
+    t1 = time.perf_counter()
+    print(f"synccli.build_manifest: {len(manifest)} files in {t1 - t0:.3f}s")
+finally:
+    shutil.rmtree(tmp)
+'
+Traceback (most recent call last):
+  File "<string>", line 12, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench_jgcz7nnl/dir_1/file_1.txt'
+[0m
+[0m$ [0mpython3 -c '
+import os, time, tempfile, shutil
+
+tmp = tempfile.mkdtemp(prefix="bench_")
+try:
+    for i in range(100):
+        os.makedirs(os.path.join(tmp, f"dir_{i}"), exist_ok=True)
+    t0 = time.perf_counter()
+    for i in range(10000):
+        d = os.path.join(tmp, f"dir_{i % 100}")
+        with open(os.path.join(d, f"file_{i}.txt"), "w") as f:
+            f.write("test content\n")
+    t1 = time.perf_counter()
+    print(f"Created 10,000 files in {t1 - t0:.3f}s")
+
+    import synccli
+    t0 = time.perf_counter()
+    files = synccli.scan_files(tmp)
+    t1 = time.perf_counter()
+    print(f"synccli.scan_files: {len(files)} files in {t1 - t0:.3f}s")
+
+    t0 = time.perf_counter()
+    manifest = synccli.build_manifest(tmp)
+    t1 = time.perf_counter()
+    print(f"synccli.build_manifest: {len(manifest)} files in {t1 - t0:.3f}s")
+finally:
+    shutil.rmtree(tmp)
+'
+Created 10,000 files in 1.760s
+synccli.scan_files: 10000 files in 0.082s
+synccli.build_manifest: 10000 files in 0.388s
+[0m
+[0m$ [0mpython3 -c '
+import os, time, tempfile, shutil
+
+tmp_src = tempfile.mkdtemp(prefix="bench_src_")
+tmp_dst = tempfile.mkdtemp(prefix="bench_dst_")
+try:
+    # 20,000 files of 50KB each = 1,000,000 KB ~ 1 GB
+    chunk = b"x" * 50000
+    print("Writing files...")
+    t0 = time.perf_counter()
+    for i in range(20000):
+        d = os.path.join(tmp_src, f"dir_{i % 200}")
+        if i < 200:
+            os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, f"f_{i}.bin"), "wb") as f:
+            f.write(chunk)
+    t1 = time.perf_counter()
+    print(f"Created 20,000 files (1 GB) in {t1 - t0:.2f}s ({1000/(t1-t0):.1f} MB/s)")
+
+    import synccli
+    t0 = time.perf_counter()
+    copied = synccli.sync(tmp_src, tmp_dst)
+    t1 = time.perf_counter()
+    print(f"synccli.sync copied {len(copied)} files (1 GB) in {t1 - t0:.2f}s ({1000/(t1-t0):.1f} MB/s)")
+finally:
+    shutil.rmtree(tmp_src)
+    shutil.rmtree(tmp_dst)
+'
+Writing files...
+Created 20,000 files (1 GB) in 4.47s (223.8 MB/s)
+synccli.sync copied 20000 files (1 GB) in 12.42s (80.5 MB/s)
+[0m
+[0m$ [0mpython3 -c '
+import os, time, tempfile, shutil
+
+tmp_src = tempfile.mkdtemp(prefix="bench_src_")
+tmp_dst = tempfile.mkdtemp(prefix="bench_dst_")
+try:
+    for i in range(100):
+        os.makedirs(os.path.join(tmp_src, f"dir_{i}"), exist_ok=True)
+        os.makedirs(os.path.join(tmp_dst, f"dir_{i}"), exist_ok=True)
+    for i in range(20000):
+        with open(os.path.join(tmp_src, f"dir_{i%100}", f"f_{i}.txt"), "w") as f:
+            f.write("data")
+    t0 = time.perf_counter()
+    for i in range(20000):
+        s = os.path.join(tmp_src, f"dir_{i%100}", f"f_{i}.txt")
+        d = os.path.join(tmp_dst, f"dir_{i%100}", f"f_{i}.txt")
+        os.link(s, d)
+    t1 = time.perf_counter()
+    print(f"Hardlinked 20,000 files in {t1 - t0:.3f}s ({(20000/(t1-t0)):.0f} links/s)")
+finally:
+    shutil.rmtree(tmp_src)
+    shutil.rmtree(tmp_dst)
+'
+Hardlinked 20,000 files in 7.015s (2851 links/s)
+[0m
+[0m$ [0mpython3 -c '
+import os, time, tempfile, shutil
+
+tmp_src = tempfile.mkdtemp(prefix="bench_src_")
+tmp_dst = tempfile.mkdtemp(prefix="bench_dst_")
+try:
+    chunk = b"x" * 50000
+    for i in range(20000):
+        d = os.path.join(tmp_src, f"dir_{i % 200}")
+        if i < 200:
+            os.makedirs(d, exist_ok=True)
+            os.makedirs(os.path.join(tmp_dst, f"dir_{i % 200}"), exist_ok=True)
+        with open(os.path.join(d, f"f_{i}.bin"), "wb") as f:
+            f.write(chunk)
+
+    t0 = time.perf_counter()
+    for i in range(20000):
+        s = os.path.join(tmp_src, f"dir_{i % 200}", f"f_{i}.bin")
+        d = os.path.join(tmp_dst, f"dir_{i % 200}", f"f_{i}.bin")
+        shutil.copyfile(s, d)
+    t1 = time.perf_counter()
+    print(f"shutil.copyfile copied 20,000 files (1 GB) in {t1 - t0:.2f}s ({1000/(t1-t0):.1f} MB/s)")
+finally:
+    shutil.rmtree(tmp_src)
+    shutil.rmtree(tmp_dst)
+'
+shutil.copyfile copied 20,000 files (1 GB) in 7.38s (135.5 MB/s)
+[0m
+[0m$ [0mpython3 -c '
+import json, time
+
+manifest = {f"dir_{i%200}/file_{i}.txt": {"size": 50000, "mtime": 1700000000.123456} for i in range(20000)}
+t0 = time.perf_counter()
+raw = json.dumps(manifest, indent=2)
+t1 = time.perf_counter()
+print(f"JSON dumps: {len(raw)/(1024*1024):.2f} MB in {t1 - t0:.3f}s")
+'
+JSON dumps: 1.60 MB in 0.035s
+[0m
+[0m$ [0mpython3 -c '
+import sys
+
+manifest = {f"dir_{i%200}/file_{i}.txt": {"size": 50000, "mtime": 1700000000.123456} for i in range(20000)}
+# Deep size estimate
+total_bytes = sys.getsizeof(manifest)
+for k, v in manifest.items():
+    total_bytes += sys.getsizeof(k) + sys.getsizeof(v) + sys.getsizeof(v["size"]) + sys.getsizeof(v["mtime"])
+print(f"Memory for 20,000 files manifest: {total_bytes / (1024*1024):.2f} MB")
+'
+Memory for 20,000 files manifest: 7.31 MB
+[0m
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+[0m$ [0mtest -f DESIGN-d1.md && wc -l DESIGN-d1.md
+701 DESIGN-d1.md
+[0m
+I have analyzed `BRIEF.md` along with the existing implementations in `synccli.py`, `snaputil.py`, and `test_synccli.py`, and authored the complete design specification in `DESIGN-d1.md`.
+
+### Summary of `DESIGN-d1.md`:
+- **Grounded Architecture:** Extensively cites and leverages `synccli.py` (`MANIFEST_NAME`, `changed_files`, `collect_stale`, `scan_files`, `build_manifest`) and `snaputil.py` (`list_snapshots`, `prune_snapshots`, `snapshot_disk_usage`, `safe_snapshot_path`, `is_stale`), detailing explicit overrides for unbounded memory usage, unhandled file vanishing, and manifest-to-disk consistency.
+- **Concurrency & Atomicity:** Employs non-blocking `fcntl.flock` locks per target directory (`.backup.lock`) and per snapshot (`.read.lock`), combined with two-phase staging (`.staging-snap-*`) and atomic directory renaming (`os.rename`), ensuring readers never observe incomplete snapshots.
+- **Fault Tolerance & Self-Healing Index:** Provides automatic cleanup of dead staging directories on subsequent runs, and defines an automatic recovery loop that reconstructs missing or corrupt manifest indices directly from snapshot directory trees using `synccli.scan_files` and `synccli.build_manifest`.
+- **Transient File Handling:** Formulates a deterministic contract where vanished or unreadable files are cleanly excluded from both disk and manifest, logging warnings and returning exit code `1` across both scheduled and manual runs.
+- **Retention & Safe Pruning:** Defines a safe retention policy ($K \ge 1$) using two-phase tombstone renaming and shared read-lock inspection to ensure running restores are never disrupted.
+- **Incremental Deduplication & Blind Spots:** Uses filesystem hardlinks (`os.link`) for unchanged files at `(st_size, st_mtime_ns)` granularity, documenting specific blind spots (timestamp rollbacks, in-place edits with mtime preservation).
+- **Performance Budget & Derivation:** Establishes an empirical baseline and explicit derivation for an initial ~1 GB (20,000 files) backup, defining a formal budget of $\le 20.0\text{ seconds}$ with a $60\text{s}$ hard timeout.
+- **Scaling Bounds:** Provides explicit mathematical formulas and bounds across $N$ targets, $F$ files, and $B$ bytes, demonstrating that peak memory ($\le 26.5\text{ MB}$) and open file descriptors stay strictly flat across $N$, $B$, and retention depth $K$.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 60748 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 60251 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-60233 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-17-D-D1-github-copilot-gemini-3-8-flash-medium-g21 above)

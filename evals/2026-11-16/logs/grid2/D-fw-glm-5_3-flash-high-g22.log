@@ -1,0 +1,212 @@
+[0m
+> build · fw-glm-5.3-flash
+[0m
+[0m→ [0mRead BRIEF.md
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mls -la /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-31541/
+total 40
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 22:36 __pycache__
+drwxr-xr-x@   7 sebastien.mendez  staff    224 Nov 16 22:36 .
+drwx------@ 933 sebastien.mendez  staff  29856 Nov 16 22:36 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 22:36 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 22:36 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 22:36 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 22:36 test_synccli.py
+[0m
+I'll run the existing test suite and take the measurements needed to ground the performance budget.
+[0m$ [0mpython3 -m unittest test_synccli -v 2>&1; python3 --version
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+OK
+Python 3.10.11
+[0m
+All 6 tests pass. Now I'll measure copy throughput, scan rate, and hardlink rate on a synthetic tree to ground the performance budget in the design.
+[0m$ [0mpython3 - <<'EOF'
+import os, time, shutil, synccli, tempfile
+
+base = "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_tree"
+shutil.rmtree(base, ignore_errors=True)
+src = os.path.join(base, "src")
+os.makedirs(src)
+
+N = 10000
+FSIZE = 64 * 1024  # 64 KiB per file -> ~640 MB
+chunk = os.urandom(64 * 1024)
+t0 = time.perf_counter()
+for i in range(N):
+    d = os.path.join(src, "d%02d" % (i % 50))
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "f%05d.bin" % i), "wb") as f:
+        f.write(chunk)
+gen_s = time.perf_counter() - t0
+total = N * FSIZE
+print(f"generated {total/1e6:.0f} MB, {N} files in {gen_s:.1f}s")
+
+# 1. scan + stat rate (synccli.scan_files + synccli.file_state)
+t0 = time.perf_counter()
+rels = synccli.scan_files(src)
+man = {r: synccli.file_state(os.path.join(src, r)) for r in rels}
+scan_s = time.perf_counter() - t0
+print(f"scan+stat: {len(rels)} files in {scan_s:.3f}s -> {len(rels)/scan_s:.0f} files/s")
+
+# 2. full-copy throughput with synccli.copy_file
+dst = os.path.join(base, "dst")
+os.makedirs(dst)
+t0 = time.perf_counter()
+for r in rels:
+    synccli.copy_file(os.path.join(src, r), os.path.join(dst, r))
+copy_s = time.perf_counter() - t0
+print(f"synccli.copy_file full copy: {copy_s:.2f}s -> {total/1e6/copy_s:.0f} MB/s")
+
+# 3. same via shutil.copyfile (chunked)
+dst2 = os.path.join(base, "dst2")
+os.makedirs(dst2)
+t0 = time.perf_counter()
+for r in rels:
+    shutil.copyfile(os.path.join(src, r), os.path.join(dst2, r))
+sh_s = time.perf_counter() - t0
+print(f"shutil.copyfile full copy: {sh_s:.2f}s -> {total/1e6/sh_s:.0f} MB/s")
+
+# 4. hardlink rate (incremental path)
+dst3 = os.path.join(base, "dst3")
+os.makedirs(dst3)
+t0 = time.perf_counter()
+for r in rels:
+    os.link(os.path.join(src, r), os.path.join(dst3, r))
+link_s = time.perf_counter() - t0
+print(f"os.link x{N}: {link_s:.3f}s -> {N/link_s:.0f} links/s")
+EOF
+generated 655 MB, 10000 files in 1.8s
+scan+stat: 10000 files in 0.235s -> 42474 files/s
+synccli.copy_file full copy: 2.50s -> 262 MB/s
+Traceback (most recent call last):
+  File "<stdin>", line 42, in <module>
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/shutil.py", line 256, in copyfile
+    with open(dst, 'wb') as fdst:
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_tree/dst2/d00/f00000.bin'
+[0m
+Measurement bug on my side (`shutil.copyfile` doesn't create parent dirs, unlike `synccli.copy_file` at synccli.py:64 — itself a useful data point). Rerunning parts 3–4:
+[0m$ [0mpython3 - <<'EOF'
+import os, time, shutil, synccli
+
+base = "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_tree"
+src = os.path.join(base, "src")
+rels = synccli.scan_files(src)
+N = len(rels)
+total = N * 64 * 1024
+
+# 3. shutil.copyfile (chunked, no whole-file read into memory)
+dst2 = os.path.join(base, "dst2")
+shutil.rmtree(dst2, ignore_errors=True)
+os.makedirs(dst2)
+t0 = time.perf_counter()
+for r in rels:
+    d = os.path.join(dst2, r)
+    os.makedirs(os.path.dirname(d), exist_ok=True)
+    shutil.copyfile(os.path.join(src, r), d)
+sh_s = time.perf_counter() - t0
+print(f"shutil.copyfile full copy: {sh_s:.2f}s -> {total/1e6/sh_s:.0f} MB/s")
+
+# 4. hardlink rate
+dst3 = os.path.join(base, "dst3")
+shutil.rmtree(dst3, ignore_errors=True)
+os.makedirs(dst3)
+t0 = time.perf_counter()
+for r in rels:
+    d = os.path.join(dst3, r)
+    os.makedirs(os.path.dirname(d), exist_ok=True)
+    os.link(os.path.join(src, r), d)
+link_s = time.perf_counter() - t0
+print(f"os.link x{N} (incl. makedirs): {link_s:.3f}s -> {N/link_s:.0f} files/s")
+
+# 5. index json write cost at this scale
+import json
+man = {r: synccli.file_state(os.path.join(src, r)) for r in rels}
+t0 = time.perf_counter()
+blob = json.dumps(man)
+print(f"json.dumps {N} entries: {time.perf_counter()-t0:.3f}s, {len(blob)/1e6:.1f} MB")
+EOF
+shutil.copyfile full copy: 4.14s -> 158 MB/s
+os.link x10000 (incl. makedirs): 3.819s -> 2618 files/s
+json.dumps 10000 entries: 0.006s, 0.6 MB
+[0m
+[0m$ [0mpython3 - <<'EOF'
+import os, time, shutil, synccli
+base = "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_tree"
+src = os.path.join(base, "src")
+rels = synccli.scan_files(src)
+N = len(rels)
+dst3 = os.path.join(base, "dst3")
+for d in {os.path.dirname(r) for r in rels}:
+    os.makedirs(os.path.join(dst3, d), exist_ok=True)
+t0 = time.perf_counter()
+for r in rels:
+    os.link(os.path.join(src, r), os.path.join(dst3, r))
+link_s = time.perf_counter() - t0
+print(f"os.link x{N} (dirs pre-made): {link_s:.3f}s -> {N/link_s:.0f} links/s")
+shutil.rmtree("/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_tree")
+EOF
+Traceback (most recent call last):
+  File "<stdin>", line 11, in <module>
+FileExistsError: [Errno 17] File exists: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_tree/src/d00/f00000.bin' -> '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_tree/dst3/d00/f00000.bin'
+[0m
+[0m$ [0mpython3 - <<'EOF'
+import os, time, shutil, synccli
+base = "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_tree"
+src = os.path.join(base, "src")
+dst3 = os.path.join(base, "dst3b")
+shutil.rmtree(dst3, ignore_errors=True)
+os.makedirs(dst3)
+rels = synccli.scan_files(src)
+N = len(rels)
+for d in {os.path.dirname(r) for r in rels}:
+    os.makedirs(os.path.join(dst3, d), exist_ok=True)
+t0 = time.perf_counter()
+for r in rels:
+    os.link(os.path.join(src, r), os.path.join(dst3, r))
+link_s = time.perf_counter() - t0
+print(f"os.link x{N} (dirs pre-made): {link_s:.3f}s -> {N/link_s:.0f} links/s")
+shutil.rmtree(base)
+print("cleaned")
+EOF
+os.link x10000 (dirs pre-made): 3.448s -> 2900 links/s
+cleaned
+[0m
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+Measurements done. Now writing the design.
+Done. `DESIGN-d1.md` is written to the top of the repo copy.
+
+Summary of the design's key decisions:
+
+- **Grounding**: reuses `synccli.build_manifest`/`changed_files`/`file_state` and all five `snaputil` helpers (exact line citations in §1), with three explicitly named overrides: `synccli.scan_files`' dotfile filter (silent data loss in a backup), `synccli.copy_file`'s silent `except OSError: pass` and whole-file read, and a wrapper around `snaputil.prune_snapshots`' in-place `rmtree` (trash-rename first, recovery defined for the crash window).
+- **Consistency**: single-writer `flock` on `backup_root/backupctl.lock` (run×run), build in `staging-*` + one atomic `rename` to `snap-*` (run×restore), index built from copy *outcomes* so it can never promise files the snapshot lacks.
+- **Crash recovery** tabulated in §8: staging discarded, partial snapshots demoted via `synccli.collect_stale`, corrupt previous index → full re-derive from the tree with WARN.
+- **Performance budget**: measured on this machine — scan 42,470 files/s, copy 158–262 MB/s, link 2,900/s, index ~60 B/file — deriving ≈8–12 s for a 1 GB first backup; budget set at <60 s with the derivation shown.
+- **Scale bounds**: every quantity stated as a formula over N/F/B with the measured constants (§11).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 31555 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 192: 31553 Terminated: 15          ( db_warned=0; while :; do
+    sleep 300; if ! cost="$(sqlite3 "$OC_DB" "$COST_Q" 2>/dev/null)"; then
+        if [ "$db_warned" -eq 0 ]; then
+            echo "warn: cannot read $OC_DB — cost polling degraded, continuing" 1>&2; db_warned=1;
+        fi; continue;
+    fi; if [ -z "$cost" ]; then
+        continue;
+    fi; if [ "$(awk -v c="$cost" -v cap="$EVAL_ARM_CAP"            'BEGIN { print (c + 0 > 2 * cap) ? 1 : 0 }')" = 1 ]; then
+        date +%s > "$WORK/arm-killed-costcap"; kill_arm; break;
+    fi;
+done )
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 31556 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-31541 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-D-D1-ai-gateway-misc-fw-glm-5-3-flash-high-g22 above)

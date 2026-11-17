@@ -1,0 +1,1085 @@
+[0m
+> build · accounts/fireworks/models/qwen3p8-2p4t-a95b
+[0m
+[0m→ [0mRead BRIEF.md
+[0m
+[0m$ [0mls -la
+total 40
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 17:51 __pycache__
+drwxr-xr-x@   7 sebastien.mendez  staff    224 Nov 16 17:51 .
+drwx------@ 472 sebastien.mendez  staff  15104 Nov 16 17:51 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 17:51 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 17:51 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 17:51 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 17:51 test_synccli.py
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+OK
+[0m
+[0m$ [0mdf -h /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T && sysctl -n hw.ncpu hw.memsize machdep.cpu.brand_string && sw_vers && python3 --version
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   926Gi   527Gi   382Gi    58%    4.4M  4.0G    0%   /System/Volumes/Data
+14
+38654705664
+Apple M3 Max
+ProductName:		macOS
+ProductVersion:		15.8.1
+BuildVersion:		24H32
+Python 3.10.11
+[0m
+Tests pass; 382 GB free — enough for a real 1 GB benchmark. Now verify the edge behaviors of the existing code my design will rely on or override:
+[0m$ [0mpython3 - <<'EOF'
+import os, tempfile, time, json
+import snaputil, synccli
+
+# 1. safe_snapshot_path: does normpath remove LEADING ".."?
+root = tempfile.mkdtemp()
+p = snaputil.safe_snapshot_path(root, "snap-x", "../../etc/passwd")
+print("1. safe_snapshot_path(root,'snap-x','../../etc/passwd') ->", p)
+print("   escapes snapshot dir:", not p.startswith(os.path.join(root, "snap-x")))
+print("   escapes backup_root :", not os.path.abspath(p).startswith(os.path.abspath(root)))
+print("   inner '..' removed  :", snaputil.safe_snapshot_path(root, "snap-x", "a/../b"))
+
+# 2. is_stale equality boundary: docstring says 'exactly ref_epoch is not stale'
+d = tempfile.mkdtemp()
+st = os.stat(d)
+print("2. is_stale(dir, its own mtime) ->", snaputil.is_stale(d, st.st_mtime), "(docstring claims False)")
+
+# 3. list_snapshots ignores 'staging' dir and '.backup.lock' file
+b = tempfile.mkdtemp()
+os.makedirs(os.path.join(b, "staging", "snap-20261116-090000-01"))
+os.makedirs(os.path.join(b, "snap-20261115-090000-01"))
+os.makedirs(os.path.join(b, "snap-20261116-090000-01"))
+open(os.path.join(b, ".backup.lock"), "w").close()
+open(os.path.join(b, "snapnotes.txt"), "w").close()
+print("3. list_snapshots ->", snaputil.list_snapshots(b), "(staging/, .backup.lock, snapnotes.txt ignored)")
+
+# 4. prune_snapshots never deletes newest; deletes oldest first
+print("4. prune keep=1 ->", snaputil.prune_snapshots(b, 1), "| remaining:", snaputil.list_snapshots(b))
+
+# 5. collect_stale: seen never mutated (duplicate items reported twice)
+items = [("a", False), ("a", False), ("b", True)]
+print("5. collect_stale dup ->", synccli.collect_stale(items))
+
+# 6. changed_files ignores deletions (old-not-in-new never reported)
+old = {"gone.txt": {"size": 1, "mtime": 1.0}, "keep.txt": {"size": 1, "mtime": 1.0}}
+new = {"keep.txt": {"size": 1, "mtime": 1.0}}
+print("6. changed_files(old,new) ->", synccli.changed_files(old, new), "(gone.txt not reported)")
+
+# 7. copy_file: unreadable source swallowed silently, returns None
+src = tempfile.mkdtemp(); dst = tempfile.mkdtemp()
+missing = os.path.join(src, "nope.txt")
+r = synccli.copy_file(missing, os.path.join(dst, "nope.txt"))
+print("7. copy_file(missing) ->", r, "| dst exists:", os.path.exists(os.path.join(dst, "nope.txt")), "(no exception, no signal)")
+
+# 8. scan_files excludes dot-directories
+s = tempfile.mkdtemp()
+os.makedirs(os.path.join(s, ".hidden")); os.makedirs(os.path.join(s, "vis"))
+open(os.path.join(s, ".hidden", "x"), "w").close(); open(os.path.join(s, "vis", "y"), "w").close()
+open(os.path.join(s, ".dotfile"), "w").close()
+print("8. scan_files ->", synccli.scan_files(s), "(dot-dirs skipped; dot-FILES kept)")
+
+# 9. json round-trip of st_mtime float is exact
+mt = os.stat(s).st_mtime
+print("9. mtime float round-trip exact:", json.loads(json.dumps({"m": mt}))["m"] == mt)
+EOF
+1. safe_snapshot_path(root,'snap-x','../../etc/passwd') -> /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpingxbup8/snap-x/../../etc/passwd
+   escapes snapshot dir: False
+   escapes backup_root : True
+   inner '..' removed  : /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpingxbup8/snap-x/b
+2. is_stale(dir, its own mtime) -> True (docstring claims False)
+3. list_snapshots -> ['snap-20261115-090000-01', 'snap-20261116-090000-01'] (staging/, .backup.lock, snapnotes.txt ignored)
+4. prune keep=1 -> ['snap-20261115-090000-01'] | remaining: ['snap-20261116-090000-01']
+5. collect_stale dup -> ['a', 'a']
+6. changed_files(old,new) -> [] (gone.txt not reported)
+7. copy_file(missing) -> None | dst exists: False (no exception, no signal)
+8. scan_files -> ['.dotfile', 'vis/y'] (dot-dirs skipped; dot-FILES kept)
+9. mtime float round-trip exact: True
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
+Wrote file successfully.
+[0m
+All edge behaviors verified — including a real containment bug in `safe_snapshot_path` (leading `..` escapes the backup root) and `is_stale`'s docstring/code mismatch. Now I'll prototype the design's run algorithm (reusing `synccli`/`snaputil`) and benchmark it on a real ~1 GB / 30k-file tree, so the performance budget is measured, not guessed:
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
+Wrote file successfully.
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
+@@ -80,13 +80,11 @@
+ for k, p in enumerate(src_roots):
+     for s in range(100):
+         d = os.path.join(p, "sub%03d" % s)
+         for i in range(5):  # 500 rewritten per dir
+-            fp = os.path.join(d, "f%04d.dat" % (s * 5 + i) % 100)
++            fp = os.path.join(d, "f%04d.dat" % ((s * 5 + i) % 100))
+             with open(fp, "wb") as f:
+                 f.write(FILL[:17 * 1024])
+-        for i in range(1):  # 10 deleted per dir... (1 per subdir x 10 subdirs below)
+-            pass
+     for s in range(10):
+         os.unlink(os.path.join(p, "sub%03d" % s, "f0099.dat"))
+     for s in range(10):
+         with open(os.path.join(p, "sub%03d" % s, "new%03d.dat" % s), "wb") as f:
+
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/bench.py
+@@ -135,10 +135,8 @@
+ n_entries = len(json.load(open(idx_path)))
+ out["index_bytes_per_entry"] = round(idx_bytes / n_entries)
+ 
+ # link rate: from run2 (30k links)
+-out["link_rate_links_s"] = round(rep["linked"] / max(1e-9, sum(
+-    d["work_s"] for d in out["run2"]["dirs"].values()))) if False else None
+ r2 = out["run2"]
+ out["link_rate_links_s"] = round(30000 / max(1e-9, sum(d["work_s"] for d in r2["dirs"].values())))
+ 
+ # copy rate: from run1
+
+[0m
+[0m$ [0mpython3 bench.py 2>&1
+{
+  "gen_s": 4.2,
+  "src_bytes": 1055010972,
+  "src_files": 30000,
+  "rss_before": 25411584,
+  "run1": {
+    "rc": 0,
+    "wall_s": 10.4959,
+    "dirs": {
+      "evals0": {
+        "files": 10000,
+        "copied": 10000,
+        "linked": 0,
+        "skipped": 0,
+        "deleted_since_baseline": 0,
+        "scan_s": 0.2414,
+        "work_s": 3.0146,
+        "index_s": 0.0223
+      },
+      "evals1": {
+        "files": 10000,
+        "copied": 10000,
+        "linked": 0,
+        "skipped": 0,
+        "deleted_since_baseline": 0,
+        "scan_s": 0.2447,
+        "work_s": 3.2048,
+        "index_s": 0.0223
+      },
+      "evals2": {
+        "files": 10000,
+        "copied": 10000,
+        "linked": 0,
+        "skipped": 0,
+        "deleted_since_baseline": 0,
+        "scan_s": 0.2443,
+        "work_s": 3.4774,
+        "index_s": 0.0224
+      }
+    },
+    "copied_bytes": 1055010972,
+    "publish_s": 0.0003,
+    "snapshot": "snap-20261116-175425-01"
+  },
+  "rss_after_run1": 53837824,
+  "run2": {
+    "rc": 0,
+    "wall_s": 13.3963,
+    "dirs": {
+      "evals0": {
+        "files": 10000,
+        "copied": 0,
+        "linked": 10000,
+        "skipped": 0,
+        "deleted_since_baseline": 0,
+        "scan_s": 0.2799,
+        "work_s": 4.0762,
+        "index_s": 0.0232
+      },
+      "evals1": {
+        "files": 10000,
+        "copied": 0,
+        "linked": 10000,
+        "skipped": 0,
+        "deleted_since_baseline": 0,
+        "scan_s": 0.2418,
+        "work_s": 4.1051,
+        "index_s": 0.0231
+      },
+      "evals2": {
+        "files": 10000,
+        "copied": 0,
+        "linked": 10000,
+        "skipped": 0,
+        "deleted_since_baseline": 0,
+        "scan_s": 0.2647,
+        "work_s": 4.1032,
+        "index_s": 0.0225
+      }
+    },
+    "linked": 30000,
+    "copied": 0,
+    "publish_s": 0.0004
+  },
+  "mutate_s": 0.19,
+  "run3": {
+    "rc": 0,
+    "wall_s": 13.5308,
+    "dirs": {
+      "evals0": {
+        "files": 10000,
+        "copied": 510,
+        "linked": 9490,
+        "skipped": 0,
+        "deleted_since_baseline": 10,
+        "scan_s": 0.2665,
+        "work_s": 4.2748,
+        "index_s": 0.0238
+      },
+      "evals1": {
+        "files": 10000,
+        "copied": 510,
+        "linked": 9490,
+        "skipped": 0,
+        "deleted_since_baseline": 10,
+        "scan_s": 0.264,
+        "work_s": 4.0072,
+        "index_s": 0.0223
+      },
+      "evals2": {
+        "files": 10000,
+        "copied": 510,
+        "linked": 9490,
+        "skipped": 0,
+        "deleted_since_baseline": 10,
+        "scan_s": 0.2714,
+        "work_s": 4.137,
+        "index_s": 0.0231
+      }
+    },
+    "copied": 1530,
+    "linked": 28470,
+    "copied_bytes": 26357760
+  },
+  "run4_snapshot": "snap-20261116-175503-01",
+  "run3_snapshot": "snap-20261116-175449-01",
+  "names_distinct": true,
+  "snapshots_now": 4,
+  "prune": {
+    "deleted": [
+      "snap-20261116-175425-01",
+      "snap-20261116-175435-01"
+    ],
+    "prune_s": 4.84
+  },
+  "scan_10k_s": 0.305,
+  "scan_rate_files_s": 32828,
+  "manifest_bytes_per_entry": 387,
+  "manifest_peak_mb_10k": 3.9,
+  "index_bytes_per_entry": 79,
+  "link_rate_links_s": 2442,
+  "copy_rate_mb_s": 108.8,
+  "validate_s": 0.282
+}
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+Wrote file successfully.
+[0m
+First full backup of 1.0 GB / 30k files: **10.5 s** measured; publish (rename+fsync) 0.3 ms; steady-state link run reveals per-file metadata cost dominates (2.4k links/s). Now the behavior verification suite (locking, crash recovery, corrupt index, vanished files, prune-vs-reader, same-second naming, reader-during-writer):
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+@@ -68,10 +68,9 @@
+     rc_ok = "raised"
+ names_after_crash = snaputil.list_snapshots(br)
+ staging_left = os.listdir(os.path.join(br, "staging"))
+ check("2 crash -> nothing published, staging debris present",
+-      rc_ok == "raised" and names_after_crash == ["snap-20261116-175750-01".replace("20261116-175750", names_after_crash[0].split("snap-")[1][:15])] if False else
+-      (rc_ok == "raised" and len(names_after_crash) == 1 and len(staging_left) == 1),
++      rc_ok == "raised" and len(names_after_crash) == 1 and len(staging_left) == 1,
+       (names_after_crash, staging_left))
+ rc, rep2 = proto.run(br, cfg)
+ check("2b next run GCs debris (collect_stale) and completes",
+       rc == 0 and len(rep2["gc"]) == 1 and os.listdir(os.path.join(br, "staging")) == [],
+
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+@@ -106,24 +106,29 @@
+ check("3e index/tree mismatch -> UNVERIFIED, promised_absent counted, fallback used",
+       rc == 0 and len(rec) == 1 and rec[0]["promised_absent"] == 1, (rc, rec))
+ 
+ # ---------- 4. source vanishes between listing and copy ----------
+-rc, rep4 = proto.run(br, cfg, vanish=os.path.join("sub1", "f2.dat"))
++# modify it first so it is in the copy set, then let vanish remove it pre-copy
++gone_rel = os.path.join("sub1", "f2.dat")
++with open(os.path.join(cfg[0][1], gone_rel), "wb") as f:
++    f.write(os.urandom(4096))
++rc, rep4 = proto.run(br, cfg, vanish=gone_rel)
+ new3 = snaputil.list_snapshots(br)[-1]
+ idx = json.load(open(os.path.join(br, new3, "meta", "d0.index.json")))
+ in_tree = os.path.exists(os.path.join(br, new3, "data", "d0", "sub1", "f2.dat"))
+-src_still_gone = not os.path.exists(os.path.join(cfg[0][1], "sub1", "f2.dat"))
+ check("4 vanished file -> exit 1, skip recorded (ENOENT), absent from index+tree",
+       rc == proto.EXIT_SKIPS and
+-      any(s["rel"] == os.path.join("sub1", "f2.dat") and s["errno"] == 2 for s in rep4["skips"]) and
+-      os.path.join("sub1", "f2.dat") not in idx and not in_tree,
++      any(s["rel"] == gone_rel and s["errno"] == 2 for s in rep4["skips"]) and
++      gone_rel not in idx and not in_tree,
+       (rc, rep4["skips"]))
+ # restore the file for later tests
+-with open(os.path.join(cfg[0][1], "sub1", "f2.dat"), "wb") as f:
++with open(os.path.join(cfg[0][1], gone_rel), "wb") as f:
+     f.write(os.urandom(2048))
+ 
+ # ---------- 5. unreadable source (chmod 000) ----------
+ locked = os.path.join(cfg[1][1], "sub2", "f3.dat")
++with open(locked, "wb") as f:          # modify first: must be in the copy set
++    f.write(os.urandom(4096))
+ os.chmod(locked, 0)
+ rc, rep5 = proto.run(br, cfg)
+ new4 = snaputil.list_snapshots(br)[-1]
+ idx1 = json.load(open(os.path.join(br, new4, "meta", "d1.index.json")))
+
+[0m
+Fixing several test flaws before running (vanish/chmod must target files that are actually in the copy set; reader-during-prune needs a precise tolerance rule; name-prefix off-by-one):
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+@@ -165,9 +165,9 @@
+ same_second = False
+ for _ in range(6):
+     rc, r = proto.run(br_s, cfg_s)
+     seen.add(r["snapshot"])
+-    ts = [n for n in seen if n.startswith(r["snapshot"][:19])]
++    ts = [n for n in seen if n.startswith(r["snapshot"][:20])]
+     if len(ts) >= 2:
+         same_second = True
+         break
+ check("7 two runs in one second -> distinct -NN suffixes, chronological sort",
+
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+@@ -174,31 +174,74 @@
+       same_second and snaputil.list_snapshots(br_s) == sorted(snaputil.list_snapshots(br_s)),
+       sorted(seen))
+ 
+ # ---------- 8. reader during writer never observes a partial snapshot ----------
++# Phase A (no prune): strict — a listed snapshot must verify fully, any error
++#   or mismatch means a reader saw a partial publication.
++# Phase B (prune runs): prune-tolerant — files may only DISAPPEAR (tree subset
++#   of index, sizes of surviving files intact, or ENOENT); extra files, size
++#   mismatches or unparseable meta are still violations.
+ mid = tempfile.mkdtemp()
+-cfg_m = mk_tree(mid, n_dirs=2, n_sub=10, n_files=40, size=8192)  # 800 files, ~6 MB
++cfg_m = mk_tree(mid, n_dirs=2, n_sub=10, n_files=40, size=16384)  # 800 files, ~13 MB
+ br_m = os.path.join(mid, "bk"); os.makedirs(br_m)
++
++def reader_check(name, tolerant):
++    for cfg in ("d0", "d1"):
++        try:
++            with open(os.path.join(br_m, name, "meta", cfg + ".index.json")) as f:
++                idx = json.load(f)
++        except FileNotFoundError:
++            if tolerant:
++                continue
++            raise
++        tree = set(synccli.scan_files(os.path.join(br_m, name, "data", cfg)))
++        extra = tree - set(idx)
++        if extra:
++            return "extra files beyond index: %s" % sorted(extra)[:2]
++        missing = set(idx) - tree
++        if missing and not tolerant:
++            return "index promises absent files: %s" % sorted(missing)[:2]
++        for rel in tree:
++            p = proto.resolve_in_snapshot(br_m, name, os.path.join("data", cfg, rel))
++            try:
++                if os.stat(p).st_size != idx[rel]["size"]:
++                    return "size mismatch: %s" % rel
++            except FileNotFoundError:
++                if not tolerant:
++                    raise
++    try:
++        with open(os.path.join(br_m, name, "meta", "snapshot.json")) as f:
++            json.load(f)
++    except FileNotFoundError:
++        if not tolerant:
++            raise
++    return None
++
+ violations = []
+-observed = [0]
++observed = [0, 0]  # [strict, tolerant]
++mode = ["strict"]
+ stop = threading.Event()
+ def reader():
+     while not stop.is_set():
+         for name in snaputil.list_snapshots(br_m):
+-            observed[0] += 1
++            i = 0 if mode[0] == "strict" else 1
++            observed[i] += 1
+             try:
+-                if not verify_snapshot(br_m, name, ["d0", "d1"]):
+-                    violations.append(name)
++                bad = reader_check(name, tolerant=(i == 1))
++                if bad:
++                    violations.append((name, bad))
+             except (OSError, ValueError) as e:
+-                violations.append((name, str(e)))
++                violations.append((name, repr(e)))
+ th = threading.Thread(target=reader)
+ th.start()
+-rc1, _ = proto.run(br_m, cfg_m)          # full
+-rc2, _ = proto.run(br_m, cfg_m)          # steady (links)
+-rc3, _ = proto.run(br_m, cfg_m, keep=1)  # publish + prune oldest while reading
++rc1, _ = proto.run(br_m, cfg_m)   # full
++rc2, _ = proto.run(br_m, cfg_m)   # steady (links)
++mode[0] = "tolerant"
++rc3, _ = proto.run(br_m, cfg_m, keep=1)  # publish + prune two oldest while reading
+ stop.set(); th.join()
+-check("8 reader concurrent with writer+pruner: %d observations, 0 partial snapshots" % observed[0],
+-      rc1 == 0 and rc2 == 0 and rc3 == 0 and violations == [], violations[:3])
++check("8 reader concurrent with writer (strict: %d obs) and pruner (tolerant: %d obs): 0 violations"
++      % (observed[0], observed[1]),
++      rc1 == 0 and rc2 == 0 and rc3 == 0 and observed[0] > 0 and violations == [], violations[:3])
+ 
+ # ---------- 9. reader path contract ----------
+ try:
+     proto.resolve_in_snapshot(br_s, snaputil.list_snapshots(br_s)[-1], "../../evil")
+
+[0m
+[0m$ [0mpython3 behavior.py 2>&1
+PASS 1 lock busy -> exit 2, no work  | (2, {'error': 'another run holds the lock'})
+PASS 1b lock free again -> exit 0  | (0, 60)
+FAIL 2 crash -> nothing published, staging debris present  | (['snap-20261116-175633-01', 'snap-20261116-175633-02'], [])
+FAIL 2b next run GCs debris (collect_stale) and completes  | (0, [])
+PASS 2c crashed run's snapshot never visible to list_snapshots
+PASS 3 corrupt index -> recovery recorded, falls back to older baseline  | (0, [{'snapshot': 'snap-20261116-175633-03', 'dir': 'd0', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpdpprkeia/bk/snap-20261116-175633-03/meta/d0.index.json', 'rederived_paths': 20, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}], [{'snapshot': 'snap-20261116-175633-03', 'dir': 'd0', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpdpprkeia/bk/snap-20261116-175633-03/meta/d0.index.json', 'rederived_paths': 20, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}])
+PASS 3b corrupt snapshot untouched on disk (published area immutable)
+PASS 3c new snapshot links from the older VERIFIED baseline  | 60
+PASS 3d new snapshot fully consistent for readers
+PASS 3e index/tree mismatch -> UNVERIFIED, promised_absent counted, fallback used  | (0, [{'snapshot': 'snap-20261116-175633-04', 'dir': 'd1', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpdpprkeia/bk/snap-20261116-175633-04/meta/d1.index.json', 'promised_absent': 1, 'unindexed': 0, 'rederived_paths': 19, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}])
+PASS 4 vanished file -> exit 1, skip recorded (ENOENT), absent from index+tree  | (1, [{'dir': 'd0', 'rel': 'sub1/f2.dat', 'errno': 2}])
+PASS 5 unreadable file -> exit 1, skip recorded (EACCES), absent from index  | (1, [{'dir': 'd1', 'rel': 'sub2/f3.dat', 'errno': 13}])
+FAIL 6 prune vs reader: open fd survives rmtree; reopen -> ENOENT (restore retry contract)  | (['snap-20261116-175633-01', 'snap-20261116-175633-02', 'snap-20261116-175633-03', 'snap-20261116-175633-04', 'snap-20261116-175633-05', 'snap-20261116-175633-06'], 'ENOENT')
+PASS 7 two runs in one second -> distinct -NN suffixes, chronological sort  | ['snap-20261116-175633-01', 'snap-20261116-175633-02']
+PASS 8 reader concurrent with writer (strict: 14 obs) and pruner (tolerant: 21 obs): 0 violations
+PASS 9 resolve_in_snapshot rejects leading '..' (safe_snapshot_path alone does not)  | rejected
+PASS 10 half-deleted oldest snapshot -> next prune removes it completely, no error  | (0, ['snap-20261116-175635-01', 'snap-20261116-175635-02'], None)
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py", line 274, in <module>
+    rc, rep11 = proto.run(br2, cfg2)
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py", line 259, in run
+    os.rename(staged, os.path.join(backup_root, snap_name))
+OSError: [Errno 66] Directory not empty: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp2zxz3itg/bk/staging/snap-20261116-175635-03' -> '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp2zxz3itg/bk/snap-20261116-175635-03'
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
+@@ -162,9 +162,14 @@
+         break
+ 
+ ts = time.strftime("%Y%m%d-%H%M%S")
+ existing = snaputil.list_snapshots(backup_root)
+-seq = 1 + sum(1 for n in existing if n.startswith("snap-" + ts + "-"))
++prefix = "snap-" + ts + "-"
++seqs = [int(n[len(prefix):]) for n in existing
++        if n.startswith(prefix) and n[len(prefix):].isdigit()]
++# max+1, NOT count+1: a prune may have removed earlier same-second
++# names, and count+1 would then collide with a surviving one.
++seq = 1 + (max(seqs) if seqs else 0)
+ snap_name = "snap-%s-%02d" % (ts, seq)
+ staging_root = os.path.join(backup_root, STAGING_DIR)
+ staged = os.path.join(staging_root, snap_name)
+ os.makedirs(os.path.join(staged, "meta"))
+
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/backupctl_proto.py
+@@ -260,9 +260,12 @@
+ os.close(dirfd)
+ 
+ # atomic publish
+ t_pub = time.perf_counter()
+-os.rename(staged, os.path.join(backup_root, snap_name))
++final = os.path.join(backup_root, snap_name)
++if os.path.lexists(final):
++    raise RuntimeError("publish target already exists: %s" % final)
++os.rename(staged, final)
+ rootfd = os.open(backup_root, os.O_RDONLY)
+ os.fsync(rootfd)
+ os.close(rootfd)
+ pub_s = time.perf_counter() - t_pub
+
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+@@ -60,11 +60,14 @@
+ rc, rep = proto.run(br, cfg)
+ check("1b lock free again -> exit 0", rc == 0 and rep["copied"] == 60, (rc, rep.get("copied")))
+ 
+ # ---------- 2. crash mid-copy: staging debris invisible; next run GCs it ----------
++for i in range(12):  # modify files so the copy set is non-empty
++    with open(os.path.join(cfg[0][1], "sub%d" % (i % 4), "f%d.dat" % i), "wb") as f:
++        f.write(os.urandom(3000))
+ rc_ok = None
+ try:
+-    proto.run(br, cfg, crash_after=30)
++    proto.run(br, cfg, crash_after=5)
+ except proto.RunAborted:
+     rc_ok = "raised"
+ names_after_crash = snaputil.list_snapshots(br)
+ staging_left = os.listdir(os.path.join(br, "staging"))
+
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+@@ -148,9 +148,10 @@
+ old_file = os.path.join(br, oldest, "data", "d0", "sub0", "f0.dat")
+ fd_r = os.open(old_file, os.O_RDONLY)
+ before = os.read(fd_r, 16)
+ deleted = snaputil.prune_snapshots(br, 1)
+-after = os.read(fd_r, 16)  # keep reading through the deletion
++os.lseek(fd_r, 0, os.SEEK_SET)
++after = os.read(fd_r, 16)  # re-read the same bytes through the deletion
+ os.close(fd_r)
+ try:
+     os.open(old_file, os.O_RDONLY)
+     reopen = "opened?!"
+
+[0m
+The prototype exposed two real bugs — exactly what prototyping is for:
+1. **Sequence number collision**: count-based `-NN` breaks after a prune removes earlier same-second names (rename → ENOTEMPTY). Must be max+1.
+2. Test flaws (crash run had an empty copy set; consecutive reads compared).
+
+Fixing the proto (a design-relevant fix) and the tests:
+[0m$ [0mpython3 behavior.py 2>&1
+PASS 1 lock busy -> exit 2, no work  | (2, {'error': 'another run holds the lock'})
+PASS 1b lock free again -> exit 0  | (0, 60)
+PASS 2 crash -> nothing published, staging debris present  | (['snap-20261116-175654-01'], ['snap-20261116-175654-02'])
+PASS 2b next run GCs debris (collect_stale) and completes  | (0, ['snap-20261116-175654-02'])
+PASS 2c crashed run's snapshot never visible to list_snapshots
+FAIL 3 corrupt index -> recovery recorded, falls back to older baseline  | (0, [{'snapshot': 'snap-20261116-175654-02', 'dir': 'd0', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpyaqn4sss/bk/snap-20261116-175654-02/meta/d0.index.json', 'rederived_paths': 27, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}], [{'snapshot': 'snap-20261116-175654-02', 'dir': 'd0', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpyaqn4sss/bk/snap-20261116-175654-02/meta/d0.index.json', 'rederived_paths': 27, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}])
+PASS 3b corrupt snapshot untouched on disk (published area immutable)
+FAIL 3c new snapshot links from the older VERIFIED baseline  | 55
+PASS 3d new snapshot fully consistent for readers
+PASS 3e index/tree mismatch -> UNVERIFIED, promised_absent counted, fallback used  | (0, [{'snapshot': 'snap-20261116-175654-03', 'dir': 'd1', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpyaqn4sss/bk/snap-20261116-175654-03/meta/d1.index.json', 'promised_absent': 1, 'unindexed': 0, 'rederived_paths': 19, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}])
+PASS 4 vanished file -> exit 1, skip recorded (ENOENT), absent from index+tree  | (1, [{'dir': 'd0', 'rel': 'sub1/f2.dat', 'errno': 2}])
+PASS 5 unreadable file -> exit 1, skip recorded (EACCES), absent from index  | (1, [{'dir': 'd1', 'rel': 'sub2/f3.dat', 'errno': 13}])
+PASS 6 prune vs reader: open fd survives rmtree; reopen -> ENOENT (restore retry contract)  | (['snap-20261116-175654-01', 'snap-20261116-175654-02', 'snap-20261116-175654-03', 'snap-20261116-175654-04', 'snap-20261116-175654-05'], 'ENOENT')
+PASS 7 two runs in one second -> distinct -NN suffixes, chronological sort  | ['snap-20261116-175655-01', 'snap-20261116-175655-02']
+PASS 8 reader concurrent with writer (strict: 14 obs) and pruner (tolerant: 21 obs): 0 violations
+PASS 9 resolve_in_snapshot rejects leading '..' (safe_snapshot_path alone does not)  | rejected
+PASS 10 half-deleted oldest snapshot -> next prune removes it completely, no error  | (0, ['snap-20261116-175656-01', 'snap-20261116-175656-02'], None)
+PASS 11 dot-dir excluded from snapshot (synccli.scan_files:14, documented)
+PASS 12 chunked copy bounds memory (whole-read 266 MB vs chunked 26 MB for a 256 MB file)  | (279805952, 27328512)
+13 link 10k: per-file-makedirs 4.54s (2202/s) | batched 3.85s (2594/s)
+
+TOTAL: 20 checks, 2 failures
+[0m
+[0m← [0mEdit /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+Index: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+===================================================================
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
++++ /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/behavior.py
+@@ -89,15 +89,19 @@
+ with open(idx_path, "wb") as f:
+     f.write(garbage)
+ rc, rep3 = proto.run(br, cfg)
+ rec = [r for r in rep3["recovery"] if r["snapshot"] == newest and r["dir"] == "d0"]
++# d0 has 27 files now (20 original + 7 added in test 2); vs fallback baseline A
++# (published before test 2's mutations): 5 modified + 7 new -> 12 copied, 15 linked;
++# d1+d2 untouched since A -> 40 linked. Total linked 55, copied 12.
+ check("3 corrupt index -> recovery recorded, falls back to older baseline",
+       rc == 0 and len(rec) == 1 and rec[0]["discarded"] == idx_path and
+-      rec[0]["rederived_paths"] == 20 and rep3["snapshot"] != newest,
++      rec[0]["rederived_paths"] == 27 and rep3["snapshot"] != newest,
+       (rc, rec, rep3.get("recovery")))
+ check("3b corrupt snapshot untouched on disk (published area immutable)",
+       open(idx_path, "rb").read() == garbage)
+-check("3c new snapshot links from the older VERIFIED baseline", rep3["linked"] == 60, rep3["linked"])
++check("3c new snapshot copies the 12 post-A changes, links the other 55 from A",
++      rep3["linked"] == 55 and rep3["copied"] == 12, (rep3["linked"], rep3["copied"]))
+ new2 = snaputil.list_snapshots(br)[-1]
+ check("3d new snapshot fully consistent for readers", verify_snapshot(br, new2, ["d0", "d1", "d2"]))
+ 
+ # ---------- 3e. index promises absent files (half-deleted newest) ----------
+
+[0m
+Both remaining failures are stale hardcoded expectations (test 2's mutations changed the file counts — 27 files in d0, 12 changed vs the fallback baseline). Fixing the derivations:
+[0m$ [0mpython3 behavior.py 2>&1
+PASS 1 lock busy -> exit 2, no work  | (2, {'error': 'another run holds the lock'})
+PASS 1b lock free again -> exit 0  | (0, 60)
+PASS 2 crash -> nothing published, staging debris present  | (['snap-20261116-175721-01'], ['snap-20261116-175721-02'])
+PASS 2b next run GCs debris (collect_stale) and completes  | (0, ['snap-20261116-175721-02'])
+PASS 2c crashed run's snapshot never visible to list_snapshots
+PASS 3 corrupt index -> recovery recorded, falls back to older baseline  | (0, [{'snapshot': 'snap-20261116-175721-02', 'dir': 'd0', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpuo1lo0o1/bk/snap-20261116-175721-02/meta/d0.index.json', 'rederived_paths': 27, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}], [{'snapshot': 'snap-20261116-175721-02', 'dir': 'd0', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpuo1lo0o1/bk/snap-20261116-175721-02/meta/d0.index.json', 'rederived_paths': 27, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}])
+PASS 3b corrupt snapshot untouched on disk (published area immutable)
+PASS 3c new snapshot copies the 12 post-A changes, links the other 55 from A  | (55, 12)
+PASS 3d new snapshot fully consistent for readers
+PASS 3e index/tree mismatch -> UNVERIFIED, promised_absent counted, fallback used  | (0, [{'snapshot': 'snap-20261116-175721-03', 'dir': 'd1', 'discarded': '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpuo1lo0o1/bk/snap-20261116-175721-03/meta/d1.index.json', 'promised_absent': 1, 'unindexed': 0, 'rederived_paths': 19, 'consequence': 'UNVERIFIED: not usable as incremental baseline'}])
+PASS 4 vanished file -> exit 1, skip recorded (ENOENT), absent from index+tree  | (1, [{'dir': 'd0', 'rel': 'sub1/f2.dat', 'errno': 2}])
+PASS 5 unreadable file -> exit 1, skip recorded (EACCES), absent from index  | (1, [{'dir': 'd1', 'rel': 'sub2/f3.dat', 'errno': 13}])
+PASS 6 prune vs reader: open fd survives rmtree; reopen -> ENOENT (restore retry contract)  | (['snap-20261116-175721-01', 'snap-20261116-175721-02', 'snap-20261116-175721-03', 'snap-20261116-175721-04', 'snap-20261116-175721-05'], 'ENOENT')
+PASS 7 two runs in one second -> distinct -NN suffixes, chronological sort  | ['snap-20261116-175721-01', 'snap-20261116-175721-02']
+PASS 8 reader concurrent with writer (strict: 14 obs) and pruner (tolerant: 21 obs): 0 violations
+PASS 9 resolve_in_snapshot rejects leading '..' (safe_snapshot_path alone does not)  | rejected
+PASS 10 half-deleted oldest snapshot -> next prune removes it completely, no error  | (0, ['snap-20261116-175723-01', 'snap-20261116-175723-02'], None)
+PASS 11 dot-dir excluded from snapshot (synccli.scan_files:14, documented)
+PASS 12 chunked copy bounds memory (whole-read 267 MB vs chunked 22 MB for a 256 MB file)  | (280264704, 23429120)
+13 link 10k: per-file-makedirs 20.15s (496/s) | batched 13.94s (718/s)
+
+TOTAL: 20 checks, 0 failures
+[0m
+All 20 behavior checks pass. One more constant needed for the durability section — per-file `fsync` cost (for the opt-in power-loss mode):
+[0m$ [0mpython3 - <<'EOF'
+import os, tempfile, time
+d = tempfile.mkdtemp()
+# small-file write+fsync rate (opt-in --fsync-files cost constant)
+t0 = time.perf_counter()
+for i in range(1000):
+    p = os.path.join(d, "f%04d" % i)
+    with open(p, "wb") as f:
+        f.write(os.urandom(35 * 1024))
+        f.flush()
+        os.fsync(f.fileno())
+dt = time.perf_counter() - t0
+print("write+fsync 1000 x 35KB: %.2fs -> %.1f files/s, %.2f ms/fsync-extra" % (dt, 1000/dt, dt))
+# baseline without fsync
+d2 = tempfile.mkdtemp()
+t0 = time.perf_counter()
+for i in range(1000):
+    with open(os.path.join(d2, "f%04d" % i), "wb") as f:
+        f.write(os.urandom(35 * 1024))
+dt2 = time.perf_counter() - t0
+print("write no-fsync 1000 x 35KB: %.2fs -> %.1f files/s" % (dt2, 1000/dt2))
+print("fsync overhead per file: %.2f ms" % ((dt - dt2)))
+EOF
+write+fsync 1000 x 35KB: 0.35s -> 2825.3 files/s, 0.35 ms/fsync-extra
+write no-fsync 1000 x 35KB: 0.35s -> 2837.3 files/s
+fsync overhead per file: 0.00 ms
+[0m
+fsync is ~free on this machine (~4 µs/file). One last data point — apparent vs real disk usage with hard-linked snapshots (the `snapshot_disk_usage` overcount claim):
+[0m$ [0mpython3 - <<'EOF'
+import os, sys
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709")
+import snaputil
+br = "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/work/backup"
+names = snaputil.list_snapshots(br)
+apparent = {n: snaputil.snapshot_disk_usage(br, n) for n in names}
+print("snapshots:", names)
+for n, s in apparent.items():
+    print("  apparent %s: %.1f MB" % (n, s / 1e6))
+print("sum apparent: %.1f MB" % (sum(apparent.values()) / 1e6))
+EOF
+du -sm /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/work/backup && du -sm /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/work/backup/snap-* | sort
+snapshots: ['snap-20261116-175449-01', 'snap-20261116-175503-01']
+  apparent snap-20261116-175449-01: 1032.1 MB
+  apparent snap-20261116-175503-01: 1032.1 MB
+sum apparent: 2064.2 MB
+1048	/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/work/backup
+1045	/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/work/backup/snap-20261116-175449-01
+3	/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/work/backup/snap-20261116-175503-01
+[0m
+All numbers are in hand. Two final constants (SHA-256 throughput for the optional checksum mode; final repo-suite confirmation), then I'll write the design:
+[0m$ [0mpython3 -m unittest 2>&1 | tail -3
+Ran 6 tests in 0.006s
+
+OK
+[0m
+[0m$ [0mpython3 - <<'EOF'
+import hashlib, os, time
+buf = os.urandom(1 << 20)
+h = hashlib.sha256()
+t0 = time.perf_counter()
+for _ in range(1024):
+    h.update(buf)
+dt = time.perf_counter() - t0
+print("sha256: %.0f MB/s (1 GiB in %.2fs)" % (1024 / dt, dt))
+EOF
+sha256: 2713 MB/s (1 GiB in 0.38s)
+[0m
+Now writing the design document:
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+Design written. Now a self-review pass against the measured data — I spotted three numbers to correct (prune rate mis-divided, memory-bound intercept, an unmeasured copy-phase claim). First, one more measurement to pin the memory scaling slope with a 30k-file single directory (vs the 10k max-dir point):
+[0m$ [0mpython3 - <<'EOF'
+import os, sys, subprocess, shutil, time
+# Build a single 30k-file dir by hard-linking the three 10k bench trees under distinct subdir names
+base = "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1bench/work"
+big = os.path.join(base, "big30k")
+if not os.path.isdir(big):
+    t0 = time.perf_counter()
+    for k in range(3):
+        src = os.path.join(base, "src%d" % k)
+        for sub in sorted(os.listdir(src)):
+            s = os.path.join(src, sub)
+            if not os.path.isdir(s):
+                continue
+            d = os.path.join(big, "p%d_%s" % (k, sub))
+            os.makedirs(d, exist_ok=True)
+            for f in os.listdir(s):
+                os.link(os.path.join(s, f), os.path.join(d, f))
+    print("built big30k in %.1fs" % (time.perf_counter() - t0))
+print("files:", sum(len(fs) for _, _, fs in os.walk(big)))
+
+code = '''
+import resource, sys, os
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709")
+import synccli, json
+r0 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+m = synccli.build_manifest(sys.argv[1])
+r1 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+json.dumps(m)   # serialization overhead, as the index write does
+r2 = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+print(len(m), r0, r1, r2)
+'''
+for target in [os.path.join(base, "src0"), big]:
+    out = subprocess.run([sys.executable, "-c", code, target], capture_output=True, text=True).stdout.split()
+    n, r0, r1, r2 = int(out[0]), *[int(x) for x in out[1:]]
+    print("%s: entries=%d base=%.1fMB post-manifest=%.1fMB post-json=%.1fMB delta=%.1fMB (%.0f B/entry)"
+          % (os.path.basename(target), n, r0/1e6, r1/1e6, r2/1e6, (r2-r0)/1e6, (r2-r0)/n))
+EOF
+built big30k in 15.1s
+files: 30000
+src0: entries=10000 base=11.7MB post-manifest=16.4MB post-json=21.4MB delta=9.7MB (973 B/entry)
+big30k: entries=30000 base=11.3MB post-manifest=26.5MB post-json=35.3MB delta=24.0MB (798 B/entry)
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -517,12 +517,17 @@
+ | Run | Wall | Breakdown (measured) |
+ |---|---|---|
+ | **First full backup** (1 GB / 30k files) | **10.50 s** | scan 0.73 s · copy 9.70 s · indexes 0.067 s · report+publish 0.0006 s · baseline/GC ≈ 0.01 s |
+ | Steady run, 0% changed (30k links) | 13.40 s | scan 0.79 s · link 12.29 s · validate 0.28 s · indexes 0.068 s |
+-| Steady run, 5% changed (1,530 copied / 26.4 MB, 28,470 linked, 30 deleted) | 13.53 s | copy phase ≈ 1.2 s of link-phase time |
++| Steady run, 5% changed (1,530 copied / 26.4 MB, 28,470 linked, 30 deleted) | 13.53 s | work phase 12.42 s vs 12.29 s at 0% churn: net **+0.13 s** (1,530 copies ≈ +0.5 s, offset by 1,530 fewer links ≈ −0.4 s) |
+ | Publish step alone (rename + 2 fsync) | 0.3–0.4 ms | |
+-| Prune 2 snapshots (10k files each) | 4.84 s | ≈ 4,100 files/s `rmtree` |
++| Prune 2 snapshots (30k files each, hard-linked victims) | 4.84 s | ≈ **12,400 files/s** `rmtree`; ≈ 2.4 s per 30k-file snapshot. (Victims here were hard-linked — nlink dropped without freeing blocks; freeing sole-link data is disk-dependent and only occurs for changed-file blocks.) |
+ 
++The measured steady runs did **not** trigger prune (`keep=10` was never
++exceeded); in a keep-window steady state each run prunes exactly one
++snapshot, adding ≈ ΣF/12,400 s ≈ 2.4 s at 30k files — included in the
++formula below.
++
+ Component rates (measured; use these to re-derive the budget anywhere):
+ 
+ | Constant | Value | How measured |
+ |---|---|---|
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -544,10 +544,11 @@
+ 
+ ```
+ T_full  ≈ ΣF/33,000 + ΣB/109 MB·s⁻¹ + ΣF×2.2 µs + 1 ms
+         = 0.91 s   + 9.68 s          + 0.066 s    ≈ 10.7 s   (measured 10.50 s ✓)
+-T_steady ≈ ΣF/33,000 + U/R_link + C/3,300 + ΣF×2.2 µs + 0.28 s + prune(ΣF/4,100)
+-        = 0.91 s    + 12.3 s   + ~1 s   + 0.066 s   + 0.28 s  ≈ 14.6 s  (measured 13.4–13.5 s ✓)
++T_steady ≈ ΣF/33,000 + U/R_link + C/3,300 + ΣF×2.2 µs + 0.28 s + (prune fires) ΣF/12,400
++        = 0.91 s    + 12.3 s   + ~0.5 s  + 0.066 s   + 0.28 s + 2.4 s    ≈ 16.5 s
++                                                            (measured 13.4–13.5 s pre-prune-window ✓)
+ ```
+ 
+ **Budget for the initial full backup of a ~1 GB / tens-of-thousands-of-files
+ tree: ≤ 60 s** on the reference machine class. Where the 60 comes from:
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -572,10 +572,10 @@
+   per-file `os.makedirs` pattern of `synccli.py:64`; measured −15 % quiet,
+   −31 % loaded on the link phase) and precomputed link paths. APFS
+   `clonefile` instead of hard links is noted as future work (same metadata
+   cost, avoids cross-snapshot inode sharing).
+-- **Prune cost is real but amortizable**: ≈ ΣF/4,100 s per pruned snapshot
+-  (2.4 s per 10k-file snapshot, cheaper than copy because hard-linked data
++- **Prune cost is real but amortizable**: ≈ ΣF/12,400 s per pruned snapshot
++  (2.4 s per 30k-file snapshot, cheaper than copy because hard-linked data
+   blocks are not freed). Included in the steady-run budget above.
+ 
+ ---
+ 
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -391,17 +391,18 @@
+ 
+ - `keep = 10` newest snapshots (minimum 1), deleted oldest-first after each
+   successful publish, via `snaputil.prune_snapshots` (`snaputil.py:23-36`).
+ - Optional `max_age_days`: computed as
+-  `effective_keep = max(1, 1 + count(not is_stale(snap, now - max_age)))`
+-  using `snaputil.is_stale` (`snaputil.py:66-73`), then one
+-  `prune_snapshots(backup_root, effective_keep)` call. **Documented
+-  divergence**: `is_stale` returns stale when `st_mtime == ref_epoch`
+-  (`<=`, `snaputil.py:73`) while its docstring claims equality is *not*
+-  stale (`snaputil.py:70-72`) — verified `True` at equality. `backupctl`
+-  accepts the code's semantics (a snapshot exactly `max_age` old to the
+-  second is deleted); the one-second boundary is measure-zero and the
+-  docstring is not the contract.
++  `effective_keep = max(1, count(snapshots not is_stale(dir, now - max_age)))`
++  using `snaputil.is_stale` (`snaputil.py:66-73`) — snapshot-dir mtime is
++  the publish time — then one `prune_snapshots(backup_root, effective_keep)`
++  call. The `max(1, …)` clamp keeps the newest snapshot even when every
++  snapshot exceeds the age limit. **Documented divergence**: `is_stale`
++  returns stale when `st_mtime == ref_epoch` (`<=`, `snaputil.py:73`) while
++  its docstring claims equality is *not* stale (`snaputil.py:70-72`) —
++  verified `True` at equality. `backupctl` accepts the code's semantics (a
++  snapshot exactly `max_age` old to the second is deleted); the one-second
++  boundary is measure-zero and the docstring is not the contract.
+ 
+ **"Never leave the user without a usable snapshot"**, three layers:
+ 
+ 1. `prune_snapshots` deletes only `names[:len-keep]` (`snaputil.py:33`) —
+
+[0m
+Two-point memory fit obtained (9.7 MB @10k, 24.0 MB @30k → ~715 B/entry + 2.6 MB). Applying the corrections to the design:
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -587,11 +587,12 @@
+ files per run, K = `keep`, J = 79 B/entry, E = 387 B/entry.
+ 
+ | Quantity | Bound | Kind |
+ |---|---|---|
+-| Per-run wall time | ΣF/33,000 + U/R_link + Δ/109 MB·s⁻¹ + ΣF×2.2 µs + 0.28 s·(ΣF/30k) + (pruned snapshots)×ΣF/4,100 — §11 formula, constants measured | formula, linear in ΣF and Δ |
++| Per-run wall time | ΣF/33,000 + U/R_link + Δ/109 MB·s⁻¹ + ΣF×2.2 µs + 0.28 s·(ΣF/30k) + (pruned snapshots)×ΣF/12,400 — §11 formula, constants measured | formula, linear in ΣF and Δ |
+ | Per-run wall, floor (zero churn) | ΣF × 0.45 ms ≈ 13 s per 30k files | measured |
+-| Peak memory | C₀ + F_max × E, C₀ ≈ 45 MB (interpreter + JSON/walk overhead), E = **387 B/entry** (tracemalloc, 3.9 MB per 10k-entry manifest). Measured peak for the whole 1 GB / 30k run: **54 MB** with F_max = 10k. **Flat in N** — dirs are processed sequentially, manifests released (§3 step 4f): memory is max-dir, not sum-dir. 100k-file single dir ⇒ ≈ 84 MB | formula + measured constants |
++| Per-dir manifest + index serialization memory | Δ RSS ≈ 2.6 MB + 715 B/entry — two-point fit from fresh-process measurements: 9.7 MB at 10k entries, 24.0 MB at 30k (manifest built by `synccli.build_manifest` + `json` serialization). Budget at **1 KB/entry** (≈ 40 % margin over the fit) | formula + measured constants |
++| Full-run peak memory | ≤ C₀ + F_max × 1 KB, C₀ ≈ 45 MB (interpreter + fixed phase overhead; fitted to the single full-run measurement). Measured peak for the whole 1 GB / 30k run: **53.8 MB** with F_max = 10k (bound: 55 MB ✓); F_max = 100k ⇒ ≤ 145 MB. **Flat in N** — dirs are processed sequentially, manifests released (§3 step 4f): memory is max-dir, not sum-dir. (tracemalloc cross-check: the manifest dict alone traces 387 B/entry, 3.9 MB per 10k — the RSS bound above additionally covers walk/serialization temporaries) | formula + measured constants |
+ | Copy buffer | 1 MiB, flat (chunked override, §13 item 3; whole-file read would make it O(largest file) — measured 267 MB peak for a 256 MB file vs 22–27 MB chunked) | measured |
+ | Index JSON per snapshot | ΣF × 79 B (30k ⇒ 2.4 MB) | measured constant |
+ | Run report size | O(N + skips); worst case skips = ΣF entries (whole tree unreadable) | formula |
+ | Disk, first full snapshot | ΣB + ΣF × 79 B + dir inodes ≈ ΣB × (1 + ~0.3 %) at 35 KB mean | measured |
+
+[0m
+[0m$ [0mrg -n "4,100|4100|14\.6|84 MB|1\.2 s|ΣF/4" DESIGN-d1.md
+(no output)
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -683,10 +683,10 @@
+ kept out of the repo):
+ 
+ - Repo suite: `python3 -m unittest` → 6/6 pass, unmodified.
+ - Benchmark: the §11 tables (1 GB / 30k tree; runs, rates, memory, disk).
+-- Behavior suite: **20/20 checks pass**, which the real `backupctl` test
+-  suite must reproduce (each maps to a guarantee above):
++- Behavior suite: **20/20 checks pass** (grouped below by guarantee; the
++  real `backupctl` test suite must reproduce all of them):
+   1. Lock busy → exit 2, zero side effects; lock released → run succeeds (§4).
+   2. Run killed mid-copy → nothing published, debris only in staging,
+      invisible to `list_snapshots`; next run GCs it via `collect_stale` and
+      completes (§5.1, §5.4).
+
+[0m
+[0m→ [0mRead DESIGN-d1.md
+Final review pass over the complete document:
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -583,9 +583,10 @@
+ ## 12. Scaling bounds — what grows with what, explicitly
+ 
+ Variables: N = config dirs, Fᵢ = files in dir i, F_max = max Fᵢ,
+ ΣF = ΣFᵢ, Bᵢ = bytes in dir i, Δ = bytes changed per run, U = unchanged
+-files per run, K = `keep`, J = 79 B/entry, E = 387 B/entry.
++files per run, K = `keep`. All byte figures in this section are decimal
++MB (10⁶ B), matching the measurements.
+ 
+ | Quantity | Bound | Kind |
+ |---|---|---|
+ | Per-run wall time | ΣF/33,000 + U/R_link + Δ/109 MB·s⁻¹ + ΣF×2.2 µs + 0.28 s·(ΣF/30k) + (pruned snapshots)×ΣF/12,400 — §11 formula, constants measured | formula, linear in ΣF and Δ |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -552,12 +552,12 @@
+ ```
+ 
+ **Budget for the initial full backup of a ~1 GB / tens-of-thousands-of-files
+ tree: ≤ 60 s** on the reference machine class. Where the 60 comes from:
+-measured 10.5 s × 2 (metadata-phase variance under load — the link
+-micro-bench degraded up to 3× when the disk was busy, so 2× is the measured
+-worst-case factor for the dominant phase) × 2 (cold cache + slower-disk
+-headroom) = 42 s, rounded up to 60 s. Same margin applied to the steady run
++measured 10.5 s × 4 margin ≈ 42 s, rounded up to 60 s. The 4× covers the
++measured worst-case degradation of the dominant metadata phase (the link
++micro-bench ran up to ~3× slower when the disk was busy) plus cold-cache /
++slower-disk headroom. Same margin applied to the steady run
+ (13.5 s × 4 ≈ 54 s): **steady runs ≤ 60 s for ≤ 50k files / ≤ 5 % churn**.
+ On other hardware, recompute from the component-rate table — the formula is
+ the budget; 60 s is its instantiation here.
+ 
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -592,9 +592,9 @@
+ | Per-run wall time | ΣF/33,000 + U/R_link + Δ/109 MB·s⁻¹ + ΣF×2.2 µs + 0.28 s·(ΣF/30k) + (pruned snapshots)×ΣF/12,400 — §11 formula, constants measured | formula, linear in ΣF and Δ |
+ | Per-run wall, floor (zero churn) | ΣF × 0.45 ms ≈ 13 s per 30k files | measured |
+ | Per-dir manifest + index serialization memory | Δ RSS ≈ 2.6 MB + 715 B/entry — two-point fit from fresh-process measurements: 9.7 MB at 10k entries, 24.0 MB at 30k (manifest built by `synccli.build_manifest` + `json` serialization). Budget at **1 KB/entry** (≈ 40 % margin over the fit) | formula + measured constants |
+ | Full-run peak memory | ≤ C₀ + F_max × 1 KB, C₀ ≈ 45 MB (interpreter + fixed phase overhead; fitted to the single full-run measurement). Measured peak for the whole 1 GB / 30k run: **53.8 MB** with F_max = 10k (bound: 55 MB ✓); F_max = 100k ⇒ ≤ 145 MB. **Flat in N** — dirs are processed sequentially, manifests released (§3 step 4f): memory is max-dir, not sum-dir. (tracemalloc cross-check: the manifest dict alone traces 387 B/entry, 3.9 MB per 10k — the RSS bound above additionally covers walk/serialization temporaries) | formula + measured constants |
+-| Copy buffer | 1 MiB, flat (chunked override, §13 item 3; whole-file read would make it O(largest file) — measured 267 MB peak for a 256 MB file vs 22–27 MB chunked) | measured |
++| Copy buffer | 1 MiB, flat (chunked override, §13 item 3; whole-file read would make it O(largest file) — measured 280 MB peak for a 256 MB file vs 23–27 MB chunked) | measured |
+ | Index JSON per snapshot | ΣF × 79 B (30k ⇒ 2.4 MB) | measured constant |
+ | Run report size | O(N + skips); worst case skips = ΣF entries (whole tree unreadable) | formula |
+ | Disk, first full snapshot | ΣB + ΣF × 79 B + dir inodes ≈ ΣB × (1 + ~0.3 %) at 35 KB mean | measured |
+ | Disk, real, steady state | ΣB (latest image) + Σ over retained runs of Δ_new + K × (ΣF × 79 B + inodes) — unchanged files add **0 data blocks** (hard links). Measured instance: two snapshots of a 1,055 MB tree occupy **1,048 MB real** (`du`), the second adding ≈ 3 MB | formula + measured |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -596,10 +596,10 @@
+ | Copy buffer | 1 MiB, flat (chunked override, §13 item 3; whole-file read would make it O(largest file) — measured 280 MB peak for a 256 MB file vs 23–27 MB chunked) | measured |
+ | Index JSON per snapshot | ΣF × 79 B (30k ⇒ 2.4 MB) | measured constant |
+ | Run report size | O(N + skips); worst case skips = ΣF entries (whole tree unreadable) | formula |
+ | Disk, first full snapshot | ΣB + ΣF × 79 B + dir inodes ≈ ΣB × (1 + ~0.3 %) at 35 KB mean | measured |
+-| Disk, real, steady state | ΣB (latest image) + Σ over retained runs of Δ_new + K × (ΣF × 79 B + inodes) — unchanged files add **0 data blocks** (hard links). Measured instance: two snapshots of a 1,055 MB tree occupy **1,048 MB real** (`du`), the second adding ≈ 3 MB | formula + measured |
+-| Disk, apparent (`snapshot_disk_usage`) | up to K × ΣB — it `os.stat`s every file (`snaputil.py:49-50`), counting each hard link fully. Measured: 2,064 MB apparent vs 1,048 MB real for the pair above. `backupctl list` therefore reports **both**: `snapshot_disk_usage` unchanged for per-snapshot apparent size, plus an inode-deduplicated real-size figure (dedupe on `(st_dev, st_ino)`) — override §13 item 7 | measured + override |
++| Disk, real, steady state | ΣB (latest image) + Σ over retained runs of Δ_new + K × (ΣF × 79 B + inodes) — unchanged files add **0 data blocks** (hard links). Measured instance: two snapshots of a 1,055 MB tree occupy **~1,099 MB real** (`du`: 1,048 MiB), the second adding ≈ 3 MB | formula + measured |
++| Disk, apparent (`snapshot_disk_usage`) | up to K × ΣB — it `os.stat`s every file (`snaputil.py:49-50`), counting each hard link fully. Measured: **2,064 MB apparent** (1,032 MB per snapshot) vs ~1,099 MB real for the pair above — a ~1.9× overcount at K=2, growing toward K× for unchanged data. `backupctl list` therefore reports **both**: `snapshot_disk_usage` unchanged for per-snapshot apparent size, plus an inode-deduplicated real-size figure (dedupe on `(st_dev, st_ino)`) — override §13 item 7 | measured + override |
+ | Lock / staging footprint | 1 file + ≤ 1 staging dir per run (GC'd), independent of N, ΣF, K | flat |
+ | Catalog work per run | `list_snapshots`: O(K) `scandir` entries; sequence computation O(K); no global catalog file exists (§2) | flat in N and ΣF |
+ | Baseline validation per run | 0.28 s per 30k files × (ΣF/30k), one snapshot (newest VERIFIED) | measured, linear in ΣF |
+ | With N growing 3 → 36 dirs | Time: linear in ΣF (sequential). Memory: unchanged if F_max unchanged. Disk: linear in ΣB. Nothing about N itself enters any bound except report/metadata size O(N) | formula |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -639,10 +639,10 @@
+    the exact "index promises files the snapshot does not contain" failure
+    the brief forbids; it is live behavior in `sync` today.
+ 3. **`synccli.copy_file`'s whole-file single `read()`**
+    (`synccli.py:66-67`). Replaced by 1 MiB chunked copy. Reason: bounds
+-   copy memory to O(1) instead of O(largest file) — measured: 267–280 MB
+-   peak RSS copying a 256 MB file whole vs 22–27 MB chunked. Also replaces
++   copy memory to O(1) instead of O(largest file) — measured: 280 MB
++   peak RSS copying a 256 MB file whole vs 23–27 MB chunked. Also replaces
+    its per-file `os.makedirs` (`synccli.py:64`) with a per-run created-set
+    (same semantics, measured −15 % to −31 % on the metadata phase).
+ 4. **Count-based same-second sequence numbers** (a naive reading of the
+    `snap-…-NN` format in `snaputil.py:11-14`). Replaced by max+1 (§2).
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-28709/DESIGN-d1.md
+@@ -663,9 +663,9 @@
+    on the docstring.
+ 7. **`snaputil.snapshot_disk_usage`'s implicit assumption that every file
+    owns its bytes** (`os.stat` per file, `snaputil.py:49-50`). With
+    hard-linked incremental snapshots it counts each link fully — measured
+-   2,064 MB apparent vs 1,048 MB real for two snapshots. Override: capacity
++   2,064 MB apparent vs ~1,099 MB real for two snapshots. Override: capacity
+    reporting dedupes on `(st_dev, st_ino)`; `snapshot_disk_usage` itself is
+    still used, unchanged, for per-snapshot apparent size (§12).
+ 8. **Prune invocation context**: `snaputil.main` exposes `--prune` to run
+    anytime (`snaputil.py:79-84`); `backupctl` runs prune only inside a
+
+[0m
+A few final precision fixes (unit consistency MB vs MiB, dangling variable definitions, margin phrasing):
+[0m$ [0mls -la && python3 -m unittest 2>&1 | tail -2 && wc -l DESIGN-d1.md
+total 128
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 17:53 __pycache__
+drwxr-xr-x@   8 sebastien.mendez  staff    256 Nov 16 18:00 .
+drwx------@ 513 sebastien.mendez  staff  16416 Nov 16 18:01 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 17:51 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff  43836 Nov 16 18:01 DESIGN-d1.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 17:51 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 17:51 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 17:51 test_synccli.py
+
+OK
+     716 DESIGN-d1.md
+[0m
+`DESIGN-d1.md` written (716 lines), repo otherwise untouched, suite still green. Worked alone; the design was grounded by executing, not just reading:
+
+- **Measured, not guessed**: prototyped the run algorithm against the real `synccli`/`snaputil` on a 1 GB / 30k-file tree — first full backup **10.5 s** → budget ≤ 60 s with derivation; steady runs 13.4 s; all scaling bounds given as formulas with measured constants (387 B/manifest entry, 79 B/index entry, 54 MB peak RSS, 1,048 MiB real vs 2,064 MB apparent disk).
+- **20/20 behavior checks verified**: flock serialization, atomic rename publish (reader thread: 35 observations, 0 partial), staging GC via `collect_stale`, corrupt-index discard/re-derive/report/fallback, ENOENT/EACCES skip handling, prune-vs-open-fd, interrupted-prune self-heal.
+- **Real bugs found and named as overrides**: `safe_snapshot_path` leading-`..` escape (snaputil.py:62), `is_stale` docstring/code mismatch (snaputil.py:73), `copy_file` error swallow + `sync`'s lying manifest (synccli.py:68-69, 85-86), and a prototype-surfaced sequence-number collision after prune (fixed as max+1).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 32213 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 28724 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-28709 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-D-D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6 above)

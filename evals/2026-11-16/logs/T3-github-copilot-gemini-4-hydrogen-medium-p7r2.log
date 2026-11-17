@@ -1,0 +1,94 @@
+[0m
+> build · gemini-4-hydrogen
+[0m
+[0m$ [0mgit show HEAD --stat
+commit 54771ccbc9406fa176ac5e9f4e1fd65976856e63
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 18:19:10 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+[0m
+[0m$ [0mgit show HEAD
+commit 54771ccbc9406fa176ac5e9f4e1fd65976856e63
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 18:19:10 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m→ [0mRead incremental.py
+[0m✱ [0mGlob "*"[90m 8 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+Defects in commit `54771cc` (`incremental.py`):
+
+1. **`filter_excluded`: mutable default argument (`excluded=[]`) — Major**
+   - `excluded` is initialized once at function definition time (`incremental.py:10`) and mutated in place (`excluded.append(p)`). Subsequent calls without an explicit `excluded` argument accumulate results from all prior calls, corrupting the returned list.
+
+2. **`filter_excluded`: brittle path-prefix check (`p.split(os.sep)[0]`) — Minor**
+   - Paths with a leading `./` (e.g. `./.git/config`), leading `/`, or non-native separators do not match `EXCLUDE_TOP_DIRS`, and nested `__pycache__` or `.sync_manifest.json` entries are not matched at all (`incremental.py:13`).
+
+3. **`copy_many`: failed copies are reported as `done` (silent data loss) — Major**
+   - `synccli.copy_file` catches and suppresses `OSError` internally (`synccli.py:68-69`). Because `copy_file` does not raise on read/write failure, `copy_many` unconditionally executes `done.append(dst)` (`incremental.py:23-24`) and reports failed or uncopied files as completed.
+   - Additionally, `except Exception: continue` (`incremental.py:25-26`) silently discards any other errors without surfacing failures to the caller.
+
+4. **`merge_manifest`: ignores updates when `mtime` decreases — Major**
+   - `if rel not in old or old[rel]["mtime"] <= state["mtime"]` (`incremental.py:38`) skips updating entries whose `mtime` moved backward (e.g. `git checkout`, `touch`, archive extraction, or clock skew), even when `size` changed. This leaves stale metadata in the manifest.
+
+5. **`merge_manifest`: deleted files are never removed from manifest — Minor**
+   - `merged = dict(old)` (`incremental.py:36`) retains every entry from `old` that is absent from `new_manifest`, leaving deleted files in the manifest state.
+
+6. **`merge_manifest`: misleading API contract (never persists to `dst_manifest_path`) — Minor**
+   - The docstring states *"Merge new file states into the destination manifest"*, and the function takes `dst_manifest_path`, but it only reads that file and returns `merged` without writing it back (`incremental.py:30-40`).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 98: 38370 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 107: 38371 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-38324 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T3-github-copilot-gemini-4-hydrogen-medium-p7r2)

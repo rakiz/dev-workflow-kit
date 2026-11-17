@@ -1,0 +1,67 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+# Execution plan: `--json` output and dry-run UX for synccli
+
+**Scope note:** I read GOAL.md and README.md only. I did not open the synccli source or `test_synccli.py`, so file names and the current structure of `sync()` are assumptions. Task 1 verifies them first.
+
+**Pipeline rule:** every implementation task goes to `cheap-code`, then `cheap-review`. Escalate only on a demonstrated stall or a major review finding.
+
+---
+
+### T1. Explore current CLI, output path, and tests
+- **Objective:** Map where `sync()` is defined and called, how the CLI parses args, how human output is printed, what `sync()` returns, and how `dry_run` is handled today.
+- **Files:** read-only. Expected: `synccli/__main__.py`, the module holding `sync()`, `test_synccli.py`.
+- **Agent:** `explore`.
+- **Risks:** `sync()` may print directly instead of returning data. Then the JSON mode needs an output seam, and the signature may have to stay stable while the return value changes. Internal callers may depend on the current return shape.
+- **Acceptance:** A written map lists the exact `sync()` signature, its return value, every caller, the print sites, and whether `--dry-run` already exists. No files are changed.
+
+### T2. Design the JSON contract and dry-run semantics
+- **Objective:** Fix the exact schema: `copied` (list of paths), `skipped` (int), `src`, `dst`. Decide whether `copied` holds paths or objects, and whether `src`/`dst` are absolute or as given. Decide how errors appear in JSON mode and whether `--json` uses stdout only. Decide whether `copied` under `--dry-run` is the planned set, and confirm the exit code is unchanged.
+- **Files:** a short design note, or a section in the plan doc. Keep it minimal.
+- **Agent:** `cheap-design`. Use `cheap-design-review` only if T1 finds real tension, such as `sync()` printing directly or a return type that cannot change.
+- **Risks:** Ambiguous `copied` semantics under dry-run. Errors that print to stdout would break the "nothing else on stdout" rule. Mixing stderr and stdout.
+- **Acceptance:** The schema and dry-run rule are written down with one example each for normal and dry-run runs. Every open question is closed.
+
+### T3. Keep `sync()` stable and separate data from printing
+- **Objective:** Keep the `sync()` signature. Have it produce a result structure (copied, skipped) that the CLI renders in either human or JSON mode. Human output stays one path per line.
+- **Files:** the module containing `sync()`, possibly the CLI entry point.
+- **Agent:** `cheap-code`, then `cheap-review`.
+- **Risks:** Changing the return type breaks internal callers (T1 lists them). Any stray `print` in the sync path breaks the JSON stdout rule. Changing exit codes by accident.
+- **Acceptance:** `python3 -m unittest -v` passes unchanged before the new tests are added. Every caller found in T1 still works. `grep` for `print(` in the sync path shows no output outside the CLI renderer.
+
+### T4. Add `--json` flag and wire dry-run interplay
+- **Objective:** Add `--json`. When set, print one JSON object to stdout and nothing else. With `--dry-run`, `copied` lists the files that would be copied. Human mode is unchanged.
+- **Files:** the CLI argument parser and renderer (T1 confirms the location).
+- **Agent:** `cheap-code`, then `cheap-review`.
+- **Risks:** Logging or progress output leaking to stdout. `json.dumps` on non-serializable paths (use `str`). Argparse help text not updated. Python 3.10 stdlib only, so no new imports beyond `json`, which is stdlib.
+- **Acceptance:** Manual run: `python3 -m synccli --json <src> <dst> | python3 -m json.tool` succeeds and shows exactly the four keys. `--json --dry-run` shows the planned set and writes nothing to `dst`. `python3 -m synccli --help` lists `--json`. Exit code matches the pre-change value for success and failure.
+
+### T5. Unit tests for JSON shape and dry-run semantics
+- **Objective:** Add tests to `test_synccli.py` covering: output parses as JSON, the four keys are present with the right types, `skipped` is an int, dry-run `copied` equals what a real run would copy, dry-run leaves `dst` unchanged, and human mode output is unchanged.
+- **Files:** `test_synccli.py`.
+- **Agent:** `cheap-code` (test writing), then `cheap-review`.
+- **Risks:** Tests that capture stdout incorrectly and pass vacuously. Tests that depend on filesystem ordering (sort `copied` before comparing). Temp dirs not cleaned up.
+- **Acceptance:** `python3 -m unittest -v` passes. At least one test fails if the JSON key is renamed or if dry-run actually copies (confirm by temporary mutation during review, then revert). No new test dependencies.
+
+### T6. Final verification and audit
+- **Objective:** Run the full suite, the manual `--json` checks from T4, and a diff review against GOAL.md's constraints: no new dependencies, Python 3.10 stdlib only, `sync()` signature stable, human output unchanged.
+- **Agent:** `strong-review` (Claude family, fresh lineage). Use `strong-review-alternative` if `strong-code` produced most of the code. In this plan `cheap-code` writes it, so `strong-review` is the default.
+- **Risks:** Only the happy path tested. Missed edge cases: empty source, all files skipped, and a nonexistent destination.
+- **Acceptance:** Full suite green. Audit report lists each GOAL.md item with evidence. Any major finding is resolved or explicitly accepted by the user.
+
+---
+
+### Dependency order
+T1 → T2 → T3 → T4 → T5 → T6. T2 can run in parallel with the end of T1 only if T1 shows no open structural questions. T4 and T5 can be written in parallel once T3 is merged, but keep them sequential if they touch the same file.
+
+### Cross-cutting risks
+- **Stdout contamination** is the main correctness risk. Every `print` reachable in JSON mode must be audited.
+- **Scope creep:** the constraints say to keep `sync()` stable. Refactoring beyond the result seam is out of scope and needs user approval.
+
+No files were modified.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102:  7667 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111:  7668 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-7639 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T1-github-copilot-claude-haiku-5-5-low-g1)

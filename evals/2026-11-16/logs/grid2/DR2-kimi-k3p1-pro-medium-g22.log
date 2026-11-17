@@ -1,0 +1,44 @@
+[0m
+> build · accounts/fireworks/models/kimi-k3p1-pro
+[0m
+[0m→ [0mRead DESIGN.md
+[0m• [0mCritique sync daemon design[90m Cheap-Design-Review Agent[0m
+[0m✓ [0mCritique sync daemon design[90m Cheap-Design-Review Agent[0m
+## Verdict: don’t implement this as written
+
+The overall polling + manifest + journal shape is workable, but several core guarantees are contradicted by the proposed mechanisms.
+
+1. **Change detection will silently miss edits** (lines 57–58, 72–73).  
+   `mtime` is not guaranteed to change observably on every edit—especially at whole-second resolution. Same-size edits within one second can remain undetected indefinitely. **Use `mtime_ns` + size at minimum; document remaining limits or add hashing where correctness requires it.**
+
+2. **`dst` integrity and crash safety are not established** (25–34).  
+   Re-statting after copying detects some concurrent modifications; it does not prevent a crash or ENOSPC from leaving a truncated destination file. Likewise, journal replay cannot repair a torn manifest unless startup explicitly tolerates invalid JSON and a torn final journal record. **Write payloads and manifests via same-directory temporary files + atomic replace; define recovery from both torn files.** If machine crashes matter, specify `fsync` ordering too—process-crash safety alone is weaker.
+
+3. **The locking contract contradicts itself** (41–48).  
+   Releasing the lock before the manifest commit permits overlapping writers; whole-manifest commits are last-writer-wins, not automatically “merged.” PID files also introduce stale-lock and startup-race problems. **Hold an OS-backed lock such as `flock` for the process lifetime, covering all writes and commits.**
+
+4. **Deletion needs a real, crash-safe protocol** (35–40).  
+   Specify the manifest-versus-scan diff, when deletion is journaled, and how replay handles it. Rename as delete+create can temporarily remove a destination and doubles transfer work. **Define exclusive ownership of `dst`; otherwise reconciliation risks deleting user files.** Also address `src == dst`, symlinks, and conflicting metadata paths.
+
+5. **The latency and backpressure claims are false** (16–24).  
+   A continuously changing file may never experience 200 ms of quiet, so its latency is unbounded. Meanwhile, every elapsed file is drained synchronously; a large burst delays the next scan, allowing pending work to accumulate without bound. **Use a monotonic clock, add maximum pending age, define a per-cycle copy budget or queue limit, and state overload behavior.**
+
+6. **The load estimate excludes substantial costs** (12–15).  
+   A warm-cache `stat` benchmark says little about cold caches, network filesystems, or slow disks. Repeatedly loading and rewriting a 50,000-entry JSON manifest every 500 ms may dominate scanning and cause continuous write amplification. **Keep state in memory, commit only when dirty, and benchmark total cycle time on the target filesystem—including burst overruns.**
+
+7. **Error handling needs explicit semantics** (49–51).  
+   A vanished source should generally cancel its pending copy, not be retried forever. Permission errors, full disks, and persistent failures need isolation and backoff rather than either daemon termination or a hot retry loop.
+
+8. **Journal growth and observability are rollout blockers** (29–37, 63–68).  
+   Define journal compaction and replay precedence. Measure **cycle duration/lag, oldest pending age, failures/retries, and last successful sync**—not merely commit duration; rate-limit logging.
+
+### Decisions to change first
+
+1. File identity and atomic payload/manifest protocol.  
+2. Process-lifetime single-instance locking.  
+3. Deletion semantics and exclusive `dst` ownership.  
+4. Bounded debounce/queue behavior under bursts and failures.  
+5. Journal recovery/compaction and meaningful health metrics.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 66150 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 66151 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-66137 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-17-T4V2-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g22)

@@ -1,0 +1,26 @@
+[0m
+> build · gpt-6.1-terra
+[0m
+[0m→ [0mRead DESIGN.md
+[0m✱ [0mGlob "**/*"[90m 7 matches[0m
+[0m→ [0mRead syncd.py
+[0m→ [0mRead state.py
+[0m→ [0mRead README.md
+## Change these decisions first
+
+1. **Make publication atomic.** Writing directly to `dst` exposes partial files; re-statting afterward cannot undo that. Copy to a temporary file, validate the source, then atomically replace the destination. Use nanosecond metadata and file identity for validation; size and mtime alone still cannot prove content equality.
+
+2. **Redesign recovery as a protocol.** An in-place manifest rewrite can leave invalid JSON, which journal replay cannot repair if loading fails first. Define durable ordering for destination replacement, journal records, and atomic manifest checkpoints, including `fsync`, torn journal tails, deletion records, and journal compaction. Append order alone does not establish crash durability.
+
+3. **Hold an atomic lock for the daemon’s lifetime.** Releasing it before commit permits concurrent writers and lost updates; self-describing entries do not make competing whole-file rewrites merge. A check-then-create PID file also races and can become stale. Use an OS-backed lock associated with the destination.
+
+4. **Replace the timestamp assumption.** `snapshot()` truncates mtime to whole seconds. Same-size edits within a second can be missed, including during copying; mtimes can also be preserved or reset. Use higher-resolution timestamps and identity, and define when content hashing or another stronger check is required.
+
+5. **Set realistic load and latency guarantees.** A 200 ms debounce sampled every 500 ms cannot observe every intervening write, and continuous changes can postpone copying indefinitely. Pending work is not bounded by one poll: copying, retries, and sustained arrivals can outpace service. Benchmark cold and warm scans, large files, bursts and slow storage; track backlog age and throughput, and define a bounded-work or overload policy.
+
+6. **Make reconciliation safe under errors.** An incomplete or failed scan must never be treated as evidence of deletion. Define retry and deletion semantics for disappearing files, inaccessible directories, renames and restarts. Validate source/destination overlap and specify symlink handling to prevent recursive syncing or writes outside the destination.
+
+The existing `syncd.py` also differs from the proposed guarantees: it records a copy even when the post-copy check detects a change, and does not replay the journal or reconcile deletions. Those gaps need resolving before relying on the design.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 58632 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 58631 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-58596 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-17-T4V2-github-copilot-gpt-6-1-terra-low-f41)

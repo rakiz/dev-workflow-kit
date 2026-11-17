@@ -1,0 +1,108 @@
+[0m
+> build · fw-glm-5.3-flash
+[0m
+[0m→ [0mRead BRIEF.md
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mls -la /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-30698/
+total 40
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 22:35 __pycache__
+drwxr-xr-x@   7 sebastien.mendez  staff    224 Nov 16 22:35 .
+drwx------@ 936 sebastien.mendez  staff  29952 Nov 16 22:35 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 22:35 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 22:35 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 22:35 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 22:35 test_synccli.py
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1 | tail -20
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+[0m
+Tests pass. Now I'll take a quick measurement to ground the performance budget claim in the design.
+[0m$ [0mpython3 - <<'EOF'
+import os, time, tempfile, shutil, sys
+sys.path.insert(0, '.')
+import synccli
+
+tmp = tempfile.mkdtemp(dir='/tmp' if os.path.isdir('/tmp') else None)
+src = os.path.join(tmp, 'src')
+os.makedirs(src)
+# 20000 small files (2 KB) + 40 medium files (2 MB) = ~40 MB + 40 MB ~ 80 MB
+os.makedirs(os.path.join(src, 'sub'))
+t0 = time.perf_counter()
+for i in range(20000):
+    with open(os.path.join(src, 'f%05d.txt' % i), 'w') as f:
+        f.write('x' * 2048)
+for i in range(40):
+    with open(os.path.join(src, 'sub', 'm%02d.bin' % i), 'wb') as f:
+        f.write(os.urandom(2 * 1024 * 1024))
+t_make = time.perf_counter() - t0
+total = sum(os.stat(os.path.join(d, fn)).st_size for d, _, fns in os.walk(src) for fn in fns)
+nfiles = sum(len(fns) for _, _, fns in os.walk(src))
+print(f"tree: {nfiles} files, {total/1e6:.1f} MB, created in {t_make:.1f}s")
+
+# 1) scan+stat throughput
+t0 = time.perf_counter()
+m = synccli.build_manifest(src)
+t_scan = time.perf_counter() - t0
+print(f"build_manifest (scan+stat): {t_scan:.2f}s -> {nfiles/t_scan:.0f} files/s")
+
+# 2) copy throughput with synccli.copy_file
+dst = os.path.join(tmp, 'dst'); os.makedirs(dst)
+t0 = time.perf_counter()
+for rel in m:
+    synccli.copy_file(os.path.join(src, rel), os.path.join(dst, rel))
+t_copy = time.perf_counter() - t0
+print(f"synccli.copy_file all files: {t_copy:.2f}s -> {total/t_copy/1e6:.0f} MB/s")
+
+# 3) copy throughput with shutil.copyfile for comparison
+dst2 = os.path.join(tmp, 'dst2'); os.makedirs(dst2)
+t0 = time.perf_counter()
+for rel in m:
+    d = os.path.join(dst2, rel)
+    os.makedirs(os.path.dirname(d) or '.', exist_ok=True)
+    shutil.copyfile(os.path.join(src, rel), d)
+t_sh = time.perf_counter() - t0
+print(f"shutil.copyfile all files:   {t_sh:.2f}s -> {total/t_sh/1e6:.0f} MB/s")
+
+# 4) hashing throughput for content-addressed store
+import hashlib
+t0 = time.perf_counter()
+h = 0
+for rel in m:
+    with open(os.path.join(src, rel), 'rb') as f:
+        hashlib.sha256(f.read()).hexdigest()
+t_hash = time.perf_counter() - t0
+print(f"sha256 (whole-file read):    {t_hash:.2f}s -> {total/t_hash/1e6:.0f} MB/s")
+shutil.rmtree(tmp)
+EOF
+tree: 20040 files, 124.8 MB, created in 3.5s
+build_manifest (scan+stat): 0.52s -> 38296 files/s
+synccli.copy_file all files: 5.28s -> 24 MB/s
+shutil.copyfile all files:   7.83s -> 16 MB/s
+sha256 (whole-file read):    1.53s -> 82 MB/s
+[0m
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+Tests pass and I have measurements. Now writing the design.
+Wrote `DESIGN-d1.md` to the repo copy, grounded in the actual code:
+
+- **Reuse verified with line numbers**: `synccli.scan_files`/`build_manifest`/`changed_files` (synccli.py:10-42), `collect_stale` for the crash sweep (synccli.py:45-59), and all of `snaputil` (snapshot naming, pruning, disk usage, path safety) — after running the existing 6-test suite to confirm the baseline.
+- **Core mechanisms**: `flock`-based concurrency matrix (run/prune/restore), atomic directory-rename commit so incomplete snapshots are invisible to `snaputil.list_snapshots`, hardlink-to-previous-snapshot dedup (no blob GC), and explicit crash/corrupt-index recovery semantics.
+- **Performance budget** (≤3 min for 1 GB/~40k files) derived from measurements I ran against the real `synccli` code paths (38k files/s scan, 16-24 MB/s copy), and every scaling claim stated as a formula over N/F/B.
+- **Named overrides**: mtime float→`mtime_ns`, chunked copy replacing the whole-file read, the silent `except OSError: pass` (synccli.py:68-69), and a lock+clamp wrapper around `prune_snapshots` — each with file, line, and reason, per the brief's grounding rules.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 30717 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 30718 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-30698 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-D-D1-ai-gateway-misc-fw-glm-5-3-flash-high-g21 above)

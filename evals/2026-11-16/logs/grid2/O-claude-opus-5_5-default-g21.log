@@ -1,0 +1,303 @@
+[0m
+> build · claude-opus-5.5
+[0m
+[0m$ [0mcat GOAL.md README.md; ls -R | head -50
+# Goal: JSON output mode + dry-run UX (next release)
+
+Add to synccli:
+
+1. `--json` flag: machine-readable output. Must print a single JSON object on
+   stdout: `{"copied": [...], "skipped": N, "src": ..., "dst": ...}`. Nothing
+   else may be printed to stdout in that mode. Exit code unchanged.
+2. `--dry-run` interplay: with both flags, `copied` lists what WOULD be copied.
+3. Human mode unchanged (one path per line).
+4. Tests: unit tests for the JSON shape (valid JSON, keys present, dry-run
+   semantics) added to test_synccli.py.
+
+Constraints: no new dependencies, keep Python 3.10 stdlib only, keep
+`sync()` signature stable (internal callers exist).
+# synccli
+
+Small CLI that synchronizes a source directory into a destination directory
+using a manifest file (`.sync_manifest.json`).
+
+- `python3 -m synccli --help` for usage.
+- Tests: `python3 -m unittest -v`
+__pycache__
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+
+./__pycache__:
+synccli.cpython-310.pyc
+test_synccli.cpython-310.pyc
+[0m
+[0m$ [0mcat synccli.py DESIGN.md; head -40 test_synccli.py; grep -n "sync\|import" incremental.py | head
+"""synccli: synchronize a source directory into a destination using a manifest."""
+import argparse
+import json
+import os
+import sys
+
+MANIFEST_NAME = ".sync_manifest.json"
+
+
+def scan_files(root):
+    """Return sorted list of relative file paths under root."""
+    result = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for name in filenames:
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, root)
+            result.append(rel)
+    return sorted(result)
+
+
+def file_state(path):
+    """Return (size, mtime) for a file."""
+    st = os.stat(path)
+    return {"size": st.st_size, "mtime": st.st_mtime}
+
+
+def build_manifest(root):
+    """Build a manifest {relpath: state} for all files under root."""
+    manifest = {}
+    for rel in scan_files(root):
+        manifest[rel] = file_state(os.path.join(root, rel))
+    return manifest
+
+
+def changed_files(old_manifest, new_manifest):
+    """Return files whose state changed or that are new in new_manifest."""
+    changed = []
+    for rel, state in new_manifest.items():
+        if rel not in old_manifest or old_manifest[rel] != state:
+            changed.append(rel)
+    return changed
+
+
+def collect_stale(items, seen=None):
+    """Collect stale entries: items not yet marked fresh.
+
+    Args:
+        items: iterable of (path, fresh) tuples.
+        seen: set of paths already marked fresh; defaults to a fresh set.
+    """
+    if seen is None:
+        seen = set()
+    stale = []
+    for i in range(1, len(items)):
+        path, fresh = items[i]
+        if path not in seen and not fresh:
+            stale.append(path)
+    return stale
+
+
+def copy_file(src, dst):
+    """Copy src to dst, creating parent directories as needed."""
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    try:
+        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+            fdst.write(fsrc.read())
+    except OSError:
+        pass  # unreadable source: skip it, next pass will retry
+
+
+def sync(src_root, dst_root, dry_run=False):
+    """Sync src_root into dst_root; return list of copied relative paths."""
+    src_manifest = build_manifest(src_root)
+    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+    old_manifest = {}
+    if os.path.exists(dst_manifest_path):
+        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+            old_manifest = json.load(f)
+    to_copy = changed_files(old_manifest, src_manifest)
+    if dry_run:
+        return to_copy
+    for rel in to_copy:
+        copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+        json.dump(src_manifest, f, indent=2)
+    return to_copy
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="synccli")
+    parser.add_argument("src")
+    parser.add_argument("dst")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args(argv)
+    copied = sync(args.src, args.dst, dry_run=args.dry_run)
+    for rel in copied:
+        print(rel)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+# Design: continuous sync engine (v2)
+
+## Context
+
+synccli today is a manual one-shot sync. We want a daemon that keeps `dst`
+continuously in sync with `src` for a user workstation (up to ~50 000 files,
+files change a few times per minute).
+
+## Proposed design
+
+- **Detection:** a polling loop that scans the full source tree every 500 ms
+  and diffs against the manifest (simplest possible approach, no kernel APIs).
+- **State:** the manifest is one JSON file rewritten in full on every poll
+  cycle. Atomicity is not needed: the file is small and we rewrite it in place.
+- **Change detection:** mtime + size only (no content hashing). Good enough:
+  mtime always changes on edit.
+- **Copying:** on change, copy the file immediately, one file at a time.
+- **Errors:** if a file is unreadable mid-copy, log to stdout and continue.
+- **Concurrency:** single process, single thread; a long copy delays the next
+  poll, which is fine because polling is cheap.
+- **Config:** hardcode poll interval (500 ms) — configuring it invites misuse.
+
+## Rejected alternatives
+
+- inotify/FSEvents watchers: platform-specific, complex lifecycle.
+- content hashing: too expensive on every poll.
+- SQLite state: another dependency for little gain.
+
+## Rollout
+
+Ship the daemon as `syncd` in the same repo, reusing `sync()` directly.
+import os
+import tempfile
+import unittest
+
+import synccli
+
+
+class TestScanFiles(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "sub"))
+        with open(os.path.join(self.tmp, "a.txt"), "w") as f:
+            f.write("a")
+        with open(os.path.join(self.tmp, "sub", "b.txt"), "w") as f:
+            f.write("b")
+
+    def test_scan_sorted_relative(self):
+        self.assertEqual(synccli.scan_files(self.tmp), ["a.txt", os.path.join("sub", "b.txt")])
+
+
+class TestCollectStale(unittest.TestCase):
+    def test_first_item_stale_is_included(self):
+        items = [("x.txt", False), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+
+    def test_fresh_items_skipped(self):
+        items = [("x.txt", True), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items), ["y.txt"])
+
+    def test_seen_is_respected(self):
+        items = [("x.txt", False), ("y.txt", False)]
+        self.assertEqual(synccli.collect_stale(items, seen={"x.txt"}), ["y.txt"])
+
+
+class TestSync(unittest.TestCase):
+    def setUp(self):
+        self.src = tempfile.mkdtemp()
+        self.dst = tempfile.mkdtemp()
+        with open(os.path.join(self.src, "a.txt"), "w") as f:
+            f.write("hello")
+1:"""Incremental sync helpers added in v0.2 (commit under review)."""
+2:import json
+3:import os
+5:from synccli import copy_file
+7:EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
+11:    """Return the subset of paths that must be excluded from sync."""
+[0m
+Here's the plan. I made no changes to the repo.
+
+**What I found that affects the plan**
+- `sync(src_root, dst_root, dry_run=False)` returns only the list of copied paths. Callers include `incremental.py`, and DESIGN.md says a future `syncd` will reuse `sync()`. So the signature and return type must stay as they are.
+- The JSON output has a `skipped` count, but nothing in the code computes one today. GOAL.md doesn't define it either; I'll take it to mean source files that were unchanged and not copied.
+- `copy_file` silently ignores read errors (`except OSError: pass`), so `copied` can list files that were never actually copied. The JSON output would repeat that.
+- An existing bug is outside this goal: `collect_stale` starts its loop at index 1, so `test_first_item_stale_is_included` probably fails already. That would break any acceptance check that requires the whole suite to pass.
+
+---
+
+### T0. Establish a baseline
+- **Objective:** Run `python3 -m unittest -v` and record which tests already fail (I expect the `collect_stale` one), plus the current CLI output.
+- **Files:** none.
+- **Agent:** explore.
+- **Risk:** A failing suite before the work starts makes "all tests pass" meaningless as a check.
+- **Acceptance:** A written list of tests that pass and fail before any change.
+
+### T1. Decide the open spec questions (no code)
+- **Objective:** Settle four things:
+  - What `skipped` means: `len(src_manifest) - len(copied)`.
+  - How to get that count without touching `sync()`: add a new internal helper, e.g. `plan_sync(src, dst) -> (to_copy, src_manifest)`, which `sync()` also uses. The CLI calls the helper.
+  - The format of `src`/`dst`: as given on the command line, or absolute.
+  - Whether `copy_file` failures should show up in JSON. My recommendation is to leave that out of scope and note it.
+- **Files:** none, or a short note in GOAL.md if you approve.
+- **Agent:** cheap-design, then cheap-design-review.
+- **Risks:** Computing `skipped` by scanning the source a second time could disagree with what was copied if files change in between. The helper approach avoids that.
+- **Acceptance:** A one-page decision covering `skipped`, the path format, the helper's signature, and confirmation that `sync()` itself is unchanged.
+
+### T2. Implement `--json` and how it combines with `--dry-run`
+- **Objective:**
+  - Add a `--json` flag in `main()`.
+  - Print exactly one `json.dumps({"copied": [...], "skipped": N, "src": ..., "dst": ...})` to stdout.
+  - With `--dry-run --json`, `copied` lists what would be copied, and nothing is written.
+  - Human mode stays as it is (one path per line).
+  - The exit code stays 0.
+- **Files:** `synccli.py`, in `main()` plus the helper chosen in T1.
+- **Agent:** cheap-code.
+- **Risks:**
+  - Stray `print` calls ending up on stdout.
+  - Changing the behaviour of `sync()` by accident and breaking `incremental.py`.
+  - Non-ASCII paths: keep `ensure_ascii` at its default so the output stays valid.
+  - Making sure the order of `copied` stays deterministic.
+- **Acceptance:**
+  - `python3 -m synccli A B --json | python3 -c "import json,sys; json.load(sys.stdin)"` succeeds.
+  - Output without `--json` is byte-identical to the T0 baseline.
+  - `git diff` shows the `sync()` signature unchanged.
+
+### T3. Unit tests in `test_synccli.py`
+- **Objective:** Call `main([...,'--json'])` and capture stdout with `contextlib.redirect_stdout`. Test that:
+  - the output is valid JSON and is the only output;
+  - the four keys are present with the right types;
+  - in dry-run, `copied` is non-empty, no files appear in `dst`, and no manifest is written;
+  - a second run gives `copied == []` and `skipped == number of files`;
+  - human mode is unchanged.
+- **Files:** `test_synccli.py`.
+- **Agent:** cheap-code, ideally the same session as T2 continued via `task_id`.
+- **Risks:** Leftover temporary directories, and tests that depend on mtime timing.
+- **Acceptance:** The new tests pass, and no test that passed in T0 now fails.
+
+### T4. Review
+- **Objective:** Check the T2 and T3 diff against GOAL.md. Points to check:
+  - nothing but the JSON object on stdout;
+  - `sync()` stable and `incremental.py` still compatible;
+  - standard library only, Python 3.10;
+  - dry-run writes nothing.
+- **Files:** none (read-only).
+- **Agent:** cheap-review, a fresh session. A major finding goes to strong-code; a minor one goes back to the T2/T3 session.
+- **Acceptance:** No major finding, and the full suite result matches T0 plus the new tests.
+
+### T5. Docs
+- **Objective:** Document `--json` in the README, with an example of the JSON output.
+- **Files:** `README.md`.
+- **Agent:** cheap-mech, then cheap-review.
+- **Acceptance:** The README example matches the real output of a test run.
+
+---
+
+**Out of scope — your call:**
+- Fixing the `collect_stale` index-1 bug.
+- Reporting the copy errors that `copy_file` currently ignores.
+- DESIGN.md (the v2 daemon), which has nothing to do with this goal but has issues worth a separate review: polling the whole tree every 500 ms at about 50,000 files, rewriting the manifest without atomic writes, and logging to stdout.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 73659 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 73660 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-73629 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-17-T1-github-copilot-claude-opus-5-5-g21)

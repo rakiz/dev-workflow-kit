@@ -1,0 +1,918 @@
+[0m
+> build · accounts/fireworks/models/qwen3p8-2p4t-a95b
+[0m
+[0m→ [0mRead BRIEF.md
+[0m
+[0m$ [0mls -la
+total 40
+drwxr-xr-x@   4 sebastien.mendez  staff   128 Nov 16 13:50 __pycache__
+drwxr-xr-x@   7 sebastien.mendez  staff   224 Nov 16 13:50 .
+drwx------@ 295 sebastien.mendez  staff  9440 Nov 16 13:50 ..
+-rw-r--r--@   1 sebastien.mendez  staff  4974 Nov 16 13:50 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff  3072 Nov 16 13:50 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff  3169 Nov 16 13:50 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff  1834 Nov 16 13:50 test_synccli.py
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m# [0mTodos
+[•] Run existing test suite + verify behavioral claims (safe_snapshot_path holes, rename collision, flock-on-kill)
+[ ] Benchmark: scan/stat rate, copy throughput (whole-read vs chunked, fsync), os.link rate, index size, memory per entry
+[ ] Write DESIGN-d1.md with grounding map, concurrency/crash/recovery design, retention, perf budget, scaling bounds
+[ ] Verify every cited file:line reference in the design against the actual code
+[0m
+[0m$ [0mpython3 --version && python3 -m unittest -v 2>&1 | tail -15 && df -h /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T | tail -2 && diskutil info / | grep -i "file system"
+Python 3.10.11
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+OK
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   926Gi   523Gi   386Gi    58%    4.4M  4.0G    0%   /System/Volumes/Data
+   File System Personality:   APFS
+[0m
+Tests green (6/6), Python 3.10.11, APFS, 386 GB free. Now verifying behavioral claims I'll cite in the design:
+[0m$ [0mcat > /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/verify_claims.py <<'EOF'
+import errno, fcntl, json, os, signal, subprocess, sys, tempfile, time
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445")
+import synccli, snaputil
+
+tmp = tempfile.mkdtemp(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode")
+
+# 1. safe_snapshot_path holes
+print("1a abs path   :", snaputil.safe_snapshot_path(tmp, "snap-x", "/etc/passwd"))
+print("1b leading .. :", snaputil.safe_snapshot_path(tmp, "snap-x", "../../etc/passwd"))
+print("1c inner ..   :", snaputil.safe_snapshot_path(tmp, "snap-x", "a/../../etc"))
+
+# 2. rename dir onto existing NON-empty dir
+os.makedirs(f"{tmp}/src_d"); open(f"{tmp}/src_d/f", "w").write("x")
+os.makedirs(f"{tmp}/dst_d"); open(f"{tmp}/dst_d/g", "w").write("y")
+try:
+    os.rename(f"{tmp}/src_d", f"{tmp}/dst_d"); print("2  rename->nonempty: SUCCEEDED (replaced!)")
+except OSError as e:
+    print(f"2  rename->nonempty: OSError errno={e.errno} ({os.strerror(e.errno)})")
+# and onto an EMPTY dir
+os.makedirs(f"{tmp}/empty_d")
+try:
+    os.rename(f"{tmp}/src_d", f"{tmp}/empty_d"); print("2b rename->empty: SUCCEEDED (replaced)")
+except OSError as e:
+    print(f"2b rename->empty: OSError errno={e.errno}")
+
+# 3. flock released on SIGKILL
+lockpath = f"{tmp}/test.lock"
+child = subprocess.Popen([sys.executable, "-c", f"""
+import fcntl, os, sys, time
+fd = os.open({lockpath!r}, os.O_CREAT|os.O_RDWR)
+fcntl.flock(fd, fcntl.LOCK_EX)
+print("locked", flush=True)
+time.sleep(60)
+"""], stdout=subprocess.PIPE, text=True)
+assert child.stdout.readline().strip() == "locked"
+fd = os.open(lockpath, os.O_CREAT|os.O_RDWR)
+try:
+    fcntl.flock(fd, fcntl.LOCK_EX|fcntl.LOCK_NB); print("3  flock while child alive: ACQUIRED (unexpected)")
+except OSError as e:
+    print(f"3  flock while child alive: blocked errno={e.errno}")
+os.close(fd)
+child.kill(); child.wait()
+fd = os.open(lockpath, os.O_CREAT|os.O_RDWR)
+try:
+    fcntl.flock(fd, fcntl.LOCK_EX|fcntl.LOCK_NB); print("3b flock after SIGKILL: ACQUIRED (auto-released)")
+except OSError as e:
+    print(f"3b flock after SIGKILL: still blocked errno={e.errno}")
+os.close(fd)
+
+# 4. build_manifest crashes on broken symlink / unstatable file
+src = f"{tmp}/src4"; os.makedirs(src)
+open(f"{src}/ok.txt", "w").write("hi")
+os.symlink(f"{tmp}/nonexistent-target", f"{src}/broken.lnk")
+try:
+    synccli.build_manifest(src); print("4  build_manifest w/ broken symlink: OK (unexpected)")
+except OSError as e:
+    print(f"4  build_manifest w/ broken symlink: raises {type(e).__name__} errno={e.errno}")
+
+# 5. copy_file swallows unreadable source silently
+missing_src, dst = f"{tmp}/gone.txt", f"{tmp}/dst5/out.txt"
+r = synccli.copy_file(missing_src, dst)
+print(f"5  copy_file(missing): returned {r!r}, dst exists={os.path.exists(dst)}, nothing raised/reported")
+
+# 6. scan_files: dot-dirs skipped, dot-files kept
+src6 = f"{tmp}/src6"; os.makedirs(f"{src6}/.hidden"); os.makedirs(f"{src6}/visible")
+open(f"{src6}/.dotfile", "w").write("a"); open(f"{src6}/.hidden/inner.txt", "w").write("b")
+open(f"{src6}/visible/v.txt", "w").write("c")
+print("6  scan_files:", synccli.scan_files(src6))
+
+# 7. changed_files reports only new/changed, never deletions
+old = {"a.txt": {"size":1,"mtime":1.0}, "gone.txt": {"size":2,"mtime":2.0}}
+new = {"a.txt": {"size":1,"mtime":1.0}}
+print("7  changed_files(old,new) with deletion:", synccli.changed_files(old, new))
+
+# 8. sync crashes on corrupt manifest at dst (no error handling on json.load)
+s8, d8 = f"{tmp}/src8", f"{tmp}/dst8"; os.makedirs(s8); os.makedirs(d8)
+open(f"{s8}/f.txt","w").write("x")
+open(f"{d8}/{synccli.MANIFEST_NAME}", "w").write('{"half-')
+try:
+    synccli.sync(s8, d8); print("8  sync w/ corrupt manifest: OK (unexpected)")
+except Exception as e:
+    print(f"8  sync w/ corrupt manifest: raises {type(e).__name__}: {e}")
+
+# 9. sync mutates dst in place (reader mid-run sees mixed tree): demo via dry_run-less partial state is
+# architectural; just confirm manifest written AFTER copies and non-atomically (plain open 'w')
+import inspect
+srcsync = inspect.getsource(synccli.sync)
+print("9  sync writes manifest with plain open('w'):", 'open(dst_manifest_path, "w"' in srcsync)
+
+# 10. list_snapshots sort order = chronological for zero-padded names; ignores non snap-* entries
+root10 = f"{tmp}/root10"; os.makedirs(root10)
+for n in ["snap-20261112-150000-07","snap-20261112-150001-00","snap-20261113-090000-00",
+          "staging", "trash-snap-20261112-150000-07", "lock", "notes.txt"]:
+    os.makedirs(f"{root10}/{n}", exist_ok=True) if not n.endswith((".txt","lock")) else open(f"{root10}/{n}","w").write("")
+print("10 list_snapshots:", snaputil.list_snapshots(root10))
+
+# 11. prune_snapshots never deletes newest, deletes oldest-first
+root11 = f"{tmp}/root11"; os.makedirs(root11)
+for n in ["snap-20261101-000000-00","snap-20261102-000000-00","snap-20261103-000000-00"]:
+    os.makedirs(f"{root11}/{n}"); open(f"{root11}/{n}/f","w").write("x")
+print("11 prune(keep=2) deleted:", snaputil.prune_snapshots(root11, 2), "| remaining:", snaputil.list_snapshots(root11))
+
+# 12. snapshot_disk_usage counts hardlinked bytes per snapshot (apparent, double-counted)
+root12 = f"{tmp}/root12"; os.makedirs(f"{root12}/snap-a"); os.makedirs(f"{root12}/snap-b")
+open(f"{root12}/snap-a/big","wb").write(b"z"*1000)
+os.link(f"{root12}/snap-a/big", f"{root12}/snap-b/big")
+print("12 disk_usage snap-a:", snaputil.snapshot_disk_usage(root12,"snap-a"),
+      "snap-b:", snaputil.snapshot_disk_usage(root12,"snap-b"), "(same inode counted twice)")
+
+# 13. is_stale boundary: mtime == ref_epoch -> stale (<=)
+d13 = f"{tmp}/d13"; os.makedirs(d13)
+m = os.stat(d13).st_mtime
+print("13 is_stale(dir, its own mtime):", snaputil.is_stale(d13, m), "(docstring says not stale at exactly ref)")
+EOF
+python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/verify_claims.py
+1a abs path   : /etc/passwd
+1b leading .. : /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/tmpy3ged1an/snap-x/../../etc/passwd
+1c inner ..   : /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/tmpy3ged1an/snap-x/../etc
+2  rename->nonempty: OSError errno=66 (Directory not empty)
+2b rename->empty: SUCCEEDED (replaced)
+3  flock while child alive: blocked errno=35
+3b flock after SIGKILL: ACQUIRED (auto-released)
+4  build_manifest w/ broken symlink: raises FileNotFoundError errno=2
+5  copy_file(missing): returned None, dst exists=False, nothing raised/reported
+6  scan_files: ['.dotfile', 'visible/v.txt']
+7  changed_files(old,new) with deletion: []
+8  sync w/ corrupt manifest: raises JSONDecodeError: Unterminated string starting at: line 1 column 2 (char 1)
+9  sync writes manifest with plain open('w'): True
+10 list_snapshots: ['snap-20261112-150000-07', 'snap-20261112-150001-00', 'snap-20261113-090000-00']
+11 prune(keep=2) deleted: ['snap-20261101-000000-00'] | remaining: ['snap-20261102-000000-00', 'snap-20261103-000000-00']
+12 disk_usage snap-a: 1000 snap-b: 1000 (same inode counted twice)
+13 is_stale(dir, its own mtime): True (docstring says not stale at exactly ref)
+[0m
+All 13 claims have been verified — including the 2 actual `safe_snapshot_path` escape holes, the lock release on SIGKILL via flock, ENOTEMPTY on directory rename collision, and the `is_stale` discrepancy between the docstring and the implementation. Next up is the performance benchmark (a 1 GB / 20,000 file tree, actual measurements against the budget):
+[0m$ [0mcat > /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench.py <<'EOF'
+import json, os, resource, shutil, sys, tempfile, time, tracemalloc
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445")
+import synccli, snaputil
+
+TMP = "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode"
+BASE = tempfile.mkdtemp(dir=TMP)
+SRC = os.path.join(BASE, "src")
+ROOT = os.path.join(BASE, "backup")          # backup root
+os.makedirs(SRC); os.makedirs(ROOT)
+N = 20000; SIZE = 50 * 1024; TOTAL_GB = N * SIZE / 1e9
+
+def t(): return time.monotonic()
+
+# ---- fixture: 20,000 files x 50 KB in 200 dirs (~1.0 GB) ----
+t0 = t()
+data = os.urandom(1024) * (SIZE // 1024)
+for i in range(N):
+    d = os.path.join(SRC, f"dir_{i//100:03d}")
+    if i % 100 == 0: os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, f"f{i:05d}.dat"), "wb") as f: f.write(data)
+t_build = t() - t0
+print(f"fixture: {N} files, {TOTAL_GB:.2f} GB, build {t_build:.1f}s")
+
+# ---- A. scan+stat (synccli.build_manifest) + memory per entry ----
+tracemalloc.start()
+t0 = t(); man = synccli.build_manifest(SRC); t_scan = t() - t0
+cur, peak = tracemalloc.get_traced_memory(); tracemalloc.stop()
+mem_per_entry = peak / N
+print(f"A scan build_manifest: {t_scan:.2f}s total, {t_scan/N*1e6:.1f} us/file, tracemalloc peak {peak/1e6:.1f} MB -> {mem_per_entry:.0f} B/entry")
+
+# ---- helpers: backupctl's overridden copier (chunked + fsync + reported result) ----
+CHUNK = 1 << 20
+def copy_chunked(src, dst, fsync=True):
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    with open(src, "rb") as fi, open(dst, "wb") as fo:
+        shutil.copyfileobj(fi, fo, CHUNK)
+        if fsync: fo.flush(); os.fsync(fo.fileno())
+
+def full_backup(src, staging, fsync=True, limit=None):
+    t0 = t(); copied = 0; nbytes = 0
+    rels = synccli.scan_files(src)
+    if limit: rels = rels[:limit]
+    for rel in rels:
+        s = os.path.join(src, rel)
+        copy_chunked(s, os.path.join(staging, rel), fsync=fsync)
+        copied += 1; nbytes += os.path.getsize(s)
+    return t() - t0, copied, nbytes
+
+# ---- B. full backup, chunked + per-file fsync (the headline number) ----
+st1 = os.path.join(ROOT, "staging", "run-full")
+t_full, copied, nbytes = full_backup(SRC, st1, fsync=True)
+print(f"B full copy chunked+fsync: {t_full:.1f}s, {nbytes/1e6:.0f} MB, {nbytes/t_full/1e6:.0f} MB/s, {t_full/copied*1e6:.0f} us/file")
+
+# ---- C. fsync overhead + whole-read baseline on a 2,000-file subset ----
+sub = os.path.join(BASE, "sub_src"); os.makedirs(sub)
+rels = synccli.scan_files(SRC)[:2000]
+for rel in rels:
+    d = os.path.join(sub, rel); os.makedirs(os.path.dirname(d), exist_ok=True)
+    shutil.copyfile(os.path.join(SRC, rel), d)
+dt_nf, _, nb_nf = full_backup(sub, os.path.join(BASE, "sub_dst_nf"), fsync=False)
+dt_f,  _, _     = full_backup(sub, os.path.join(BASE, "sub_dst_f"),  fsync=True)
+fsync_us = (dt_f - dt_nf) / 2000 * 1e6
+print(f"C subset 2000: nofsync {dt_nf:.2f}s ({nb_nf/dt_nf/1e6:.0f} MB/s), fsync {dt_f:.2f}s -> fsync overhead ~{fsync_us:.0f} us/file")
+
+# whole-read (synccli.copy_file) throughput + memory blowup on one 50 MB file
+t0 = t()
+for rel in rels: synccli.copy_file(os.path.join(sub, rel), os.path.join(BASE, "sub_dst_wr", rel))
+dt_wr = t() - t0
+print(f"C synccli.copy_file whole-read: {dt_wr:.2f}s ({nb_nf/dt_wr/1e6:.0f} MB/s)")
+big = os.path.join(BASE, "big50m.bin")
+with open(big, "wb") as f: f.write(os.urandom(1024)* (50*1024*1024//1024))
+tracemalloc.start()
+synccli.copy_file(big, os.path.join(BASE, "big50m.copy"))
+cur, peak = tracemalloc.get_traced_memory(); tracemalloc.stop()
+print(f"C whole-read 50 MB file: tracemalloc peak {peak/1e6:.0f} MB (unbounded in file size)")
+tracemalloc.start()
+copy_chunked(big, os.path.join(BASE, "big50m.copy2"), fsync=False)
+cur, peak2 = tracemalloc.get_traced_memory(); tracemalloc.stop()
+print(f"C chunked 1 MiB same file: peak {peak2/1e6:.2f} MB (constant)")
+
+# ---- D. index write/load ----
+def commit(staging, name):
+    idx = os.path.join(staging, "snapshot.json")
+    tmpidx = idx + ".tmp"
+    with open(tmpidx, "w") as f:
+        json.dump({"format": 1, "files": man}, f)
+        f.flush(); os.fsync(f.fileno())
+    os.rename(tmpidx, idx)
+    dfd = os.open(staging, os.O_RDONLY); os.fsync(dfd); os.close(dfd)
+    os.rename(staging, os.path.join(ROOT, name))
+    rfd = os.open(ROOT, os.O_RDONLY); os.fsync(rfd); os.close(rfd)
+
+t0 = t(); commit(st1, "snap-20261116-000000-00"); t_commit = t() - t0
+idx_path = os.path.join(ROOT, "snap-20261116-000000-00", "snapshot.json")
+idx_bytes = os.path.getsize(idx_path)
+tracemalloc.start()
+t0 = t()
+with open(idx_path) as f: base_idx = json.load(f)["files"]
+t_load = t() - t0
+cur, peak = tracemalloc.get_traced_memory(); tracemalloc.stop()
+print(f"D index: {idx_bytes/1e6:.2f} MB ({idx_bytes/N:.0f} B/entry), commit {t_commit:.2f}s, json.load {t_load:.2f}s, peak {peak/1e6:.1f} MB -> {peak/N:.0f} B/entry")
+
+t0 = t(); ch = synccli.changed_files(base_idx, man); t_diff = t() - t0
+print(f"D changed_files(20k,20k) identical: {len(ch)} changed, {t_diff*1e3:.0f} ms")
+
+# ---- E. incremental run, nothing changed (scan + diff + 20k hardlinks + index) ----
+def link_tree(base_name, new_manifest, changed, staging):
+    t0 = t(); nlink = 0
+    ch = set(changed)
+    for rel, st in new_manifest.items():
+        dst = os.path.join(staging, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if rel in ch:
+            copy_chunked(os.path.join(SRC, rel), dst, fsync=True)
+        else:
+            os.link(snaputil.safe_snapshot_path(ROOT, base_name, rel), dst)
+            nlink += 1
+    return t() - t0, nlink
+
+t0 = t(); man2 = synccli.build_manifest(SRC); t_scan2 = t() - t0
+ch2 = synccli.changed_files(base_idx, man2)
+st2 = os.path.join(ROOT, "staging", "run-inc0"); os.makedirs(os.path.dirname(st2), exist_ok=True)
+t_link, nlink = link_tree("snap-20261116-000000-00", man2, ch2, st2)
+man = man2; commit(st2, "snap-20261116-010000-00")
+print(f"E incremental unchanged: changed={len(ch2)}, scan {t_scan2:.2f}s + link {t_link:.2f}s ({t_link/nlink*1e6:.0f} us/file, {nlink} links) + commit {t_commit:.2f}s ~ total {t_scan2+t_link+t_diff+t_commit:.2f}s")
+stn = os.stat(os.path.join(ROOT, "snap-20261116-000000-00", "dir_000", "f00000.dat"))
+print(f"E dedup check: st_nlink of base file after link-run = {stn.st_nlink}")
+
+# ---- F. incremental run, 5% changed (1,000 files rewritten) ----
+t0 = t()
+for i in range(0, 1000):
+    p = os.path.join(SRC, f"dir_{i//100:03d}", f"f{i:05d}.dat")
+    with open(p, "wb") as f: f.write(data[::-1])
+t_touch = t() - t0
+t0 = t(); man3 = synccli.build_manifest(SRC); t_scan3 = t() - t0
+ch3 = synccli.changed_files(base_idx, man3)
+st3 = os.path.join(ROOT, "staging", "run-inc5")
+t_mix, nlink3 = link_tree("snap-20261116-010000-00", man3, ch3, st3)
+man = man3; commit(st3, "snap-20261116-020000-00")
+print(f"F incremental 5%: touched {1000} in {t_touch:.1f}s; changed detected={len(ch3)}; scan {t_scan3:.2f}s + copy/link {t_mix:.2f}s + commit ~ total {t_scan3+t_mix+t_diff+t_commit:.2f}s")
+
+# ---- G. retention/prune cost + apparent vs true disk ----
+t0 = t()
+apparent = {n: snaputil.snapshot_disk_usage(ROOT, n) for n in snaputil.list_snapshots(ROOT)}
+t_du = t() - t0
+true_bytes = 0; seen = set()
+for n in snaputil.list_snapshots(ROOT):
+    for dp, dn, fn in os.walk(os.path.join(ROOT, n)):
+        for f in fn:
+            stt = os.stat(os.path.join(dp, f))
+            if stt.st_ino not in seen: seen.add(stt.st_ino); true_bytes += stt.st_size
+print(f"G disk: apparent per snapshot {{ {', '.join(f'{k}:{v/1e6:.0f}MB' for k,v in apparent.items())} }}, true unique {true_bytes/1e6:.0f} MB; du-scan took {t_du:.1f}s")
+t0 = t(); deleted = snaputil.prune_snapshots(ROOT, 2); t_prune = t() - t0
+print(f"G prune(keep=2) deleted {deleted} in {t_prune:.1f}s (1 GB rmtree); remaining {snaputil.list_snapshots(ROOT)}")
+
+# ---- H. crash-leftover sweep cost (rmtree of a staging tree) ----
+stx = os.path.join(ROOT, "staging", "run-dead")
+full_backup(SRC, stx, fsync=False, limit=2000)
+t0 = t(); shutil.rmtree(stx); t_sweep = t() - t0
+print(f"H sweep: rmtree of 2000-file staging leftover: {t_sweep:.2f}s")
+
+print(f"Z process peak RSS: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1e6:.0f} MB")
+print("BASE", BASE)
+EOF
+python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench.py
+fixture: 20000 files, 1.02 GB, build 3.1s
+A scan build_manifest: 0.78s total, 39.2 us/file, tracemalloc peak 7.8 MB -> 389 B/entry
+B full copy chunked+fsync: 7.4s, 1024 MB, 139 MB/s, 369 us/file
+C subset 2000: nofsync 0.54s (188 MB/s), fsync 0.59s -> fsync overhead ~21 us/file
+C synccli.copy_file whole-read: 0.48s (215 MB/s)
+C whole-read 50 MB file: tracemalloc peak 52 MB (unbounded in file size)
+C chunked 1 MiB same file: peak 2.11 MB (constant)
+D index: 1.35 MB (68 B/entry), commit 0.04s, json.load 0.03s, peak 9.6 MB -> 478 B/entry
+D changed_files(20k,20k) identical: 0 changed, 2 ms
+E incremental unchanged: changed=0, scan 0.48s + link 7.86s (393 us/file, 20000 links) + commit 0.04s ~ total 8.38s
+E dedup check: st_nlink of base file after link-run = 2
+F incremental 5%: touched 1000 in 0.2s; changed detected=1000; scan 0.51s + copy/link 7.86s + commit ~ total 8.42s
+G disk: apparent per snapshot { snap-20261116-000000-00:1025MB, snap-20261116-010000-00:1025MB, snap-20261116-020000-00:1025MB }, true unique 1079 MB; du-scan took 1.3s
+G prune(keep=2) deleted ['snap-20261116-000000-00'] in 1.6s (1 GB rmtree); remaining ['snap-20261116-010000-00', 'snap-20261116-020000-00']
+H sweep: rmtree of 2000-file staging leftover: 0.17s
+Z process peak RSS: 132 MB
+BASE /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/tmpbzp2f2g5
+[0m
+All benchmarks were executed on an actual 1 GB / 20,000-file tree. The per-file overhead (~370–390 µs) is dominating the throughput — before writing up the budget derivation, let's break down where that time is being spent (makedirs vs link vs write vs stat). This will determine whether the design should pre-create directories:
+[0m$ [0mcat > /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py <<'EOF'
+import os, shutil, sys, time
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445")
+import synccli, snaputil
+
+BASE = "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/tmpbzp2f2g5"
+SRC = os.path.join(BASE, "src"); ROOT = os.path.join(BASE, "backup")
+def t(): return time.monotonic()
+rels = synccli.scan_files(SRC); N = len(rels)
+base_snap = snaputil.list_snapshots(ROOT)[-1]
+print("base snapshot:", base_snap, "N =", N)
+
+# 1. stat-only loop (what scan pays beyond walk)
+t0 = t()
+for rel in rels: os.stat(os.path.join(SRC, rel))
+print(f"1 stat-only:            {(t()-t0)/N*1e6:7.1f} us/file")
+
+# 2. open+write 50KB+close, dirs precreated, no fsync
+d2 = os.path.join(BASE, "micro2")
+for rel in rels: os.makedirs(os.path.join(d2, os.path.dirname(rel)), exist_ok=True)
+t0 = t()
+for rel in rels:
+    with open(os.path.join(SRC, rel), "rb") as fi, open(os.path.join(d2, rel), "wb") as fo:
+        shutil.copyfileobj(fi, fo, 1 << 20)
+print(f"2 copy precreated dirs: {(t()-t0)/N*1e6:7.1f} us/file (no fsync, no makedirs)")
+
+# 3. same + fsync
+d3 = os.path.join(BASE, "micro3")
+for rel in rels: os.makedirs(os.path.join(d3, os.path.dirname(rel)), exist_ok=True)
+t0 = t()
+for rel in rels:
+    with open(os.path.join(SRC, rel), "rb") as fi, open(os.path.join(d3, rel), "wb") as fo:
+        shutil.copyfileobj(fi, fo, 1 << 20); fo.flush(); os.fsync(fo.fileno())
+print(f"3 copy + fsync:         {(t()-t0)/N*1e6:7.1f} us/file (precreated dirs)")
+
+# 4. per-file makedirs(exist_ok) cost alone
+d4 = os.path.join(BASE, "micro4")
+for rel in rels: os.makedirs(os.path.join(d4, os.path.dirname(rel)), exist_ok=True)
+t0 = t()
+for rel in rels: os.makedirs(os.path.join(d4, os.path.dirname(rel)), exist_ok=True)
+print(f"4 makedirs exist_ok:     {(t()-t0)/N*1e6:7.1f} us/file (dirs already exist)")
+
+# 5. pure os.link, dirs precreated
+d5 = os.path.join(BASE, "micro5")
+for rel in rels: os.makedirs(os.path.join(d5, os.path.dirname(rel)), exist_ok=True)
+t0 = t()
+for rel in rels:
+    os.link(snaputil.safe_snapshot_path(ROOT, base_snap, rel), os.path.join(d5, rel))
+print(f"5 link precreated dirs: {(t()-t0)/N*1e6:7.1f} us/file")
+
+# 6. os.link + per-file makedirs (what bench.py measured)
+d6 = os.path.join(BASE, "micro6")
+t0 = t()
+for rel in rels:
+    dst = os.path.join(d6, rel)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    os.link(snaputil.safe_snapshot_path(ROOT, base_snap, rel), dst)
+print(f"6 link + makedirs:       {(t()-t0)/N*1e6:7.1f} us/file")
+
+# 7. dir-precreate cost from the scan list (unique dirnames)
+d7 = os.path.join(BASE, "micro7")
+t0 = t()
+dirs = {os.path.dirname(r) for r in rels}
+for dd in dirs: os.makedirs(os.path.join(d7, dd), exist_ok=True)
+print(f"7 precreate {len(dirs)} dirs from scan list: {t()-t0:.3f}s total")
+
+# 8. full backup the backupctl way: precreated dirs + chunked copy + fsync
+t0 = t()
+for dd in dirs: os.makedirs(os.path.join(d7, dd), exist_ok=True)
+for rel in rels:
+    with open(os.path.join(SRC, rel), "rb") as fi, open(os.path.join(d7, rel), "wb") as fo:
+        shutil.copyfileobj(fi, fo, 1 << 20); fo.flush(); os.fsync(fo.fileno())
+t_full = t() - t0
+print(f"8 FULL backup precreated+fsync: {t_full:.2f}s = {t_full/N*1e6:.0f} us/file, {N*50*1024/t_full/1e6:.0f} MB/s")
+
+# 9. incremental unchanged the backupctl way: precreated dirs + pure links
+d9 = os.path.join(BASE, "micro9")
+t0 = t()
+for dd in dirs: os.makedirs(os.path.join(d9, dd), exist_ok=True)
+for rel in rels:
+    os.link(snaputil.safe_snapshot_path(ROOT, base_snap, rel), os.path.join(d9, rel))
+t_link = t() - t0
+print(f"9 link-tree precreated: {t_link:.2f}s = {t_link/N*1e6:.0f} us/file")
+
+# cleanup micro trees to keep disk tidy
+for d in ("micro2","micro3","micro4","micro5","micro6","micro7","micro9"):
+    shutil.rmtree(os.path.join(BASE, d), ignore_errors=True)
+EOF
+python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py
+base snapshot: snap-20261116-020000-00 N = 20000
+1 stat-only:               19.0 us/file
+2 copy precreated dirs:   377.8 us/file (no fsync, no makedirs)
+3 copy + fsync:           421.3 us/file (precreated dirs)
+4 makedirs exist_ok:        54.7 us/file (dirs already exist)
+5 link precreated dirs:   371.1 us/file
+6 link + makedirs:         396.3 us/file
+7 precreate 200 dirs from scan list: 0.027s total
+8 FULL backup precreated+fsync: 9.56s = 478 us/file, 107 MB/s
+9 link-tree precreated: 8.36s = 418 us/file
+[0m
+Breakdown: file *creation* itself (even a `os.link` with zero bytes) takes about 370–420 µs on this machine — it's creation-bound, not byte-bound. Pre-creating directories from the scan list saves per-file `makedirs` (about 25–55 µs/file). Two final verifications — the index-fidelity defect in `synccli.sync`, and the reference environment for the record:
+[0m$ [0msw_vers && sysctl -n machdep.cpu.brand_string hw.memsize hw.ncpu
+ProductName:		macOS
+ProductVersion:		15.8.1
+BuildVersion:		24H32
+Apple M3 Max
+38654705664
+14
+[0m
+[0m$ [0mcat > /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/verify2.py <<'EOF'
+import json, os, sys, tempfile
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445")
+import synccli
+tmp = tempfile.mkdtemp(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode")
+src, dst = f"{tmp}/src", f"{tmp}/dst"; os.makedirs(src); os.makedirs(dst)
+open(f"{src}/ok.txt", "w").write("ok")
+open(f"{src}/locked.txt", "w").write("secret"); os.chmod(f"{src}/locked.txt", 0)
+copied = synccli.sync(src, dst)
+man = json.load(open(f"{dst}/{synccli.MANIFEST_NAME}"))
+print("sync returned copied =", copied)
+print("dst manifest keys   =", sorted(man.keys()))
+print("locked.txt in dst?  ", os.path.exists(f"{dst}/locked.txt"))
+print("=> manifest promises a file dst does not contain:", "locked.txt" in man and not os.path.exists(f"{dst}/locked.txt"))
+os.chmod(f"{src}/locked.txt", 0o644)
+EOF
+python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/verify2.py
+sync returned copied = ['locked.txt', 'ok.txt']
+dst manifest keys   = ['locked.txt', 'ok.txt']
+locked.txt in dst?   False
+=> manifest promises a file dst does not contain: True
+[0m
+[0m# [0mTodos
+[✓] Run existing test suite + verify behavioral claims (safe_snapshot_path holes, rename collision, flock-on-kill)
+[✓] Benchmark: scan/stat rate, copy throughput (whole-read vs chunked, fsync), os.link rate, index size, memory per entry
+[•] Write DESIGN-d1.md with grounding map, concurrency/crash/recovery design, retention, perf budget, scaling bounds
+[ ] Verify every cited file:line reference in the design against the actual code
+[0m
+All claims verified. Writing the design document now.
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+Now verifying every cited line reference against the actual code:
+[0m$ [0mcat > /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/check_cites.py <<'EOF'
+import sys
+R = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445"
+def show(f, lines):
+    src = open(f"{R}/{f}").read().splitlines()
+    print(f"== {f} ==")
+    for a, b in lines:
+        for n in range(a, b + 1):
+            print(f"{n:4}: {src[n-1]}")
+        print("  ---")
+show("synccli.py", [(7,7),(10,19),(22,25),(28,33),(36,42),(45,46),(62,69),(72,87),(90,99)])
+show("snaputil.py", [(8,20),(23,36),(39,51),(54,63),(66,73),(76,88)])
+show("test_synccli.py", [(9,15),(42,51)])
+EOF
+python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/check_cites.py
+== synccli.py ==
+   7: MANIFEST_NAME = ".sync_manifest.json"
+  ---
+  10: def scan_files(root):
+  11:     """Return sorted list of relative file paths under root."""
+  12:     result = []
+  13:     for dirpath, dirnames, filenames in os.walk(root):
+  14:         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+  15:         for name in filenames:
+  16:             full = os.path.join(dirpath, name)
+  17:             rel = os.path.relpath(full, root)
+  18:             result.append(rel)
+  19:     return sorted(result)
+  ---
+  22: def file_state(path):
+  23:     """Return (size, mtime) for a file."""
+  24:     st = os.stat(path)
+  25:     return {"size": st.st_size, "mtime": st.st_mtime}
+  ---
+  28: def build_manifest(root):
+  29:     """Build a manifest {relpath: state} for all files under root."""
+  30:     manifest = {}
+  31:     for rel in scan_files(root):
+  32:         manifest[rel] = file_state(os.path.join(root, rel))
+  33:     return manifest
+  ---
+  36: def changed_files(old_manifest, new_manifest):
+  37:     """Return files whose state changed or that are new in new_manifest."""
+  38:     changed = []
+  39:     for rel, state in new_manifest.items():
+  40:         if rel not in old_manifest or old_manifest[rel] != state:
+  41:             changed.append(rel)
+  42:     return changed
+  ---
+  45: def collect_stale(items, seen=None):
+  46:     """Collect stale entries: items not yet marked fresh.
+  ---
+  62: def copy_file(src, dst):
+  63:     """Copy src to dst, creating parent directories as needed."""
+  64:     os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+  65:     try:
+  66:         with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+  67:             fdst.write(fsrc.read())
+  68:     except OSError:
+  69:         pass  # unreadable source: skip it, next pass will retry
+  ---
+  72: def sync(src_root, dst_root, dry_run=False):
+  73:     """Sync src_root into dst_root; return list of copied relative paths."""
+  74:     src_manifest = build_manifest(src_root)
+  75:     dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+  76:     old_manifest = {}
+  77:     if os.path.exists(dst_manifest_path):
+  78:         with open(dst_manifest_path, "r", encoding="utf-8") as f:
+  79:             old_manifest = json.load(f)
+  80:     to_copy = changed_files(old_manifest, src_manifest)
+  81:     if dry_run:
+  82:         return to_copy
+  83:     for rel in to_copy:
+  84:         copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+  85:     with open(dst_manifest_path, "w", encoding="utf-8") as f:
+  86:         json.dump(src_manifest, f, indent=2)
+  87:     return to_copy
+  ---
+  90: def main(argv=None):
+  91:     parser = argparse.ArgumentParser(prog="synccli")
+  92:     parser.add_argument("src")
+  93:     parser.add_argument("dst")
+  94:     parser.add_argument("--dry-run", action="store_true")
+  95:     args = parser.parse_args(argv)
+  96:     copied = sync(args.src, args.dst, dry_run=args.dry_run)
+  97:     for rel in copied:
+  98:         print(rel)
+  99:     return 0
+  ---
+== snaputil.py ==
+   8: def list_snapshots(backup_root):
+   9:     """Return the snapshot directory names under backup_root, oldest first.
+  10: 
+  11:     Snapshot directories live directly under backup_root and are named
+  12:     like snap-20261112-150000-07: a date, a time, and a run sequence
+  13:     number, separated by dashes. Entries that are not such directories
+  14:     are ignored.
+  15:     """
+  16:     names = []
+  17:     for entry in os.scandir(backup_root):
+  18:         if entry.name.startswith("snap-") and entry.is_dir():
+  19:             names.append(entry.name)
+  20:     return sorted(names)
+  ---
+  23: def prune_snapshots(backup_root, keep):
+  24:     """Delete all but the newest keep snapshots under backup_root.
+  25: 
+  26:     Snapshots are ordered oldest first and only the oldest ones are
+  27:     removed, so the newest snapshot is never deleted. Returns the list
+  28:     of deleted snapshot names, oldest first.
+  29:     """
+  30:     names = list_snapshots(backup_root)
+  31:     if len(names) <= keep:
+  32:         return []
+  33:     doomed = names[:len(names) - keep]
+  34:     for name in doomed:
+  35:         shutil.rmtree(os.path.join(backup_root, name))
+  36:     return doomed
+  ---
+  39: def snapshot_disk_usage(backup_root, snapshot_name):
+  40:     """Return the total size in bytes of all regular files in one snapshot.
+  41: 
+  42:     Files are counted recursively; an empty or missing snapshot counts
+  43:     as zero bytes.
+  44:     """
+  45:     total = 0
+  46:     for dirpath, dirnames, filenames in os.walk(
+  47:         os.path.join(backup_root, snapshot_name)
+  48:     ):
+  49:         for name in filenames:
+  50:             total += os.stat(os.path.join(dirpath, name)).st_size
+  51:     return total
+  ---
+  54: def safe_snapshot_path(backup_root, snapshot_name, rel_path):
+  55:     """Map a relative path stored in a snapshot manifest back under the
+  56:     snapshot directory.
+  57: 
+  58:     The returned path never points outside backup_root/<snapshot_name>:
+  59:     any ".." segments in rel_path are normalized away before the join,
+  60:     so a stored path cannot climb out of its snapshot.
+  61:     """
+  62:     rel = os.path.normpath(rel_path)
+  63:     return os.path.join(backup_root, snapshot_name, rel)
+  ---
+  66: def is_stale(snapshot_dir, ref_epoch):
+  67:     """Return True when the snapshot directory is older than ref_epoch.
+  68: 
+  69:     ref_epoch is a reference time in seconds since the epoch, as captured
+  70:     earlier by the caller (e.g. from a previous stat). A snapshot whose
+  71:     directory was modified at exactly ref_epoch is not stale.
+  72:     """
+  73:     return os.stat(snapshot_dir).st_mtime <= ref_epoch
+  ---
+  76: def main(argv=None):
+  77:     parser = argparse.ArgumentParser(prog="snaputil")
+  78:     parser.add_argument("backup_root")
+  79:     parser.add_argument("--prune", type=int, metavar="KEEP", default=None)
+  80:     args = parser.parse_args(argv)
+  81:     if args.prune is not None:
+  82:         deleted = prune_snapshots(args.backup_root, args.prune)
+  83:         for name in deleted:
+  84:             print("deleted", name)
+  85:     for name in list_snapshots(args.backup_root):
+  86:         size = snapshot_disk_usage(args.backup_root, name)
+  87:         print(name, size)
+  88:     return 0
+  ---
+== test_synccli.py ==
+   9:     def setUp(self):
+  10:         self.tmp = tempfile.mkdtemp()
+  11:         os.makedirs(os.path.join(self.tmp, "sub"))
+  12:         with open(os.path.join(self.tmp, "a.txt"), "w") as f:
+  13:             f.write("a")
+  14:         with open(os.path.join(self.tmp, "sub", "b.txt"), "w") as f:
+  15:             f.write("b")
+  ---
+  42:     def test_sync_copies_and_writes_manifest(self):
+  43:         copied = synccli.sync(self.src, self.dst)
+  44:         self.assertEqual(copied, ["a.txt"])
+  45:         self.assertTrue(os.path.exists(os.path.join(self.dst, "a.txt")))
+  46:         self.assertTrue(os.path.exists(os.path.join(self.dst, ".sync_manifest.json")))
+  47: 
+  48:     def test_second_sync_is_noop(self):
+  49:         synccli.sync(self.src, self.dst)
+  50:         copied = synccli.sync(self.src, self.dst)
+  51:         self.assertEqual(copied, [])
+  ---
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+@@ -762,14 +762,15 @@
+ | Constant | Measured | Budget value (conservative) |
+ |---|---|---|
+ | Scan+stat per file (`build_manifest`, synccli.py:28-33) | 24-39 µs/file (0.48 s warm / 0.78 s cold per 20k) | 40 µs |
+ | Bare `os.stat` | 19 µs/file | — |
+-| Copy 50 KB, chunked, dirs pre-created, no fsync | 240-378 µs/file (188-215 MB/s) | — |
++| Whole-read copy (`synccli.copy_file`, subset) | 240 µs/file (215 MB/s) | — |
++| Copy 50 KB, chunked, no fsync | 270-378 µs/file across runs (±40 % run variance; 138-188 MB/s implied at 50 KB) | — |
+ | Per-file `fsync` overhead | 21-43 µs/file | 45 µs |
+-| Copy 50 KB, chunked + fsync (full-backup per-file cost) | 369-478 µs/file | 480 µs |
++| Copy 50 KB, chunked + fsync (full-backup per-file cost) | 369-478 µs/file (three passes) | 480 µs |
+ | Pure `os.link` (zero bytes moved) | 371-418 µs/file | 420 µs |
+ | Per-file `makedirs(exist_ok)` avoided by O3 | 25-55 µs/file (pre-create 200 dirs: 27 ms total) | avoided |
+-| Streaming rate, large files (no fsync) | 188-215 MB/s | 190 MB/s |
++| Effective streaming rate (no fsync, end-to-end incl. per-file cost) | 188-215 MB/s on 50 KB files | 190 MB/s (conservative; per-file cost amortizes on larger files) |
+ | Whole-read `copy_file` memory (O1 evidence) | 52 MB peak on a 50 MB file vs 2.1 MB constant chunked | — |
+ | Index: JSON bytes | 68 B/entry (1.35 MB per 20k files) | 76 B/entry (incl. ~8-char source prefix) |
+ | Index: write+fsync+rename+root-fsync (commit) | 0.04 s | 0.1 s |
+ | Index: `json.load` | 0.03 s per 1.35 MB (~1.5 µs/KB); 478 B/entry RAM | 30 ms / 20k |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+@@ -772,9 +772,9 @@
+ | Effective streaming rate (no fsync, end-to-end incl. per-file cost) | 188-215 MB/s on 50 KB files | 190 MB/s (conservative; per-file cost amortizes on larger files) |
+ | Whole-read `copy_file` memory (O1 evidence) | 52 MB peak on a 50 MB file vs 2.1 MB constant chunked | — |
+ | Index: JSON bytes | 68 B/entry (1.35 MB per 20k files) | 76 B/entry (incl. ~8-char source prefix) |
+ | Index: write+fsync+rename+root-fsync (commit) | 0.04 s | 0.1 s |
+-| Index: `json.load` | 0.03 s per 1.35 MB (~1.5 µs/KB); 478 B/entry RAM | 30 ms / 20k |
++| Index: `json.load` | 0.03 s per 1.35 MB (~22 µs/KB); 478 B/entry RAM | 30 ms / 20k |
+ | Manifest RAM | 389 B/entry (tracemalloc) | 400 B/entry |
+ | Diff (`changed_files`, 20k × 20k) | 2 ms | 0.1 µs/file |
+ | `rmtree` (prune/sweep) | ~85 µs/file (1.6 s per 1 GB/20k) | 85 µs |
+ | Incremental run, 0 changes, end-to-end | 8.4 s (scan 0.5 + diff 0.002 + 20k links 7.9 + commit 0.04) | — |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+@@ -775,9 +775,9 @@
+ | Index: write+fsync+rename+root-fsync (commit) | 0.04 s | 0.1 s |
+ | Index: `json.load` | 0.03 s per 1.35 MB (~22 µs/KB); 478 B/entry RAM | 30 ms / 20k |
+ | Manifest RAM | 389 B/entry (tracemalloc) | 400 B/entry |
+ | Diff (`changed_files`, 20k × 20k) | 2 ms | 0.1 µs/file |
+-| `rmtree` (prune/sweep) | ~85 µs/file (1.6 s per 1 GB/20k) | 85 µs |
++| `rmtree` (prune/sweep) | 80-85 µs/file (1.6 s per 1 GB/20k prune; 0.17 s per 2k-file sweep) | 85 µs |
+ | Incremental run, 0 changes, end-to-end | 8.4 s (scan 0.5 + diff 0.002 + 20k links 7.9 + commit 0.04) | — |
+ | Incremental run, 1,000/20,000 changed (51 MB) | 8.4 s; detected exactly 1,000 | — |
+ | Disk after 3 generations (1 full + 1 unchanged + 1 5 %-changed) | apparent 3 × 1025 MB; **true unique 1079 MB** | — |
+ 
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+@@ -819,9 +819,9 @@
+                   + C / (190 MB/s)
+ ```
+ 
+ Measured: 8.4 s at (20k, 0, 0) and 8.4 s at (20k, 1000, 51 MB); composed
+-9.2 s / 9.9 s. **Budget: ≤ 60 s for F ≤ 100k with ordinary churn.** A run
++9.2 s / 9.5 s. **Budget: ≤ 60 s for F ≤ 100k with ordinary churn.** A run
+ whose source is unchanged still costs one link pass — that is the price of
+ each snapshot being a complete standalone tree (R2/R3); dedup keeps the
+ *disk* marginal (§13), not the metadata pass.
+ 
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+@@ -621,9 +621,9 @@
+    stale bytes linked forward. This is the fundamental blind spot of
+    (size, mtime) keying; the mitigation is opt-in, not default:
+    `--full-every N-th-run` forces a periodic full copy that launders the
+    base (documented trade: content hashing would close it at a cost of
+-   reading all `B` bytes every run — ~5.4 s/GB at the measured 190 MB/s
++   reading all `B` bytes every run — ~5.3 s/GB at the measured 190 MB/s
+    stream rate, plus defeating the hardlink's zero-byte property).
+ 2. **Same-size edits within one mtime clock tick of the filesystem.**
+    `st_mtime` resolution is filesystem-defined (APFS: nanoseconds — window
+    negligible; HFS+: 1 s; FAT: 2 s). Two writes inside one tick with
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+@@ -976,9 +976,9 @@
+ ## 16. Limitations and accepted risks
+ 
+ - **L1 (size, mtime) blind spots** — §10.2, exhaustively; `--full-every`
+   as the laundering mitigation; content hashing explicitly rejected as
+-  default (reads all `B` bytes per run, ~5.4 s/GB measured stream rate).
++  default (reads all `B` bytes per run, ~5.3 s/GB measured stream rate).
+ - **L2 Torn-copy window** — a file written *during* its copy lands
+   byte-mixed in this snapshot and is recopied next run (recorded state ≠
+   final source state); unfixable only under mtime-restoring writers
+   (= L1). Bounded: one generation.
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+@@ -842,9 +842,9 @@
+ | True disk, `K` retained snapshots | `B + Σ_{retained k} Cₖ + K·(F·76 B + ~0.5 MB structure/200 dirs)`; measured: 3 generations of a 1 GB tree = **1079 MB true** (≈ B + 51 MB churn + 4 MB structure/indexes) vs 3075 MB apparent | `B`, cumulative churn, `K` (index+structure term only) | — |
+ | Apparent disk (what `snapshot_disk_usage` reports, snaputil.py:39-51) | `≤ K·(B + F·76 B)`; verified double-counts hardlinks (§17 A12) | `K`, `B` | — |
+ | Prune wall time | `85 µs × F_doomed`; 1.6 s per 1 GB/20k snapshot | files in doomed snapshots | everything else |
+ | Sweep wall time | `85 µs × F_leftover`; 0.17 s per 2000 files | dead-run leftovers (≤ 1 run's tree per dead run) | `K`, `N` |
+-| Base-index load + validate + diff | `~1.5 µs/KB index` (30 ms per 20k) + `F·0.1 µs` (2 ms per 20k) | `F` | `K` |
++| Base-index load + validate + diff | `~22 µs/KB index` (30 ms per 20k) + `F·0.1 µs` (2 ms per 20k) | `F` | `K` |
+ | Lock files | **1** | — | everything |
+ | Live staging directories | **≤ 1** (single writer, §7.1) + leftovers until next start | — | `N`, `K` |
+ | Retained snapshots | `≤ K` (+ transient `trash-*` ≤ doomed count during prune) | `K` (config constant) | run count, history |
+ | Snapshot name sequence `NN` | 2 digits, ≥ 100 commits/second impossible (a run takes ≥ seconds) | — | — |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-62445/DESIGN-d1.md
+@@ -840,9 +840,9 @@
+ | — RAM mitigation at large `F` | stream per source: peak = `F·478 B` (base index, loaded once) + `maxᵢ Fᵢ·400 B` (one source manifest at a time, diffed and freed) | `F`, `max Fᵢ` | `N` |
+ | Index disk per snapshot | `F·76 B`; 20k → 1.5 MB | `F` | `K` |
+ | True disk, `K` retained snapshots | `B + Σ_{retained k} Cₖ + K·(F·76 B + ~0.5 MB structure/200 dirs)`; measured: 3 generations of a 1 GB tree = **1079 MB true** (≈ B + 51 MB churn + 4 MB structure/indexes) vs 3075 MB apparent | `B`, cumulative churn, `K` (index+structure term only) | — |
+ | Apparent disk (what `snapshot_disk_usage` reports, snaputil.py:39-51) | `≤ K·(B + F·76 B)`; verified double-counts hardlinks (§17 A12) | `K`, `B` | — |
+-| Prune wall time | `85 µs × F_doomed`; 1.6 s per 1 GB/20k snapshot | files in doomed snapshots | everything else |
++| Prune wall time | `85 µs × F_doomed` (budget); measured 1.6 s per 1 GB/20k snapshot (80 µs/file) | files in doomed snapshots | everything else |
+ | Sweep wall time | `85 µs × F_leftover`; 0.17 s per 2000 files | dead-run leftovers (≤ 1 run's tree per dead run) | `K`, `N` |
+ | Base-index load + validate + diff | `~22 µs/KB index` (30 ms per 20k) + `F·0.1 µs` (2 ms per 20k) | `F` | `K` |
+ | Lock files | **1** | — | everything |
+ | Live staging directories | **≤ 1** (single writer, §7.1) + leftovers until next start | — | `N`, `K` |
+
+[0m
+All citations check out. Fixing a few internal arithmetic inconsistencies I spotted (µs/KB derivation, composed incremental number, range presentations):
+[0m$ [0mls -la && wc -l DESIGN-d1.md && rm -rf /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/tmpbzp2f2g5 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/tmp* 2>/dev/null; df -h /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T | tail -1
+total 168
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 13:52 __pycache__
+drwxr-xr-x@   8 sebastien.mendez  staff    256 Nov 16 13:59 .
+drwx------@ 317 sebastien.mendez  staff  10144 Nov 16 13:59 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 13:50 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff  61965 Nov 16 13:59 DESIGN-d1.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 13:50 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 13:50 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 13:50 test_synccli.py
+    1065 DESIGN-d1.md
+/dev/disk3s5   926Gi   523Gi   385Gi    58%    4.4M  4.0G    0%   /System/Volumes/Data
+[0m
+[0m$ [0mrg -n "^#|^## " DESIGN-d1.md
+1:# DESIGN-d1 — `backupctl`
+23:## 1. Summary
+73:## 2. Reference environment and verification method
+94:## 3. Layout and data model
+154:## 4. What exists (baseline)
+173:## 5. Grounding map
+175:### 5.1 Reused as-is
+193:### 5.2 Overrides (named, located, reasoned)
+307:### 5.3 Reviewed, not used
+325:## 6. Run lifecycle
+379:## 7. Concurrency and atomicity
+381:### 7.1 Writers: one at a time, kernel-enforced
+404:### 7.2 Readers: lock-free by construction
+441:### 7.3 Name collisions at commit
+458:## 8. Crash and corruption recovery
+470:### 8.1 Crash windows
+494:### 8.2 Sweep (step 2)
+502:### 8.3 Corrupt or half-written index found by a run (step 3)
+535:### 8.4 Durability ordering (power loss)
+551:## 9. Vanished and unreadable source files
+553:### 9.1 Windows and behavior
+579:### 9.2 Why the index can't drift from the tree
+588:### 9.3 Scheduler ≡ human
+599:## 10. Change detection and dedup
+601:### 10.1 Granularity
+614:### 10.2 What this granularity can miss
+641:### 10.3 Deletions
+653:### 10.4 Corrupt base encountered *as a reader* (hardening)
+667:### 10.5 Files changing during a run
+686:## 11. Retention and pruning
+688:### 11.1 Policy
+697:### 11.2 Optional age axis
+710:### 11.3 Deletion mechanics (O6)
+734:### 11.4 Invariants
+755:## 12. Performance budget — initial full backup
+757:### 12.1 Measured constants (reference environment §2; recipes Appendix B)
+790:### 12.2 Derivation and committed budget
+830:## 13. Scaling bounds — what grows with what
+868:## 14. CLI, config, report, exit codes
+918:## 15. Test plan (`test_backupctl.py`, style of test_synccli.py:8-51)
+976:## 16. Limitations and accepted risks
+1010:## 17. Appendix A — verification log
+1031:## 18. Appendix B — measurement recipes
+[0m
+[0m# [0mTodos
+[✓] Run existing test suite + verify behavioral claims (safe_snapshot_path holes, rename collision, flock-on-kill)
+[✓] Benchmark: scan/stat rate, copy throughput (whole-read vs chunked, fsync), os.link rate, index size, memory per entry
+[✓] Write DESIGN-d1.md with grounding map, concurrency/crash/recovery design, retention, perf budget, scaling bounds
+[✓] Verify every cited file:line reference in the design against the actual code
+[0m
+`DESIGN-d1.md` written (1065 lines), worked alone. Highlights:
+
+- **Grounded, verified**: every reuse/override cites exact `file:line` (`synccli.scan_files/build_manifest/changed_files`, all five `snaputil` helpers); 13 behavioral claims executed against the real code (Appendix A) — including two real `safe_snapshot_path` escape holes (absolute paths, net-leading `..`), `synccli.sync`'s manifest promising files the destination lacks, and its crash on a corrupt manifest — each mapped to a named override (O1-O9).
+- **Design**: flock single-writer + staging + atomic directory-rename publish; per-snapshot self-contained index built from copy/link *results*; hardlink dedup; rename-then-destroy pruning; crash-window table with sweep-at-start and corrupt-index re-derivation via `build_manifest`.
+- **Budgets measured, not guessed**: real 1 GB/20k-file tree on this machine — full backup measured 9.6-10.5 s, committed ≤ 60 s with derivation formula; scaling bounds as explicit formulas over N/F/B/K with measured constants (e.g. RAM ≈ 0.9 KB/file, index 76 B/entry, prune 85 µs/file).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 63217 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 62461 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-62445 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-D-D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p5 above)

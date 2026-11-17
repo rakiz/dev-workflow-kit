@@ -10,7 +10,10 @@ This directory is your starting point. It already contains working code for
 a neighboring problem: `synccli.py` synchronizes a source directory into a
 destination using a manifest file (`.sync_manifest.json`), and
 `test_synccli.py` is its test suite (run it with `python3 -m unittest`).
-`backupctl` will live alongside this code and ship in the same repo.
+A small helper module, `snaputil.py`, also lives here — snapshot
+listing/pruning/size/path helpers a previous experiment left behind;
+reuse it rather than re-implementing what it covers. `backupctl` will
+live alongside this code and ship in the same repo.
 
 ## What `backupctl` must do
 

@@ -1,0 +1,159 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3p1-flash
+[0m
+I'll review the last commit.
+[0m$ [0mgit show HEAD --stat
+commit 8e1e7e32294abe1bb3006cd5566c4a9d92ede4c0
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 22:56:09 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+[0m
+[0m$ [0mgit log --oneline -5
+8e1e7e3 v0.2: add exclude filter, batch copy and manifest merge
+559700c Initial synccli
+[0m
+[0m$ [0mgit show HEAD
+commit 8e1e7e32294abe1bb3006cd5566c4a9d92ede4c0
+Author: eval <eval@example.com>
+Date:   Mon Nov 16 22:56:09 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mls -la
+total 48
+drwxr-xr-x@    4 sebastien.mendez  staff    128 Nov 16 22:56 __pycache__
+drwxr-xr-x@   10 sebastien.mendez  staff    320 Nov 16 22:56 .
+drwx------@ 1061 sebastien.mendez  staff  33952 Nov 16 22:56 ..
+drwxr-xr-x@   13 sebastien.mendez  staff    416 Nov 16 22:56 .git
+-rw-r--r--@    1 sebastien.mendez  staff   1317 Nov 16 22:56 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff    657 Nov 16 22:56 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff   1157 Nov 16 22:56 incremental.py
+-rw-r--r--@    1 sebastien.mendez  staff    210 Nov 16 22:56 README.md
+-rw-r--r--@    1 sebastien.mendez  staff   3172 Nov 16 22:56 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff   1834 Nov 16 22:56 test_synccli.py
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-40481 && python3 - <<'EOF'
+import incremental, os, json, tempfile
+# 1 mutable default
+print("call1:", incremental.filter_excluded(["a.txt"]))
+print("call2:", incremental.filter_excluded(["b.txt"]))
+# 2 absolute path
+print("abs:", incremental.filter_excluded(["/tmp/.git/config", "/tmp/x/a.txt"]))
+# 3 nested
+print("nested:", incremental.filter_excluded(["sub/.git/config"]))
+# 4 copy_many failure
+d = tempfile.mkdtemp()
+print("copy_many missing src:", incremental.copy_many([("/nonexistent/x", os.path.join(d,"x"))]))
+print("file exists?", os.path.exists(os.path.join(d,"x")))
+# 5 merge_manifest persistence
+mp = os.path.join(d, "m.json")
+merged = incremental.merge_manifest(mp, {"f.txt": {"size": 1, "mtime": 5.0}})
+print("returned merged:", merged, "| file on disk exists?", os.path.exists(mp))
+# 6 mtime-only comparison, size change with older mtime
+mp2 = os.path.join(d, "m2.json")
+json.dump({"f.txt": {"size": 10, "mtime": 100.0}}, open(mp2,"w"))
+print("merge older-mtime different size:", incremental.merge_manifest(mp2, {"f.txt": {"size": 99, "mtime": 50.0}}))
+EOF
+call1: []
+call2: []
+abs: []
+nested: []
+copy_many missing src: ['/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpfkfxq3jc/x']
+file exists? False
+returned merged: {'f.txt': {'size': 1, 'mtime': 5.0}} | file on disk exists? False
+merge older-mtime different size: {'f.txt': {'size': 10, 'mtime': 100.0}}
+[0m
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-40481 && python3 - <<'EOF'
+import incremental
+print("call1:", incremental.filter_excluded([".git/config"]))
+print("call2 (fresh list, should be empty):", incremental.filter_excluded(["ok.txt"]))
+print("shared default:", incremental.filter_excluded.__defaults__)
+EOF
+call1: ['.git/config']
+call2 (fresh list, should be empty): ['.git/config']
+shared default: (['.git/config'],)
+[0m
+[0m→ [0mRead incremental.py
+**Defects in commit 8e1e7e3 (new file `incremental.py`)**
+
+**Major**
+
+1. `incremental.py:10-15` — `filter_excluded` returns the *excluded* paths but does not filter the input list, while its name promises the opposite. A caller doing `paths = filter_excluded(paths)` gets exactly the set of files that must *not* be synced, and the input `paths` list is left untouched (so a caller ignoring the return value syncs everything). The name/docstring/return value disagree; the function is not usable as written.
+
+2. `incremental.py:10,14` — mutable default argument `excluded=[]` is shared across calls. Verified: after `filter_excluded([".git/config"])`, a later `filter_excluded(["ok.txt"])` returns `['.git/config']` — state leaks between calls and the list grows without bound across a polling daemon.
+
+3. `incremental.py:18-27` — `copy_many` reports copies that never happened. `synccli.copy_file` swallows `OSError` internally (`synccli.py:68-69`) and returns `None`, so the `try/except` here is dead code and `done.append(dst)` runs even when the source was unreadable. Verified: `copy_many([("/nonexistent/x", dst)])` returns `['.../x']` while the destination file does not exist. Callers get a success list for a failed sync — silent divergence/data loss.
+
+4. `incremental.py:30-40` — `merge_manifest` never writes the merged manifest back to `dst_manifest_path`; the path is only read. Verified: after `merge_manifest(path, {...})` the file still does not exist on disk. Any caller that assumes the merge was persisted (the function name and its path argument both imply that) silently loses the merged state, and the manifest on disk stays stale forever.
+
+5. `incremental.py:38` — the merge decision compares only `mtime` and ignores `size`, unlike the rest of the codebase where `synccli.changed_files` compares the whole state dict (`synccli.py:40`). If a file is replaced with different content and a *backwards* mtime (restore from backup, `rsync -t`, clock skew), the old entry is kept: verified `merge_manifest` with old `{size:10,mtime:100}` and new `{size:99,mtime:50}` returns the old state. The persisted manifest then describes a state that never existed → the file is re-detected as changed and re-copied on every cycle (endless re-copy in the daemon design).
+
+**Minor**
+
+6. `incremental.py:13` — `p.split(os.sep)[0]` only inspects the first path component, so `sub/.git/config` and `sub/.sync_manifest.json` are not excluded (verified). The set is named `EXCLUDE_TOP_DIRS`, but the docstring claims "paths that must be excluded", which the implementation does not deliver for nested paths.
+
+7. `incremental.py:13` — for absolute paths the split yields `""` as the first component, so nothing is ever excluded (verified: `/tmp/.git/config` passes through). Since callers naturally hold absolute roots, the filter silently no-ops.
+
+8. `incremental.py:36` — entries present in `old` but absent from `new_manifest` are always retained. As a manifest merge for the destination this means a deleted source file stays in the manifest indefinitely; the removal semantics are neither implemented nor documented.
+
+9. `incremental.py:34-35` — `json.load` on an empty or truncated manifest raises `JSONDecodeError`/`JSONDecodeError` on zero-byte file, aborting the merge; and line 38 raises `KeyError` if an old entry lacks `"mtime"`. No guard for corrupt/partial state (the manifest is rewritten in place, so a crash mid-write leaves exactly this state).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 40510 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 40511 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-40481 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g21)

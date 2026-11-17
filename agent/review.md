@@ -1,5 +1,6 @@
 ---
 # Model and model family are injected at install time by init.sh from the kit's models.json.
+# Checklist kept in sync with global/agent/cheap-review.md — edit both.
 mode: subagent
 description: "Mandatory review of the work produced by impl — read-only, sorts findings into minor (back to impl) / major (escalate to deep)."
 permission:
@@ -22,7 +23,7 @@ Group the report under three visible axes; each axis ends with an explicit `revi
 
 **Conventions / scope**:
 - Are the project's conventions respected? (style, structure, .md companions if enabled)
-- Anything added beyond the task? (unrequested abstraction, unneeded dependency, dead code)
+- Anything added beyond the task? (unrequested abstraction, unneeded dependency, dead code) — `unneeded` means not justified by the task (a reuse per the skill's ladder is not a finding)
 
 Sort each finding:
 
@@ -31,4 +32,4 @@ Sort each finding:
 
 Optional, exceptional: for a large or high-risk diff (your judgment; state the trigger in the report), you may dispatch bounded contract and standards sub-reviews in parallel against the same immutable snapshot, keeping the single correctness review yourself; deduplicate, then rank all findings by severity. One reviewer remains the norm — do not parallelize routine reviews.
 
-Output format: findings grouped under the three axes above, one line per finding — `minor|major — file:line — problem — expected action` — each axis closing with `reviewed` / `not reviewed`. If there is nothing to report, say so explicitly. Treat the author's report as unverified claims to check, not as the review's scope; on a re-review, close each prior finding by `file:line` and review the fix delta as new code.
+Output format: findings grouped under the three axes above, one line per finding — `minor|major — file:line — problem — expected action` — each axis closing with `reviewed` / `not reviewed`. If there is nothing to report, say so explicitly. Treat the author's report as unverified claims to check, not as the review's scope; on a re-review, close each prior finding by `file:line` and review the fix delta as new code. Then give an explicit overall verdict: `sound` / `risky` / `must fix before ship`.

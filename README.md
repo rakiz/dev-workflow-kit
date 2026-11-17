@@ -114,6 +114,7 @@ dev-workflow-kit/
     ├── CONVENTIONS.cpp.md   # OPTIONAL C++ conventions reference — NOT copied by init.sh, opt-in (see below)
     ├── CONVENTIONS.cpp23.md  # OPTIONAL second C++ conventions (C++23: no-exceptions/std::expected, companion .md docs, hot-path discipline) — NOT copied by init.sh, opt-in (see below)
     ├── CONVENTIONS.python.md  # OPTIONAL Python conventions reference (type hints, failure postures, ruff) — NOT copied by init.sh, opt-in (see below)
+    ├── CONVENTIONS.go.md  # OPTIONAL Go conventions reference (distilled from the Uber Go Style Guide) — NOT copied by init.sh, opt-in (see below)
 ├── docs/                      # improvement plan + design-review material
 ├── .gitignore               # local scratch files (Python caches, .DS_Store)
 └── LICENSE                  # MIT

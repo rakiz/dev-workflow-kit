@@ -1,0 +1,679 @@
+[0m
+> build · accounts/fireworks/models/deepseek-v4p1-flash-1017
+[0m
+[0m$ [0mls -la
+total 40
+drwxr-xr-x@    5 sebastien.mendez  staff    160 Nov 16 22:46 __pycache__
+drwxr-xr-x@    7 sebastien.mendez  staff    224 Nov 16 22:46 .
+drwx------@ 1017 sebastien.mendez  staff  32544 Nov 16 22:46 ..
+-rw-r--r--@    1 sebastien.mendez  staff   4974 Nov 16 22:46 BRIEF.md
+-rw-r--r--@    1 sebastien.mendez  staff   3072 Nov 16 22:46 snaputil.py
+-rw-r--r--@    1 sebastien.mendez  staff   3169 Nov 16 22:46 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff   1834 Nov 16 22:46 test_synccli.py
+[0m
+[0m→ [0mRead BRIEF.md
+I'll read the brief first.
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+Now let me verify the existing tests pass and gather real performance numbers on this machine, since the brief demands a measured or explicitly derived budget.
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1 | tail -20; python3 -VV; uname -a
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+OK
+Python 3.10.11 (v3.10.11:7d4cc5aa85, Apr  4 2023, 19:05:19) [Clang 13.0.0 (clang-1300.0.29.30)]
+Darwin M-M2F74HXTVH 24.6.0 Darwin Kernel Version 24.6.0: Sun Aug 23 20:37:27 PDT 2026; root:xnu-11417.140.69.712.69~1/RELEASE_ARM64_T6031 arm64
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_d1.py
+Wrote file successfully.
+[0m
+[0m$ [0mdf -h /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode | tail -1; time python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_d1.py
+/dev/disk3s5   926Gi   572Gi   336Gi    63%    5.9M  3.5G    0%   /System/Volumes/Data
+build tree: 2.634s (20000 files, 81.9 MB)
+synccli.scan_files: 0.125s -> 160.5 kfiles/s (n=20000)
+synccli.build_manifest: 0.480s -> 41.7 kstat/s
+copy 20000 files: 4.707s -> 4.2 kfiles/s, 17.4 MB/s
+fsync 200 open files: 0.0002s -> 0.001 ms/file
+clonefile: 20000 files in 4.612s -> 4.3 kfiles/s (ok=True)
+hardlink: 20000 files in 8.347s -> 2.4 kfiles/s
+index json: 3940023 bytes, dump 0.018s, load 0.014s
+1 GiB file copy: 0.230s -> 4446 MB/s
+sha256 1 GiB: 0.416s -> 2462 MB/s
+rmtree 20k: 1.585s
+python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_d1.py  1.57s user 21.81s system 83% cpu 27.956 total
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_d1b.py
+Wrote file successfully.
+[0m
+[0m$ [0mtime python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_d1b.py
+durable copy (temp+fsync+rename, dirs pre-created), 1 thread: 9.144s -> 2.2 kfiles/s, 9.0 MB/s
+  + fsync all 200 dirs: 9.155s total
+durable copy, 8 threads: 4.164s -> 4.8 kfiles/s, 19.7 MB/s
+lstat pass, 1 thread: 0.429s -> 46.7 kstat/s
+lstat pass, 8 threads: 0.523s -> 38.2 kstat/s
+unchanged via hardlink, 1 thread: 7.725s -> 2.6 kfiles/s
+files with nlink>1 in linked snapshot: 20000/20000
+index write+fsync: 0.063s
+python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_d1b.p  2.18s user 41.00s system 133% cpu 32.459 total
+[0m
+[0m$ [0mpython3 - <<'PY'
+import os, json, tempfile, resource, sys, time
+sys.path.insert(0,'/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660')
+import synccli, snaputil
+tmp = tempfile.mkdtemp()
+# 1) safe_snapshot_path escapes?
+print("traversal:", snaputil.safe_snapshot_path(tmp, "snap-x", "../../etc/passwd"))
+print("absolute :", snaputil.safe_snapshot_path(tmp, "snap-x", "/etc/passwd"))
+print("normpath('../a'):", os.path.normpath("../a"))
+# 2) list_snapshots accepts junk
+os.makedirs(os.path.join(tmp,"snap-20261112-150000-07"))
+os.makedirs(os.path.join(tmp,"snap-partial-deadbeef"))
+os.makedirs(os.path.join(tmp,"snap-"))
+os.makedirs(os.path.join(tmp,"notasnap"))
+print("list_snapshots:", snaputil.list_snapshots(tmp))
+print("prune keep=0:", snaputil.prune_snapshots(tmp, 0), "-> remaining", os.listdir(tmp))
+# 3) is_stale at equality
+d = os.path.join(tmp,"d"); os.makedirs(d)
+m = os.stat(d).st_mtime
+print("is_stale(ref==mtime):", snaputil.is_stale(d, m), "(docstring says not stale)")
+# 4) memory: build_manifest on 20k files (compact measurement)
+root = os.path.join(tmp,"tree")
+for i in range(200):
+    dd = os.path.join(root, "d%03d"%i); os.makedirs(dd)
+    for j in range(100):
+        open(os.path.join(dd,"f%03d"%j),"wb").write(b"x"*64)
+def rss(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+r0=rss(); m = synccli.build_manifest(root); r1=rss()
+print("build_manifest 20k: peak RSS delta %.1f MB (%.0f B/entry)" % ((r1-r0)/1024, (r1-r0)*1024/20000))
+r0=rss(); compact = {k:(v["size"], int(v["mtime"]*1e9)) for k,v in m.items()}; r1=rss()
+print("compact tuple dict delta %.1f MB" % ((r1-r0)/1024))
+r0=rss(); blob=json.dumps(m); r1=rss()
+print("json.dumps(20k) delta %.1f MB, blob %.1f MB" % ((r1-r0)/1024, len(blob)/1e6))
+PY
+traversal: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmpr0qmfpqd/snap-x/../../etc/passwd
+absolute : /etc/passwd
+normpath('../a'): ../a
+list_snapshots: ['snap-', 'snap-20261112-150000-07', 'snap-partial-deadbeef']
+prune keep=0: ['snap-', 'snap-20261112-150000-07', 'snap-partial-deadbeef'] -> remaining ['notasnap']
+is_stale(ref==mtime): True (docstring says not stale)
+build_manifest 20k: peak RSS delta 8576.0 MB (449629 B/entry)
+compact tuple dict delta 3104.0 MB
+json.dumps(20k) delta 6720.0 MB, blob 1.1 MB
+[0m
+[0m$ [0mpython3 - <<'PY'
+import json, os, sys, tempfile, tracemalloc
+sys.path.insert(0,'/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660')
+import synccli, snaputil
+tmp = tempfile.mkdtemp(); root=os.path.join(tmp,"tree")
+for i in range(200):
+    dd=os.path.join(root,"d%03d"%i); os.makedirs(dd)
+    for j in range(100): open(os.path.join(dd,"f%03d"%j),"wb").write(b"x"*64)
+tracemalloc.start()
+m = synccli.build_manifest(root)
+cur, peak = tracemalloc.get_traced_memory(); print("build_manifest 20k: peak %.1f MB (%.0f B/entry)"%(peak/1e6, peak/20000))
+tracemalloc.reset_peak()
+compact={k:(v["size"],int(v["mtime"]*1e9),0,0o100644) for k,v in m.items()}
+cur,peak=tracemalloc.get_traced_memory(); print("compact dict total: cur %.1f MB, peak %.1f MB"%(cur/1e6,peak/1e6))
+tracemalloc.reset_peak(); blob=json.dumps(m); cur,peak=tracemalloc.get_traced_memory()
+print("json.dumps: peak %.1f MB, blob %.2f MB"%(peak/1e6,len(blob)/1e6))
+tracemalloc.stop()
+# baseline of an empty dict with 20k string keys is included above; report per-entry
+PY
+build_manifest 20k: peak 7.0 MB (352 B/entry)
+compact dict total: cur 9.6 MB, peak 9.6 MB
+json.dumps: peak 15.0 MB, blob 1.11 MB
+[0m
+[0m$ [0mpython3 - <<'PY'
+import os, sys, tempfile
+sys.path.insert(0,'/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660')
+import synccli
+t=tempfile.mkdtemp(); root=os.path.join(t,"src"); os.makedirs(root)
+os.makedirs(os.path.join(root,".hidden_dir")); open(os.path.join(root,".hidden_dir","x"),"w").write("x")
+open(os.path.join(root,".hidden_file"),"w").write("x")
+os.makedirs(os.path.join(t,"outside")); open(os.path.join(t,"outside","secret"),"w").write("secret")
+os.symlink(os.path.join(t,"outside"), os.path.join(root,"linkdir"))
+os.symlink(os.path.join(t,"outside","secret"), os.path.join(root,"linkfile"))
+print("scan_files:", synccli.scan_files(root))
+print("manifest keys:", sorted(synccli.build_manifest(root)))
+# rename of directory: atomic publish semantics
+b=tempfile.mkdtemp(); tmpd=os.path.join(b,".tmp-1"); os.makedirs(tmpd); open(os.path.join(tmpd,"idx"),"w").write("i")
+os.rename(tmpd, os.path.join(b,"snap-1")); print("renamed ok:", os.listdir(b))
+os.makedirs(os.path.join(b,".tmp-2")); open(os.path.join(b,".tmp-2","f"),"w").write("f")
+try:
+    os.rename(os.path.join(b,".tmp-2"), os.path.join(b,"snap-1"))
+except OSError as e: print("rename onto existing dir ->", e.__class__.__name__, e.errno, e.strerror)
+PY
+scan_files: ['.hidden_file', 'linkfile']
+manifest keys: ['.hidden_file', 'linkfile']
+renamed ok: ['snap-1']
+rename onto existing dir -> OSError 66 Directory not empty
+[0m
+[0m$ [0mpython3 - <<'PY'
+import os, sys, tempfile, shutil
+sys.path.insert(0,'/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660')
+import snaputil
+t=tempfile.mkdtemp(); real=os.path.join(t,"real"); os.makedirs(real)
+open(os.path.join(real,"f"),"w").write("x")
+os.symlink(real, os.path.join(t,"snap-20260101-000000-01"))
+print("list_snapshots sees symlinked dir as snapshot:", snaputil.list_snapshots(t))
+try: shutil.rmtree(os.path.join(t,"snap-20260101-000000-01"))
+except OSError as e: print("rmtree on symlink:", e)
+# containment check behaviour
+root=os.path.realpath(real)
+for rel in ["../x","/etc/passwd","a/../../x","a/b",""]:
+    parts=rel.split("/")
+    bad = (not rel) or os.path.isabs(rel) or any(p in ("","..",".") for p in parts)
+    print(repr(rel),"rejected" if bad else "ok")
+PY
+list_snapshots sees symlinked dir as snapshot: ['snap-20260101-000000-01']
+rmtree on symlink: Cannot call rmtree on a symbolic link
+'../x' rejected
+'/etc/passwd' rejected
+'a/../../x' rejected
+'a/b' ok
+'' rejected
+[0m
+[0m$ [0mpython3 - <<'PY'
+import ctypes, ctypes.util, os, shutil, sys, tempfile, time
+sys.path.insert(0,'/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660')
+import synccli
+BASE=tempfile.mkdtemp(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode",prefix="b3-")
+BIG=os.path.join(BASE,"big.bin")
+with open(BIG,"wb") as f:
+    c=os.urandom(1<<20)
+    for _ in range(1024): f.write(c)
+libc=ctypes.CDLL(ctypes.util.find_library("c"),use_errno=True)
+libc.clonefile.argtypes=[ctypes.c_char_p,ctypes.c_char_p,ctypes.c_int]; libc.clonefile.restype=ctypes.c_int
+t0=time.perf_counter(); rc=libc.clonefile(BIG.encode(), os.path.join(BASE,"big.clone").encode(),0); t1=time.perf_counter()-t0
+print("clonefile 1 GiB: rc=%d %.4fs"%(rc,t1))
+t0=time.perf_counter(); os.link(BIG, os.path.join(BASE,"big.link")); t2=time.perf_counter()-t0
+print("hardlink 1 GiB: %.5fs"%t2)
+st=os.stat(os.path.join(BASE,"big.clone")); print("clone blocks=%d size=%d nlink=%d"%(st.st_blocks,st.st_size,st.st_nlink))
+# no-fsync temp+rename 20k
+SRC=os.path.join(BASE,"src"); DST=os.path.join(BASE,"dst"); os.makedirs(SRC); os.makedirs(DST)
+buf=os.urandom(4096)
+for d in range(200):
+    dd=os.path.join(SRC,"d%03d"%d); os.makedirs(dd)
+    for i in range(100): open(os.path.join(dd,"f%03d"%i),"wb").write(buf)
+paths=synccli.scan_files(SRC)
+for p in sorted({os.path.dirname(x) for x in paths}): os.makedirs(os.path.join(DST,p),exist_ok=True)
+def cf(rel):
+    s=os.path.join(SRC,rel); d=os.path.join(DST,rel); st=os.lstat(s); tmp=d+".t"
+    with open(s,"rb") as fs, open(tmp,"wb") as fd:
+        while True:
+            b=fs.read(1<<20)
+            if not b: break
+            fd.write(b)
+    os.chmod(tmp, st.st_mode & 0o7777); os.utime(tmp, ns=(st.st_atime_ns, st.st_mtime_ns)); os.replace(tmp,d)
+t0=time.perf_counter()
+for p in paths: cf(p)
+print("temp+rename, no fsync, 1 thread: %.3fs -> %.1f kfiles/s"%(time.perf_counter()-t0, 20000/(time.perf_counter()-t0)/1000))
+shutil.rmtree(BASE,ignore_errors=True)
+PY
+clonefile 1 GiB: rc=0 0.0006s
+hardlink 1 GiB: 0.00036s
+clone blocks=2097152 size=1073741824 nlink=1
+temp+rename, no fsync, 1 thread: 8.327s -> 2.4 kfiles/s
+[0m
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+I have the code read and the measurements I need. Writing the design now.
+[0m$ [0mpython3 - <<'PY'
+import os, tempfile
+t=tempfile.mkdtemp(); p=os.path.join(t,"f"); open(p,"w").write("x")
+st1=os.lstat(p); old_m=st1.st_mtime_ns
+os.utime(p, ns=(st1.st_atime_ns, old_m))
+st2=os.lstat(p)
+print("mtime preserved:", st2.st_mtime_ns==old_m, "| ctime bumped:", st2.st_ctime_ns!=st1.st_ctime_ns, "| ino same:", st2.st_ino==st1.st_ino)
+# float roundtrip of mtime_ns precision
+print("float mtime resolution at epoch:", abs(st1.st_mtime*1e9 - st1.st_mtime_ns), "ns")
+import json
+print("json float roundtrip exact:", json.loads(json.dumps(st1.st_mtime))==st1.st_mtime)
+PY
+mtime preserved: True | ctime bumped: True | ino same: True
+float mtime resolution at epoch: 0.0 ns
+json float roundtrip exact: True
+[0m
+[0m$ [0mpython3 - <<'PY'
+import os, tempfile, random
+t=tempfile.mkdtemp(); p=os.path.join(t,"f"); open(p,"w").write("x")
+bad=0; worst=0
+for ns in [1700000000123456789, 1700000000987654321, 1234567890123456789, 1700000000000000123]:
+    os.utime(p, ns=(ns,ns))
+    st=os.lstat(p)
+    err=abs(round(st.st_mtime*1e9)-st.st_mtime_ns)
+    print(ns, "-> stored", st.st_mtime_ns, "float*1e9 error", err, "ns")
+# what does file_state report vs mtime_ns
+st=os.lstat(p); print("st_mtime float:", repr(st.st_mtime), "ns:", st.st_mtime_ns)
+PY
+1700000000123456789 -> stored 1700000000123456789 float*1e9 error 21 ns
+1700000000987654321 -> stored 1700000000987654321 float*1e9 error 177 ns
+1234567890123456789 -> stored 1234567890123456789 float*1e9 error 21 ns
+1700000000000000123 -> stored 1700000000000000123 float*1e9 error 133 ns
+st_mtime float: 1700000000.0000002 ns: 1700000000000000123
+[0m
+[0m$ [0mwc -l DESIGN-d1.md; grep -n "last 3 digits\|57-61\|sub-microsecond \`mtime_ns\`" DESIGN-d1.md
+754 DESIGN-d1.md
+85:| `file_state` key | synccli.py:22-25 | `(size, mtime_float)` only. `st_mtime` is a float: at ~1.7e18 ns since epoch, float64 keeps sub-microsecond digits but silently loses the last 3 digits of `st_mtime_ns`; and there is no inode/ctime, so "replace a file with one of equal size and restored mtime" is invisible. | `file_state_v2` = `{size, mtime_ns, ino, ctime_ns, mode, type}`. `ctime_ns` catches `utime`-preserving rewrites (POSIX bumps ctime on `utimensat`); `ino` catches atomic replacement. Cost measured: `lstat` 21 µs/file (same order as the existing `os.stat`). Granularity and blind spots are stated in §7. |
+346:It also stops losing the sub-microsecond `mtime_ns` digits to float.
+731:  docstring at snaputil.py:57-61 is false.
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -81,9 +81,9 @@
+ | Overridden | Location | Defect observed | Replacement |
+ |---|---|---|---|
+ | `scan_files` dot rule | synccli.py:14 | `dirnames[:] = [d for d in dirnames if not d.startswith(".")]` silently drops **every** dot-directory (verified: `.hidden_dir/x` is absent from the scan). A backup that silently omits data violates "complete, self-consistent image". | `backupctl.scan.scan_entries(root, excludes)`: same sorted-relpath contract, dot-directories **included by default**, exclusion only via explicit config globs. Dot-files were already included (only dirnames are filtered), so that asymmetry disappears. |
+ | `scan_files` symlink policy | synccli.py:13-19 | Verified: a symlink **to a directory** is silently dropped (os.walk `followlinks=False` yields it in `dirnames` but never descends, so it appears nowhere); a symlink **to a file** is enumerated and `file_state`/`copy_file` follow it, i.e. content from outside the tree is copied and the link is flattened. Neither is acceptable for a backup (data exfiltration, TOCTOU, non-faithful restore). | `scan_entries` uses `os.scandir` + `lstat`, records `type: "symlink"` with the verbatim `target`, never follows. Directories are recorded too, so **empty directories survive** (file-only enumeration loses them). |
+-| `file_state` key | synccli.py:22-25 | `(size, mtime_float)` only. `st_mtime` is a float: at ~1.7e18 ns since epoch, float64 keeps sub-microsecond digits but silently loses the last 3 digits of `st_mtime_ns`; and there is no inode/ctime, so "replace a file with one of equal size and restored mtime" is invisible. | `file_state_v2` = `{size, mtime_ns, ino, ctime_ns, mode, type}`. `ctime_ns` catches `utime`-preserving rewrites (POSIX bumps ctime on `utimensat`); `ino` catches atomic replacement. Cost measured: `lstat` 21 µs/file (same order as the existing `os.stat`). Granularity and blind spots are stated in §7. |
++| `file_state` key | synccli.py:22-25 | `(size, mtime_float)` only. `st_mtime` is `float` seconds, whose resolution at the current epoch is ~380 ns (measured reconstruction error of `st_mtime_ns` from `st_mtime`: 21–177 ns), so `st_mtime_ns` is not recoverable; and there is no inode/ctime, so "replace a file with one of equal size and restored mtime" is invisible. | `file_state_v2` = `{size, mtime_ns, ino, ctime_ns, mode, type}`. `ctime_ns` catches `utime`-preserving rewrites (POSIX bumps ctime on `utimensat`); `ino` catches atomic replacement. Cost measured: `lstat` 21 µs/file (same order as the existing `os.stat`). Granularity and blind spots are stated in §7. |
+ | `build_manifest` traversal | synccli.py:30-32 | One `os.stat` per path from a pre-built list, i.e. two passes and a full O(F) path list; also follows symlinks. | Single `os.scandir` pass keeping the same `{rel: state}` result, `lstat` only, one syscall per entry where the platform allows it (`DirEntry.stat(follow_symlinks=False)`). Output is the input `changed_files` expects. |
+ | `collect_stale` | synccli.py:45-59 | Dead code: it is not called anywhere in `synccli` (verified — only `test_synccli.py:21-33` exercises it). Its per-item `fresh` flag models an incremental-freshness pass, not snapshot planning. | Not used. The equivalent need is met by `changed_files` plus the per-file error list (§6). Naming it here so the reuse is a decision, not an omission. |
+ | `copy_file` | synccli.py:62-69 | Five independent defects: (1) `except OSError: pass` at 68-69 discards the failure *and* returns success — the brief requires a report; (2) `fsrc.read()` at 67 loads the whole file into RAM (memory = largest file, unbounded in the design sense); (3) `open(dst, "wb")` at 66-67 truncates the final path in place, so a crash leaves a partial file at a name a reader can find; (4) no `fsync`/dir-sync, no temp+rename, so publication is not atomic; (5) mode/mtime/type are not preserved, so restore loses the executable bit and timestamps. | `backupctl.copy.copy_file_durable`: 1 MiB chunked loop, `O_NOFOLLOW`-guarded source open, temp file in the destination directory, `fchmod` + `futimens`, `fsync`, `os.replace`, parent-dir `fsync` (policy-dependent, §3), returns a per-file result object; raises nothing the planner does not classify (§6). |
+ | `sync` manifest write | synccli.py:85-86 | `json.dump` straight onto the final path: a kill mid-write leaves a truncated manifest that `json.load` (line 79) then crashes on with no recovery, and two runs interleave last-writer-wins. Also no `fsync`. | Index is written inside `.tmp-<uuid>/`, `fsync`ed, and published by one `os.rename` of the directory (§3). Corrupt-index recovery is defined in §5. |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -342,9 +342,9 @@
+ 
+ **What the key catches that `(size, mtime_float)` does not:** atomic replace
+ with identical size and restored mtime (`ino`), and in-place rewrite followed
+ by `utime` (`ctime_ns` is bumped by `utimensat` even when `mtime` is forged).
+-It also stops losing the sub-microsecond `mtime_ns` digits to float.
++It also stops losing sub-microsecond precision by storing `mtime_ns` as an integer instead of `float` seconds.
+ 
+ **What it still misses (residual, unavoidable without reading bytes):**
+ 
+ 1. In-place content change with size unchanged, where the writer restores
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -727,9 +727,9 @@
+ - `python3 -m unittest` in this directory: **6 tests, OK, 0.006 s** — the
+   suite the design is required to keep green.
+ - `snaputil.safe_snapshot_path(root, "snap-x", "../../etc/passwd")` →
+   `.../snap-x/../../etc/passwd`; with `/etc/passwd` → `/etc/passwd`. The
+-  docstring at snaputil.py:57-61 is false.
++  docstring at snaputil.py:57-59 is false.
+ - `snaputil.list_snapshots` on `{snap-, snap-partial-deadbeef,
+   snap-20261112-150000-07, notasnap, <symlink named snap-…>}` returns the
+   first, second, third, and the symlink; only `notasnap` is ignored. So
+   neither the documented name validation (snaputil.py:9-14) nor the
+
+[0m
+[0m$ [0mgrep -n "never reused\|seq = max\|Capacity 10" DESIGN-d1.md
+47:  wall clock (immune to NTP steps/DST; UTC only for humans). Capacity 10^10
+48:  snapshots per source (1 run/min ≈ 19,000 years). Names are never reused:
+163:    `seq = max(valid seqs) + 1`; `dst = snap-<seq:010d>-<UTC>`; `os.rename(tmp, dst)`.
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [offset=44, limit=10][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -45,9 +45,11 @@
+ - **Name = `<seq:010d>-<UTC>Z`.** Sequence first, fixed width, so the plain
+   `sorted()` at snaputil.py:20 is chronological **by publish order**, not by
+   wall clock (immune to NTP steps/DST; UTC only for humans). Capacity 10^10
+   snapshots per source (1 run/min ≈ 19,000 years). Names are never reused:
+-  the allocator is monotonic (§4). This deliberately overrides the
++  the allocator's high-water mark is persisted in `.locks/seq` (atomic
++  replace), so pruning or quarantining never recycles a name (§3, §4). This
++  deliberately overrides the
+   `snap-20261112-150000-07` ordering implied by snaputil.py:11-14 — with the
+   old date-first, two-digit sequence, `-100` sorts before `-99`.
+ - **Payload under `data/`.** A source's own `index.json`/`data/` names cannot
+   shadow metadata; restore maps `data/<rel>`.
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -161,9 +161,12 @@
+ 
+ **Phase 3 — commit (the only visibility-changing step)**
+ 
+ 16. Take `<source_dir>/.locks/alloc.lock` (`LOCK_EX`). Under it:
+-    `seq = max(valid seqs) + 1`; `dst = snap-<seq:010d>-<UTC>`; `os.rename(tmp, dst)`.
++    `seq = max(highest seq ever published, max valid seq) + 1` (read from
++    `.locks/seq`, a persisted high-water mark, then atomically advanced so a
++    pruned or quarantined name is never recycled); `dst =
++    snap-<seq:010d>-<UTC>`; `os.rename(tmp, dst)`.
+     On `EEXIST`/`ENOTEMPTY` (verified: renaming onto an existing non-empty
+     directory raises errno 66), recompute `seq` and retry; at most 3 tries,
+     then a run error. Release the lock.
+ 17. Release the base reader lock; release the run lock (or let process exit
+
+[0m
+[0m$ [0msed -n '44,56p;160,175p' DESIGN-d1.md
+pointer that could be repointed under a reader.
+- **Name = `<seq:010d>-<UTC>Z`.** Sequence first, fixed width, so the plain
+  `sorted()` at snaputil.py:20 is chronological **by publish order**, not by
+  wall clock (immune to NTP steps/DST; UTC only for humans). Capacity 10^10
+  snapshots per source (1 run/min ≈ 19,000 years). Names are never reused:
+  the allocator's high-water mark is persisted in `.locks/seq` (atomic
+  replace), so pruning or quarantining never recycles a name (§3, §4). This
+  deliberately overrides the
+  `snap-20261112-150000-07` ordering implied by snaputil.py:11-14 — with the
+  old date-first, two-digit sequence, `-100` sorts before `-99`.
+- **Payload under `data/`.** A source's own `index.json`/`data/` names cannot
+  shadow metadata; restore maps `data/<rel>`.
+- **Incomplete work never matches `snap-`.** `.tmp-*`, `.trash/`, `.locks/`,
+    (`tmp/data/...` and `tmp/`) if `durability = power_loss` (see below).
+
+**Phase 3 — commit (the only visibility-changing step)**
+
+16. Take `<source_dir>/.locks/alloc.lock` (`LOCK_EX`). Under it:
+    `seq = max(highest seq ever published, max valid seq) + 1` (read from
+    `.locks/seq`, a persisted high-water mark, then atomically advanced so a
+    pruned or quarantined name is never recycled); `dst =
+    snap-<seq:010d>-<UTC>`; `os.rename(tmp, dst)`.
+    On `EEXIST`/`ENOTEMPTY` (verified: renaming onto an existing non-empty
+    directory raises errno 66), recompute `seq` and retry; at most 3 tries,
+    then a run error. Release the lock.
+17. Release the base reader lock; release the run lock (or let process exit
+    do it); append the summary line to `.runlog`; print it to stderr.
+
+**Why a reader never asks whether the run finished.** The final name appears
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -47,11 +47,11 @@
+   wall clock (immune to NTP steps/DST; UTC only for humans). Capacity 10^10
+   snapshots per source (1 run/min ≈ 19,000 years). Names are never reused:
+   the allocator's high-water mark is persisted in `.locks/seq` (atomic
+   replace), so pruning or quarantining never recycles a name (§3, §4). This
+-  deliberately overrides the
+-  `snap-20261112-150000-07` ordering implied by snaputil.py:11-14 — with the
+-  old date-first, two-digit sequence, `-100` sorts before `-99`.
++  deliberately overrides the `snap-20261112-150000-07` ordering implied by
++  snaputil.py:11-14 — with the old date-first, two-digit sequence, `-100`
++  sorts before `-99`.
+ - **Payload under `data/`.** A source's own `index.json`/`data/` names cannot
+   shadow metadata; restore maps `data/<rel>`.
+ - **Incomplete work never matches `snap-`.** `.tmp-*`, `.trash/`, `.locks/`,
+   `.runlog` are all invisible to `list_snapshots` (startswith test at
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -201,9 +201,9 @@
+ | Resource | Writers | Protection |
+ |---|---|---|
+ | `.tmp-<uuid>` | exactly one run | name uniqueness (uuid4, 122 bits) + `flock` on `tmp/LOCK` held for the run's life |
+ | published `snap-*` | nobody, ever, after publish | immutability by contract; only `recover` rewrites `index.json` via temp+rename (§5), which is atomic for readers |
+-| sequence numbers / final name | all runs of one source | `flock(LOCK_EX)` on `.locks/alloc.lock`, held only for scandir+rename, so publishes serialize for milliseconds |
++| sequence numbers / final name / `.locks/seq` | all runs of one source | `flock(LOCK_EX)` on `.locks/alloc.lock`, held only for the high-water read+advance and the rename, so publishes serialize for milliseconds |
+ | a snapshot being read (restore **or** a run using it as its base) | readers only | `flock(LOCK_SH)` on `.locks/read-<snapname>.lock`; prune needs `LOCK_EX` on the same file |
+ | `.trash/<uuid>` | one pruner | unique name; per-`uuid` deletion |
+ | `.runlog` | all runs | `O_APPEND` write of one line ≤4096 B |
+ | lock-file inodes | readers/pruner | open `O_CREAT`, `flock`, then compare `fstat(fd)` with `lstat(path)`; on `(dev,ino)` mismatch close and retry (≤3). The pruner unlinks a lock file only while holding `LOCK_EX` on it. Prevents the classic unlink/recreate double-inode race. |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -265,10 +265,16 @@
+ 1. For each `.tmp-*`: try `LOCK_EX|LOCK_NB` on `tmp/LOCK`.
+    - acquired → owner is dead (kernel released its lock) → `rmtree(tmp)`;
+      report `discarded incomplete run <uuid>`.
+    - `EWOULDBLOCK` → a live run owns it → leave it alone.
+-   No age/PID heuristic is involved; a laptop that slept mid-run is reaped on
+-   the next start, and a concurrently running scheduler job is never touched.
++   - `LOCK` does not exist yet (a run died in the microseconds between
++     `mkdir` and creating/locking the file) → reap only if the directory is
++     older than 60 s; a brand-new lock-less directory may be a live run
++     mid-start. The window is why the run creates and locks `LOCK` as its
++     first action after `mkdir`.
++   A laptop that slept mid-run is reaped on the next start (the kernel
++   released the lock at process death), and a concurrently running scheduler
++   job is never touched.
+ 2. For each `.trash/<uuid>` older than `min_age` (config, default 1 h) and
+    whose source snapshot name is no longer referenced: `rmtree`. Trash names
+    are invisible to readers already.
+ 3. For each `.quarantine` entry: leave it (a human decides); count it.
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -710,8 +710,11 @@
+ ---
+ 
+ ## 16. Assumptions and explicit limitations
+ 
++- `backup_root/sources/<source-id>/` is tool-owned: entries that do not
++  match the strict snapshot name are quarantined (renamed, with a report),
++  never deleted, never treated as snapshots.
+ - Backup root is a local POSIX filesystem with atomic `rename(2)` and working
+   `flock(2)` (APFS, ext4, xfs). Network filesystems are unsupported for
+   concurrent writers unless they provide POSIX `flock`; the tool refuses to
+   run if `flock` returns `ENOTSUP`.
+
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [limit=120][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -31,10 +31,10 @@
+ ```
+ 
+ Decisions embedded in the layout:
+ 
+-- **Per-source namespace.** `snaputil.list_snapshots(backup_root)` (snaputil.py:8)
+-  is per-directory, so each source lives in its own directory. Retention,
++- **Per-source namespace.** `snaputil.list_snapshots` (snaputil.py:8) works on
++  one directory, so each source lives in its own. Retention,
+   sequence numbers, and locks are per source; one source can never starve or
+   block another.
+ - **No global registry.** There is no `backup_root/index.json` and no `latest`
+   symlink. Names are the truth; each snapshot self-describes. A global index
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -54,9 +54,9 @@
+ - **Payload under `data/`.** A source's own `index.json`/`data/` names cannot
+   shadow metadata; restore maps `data/<rel>`.
+ - **Incomplete work never matches `snap-`.** `.tmp-*`, `.trash/`, `.locks/`,
+   `.runlog` are all invisible to `list_snapshots` (startswith test at
+-  snaputil.py:18) *and* to the strict validator in §3. Two independent
++  snaputil.py:18) *and* to the strict validator in §5. Two independent
+   barriers, because the existing test at snaputil.py:17-19 is too weak (§2).
+ 
+ ---
+ 
+
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [offset=240, limit=180][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -408,9 +408,10 @@
+ 4. Chunked copy (the durable path).
+ 
+ All four operate within one backup root on one filesystem. Measured per-file
+ cost at 4 KB is **metadata-bound, not byte-bound**: plain copy 0.235 ms,
+-clonefile 0.231 ms, hardlink 0.386 ms, temp+rename+attrs 0.46 ms. So reuse
++clonefile 0.231 ms, hardlink 0.386 ms, temp+rename+attrs 0.42 ms (0.46 with
++fsync). So reuse
+ buys *bytes and cold-cache reads*, not per-file time, at small file sizes;
+ for large files it is the whole game (0.6 ms vs 230 ms per GiB warm, ~700 ms
+ cold).
+ 
+
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [offset=420, limit=200][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -506,11 +506,13 @@
+ ## 11. Performance budget for the first full backup
+ 
+ **Contract:** 1 GiB tree, ~20,000 files, reference machine (APFS/SSD,
+ 8 workers, `durability = process_death`), **≤ 30 s wall**; measured
+-**4.8 s**. Single worker: measured 9.6 s, budget ≤ 90 s. HDD-backed backup
+-root: modelled 19 s, budget ≤ 120 s. Incremental run of the same tree with
+-100 changed files: measured ≈0.6 s, budget ≤ 10 s.
++**4.8 s**. Single worker: ≈9.6 s (9.14 s materialize + 0.43 s stats),
++budget ≤ 90 s. HDD-backed backup root: modelled 19 s, budget ≤ 120 s.
++Incremental run of the same tree with 100 changed files: derived from the
++same constants ≈0.6 s (0.43 s stats + 0.02 s copy + 0.06 s index), budget
++≤ 10 s.
+ 
+ **Where the numbers come from — measured, not asserted.** The tree was built
+ in a temp dir (200 dirs × 100 files × 4 KB = 82 MB; plus a separate 1 GiB
+ single file), using `synccli.scan_files` and `synccli.build_manifest` from
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -565,9 +565,9 @@
+ ## 12. What grows with what (`N` sources, per-tree F files / B bytes)
+ 
+ | Quantity | Bound | Basis |
+ |---|---|---|
+-| per-run CPU | `0.46 ms·F_d + ΔB_d/4.4 GB/s + 3.2 µs·F_d` (1 worker, process-death, 4 KB files) | measured §11 |
++| per-run CPU | `0.44 ms·F_d + ΔB_d/4.4 GB/s` (1 worker, process-death, 4 KB files; the 0.44 already includes one `lstat` at 21 µs, materialize at 420 µs, index at 3.2 µs) | measured §11 |
+ | per-run peak RSS | `352 B·F_d` (metadata map) + `P·2 MiB` copy buffers + `≤1 KiB` fixed; F_d = 1e6 → ≈350 MiB | tracemalloc 352 B/entry measured; serialization is streamed, so no second F-sized copy |
+ | open fds | `2P + 6` = 22 at `P = 8` (one source + one dest per worker, 3 locks, 1 log) | formula, constant in N and F |
+ | per-run startup work | `O(1)` in N and in retained snapshots: only this source's newest index is validated; reaper scans `#orphan tmp` + `#trash` (normally 0) | §5 |
+ | lock/sidecar inodes | `O(1)` per source (2) + `O(1)` per active run + `O(1)` per reading snapshot | §4 |
+
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [offset=620, limit=160][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -24,9 +24,9 @@
+           ...                               # (kept out of the snapshot root so a
+                                             #  source file named index.json cannot collide)
+       .tmp-<uuid4>/             # uncommitted run; invisible; contains LOCK + data/
+       .trash/<uuid4>/           # tombstoned snapshot awaiting purge
+-      .locks/                   # alloc.lock, read-<snapname>.lock
++      .locks/                   # run.lock, alloc.lock, seq, read-<snapname>.lock
+       .runlog                   # append-only, O_APPEND, one line <= 4096 B
+   .quarantine/<source-id>/<snapname>.<utcsec>/
+ ```
+ 
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -660,9 +660,10 @@
+ No output goes to stdout except data for `--json`/`list`.
+ 
+ Exit codes: `0` success (including `skipped_missing`); `2` snapshot published
+ but ≥1 source error (`errors > 0`); `3` success with recovery actions
+-(repaired/quarantined/reaped); `64` usage; `75` per-source run lock not
++(repaired/quarantined; reaping a dead run's `.tmp` is routine and stays 0);
++`64` usage; `75` per-source run lock not
+ acquired (retry later); `1` unexpected (no snapshot published). Scheduler and
+ person get the same codes and the same lines — there is no interactive path.
+ 
+ ---
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37660/DESIGN-d1.md
+@@ -720,9 +720,9 @@
+   never deleted, never treated as snapshots.
+ - Backup root is a local POSIX filesystem with atomic `rename(2)` and working
+   `flock(2)` (APFS, ext4, xfs). Network filesystems are unsupported for
+   concurrent writers unless they provide POSIX `flock`; the tool refuses to
+-  run if `flock` returns `ENOTSUP`.
++  run if `flock` is unsupported (`ENOTSUP`/`EOPNOTSUPP`/`ENOLCK`).
+ - Snapshots are immutable by contract. Prefer `clonefile`/`FICLONE`; if only
+   hardlinks are available, an external in-place edit of one snapshot's file
+   would be visible in every snapshot sharing that inode — `--reuse=copy`
+   removes the hazard.
+
+[0m
+[0m$ [0mpython3 - <<'PY'
+import re
+lines=open('DESIGN-d1.md').read().split('\n')
+i=0; bad=0
+while i<len(lines):
+    if lines[i].startswith('|'):
+        start=i
+        while i<len(lines) and lines[i].startswith('|'): i+=1
+        block=lines[start:i]
+        counts={l.count('|') for l in block}
+        if len(counts)>1:
+            print("table at line %d has inconsistent pipe counts: %s"%(start+1,sorted(counts))); bad+=1
+    else: i+=1
+print("tables checked, bad:", bad)
+print("lines:", len(lines), "words:", len(open('DESIGN-d1.md').read().split()))
+print("headings:", sum(1 for l in lines if l.startswith('#')))
+PY
+ls -la DESIGN-d1.md
+tables checked, bad: 0
+lines: 773 words: 7722
+headings: 20
+-rw-r--r--@ 1 sebastien.mendez  staff  51532 Nov 16 22:53 DESIGN-d1.md
+[0m
+Wrote `DESIGN-d1.md` (773 lines). It defines `backupctl`'s on-disk layout, atomic plan→stage→rename commit, locking/concurrency model, crash and corrupt-index recovery, unstable-source semantics, stat-key change detection with its blind spots, COW reuse, retention, restore path safety, a measured performance budget (4.8 s measured vs 30 s stated for 1 GiB/20k files), and explicit scaling bounds.
+
+Grounding is verified against this checkout: reuse of `scan_files`/`file_state`/`build_manifest`/`changed_files`/`dry_run` and `snaputil.list_snapshots`, with named overrides and line cites for the real defects found — `safe_snapshot_path` doesn't block traversal, `prune_snapshots(keep=0)` deletes everything, `list_snapshots` accepts junk/symlinks, `is_stale` contradicts its docstring, `copy_file` swallows errors and truncates in place, and `scan_files` drops dot-dirs and flattens symlinks.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 38752 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 37675 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-37660 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-D-D1-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-high-g21 above)

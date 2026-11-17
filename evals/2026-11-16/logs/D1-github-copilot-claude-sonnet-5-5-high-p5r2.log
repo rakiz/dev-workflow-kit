@@ -1,0 +1,752 @@
+[0m
+> build · claude-sonnet-5.5
+[0m
+[0m→ [0mRead BRIEF.md
+[0m✱ [0mGlob "**/*"[90m in . · 6 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-86133 && python3 --version && uname -a && python3 -m unittest 2>&1 | tail -5; df -h . | tail -1; sysctl -n machdep.cpu.brand_string hw.ncpu
+Python 3.10.11
+Darwin M-M2F74HXTVH 24.6.0 Darwin Kernel Version 24.6.0: Sun Aug 23 20:37:27 PDT 2026; root:xnu-11417.140.69.712.69~1/RELEASE_ARM64_T6031 arm64
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+/dev/disk3s5   926Gi   525Gi   383Gi    58%    4.4M  4.0G    0%   /System/Volumes/Data
+Apple M3 Max
+14
+[0m
+[0m$ [0mmkdir -p /tmp/bx && cd /tmp/bx && rm -rf * && cat > probe.py <<'EOF'
+import os, sys, tempfile, json, shutil
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-86133")
+import synccli, snaputil
+
+# 1 safe_snapshot_path escapes
+print("escape ..:", snaputil.safe_snapshot_path("/b","snap-1","../../etc/passwd"))
+print("escape abs:", snaputil.safe_snapshot_path("/b","snap-1","/etc/passwd"))
+print("escape ..x:", snaputil.safe_snapshot_path("/b","snap-1","a/../../x"))
+
+# 2 prune keep=0 / negative
+for k in (0,-1):
+    d=tempfile.mkdtemp()
+    for n in ("snap-20261112-150000-00","snap-20261112-150000-01"): os.mkdir(os.path.join(d,n))
+    print("prune keep",k, snaputil.prune_snapshots(d,k), snaputil.list_snapshots(d))
+
+# 3 ordering: seq width
+d=tempfile.mkdtemp()
+for n in ("snap-20261112-150000-99","snap-20261112-150000-100","snap-20261112-150000-07"): os.mkdir(os.path.join(d,n))
+print("order", snaputil.list_snapshots(d))
+# staged names
+os.mkdir(os.path.join(d,"snap-tmp-partial")); print("junk listed:", snaputil.list_snapshots(d))
+
+# 4 is_stale equality
+sd=tempfile.mkdtemp(); m=os.stat(sd).st_mtime
+print("is_stale at equality:", snaputil.is_stale(sd,m))
+
+# 5 disk usage with dangling symlink
+sd=tempfile.mkdtemp(); os.makedirs(sd+"/snap-x"); os.symlink("/nonexistent", sd+"/snap-x/l")
+try: print(snaputil.snapshot_disk_usage(sd,"snap-x"))
+except Exception as e: print("disk_usage dangling symlink ->", type(e).__name__)
+# symlink to dir silently skipped by scan
+s=tempfile.mkdtemp(); os.mkdir(s+"/real"); open(s+"/real/f","w").write("x"); os.symlink(s+"/real", s+"/lnk"); os.mkdir(s+"/.hid"); open(s+"/.hid/h","w").write("y"); open(s+"/.dot","w").write("z"); os.mkdir(s+"/empty")
+print("scan:", synccli.scan_files(s))
+# unreadable dir silently skipped
+os.mkdir(s+"/noperm"); open(s+"/noperm/p","w").write("p"); os.chmod(s+"/noperm",0)
+print("scan w/ unreadable dir:", synccli.scan_files(s)); os.chmod(s+"/noperm",0o755)
+# dangling symlink crash
+os.symlink("/nonexistent", s+"/dangling")
+try: synccli.build_manifest(s)
+except Exception as e: print("build_manifest dangling symlink ->", type(e).__name__)
+os.unlink(s+"/dangling")
+# unreadable file: manifest claims
+src=tempfile.mkdtemp(); dst=tempfile.mkdtemp(); open(src+"/secret","w").write("data"); os.chmod(src+"/secret",0)
+print("sync copied:", synccli.sync(src,dst)); print("dst has secret?", os.path.exists(dst+"/secret"), "manifest has:", list(json.load(open(dst+"/.sync_manifest.json"))))
+os.chmod(src+"/secret",0o644); print("rerun copies:", synccli.sync(src,dst))
+# truncated manifest
+open(dst+"/.sync_manifest.json","w").write('{"secret": {"si')
+try: synccli.sync(src,dst)
+except Exception as e: print("truncated manifest ->", type(e).__name__)
+# deletions
+src=tempfile.mkdtemp(); dst=tempfile.mkdtemp(); open(src+"/a","w").write("1"); synccli.sync(src,dst); os.unlink(src+"/a"); print("after delete:", synccli.sync(src,dst), os.listdir(dst))
+# same-size same-mtime edit missed
+src=tempfile.mkdtemp(); dst=tempfile.mkdtemp(); p=src+"/a"; open(p,"w").write("AAAA"); synccli.sync(src,dst)
+st=os.stat(p); open(p,"w").write("BBBB"); os.utime(p,ns=(st.st_atime_ns,st.st_mtime_ns))
+print("same size+mtime edit recopied:", synccli.sync(src,dst), "ctime changed:", os.stat(p).st_ctime_ns!=st.st_ctime_ns)
+print("exit code on failure:", "main returns 0 always")
+EOF
+python3 probe.py
+zsh:1: no matches found: *
+/Library/Frameworks/Python.framework/Versions/3.10/bin/python3: can't open file '/private/tmp/bx/probe.py': [Errno 2] No such file or directory
+[0m
+[0m$ [0mmkdir -p /tmp/bx && cd /tmp/bx && cat > probe.py <<'EOF'
+import os, sys, tempfile, json, shutil
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-86133")
+import synccli, snaputil
+print("escape ..:", snaputil.safe_snapshot_path("/b","snap-1","../../etc/passwd"))
+print("escape abs:", snaputil.safe_snapshot_path("/b","snap-1","/etc/passwd"))
+print("escape ..x:", snaputil.safe_snapshot_path("/b","snap-1","a/../../x"))
+for k in (0,-1):
+    d=tempfile.mkdtemp()
+    for n in ("snap-20261112-150000-00","snap-20261112-150000-01"): os.mkdir(os.path.join(d,n))
+    print("prune keep",k, snaputil.prune_snapshots(d,k), snaputil.list_snapshots(d))
+d=tempfile.mkdtemp()
+for n in ("snap-20261112-150000-99","snap-20261112-150000-100","snap-20261112-150000-07"): os.mkdir(os.path.join(d,n))
+print("order", snaputil.list_snapshots(d))
+os.mkdir(os.path.join(d,"snap-tmp-partial")); print("junk listed:", snaputil.list_snapshots(d))
+sd=tempfile.mkdtemp(); m=os.stat(sd).st_mtime
+print("is_stale at equality:", snaputil.is_stale(sd,m))
+sd=tempfile.mkdtemp(); os.makedirs(sd+"/snap-x"); os.symlink("/nonexistent", sd+"/snap-x/l")
+try: print(snaputil.snapshot_disk_usage(sd,"snap-x"))
+except Exception as e: print("disk_usage dangling symlink ->", type(e).__name__)
+s=tempfile.mkdtemp(); os.mkdir(s+"/real"); open(s+"/real/f","w").write("x"); os.symlink(s+"/real", s+"/lnk"); os.mkdir(s+"/.hid"); open(s+"/.hid/h","w").write("y"); open(s+"/.dot","w").write("z"); os.mkdir(s+"/empty")
+print("scan:", synccli.scan_files(s))
+os.mkdir(s+"/noperm"); open(s+"/noperm/p","w").write("p"); os.chmod(s+"/noperm",0)
+print("scan w/ unreadable dir:", synccli.scan_files(s)); os.chmod(s+"/noperm",0o755)
+os.symlink("/nonexistent", s+"/dangling")
+try: synccli.build_manifest(s)
+except Exception as e: print("build_manifest dangling symlink ->", type(e).__name__)
+os.unlink(s+"/dangling")
+src=tempfile.mkdtemp(); dst=tempfile.mkdtemp(); open(src+"/secret","w").write("data"); os.chmod(src+"/secret",0)
+print("sync copied:", synccli.sync(src,dst)); print("dst has secret?", os.path.exists(dst+"/secret"), "manifest has:", list(json.load(open(dst+"/.sync_manifest.json"))))
+os.chmod(src+"/secret",0o644); print("rerun copies:", synccli.sync(src,dst))
+open(dst+"/.sync_manifest.json","w").write('{"secret": {"si')
+try: synccli.sync(src,dst)
+except Exception as e: print("truncated manifest ->", type(e).__name__)
+src=tempfile.mkdtemp(); dst=tempfile.mkdtemp(); open(src+"/a","w").write("1"); synccli.sync(src,dst); os.unlink(src+"/a"); print("after delete:", synccli.sync(src,dst), os.listdir(dst))
+src=tempfile.mkdtemp(); dst=tempfile.mkdtemp(); p=src+"/a"; open(p,"w").write("AAAA"); synccli.sync(src,dst)
+st=os.stat(p); open(p,"w").write("BBBB"); os.utime(p,ns=(st.st_atime_ns,st.st_mtime_ns))
+print("same size+mtime edit recopied:", synccli.sync(src,dst), "| ctime changed:", os.stat(p).st_ctime_ns!=st.st_ctime_ns)
+# vanish between scan and stat
+src=tempfile.mkdtemp(); open(src+"/a","w").write("1"); open(src+"/b","w").write("1")
+orig=synccli.file_state
+def flaky(p):
+    if p.endswith("b"): os.unlink(p)
+    return orig(p)
+synccli.file_state=flaky
+try: synccli.build_manifest(src)
+except Exception as e: print("vanish before stat ->", type(e).__name__)
+synccli.file_state=orig
+# mtime float round trip & granularity
+import time
+print("float mtime json roundtrip exact:", json.loads(json.dumps(os.stat(p).st_mtime))==os.stat(p).st_mtime, "mtime_ns", os.stat(p).st_mtime_ns)
+EOF
+python3 probe.py
+escape ..: /b/snap-1/../../etc/passwd
+escape abs: /etc/passwd
+escape ..x: /b/snap-1/../x
+prune keep 0 ['snap-20261112-150000-00', 'snap-20261112-150000-01'] []
+prune keep -1 ['snap-20261112-150000-00', 'snap-20261112-150000-01'] []
+order ['snap-20261112-150000-07', 'snap-20261112-150000-100', 'snap-20261112-150000-99']
+junk listed: ['snap-20261112-150000-07', 'snap-20261112-150000-100', 'snap-20261112-150000-99', 'snap-tmp-partial']
+is_stale at equality: True
+disk_usage dangling symlink -> FileNotFoundError
+scan: ['.dot', 'real/f']
+scan w/ unreadable dir: ['.dot', 'real/f']
+build_manifest dangling symlink -> FileNotFoundError
+sync copied: ['secret']
+dst has secret? False manifest has: ['secret']
+rerun copies: []
+truncated manifest -> JSONDecodeError
+after delete: [] ['a', '.sync_manifest.json']
+same size+mtime edit recopied: [] | ctime changed: True
+vanish before stat -> FileNotFoundError
+float mtime json roundtrip exact: True mtime_ns 1794840856610605127
+[0m
+[0m$ [0mcd /tmp/bx && cat > gen.py <<'EOF'
+import os, random, sys
+random.seed(7)
+root="/tmp/bx/src"; F=30000; TOTAL=1<<30
+import math
+raw=[random.lognormvariate(0,2.0) for _ in range(F)]
+s=sum(raw); sizes=[max(1,int(r/s*TOTAL)) for r in raw]
+buf=os.urandom(1<<20)
+dirs=[f"d{i:03d}/s{j:02d}" for i in range(60) for j in range(10)]
+for d in dirs: os.makedirs(f"{root}/{d}",exist_ok=True)
+for i,sz in enumerate(sizes):
+    d=dirs[i%len(dirs)]
+    with open(f"{root}/{d}/f{i:05d}.dat","wb") as f:
+        n=sz
+        while n>0:
+            c=min(n,len(buf)); f.write(buf[:c]); n-=c
+print(F, sum(sizes), max(sizes), sorted(sizes)[F//2])
+EOF
+rm -rf src; time python3 gen.py; du -sh src
+30000 1073726902 11590167 5035
+python3 gen.py  0.22s user 3.26s system 83% cpu 4.166 total
+1.1G	src
+[0m
+[0m$ [0mcd /tmp/bx && cat > bench_sync.py <<'EOF'
+import sys,time,os,shutil
+sys.path.insert(0,"/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-86133")
+import synccli
+shutil.rmtree("/tmp/bx/dst_sync",ignore_errors=True)
+t=time.perf_counter(); m=synccli.build_manifest("/tmp/bx/src"); t1=time.perf_counter()-t
+print("scan+stat (build_manifest)",round(t1,3),len(m))
+t=time.perf_counter(); c=synccli.sync("/tmp/bx/src","/tmp/bx/dst_sync"); print("full sync",round(time.perf_counter()-t,2),len(c))
+t=time.perf_counter(); c=synccli.sync("/tmp/bx/src","/tmp/bx/dst_sync"); print("noop sync",round(time.perf_counter()-t,3),len(c))
+import json; print("manifest bytes",os.path.getsize("/tmp/bx/dst_sync/.sync_manifest.json"))
+EOF
+python3 bench_sync.py; (purge 2>&1 | head -1)
+scan+stat (build_manifest) 0.782 30000
+full sync 12.21 30000
+noop sync 0.786 0
+manifest bytes 2457934
+Unable to purge disk buffers: Operation not permitted
+[0m
+[0m$ [0mcd /tmp/bx && cat > proto.py <<'EOF'
+import os, sys, time, json, hashlib, shutil, resource, stat
+SRC="/tmp/bx/src"; 
+FSYNC = os.environ.get("FSYNC","1")=="1"
+HASH = os.environ.get("HASH","1")=="1"
+def scan(root):
+    out={}
+    for dp,dns,fns in os.walk(root):
+        for n in fns:
+            p=os.path.join(dp,n); st=os.lstat(p)
+            out[os.path.relpath(p,root)]={"size":st.st_size,"mtime_ns":st.st_mtime_ns,"ctime_ns":st.st_ctime_ns}
+    return out
+def copy(src,dst,fsync,hash_):
+    h=hashlib.sha256() if hash_ else None
+    fd=os.open(src,os.O_RDONLY)
+    try:
+        st=os.fstat(fd)
+        with os.fdopen(os.open(dst,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),"wb",buffering=0) as o:
+            while True:
+                b=os.read(fd,1<<20)
+                if not b: break
+                if h: h.update(b)
+                o.write(b)
+            if fsync: os.fsync(o.fileno())
+        os.utime(dst,ns=(st.st_atime_ns,st.st_mtime_ns))
+        os.chmod(dst,stat.S_IMODE(st.st_mode))
+    finally: os.close(fd)
+    return h.hexdigest() if h else None
+def run(tag, prev_root, prev_idx):
+    t0=time.perf_counter()
+    cur=scan(SRC); t_scan=time.perf_counter()-t0
+    stg=f"/tmp/bx/bk/.staging-{tag}"; shutil.rmtree(stg,ignore_errors=True); os.makedirs(stg)
+    made=set(); nl=nc=0; t1=time.perf_counter(); tl=tc=0
+    idx={}
+    for rel,s in sorted(cur.items()):
+        d=os.path.dirname(rel)
+        if d not in made: os.makedirs(os.path.join(stg,d),exist_ok=True); made.add(d)
+        o=prev_idx.get(rel)
+        if o and o["size"]==s["size"] and o["mtime_ns"]==s["mtime_ns"] and o["ctime_ns"]==s["ctime_ns"]:
+            a=time.perf_counter(); os.link(os.path.join(prev_root,rel),os.path.join(stg,rel)); tl+=time.perf_counter()-a; nl+=1
+            idx[rel]=dict(s,sha256=o.get("sha256"))
+        else:
+            a=time.perf_counter(); hx=copy(os.path.join(SRC,rel),os.path.join(stg,rel),FSYNC,HASH); tc+=time.perf_counter()-a; nc+=1
+            idx[rel]=dict(s,sha256=hx)
+    t_cp=time.perf_counter()-t1
+    t2=time.perf_counter()
+    if FSYNC:
+        for dp,dns,fns in os.walk(stg):
+            fd=os.open(dp,os.O_RDONLY); os.fsync(fd); os.close(fd)
+    os.makedirs(stg+"/.backupctl")
+    with open(stg+"/.backupctl/index.jsonl","w") as f:
+        for rel,s in idx.items(): f.write(json.dumps([rel,s["size"],s["mtime_ns"],s["ctime_ns"],s["sha256"]],separators=(",",":"))+"\n")
+        f.flush(); os.fsync(f.fileno())
+    final=f"/tmp/bx/bk/snap-{tag}"; os.rename(stg,final)
+    t_commit=time.perf_counter()-t2
+    print(f"{tag}: scan {t_scan:.2f}s  materialize {t_cp:.2f}s (link {nl} in {tl:.2f}s, copy {nc} in {tc:.2f}s)  finalize(dirsync+index+rename) {t_commit:.2f}s  TOTAL {time.perf_counter()-t0:.2f}s  maxrss {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1e6:.0f}MB")
+    return final, idx
+if __name__=="__main__":
+    shutil.rmtree("/tmp/bx/bk",ignore_errors=True); os.makedirs("/tmp/bx/bk")
+    print("FSYNC",FSYNC,"HASH",HASH)
+    r1,i1=run("a","",{})
+    r2,i2=run("b",r1,i1)
+EOF
+for cfg in "1 1" "0 1" "0 0"; do set -- $cfg; FSYNC=$1 HASH=$2 python3 proto.py; done
+du -sk /tmp/bx/bk/snap-a /tmp/bx/bk/snap-b; du -sk /tmp/bx/bk; ls -la /tmp/bx/bk/snap-b/.backupctl; wc -l /tmp/bx/bk/snap-b/.backupctl/index.jsonl
+FSYNC False HASH False
+a: scan 0.73s  materialize 13.38s (link 0 in 0.00s, copy 30000 in 13.25s)  finalize(dirsync+index+rename) 0.05s  TOTAL 14.16s  maxrss 72MB
+b: scan 0.71s  materialize 9.54s (link 30000 in 9.41s, copy 0 in 0.00s)  finalize(dirsync+index+rename) 0.05s  TOTAL 10.30s  maxrss 86MB
+FSYNC False HASH False
+a: scan 0.70s  materialize 16.91s (link 0 in 0.00s, copy 30000 in 16.70s)  finalize(dirsync+index+rename) 0.05s  TOTAL 17.66s  maxrss 81MB
+b: scan 0.78s  materialize 10.19s (link 30000 in 10.02s, copy 0 in 0.00s)  finalize(dirsync+index+rename) 0.05s  TOTAL 11.03s  maxrss 98MB
+FSYNC False HASH False
+a: scan 0.85s  materialize 13.25s (link 0 in 0.00s, copy 30000 in 13.11s)  finalize(dirsync+index+rename) 0.05s  TOTAL 14.14s  maxrss 73MB
+b: scan 0.75s  materialize 10.37s (link 30000 in 10.20s, copy 0 in 0.00s)  finalize(dirsync+index+rename) 0.05s  TOTAL 11.17s  maxrss 87MB
+1120964	/tmp/bx/bk/snap-a
+2176	/tmp/bx/bk/snap-b
+1123140	/tmp/bx/bk
+total 4352
+drwxr-xr-x@  3 sebastien.mendez  wheel       96 Nov 16 15:56 .
+drwxr-xr-x@ 63 sebastien.mendez  wheel     2016 Nov 16 15:56 ..
+-rw-r--r--@  1 sebastien.mendez  wheel  2225857 Nov 16 15:56 index.jsonl
+   30000 /tmp/bx/bk/snap-b/.backupctl/index.jsonl
+[0m
+[0m$ [0mcd /tmp/bx && cat > linkbench.py <<'EOF'
+import os,time,shutil,sys
+from concurrent.futures import ThreadPoolExecutor
+prev="/tmp/bx/bk/snap-a"
+files=[]
+for dp,dn,fn in os.walk(prev):
+    for n in fn:
+        if ".backupctl" in dp: continue
+        files.append(os.path.relpath(os.path.join(dp,n),prev))
+print(len(files))
+def go(workers,tag):
+    stg=f"/tmp/bx/lk-{tag}"; shutil.rmtree(stg,ignore_errors=True)
+    dirs={os.path.dirname(f) for f in files}
+    for d in dirs: os.makedirs(os.path.join(stg,d),exist_ok=True)
+    t=time.perf_counter()
+    if workers==1:
+        for f in files: os.link(os.path.join(prev,f),os.path.join(stg,f))
+    else:
+        with ThreadPoolExecutor(workers) as ex: list(ex.map(lambda f: os.link(os.path.join(prev,f),os.path.join(stg,f)),files))
+    print(tag,workers,"threads: link",round(time.perf_counter()-t,2),"s")
+    t=time.perf_counter(); shutil.rmtree(stg); print("   rmtree",round(time.perf_counter()-t,2),"s")
+for w in (1,4,8): go(w,f"w{w}")
+EOF
+python3 linkbench.py
+30000
+Traceback (most recent call last):
+  File "/private/tmp/bx/linkbench.py", line 21, in <module>
+    for w in (1,4,8): go(w,f"w{w}")
+  File "/private/tmp/bx/linkbench.py", line 16, in go
+    for f in files: os.link(os.path.join(prev,f),os.path.join(stg,f))
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/bx/bk/snap-a/d024/s05/f17645.dat' -> '/tmp/bx/lk-w1/d024/s05/f17645.dat'
+[0m
+[0m$ [0mcd /tmp/bx && for cfg in "1 1" "0 1" "0 0"; do F=${cfg% *}; H=${cfg#* }; FSYNC=$F HASH=$H python3 proto.py; done
+FSYNC True HASH True
+a: scan 0.74s  materialize 15.39s (link 0 in 0.00s, copy 30000 in 15.25s)  finalize(dirsync+index+rename) 0.15s  TOTAL 16.28s  maxrss 78MB
+b: scan 0.76s  materialize 10.82s (link 30000 in 10.63s, copy 0 in 0.00s)  finalize(dirsync+index+rename) 0.18s  TOTAL 11.75s  maxrss 92MB
+FSYNC False HASH True
+a: scan 0.98s  materialize 16.71s (link 0 in 0.00s, copy 30000 in 16.56s)  finalize(dirsync+index+rename) 0.06s  TOTAL 17.75s  maxrss 78MB
+b: scan 0.88s  materialize 11.03s (link 30000 in 10.84s, copy 0 in 0.00s)  finalize(dirsync+index+rename) 0.06s  TOTAL 11.97s  maxrss 93MB
+FSYNC False HASH False
+a: scan 0.82s  materialize 14.78s (link 0 in 0.00s, copy 30000 in 14.62s)  finalize(dirsync+index+rename) 0.05s  TOTAL 15.65s  maxrss 74MB
+b: scan 0.84s  materialize 11.15s (link 30000 in 10.94s, copy 0 in 0.00s)  finalize(dirsync+index+rename) 0.06s  TOTAL 12.05s  maxrss 88MB
+[0m
+[0m$ [0mcd /tmp/bx && ls bk; ls bk/snap-a | head -3; ls -la bk/snap-a/d024/s05 | head -5; ls bk/snap-a/d024/s05 | wc -l
+snap-a
+snap-b
+d000
+d001
+d002
+total 4488
+drwxr-xr-x@ 52 sebastien.mendez  wheel    1664 Nov 16 15:57 .
+drwxr-xr-x@ 12 sebastien.mendez  wheel     384 Nov 16 15:57 ..
+-rw-r--r--@  2 sebastien.mendez  wheel   61499 Nov 16 15:54 f00245.dat
+-rw-r--r--@  2 sebastien.mendez  wheel    2465 Nov 16 15:54 f00845.dat
+      50
+[0m
+[0m$ [0mcd /tmp/bx && ls bk/snap-a/d024/s05 | grep 17645; ls -la bk/snap-a/d024/s05/f17645.dat; ls -d lk-w1/d024/s05
+f17645.dat
+-rw-r--r--@ 2 sebastien.mendez  wheel  7330 Nov 16 15:54 bk/snap-a/d024/s05/f17645.dat
+lk-w1/d024/s05
+[0m
+[0m$ [0mcd /tmp/bx && rm -rf lk-*; python3 linkbench.py 2>&1 | tail -8
+30000
+w1 1 threads: link 11.19 s
+   rmtree 2.54 s
+w4 4 threads: link 5.77 s
+   rmtree 2.52 s
+w8 8 threads: link 6.02 s
+   rmtree 2.45 s
+[0m
+[0m$ [0mcd /tmp/bx && cat > decomp.py <<'EOF'
+import os,time,shutil,hashlib,sys
+sys.path.insert(0,"/tmp/bx")
+from proto import copy
+# big file
+os.makedirs("/tmp/bx/big",exist_ok=True)
+with open("/tmp/bx/big/one","wb") as f:
+    b=os.urandom(1<<20)
+    for _ in range(1024): f.write(b)
+shutil.rmtree("/tmp/bx/bigdst",ignore_errors=True); os.makedirs("/tmp/bx/bigdst")
+for fs,h in ((False,False),(True,False),(True,True)):
+    p="/tmp/bx/bigdst/o"
+    if os.path.exists(p): os.unlink(p)
+    t=time.perf_counter(); copy("/tmp/bx/big/one",p,fs,h); dt=time.perf_counter()-t
+    print(f"1GiB single file fsync={fs} hash={h}: {dt:.2f}s = {1024/dt:.0f} MiB/s")
+# sha256 only throughput
+t=time.perf_counter(); h=hashlib.sha256()
+with open("/tmp/bx/big/one","rb") as f:
+    while (b:=f.read(1<<20)): h.update(b)
+dt=time.perf_counter()-t; print(f"sha256 read 1GiB: {dt:.2f}s = {1024/dt:.0f} MiB/s")
+# tiny files
+os.makedirs("/tmp/bx/tiny",exist_ok=True)
+for i in range(30000): open(f"/tmp/bx/tiny/t{i}","wb").write(b"x")
+shutil.rmtree("/tmp/bx/tinydst",ignore_errors=True); os.makedirs("/tmp/bx/tinydst")
+for fs in (False,True):
+    d=f"/tmp/bx/tinydst/{int(fs)}"; os.makedirs(d)
+    t=time.perf_counter()
+    for i in range(30000): copy(f"/tmp/bx/tiny/t{i}",f"{d}/t{i}",fs,False)
+    dt=time.perf_counter()-t; print(f"30000 x 1-byte files fsync={fs}: {dt:.2f}s = {dt/30000*1e3:.3f} ms/file")
+EOF
+python3 decomp.py; rm -rf /tmp/bx/big /tmp/bx/bigdst /tmp/bx/tiny /tmp/bx/tinydst
+1GiB single file fsync=False hash=False: 0.28s = 3626 MiB/s
+1GiB single file fsync=True hash=False: 0.19s = 5391 MiB/s
+1GiB single file fsync=True hash=True: 0.59s = 1728 MiB/s
+sha256 read 1GiB: 0.51s = 1999 MiB/s
+30000 x 1-byte files fsync=False: 10.07s = 0.336 ms/file
+30000 x 1-byte files fsync=True: 9.10s = 0.303 ms/file
+[0m
+[0m$ [0mcd /tmp/bx && cat > thr.py <<'EOF'
+import os,time,shutil,sys
+sys.path.insert(0,"/tmp/bx")
+from proto import copy
+from concurrent.futures import ThreadPoolExecutor
+os.makedirs("/tmp/bx/tiny",exist_ok=True)
+for i in range(30000): open(f"/tmp/bx/tiny/t{i}","wb").write(b"x")
+for w in (1,2,4,8):
+    d=f"/tmp/bx/tinydst{w}"; shutil.rmtree(d,ignore_errors=True); os.makedirs(d)
+    t=time.perf_counter()
+    with ThreadPoolExecutor(w) as ex: list(ex.map(lambda i: copy(f"/tmp/bx/tiny/t{i}",f"{d}/t{i}",True,True),range(30000)))
+    print(w,"threads",round(time.perf_counter()-t,2),"s")
+EOF
+python3 thr.py; rm -rf /tmp/bx/tiny*
+1 threads 8.99 s
+2 threads 5.9 s
+4 threads 4.3 s
+8 threads 3.96 s
+[0m
+[0m$ [0mcd /tmp/bx && cat > proto2.py <<'EOF'
+import os,sys,time,json,shutil,resource,tracemalloc
+sys.path.insert(0,"/tmp/bx")
+import proto
+from proto import scan, copy
+from concurrent.futures import ThreadPoolExecutor
+SRC=proto.SRC
+def run(tag,prev_root,prev_idx,W=4):
+    t0=time.perf_counter(); cur=scan(SRC); ts=time.perf_counter()-t0
+    stg=f"/tmp/bx/bk/.staging-{tag}"; shutil.rmtree(stg,ignore_errors=True); os.makedirs(stg)
+    t1=time.perf_counter()
+    for d in {os.path.dirname(r) for r in cur}: os.makedirs(os.path.join(stg,d),exist_ok=True)
+    def one(item):
+        rel,s=item; o=prev_idx.get(rel)
+        if o and o["size"]==s["size"] and o["mtime_ns"]==s["mtime_ns"] and o["ctime_ns"]==s["ctime_ns"]:
+            os.link(os.path.join(prev_root,rel),os.path.join(stg,rel)); return rel,dict(s,sha256=o["sha256"]),0
+        return rel,dict(s,sha256=copy(os.path.join(SRC,rel),os.path.join(stg,rel),True,True)),1
+    with ThreadPoolExecutor(W) as ex: res=list(ex.map(one,sorted(cur.items())))
+    tm=time.perf_counter()-t1; t2=time.perf_counter()
+    for dp,dn,fn in os.walk(stg):
+        fd=os.open(dp,os.O_RDONLY); os.fsync(fd); os.close(fd)
+    os.makedirs(stg+"/.backupctl"); idx={r:s for r,s,_ in res}
+    with open(stg+"/.backupctl/index.jsonl","w") as f:
+        for r,s in idx.items(): f.write(json.dumps([r,s["size"],s["mtime_ns"],s["ctime_ns"],s["sha256"]],separators=(",",":"))+"\n")
+        f.flush(); os.fsync(f.fileno())
+    final=f"/tmp/bx/bk/snap-{tag}"; os.rename(stg,final)
+    print(f"{tag}: scan {ts:.2f} materialize {tm:.2f} (copied {sum(c for _,_,c in res)}) finalize {time.perf_counter()-t2:.2f} TOTAL {time.perf_counter()-t0:.2f}s maxrss {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1e6:.0f}MB")
+    return final,idx
+shutil.rmtree("/tmp/bx/bk",ignore_errors=True); os.makedirs("/tmp/bx/bk")
+def df(): return int(os.popen("df -k /tmp/bx | tail -1").read().split()[2])
+d0=df(); r1,i1=run("a","",{}); d1=df(); r2,i2=run("b",r1,i1); d2=df(); r3,i3=run("c",r2,i2); d3=df()
+print("df delta KB: full",d1-d0,"incr-b",d2-d1,"incr-c",d3-d2)
+# one changed file
+p=SRC+"/d000/s00/f00000.dat"; open(p,"ab").write(b"x")
+r4,i4=run("d",r3,i3)
+EOF
+python3 proto2.py; python3 proto2.py 2>&1 | tail -4
+a: scan 1.12 materialize 5.99 (copied 30000) finalize 0.17 TOTAL 7.27s maxrss 147MB
+b: scan 0.88 materialize 5.97 (copied 0) finalize 0.21 TOTAL 7.07s maxrss 169MB
+c: scan 1.03 materialize 5.98 (copied 0) finalize 0.21 TOTAL 7.23s maxrss 185MB
+df delta KB: full 1122144 incr-b 23124 incr-c 1604
+d: scan 1.11 materialize 5.82 (copied 1) finalize 0.22 TOTAL 7.16s maxrss 199MB
+b: scan 0.84 materialize 5.97 (copied 0) finalize 0.21 TOTAL 7.03s maxrss 175MB
+c: scan 1.09 materialize 5.90 (copied 0) finalize 0.22 TOTAL 7.21s maxrss 188MB
+df delta KB: full 1134688 incr-b 20248 incr-c 2808
+d: scan 1.08 materialize 5.95 (copied 1) finalize 0.21 TOTAL 7.24s maxrss 202MB
+[0m
+[0m$ [0mcd /tmp/bx && cat > mem.py <<'EOF'
+import sys,tracemalloc,json,time
+sys.path.insert(0,"/tmp/bx")
+from proto import scan
+tracemalloc.start()
+a=scan("/tmp/bx/src"); cur,_=tracemalloc.get_traced_memory()
+print("one 30k-entry dict {rel:{size,mtime_ns,ctime_ns}}: %.1f MB = %.0f B/entry"%(cur/1e6,cur/30000))
+t=time.perf_counter()
+idx={}
+for line in open("/tmp/bx/bk/snap-d/.backupctl/index.jsonl"):
+    r=json.loads(line); idx[r[0]]={"size":r[1],"mtime_ns":r[2],"ctime_ns":r[3],"sha256":r[4]}
+print("parse index.jsonl: %.3fs"%(time.perf_counter()-t))
+cur2,_=tracemalloc.get_traced_memory(); print("after loading prev index too: %.1f MB"%(cur2/1e6))
+EOF
+python3 mem.py; ls -l bk/snap-d/.backupctl/index.jsonl; head -c 300 bk/snap-d/.backupctl/index.jsonl
+# disk overhead of links, 6 snapshots
+python3 - <<'EOF'
+import os,shutil
+def df(): return int(os.popen("df -k /tmp/bx | tail -1").read().split()[2])
+base="/tmp/bx/bk/snap-a"; files=[]
+for dp,dn,fn in os.walk(base):
+    for n in fn: files.append(os.path.relpath(os.path.join(dp,n),base))
+dirs={os.path.dirname(f) for f in files}
+tot=[]
+for k in range(6):
+    stg=f"/tmp/bx/ov{k}"; d0=df()
+    for d in dirs: os.makedirs(os.path.join(stg,d),exist_ok=True)
+    for f in files: os.link(os.path.join(base,f),os.path.join(stg,f))
+    os.sync(); d1=df(); tot.append(d1-d0)
+print("df KB per 30k-link snapshot:",tot)
+for k in range(6): shutil.rmtree(f"/tmp/bx/ov{k}")
+EOF
+one 30k-entry dict {rel:{size,mtime_ns,ctime_ns}}: 13.5 MB = 450 B/entry
+parse index.jsonl: 1.302s
+after loading prev index too: 30.1 MB
+-rw-r--r--@ 1 sebastien.mendez  wheel  4085857 Nov 16 16:01 bk/snap-d/.backupctl/index.jsonl
+["d000/s00/f00000.dat",2455,1794841307039338324,1794841307039338324,"f128e76dece8dc42876dd0d90b61bb52a1cfc56c41c1d0daab70ff4fe538e921"]
+["d000/s00/f00600.dat",7023,1794840861505419493,1794840861505419493,"1337b4808bc189985ba1ddd19b1dfa7b59b9ceceef53913850763585fff23602"]
+["d000/s00/f01200.dat",128,1
+
+<shell_metadata>
+shell tool terminated command after exceeding timeout 120000 ms. If this command is expected to take longer and is not waiting for interactive input, retry with a larger timeout value in milliseconds.
+</shell_metadata>
+[0m
+[0m$ [0mcd /tmp/bx && rm -rf ov*; python3 - <<'EOF'
+import json,time
+t=time.perf_counter(); idx={}
+for line in open("/tmp/bx/bk/snap-d/.backupctl/index.jsonl"):
+    r=json.loads(line); idx[r[0]]={"size":r[1],"mtime_ns":r[2],"ctime_ns":r[3],"sha256":r[4]}
+print("parse index.jsonl (no tracemalloc): %.3fs"%(time.perf_counter()-t))
+EOF
+timeout 250 python3 - <<'EOF'
+import os,shutil,time
+def df(): return int(os.popen("df -k /tmp/bx | tail -1").read().split()[2])
+base="/tmp/bx/bk/snap-a"; files=[]
+for dp,dn,fn in os.walk(base):
+    for n in fn: files.append(os.path.relpath(os.path.join(dp,n),base))
+dirs={os.path.dirname(f) for f in files}
+tot=[]
+for k in range(3):
+    stg=f"/tmp/bx/ov{k}"; d0=df()
+    for d in dirs: os.makedirs(os.path.join(stg,d),exist_ok=True)
+    for f in files: os.link(os.path.join(base,f),os.path.join(stg,f))
+    time.sleep(2); d1=df(); tot.append(d1-d0)
+print("df KB per 30k-link snapshot:",tot)
+for k in range(3): shutil.rmtree(f"/tmp/bx/ov{k}")
+EOF
+parse index.jsonl (no tracemalloc): 0.034s
+zsh:8: command not found: timeout
+[0m
+[0m$ [0mcd /tmp/bx && rm -rf ov*; python3 - <<'EOF'
+import os,shutil,time
+def df(): return int(os.popen("df -k /tmp/bx | tail -1").read().split()[2])
+base="/tmp/bx/bk/snap-a"; files=[]
+for dp,dn,fn in os.walk(base):
+    for n in fn: files.append(os.path.relpath(os.path.join(dp,n),base))
+dirs={os.path.dirname(f) for f in files}
+tot=[]
+for k in range(3):
+    stg=f"/tmp/bx/ov{k}"; d0=df()
+    for d in dirs: os.makedirs(os.path.join(stg,d),exist_ok=True)
+    for f in files: os.link(os.path.join(base,f),os.path.join(stg,f))
+    time.sleep(2); d1=df(); tot.append(d1-d0)
+print("df KB per 30k-link snapshot:",tot)
+for k in range(3): shutil.rmtree(f"/tmp/bx/ov{k}")
+EOF
+zsh:1: no matches found: ov*
+df KB per 30k-link snapshot: [15124, 3472, 5524]
+[0m
+[0m$ [0mcd /tmp/bx && cat > memrun.py <<'EOF'
+import sys,json,time
+sys.path.insert(0,"/tmp/bx")
+import importlib.util,os,shutil
+src=open("/tmp/bx/proto2.py").read().split("shutil.rmtree(\"/tmp/bx/bk\"")[0]
+exec(src)
+idx={}
+for line in open("/tmp/bx/bk/snap-d/.backupctl/index.jsonl"):
+    r=json.loads(line); idx[r[0]]={"size":r[1],"mtime_ns":r[2],"ctime_ns":r[3],"sha256":r[4]}
+run("e","/tmp/bx/bk/snap-d",idx)
+EOF
+python3 memrun.py
+e: scan 0.97 materialize 5.33 (copied 0) finalize 0.21 TOTAL 6.51s maxrss 123MB
+[0m
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+[0m✗ [0mWrite  failed
+[91m[1mError: [0mTool execution aborted
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-86133 && python3 - <<'EOF'
+p="DESIGN-d1.md"; s=open(p).read()
+old_start=s.index("`T_full ≈ t_scan·F")
+old_end=s.index("**Budget: initial full backup")
+new="""`T_full ≈ t_scan·F + t_create·F/k + B/R + t_final`
+with `t_scan = 0.03 ms` (0.9 s / 30,000), `t_create = 0.30 ms` (APFS file
+create + metadata, 1 thread), `k = 2.1` (4 threads), `R = 1.7 GiB/s`
+(copy + sha256), `t_final = 0.2 s` ⇒ `0.9 + 4.3 + 0.6 + 0.2 ≈ 6.0 s` predicted;
+**measured 7.27 s** (thread contention accounts for the gap).
+
+"""
+s=s[:old_start]+new+s[old_end:]
+s=s.replace("""2. **Coalesce.** If the newest valid snapshot's `scan_started_ns > requested_ns`
+   (a run that began scanning after we asked has already committed), report
+   `coalesced` and finish with exit 0 for this directory — our request is
+   already satisfied by a newer image.
+3. **Janitor**""","""2. **Janitor**""")
+s=s.replace("""4. **Base selection.**""","""3. **Base selection.**""")
+s=s.replace("""   → recovery §6.3. Else `prev_states = {rel: state}` from the `f`/`l` lines.
+5. **Scan.**""","""   → recovery §6.3. Else `prev_states = {rel: state}` from the `f`/`l` lines.
+   **Coalesce:** if the valid base's `scan_started_ns > requested_ns` (another
+   run took the lock after our request and began scanning after it, so its
+   image is already at least as fresh as we were asked for), report
+   `coalesced` and finish this directory with exit 0.
+5. **Scan.**""")
+s=s.replace("(§4 step 9)","(§4 step 9)")
+s=s.replace("step 3 of the next run removes","step 2 (janitor) of the next run removes")
+s=s.replace("step 3 deletes it. Cost","step 2 (janitor) deletes it. Cost").replace("| step 3 finishes the deletion |","| step 2 (janitor) finishes the deletion |")
+s=s.replace("performed under the lock in step 4","performed under the lock in step 3")
+s=s.replace("(§4 step 9), so it","(§4 step 9), so it")
+s=s.replace("(second waits, then either coalesces (step 2) or runs","(second waits, then either coalesces or runs")
+s=s.replace("then either coalesces (step 2) or runs","then either coalesces (step 3) or runs")
+s=s.replace("* Memory: `/proc`-less; `resource.getrusage().ru_maxrss`","* Memory: `resource.getrusage().ru_maxrss`")
+s=s.replace("≈ **9.6 s** for `F=30,000, C=0` (measured 7.1 s run + 2.5 s rmtree)","≈ **9–10 s** for `F=30,000, C=0` (measured 7.1 s run + 2.5 s rmtree)")
+open(p,"w").write(s)
+EOF
+grep -n "step [0-9]" DESIGN-d1.md | head -30
+219:  waits, then either coalesces (step 3) or runs.
+261:| During materialize / finalize / index write | `.staging-<id>/` (possibly with a half-written `index.jsonl`) | nothing: name does not match `snap-*`, so `list_snapshots` ignores it (S1) | step 2 (janitor) deletes it. Cost of the lost work ≤ one run (§10). |
+266:| During `rmtree` of `.trash/x` | partial tree under `.trash/` | nothing (not `snap-*`) | step 2 (janitor) finishes the deletion |
+284:(§4 step 9), so it is **discarded wholesale** with the staging dir (§6.1). It
+292:### 6.3 Recovery procedure for (b), performed under the lock in step 3
+394:  (a failed run — exit 1 — does not run retention at all, step 11).
+409:   entry that step 2 (janitor) of the next run removes.
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-86133 && python3 - <<'EOF'
+import re
+p="DESIGN-d1.md"; s=open(p).read()
+a=s.index("## 4. The run algorithm"); b=s.index("## 5. Concurrency")
+sec=s[a:b]
+for old,new in [(12,11),(11,10),(10,9),(9,8),(8,7),(7,6),(6,5),(5,4)]:
+    sec=re.sub(rf"(?m)^{old}\. ",f"{new}. ",sec)
+s=s[:a]+sec+s[b:]
+# references elsewhere
+s=s.replace("(§4 step 9)","(§4 step 8)").replace("(§4 steps 8-10)","(§4 steps 7-9)")
+s=s.replace("step 8 `os.link` raises","step 7 `os.link` raises").replace("does not run retention at all, step 11","does not run retention at all, step 10")
+s=s.replace("(§4 step 8), so it","(§4 step 8), so it")
+s=s.replace("**Retention** (§9) — only if steps 1-10 succeeded","**Retention** (§9) — only if steps 1-9 succeeded")
+s=s.replace("(Retention runs only after","(Retention runs only after")
+open(p,"w").write(s)
+EOF
+sed -n 168,215p DESIGN-d1.md; grep -n "step 1[0-9]\|steps \|step [4-9]" DESIGN-d1.md
+## 4. The run algorithm (per directory, sequential across directories)
+
+Inputs: `dirkey`, source, config, flags (`--deep`, `--lock-timeout`, default 1800 s).
+
+1. `requested_ns = time.time_ns()`. Open `<root>/<dirkey>/.lock`; acquire
+   `flock(LOCK_EX)` polling every 1 s up to the timeout; timeout ⇒ report
+   `busy`, exit 75 for this directory.
+2. **Janitor** (we hold the exclusive lock, so no other writer exists):
+   delete every `.staging-*` and `.trash/*` (best-effort `rmtree` with chmod
+   retry). Report `cleaned: N dead staging, M trash`.
+3. **Base selection.** `names = [n for n in snaputil.list_snapshots(dir) if SNAP_RE.match(n)]`.
+   `base = names[-1]` if any. Validate its index (§3 footer check). On failure
+   → recovery §6.3. Else `prev_states = {rel: state}` from the `f`/`l` lines.
+   **Coalesce:** if the valid base's `scan_started_ns > requested_ns` (another
+   run took the lock after our request and began scanning after it, so its
+   image is already at least as fresh as we were asked for), report
+   `coalesced` and finish this directory with exit 0.
+4. **Scan.** `scan_started_ns = time.time_ns()` *before* the first `lstat`.
+   `scan_tree` + `build_manifest_ns` ⇒ `cur_states`, plus `vanished` and
+   `unreadable` records.
+4. **Diff.** `to_copy = synccli.changed_files(prev_states, cur_states)`; add
+   racy entries (§8); in `--deep` mode `to_copy` is "everything" but each file
+   is linked instead of copied when its source sha256 equals the base's.
+4. **Space preflight.** `need = Σ size(to_copy) + 0.65 KB × entries`;
+   if `statvfs` free < `1.1 × need + 64 MiB` ⇒ fail (exit 1) before writing
+   anything. Prior snapshots untouched.
+4. **Materialize** into `.staging-<runid>/` with 4 worker threads
+   (measured 2.1× over 1 thread, §10): create directories; per file either
+   `os.link(base/rel, staging/rel)` or `copy_file_strict`. If `os.link` raises
+   `FileNotFoundError` (base tree lacks a file its index promised) fall back to
+   copy and count `repaired`. Symlinks are re-created with `os.symlink`.
+   Per-file failures are classified (§7) and never abort the run.
+4. **Finalize.** fsync every staging directory, apply directory modes/mtimes
+   (children first), write `index.jsonl` (entries sorted by path, footer last),
+   `fsync` file, `fsync` `.backupctl/`.
+4. **Commit.** Choose the name (§2), `os.rename(staging, root/dirkey/<name>)`,
+    `fsync` `<root>/<dirkey>`. Rename onto an existing path fails (ENOTEMPTY);
+    that is a hard error, never an overwrite.
+4. **Retention** (§9) — only if steps 1-9 succeeded.
+4. Release the lock (also released by the kernel on any exit), emit the report
+    (§12).
+
+A directory whose run fails does not stop the other directories.
+
+---
+
+## 5. Concurrency
+
+206:4. **Retention** (§9) — only if steps 1-9 succeeded.
+240:     retired between steps 1 and 2 → go back to 1.
+268:| Kernel crash / power loss | as above, plus data-durability handled by fsync order: file data (per file) → directories → `index.jsonl` → rename → parent dir (§4 steps 7-9). On macOS plain `fsync` does not flush the drive cache; `fcntl(F_FULLFSYNC)` is used for `index.jsonl` and the parent dir. | only committed snapshots | `backupctl verify` can re-hash a snapshot against its index |
+284:(§4 step 8), so it is **discarded wholesale** with the staging dir (§6.1). It
+394:  (a failed run — exit 1 — does not run retention at all, step 10).
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-86133 && python3 - <<'EOF'
+import re
+p="DESIGN-d1.md"; s=open(p).read()
+a=s.index("4. **Scan.**"); b=s.index("A directory whose run fails")
+sec=s[a:b]; n=[3]
+def r(m): n[0]+=1; return f"{n[0]}. "
+sec=re.sub(r"(?m)^4\. ",r,sec)
+s=s[:a]+sec+s[b:]
+open(p,"w").write(s)
+EOF
+grep -n "^[0-9]*\. \*\*\|^[0-9]*\. Release\|^1\. \`req" DESIGN-d1.md | sed -n 1,20p
+172:1. `requested_ns = time.time_ns()`. Open `<root>/<dirkey>/.lock`; acquire
+175:2. **Janitor** (we hold the exclusive lock, so no other writer exists):
+178:3. **Base selection.** `names = [n for n in snaputil.list_snapshots(dir) if SNAP_RE.match(n)]`.
+185:4. **Scan.** `scan_started_ns = time.time_ns()` *before* the first `lstat`.
+188:5. **Diff.** `to_copy = synccli.changed_files(prev_states, cur_states)`; add
+191:6. **Space preflight.** `need = Σ size(to_copy) + 0.65 KB × entries`;
+194:7. **Materialize** into `.staging-<runid>/` with 4 worker threads
+200:8. **Finalize.** fsync every staging directory, apply directory modes/mtimes
+203:9. **Commit.** Choose the name (§2), `os.rename(staging, root/dirkey/<name>)`,
+206:10. **Retention** (§9) — only if steps 1-9 succeeded.
+207:11. Release the lock (also released by the kernel on any exit), emit the report
+407:3. Release, then `rmtree(.trash/…)`, with a handler that `chmod u+rwx` on
+552:1. **Differential**: for a seeded random tree and random mutations,
+554:2. **P-regression tests** for each probe in §1.2 against `backupctl`
+557:3. **Kill points**: fault injection (`BACKUPCTL_FAULT=<point>` raising
+561:4. **Index corruption matrix**: truncate at every line boundary and at random
+564:5. **Concurrency**: `multiprocessing` — 2 `run`s same dirkey (second coalesces
+568:6. **Granularity**: same-size edit with `os.utime` restoration ⇒ detected via
+571:7. **Retention**: property test — for random histories (with partial/unknown
+574:8. **Path safety**: `safe_rel` rejects `../x`, `/etc/passwd`, `a/../../x`,
+[0m
+[0m$ [0mrm -rf /tmp/bx; cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-86133 && ls && python3 -m unittest 2>&1 | tail -3
+__pycache__
+BRIEF.md
+DESIGN-d1.md
+snaputil.py
+synccli.py
+test_synccli.py
+Ran 6 tests in 0.003s
+
+OK
+[0m
+I wrote the design to `DESIGN-d1.md` in this repo copy. No `backupctl` code exists yet. The existing code is untouched and its 6 tests still pass.
+
+**Existing code**
+- I ran probes against the existing code and the design cites the results with file and line numbers.
+- Several functions don't do what they claim:
+  - `copy_file` swallows `OSError`, yet `sync()` still records the failed file in the manifest, so it is never retried.
+  - A truncated manifest makes the next `sync()` crash.
+  - `scan_files` silently drops dot-directories, directory symlinks and unreadable directories.
+  - `safe_snapshot_path` lets `..` and absolute paths escape the snapshot.
+  - `prune_snapshots(keep=0)` deletes every snapshot.
+- Each override is named in the design with its file, function and reason.
+- Three pieces are reused: `scan_files`' walk loop, `changed_files` (unchanged), and `list_snapshots` (behind a name filter).
+
+**Design**
+- **Snapshots:** one per directory per run. Each is a full plain tree where unchanged files are hard links to the previous snapshot.
+- **Concurrency and crashes:** a snapshot is built in a staging directory and published by one atomic rename. Writers on the same directory take a `flock`. Readers can optionally take shared leases.
+- **Failed files:** vanished files are omitted and the run still counts as complete (exit 0). Unreadable or unstable files make it a partial snapshot (exit 3). The behavior is the same whoever starts the run.
+- **Corrupt index:** the snapshot is quarantined, its tree is hashed and compared to the live source, and the run reports `RECOVERED`.
+- **Change detection:** "unchanged" is decided by size, mtime, ctime and mode, plus a check for files modified just before the last scan. The limits of this granularity are stated in the design.
+- **Retention:** at most 19 snapshots per directory, and the newest complete one is never deleted. Deletion renames a snapshot out of the listing before removing it.
+
+**Performance**
+- I measured a synthetic tree of 30,000 files and 1 GiB. The initial full backup ran in 7.3 s with 4 threads and 14–17.7 s single-threaded. The stated budget is ≤ 30 s.
+- The per-run, memory and disk bounds in the design are formulas with constants measured on this machine.
+- All measurements were on APFS with a warm cache. I could not purge the page cache, so cold-cache figures are derived, not measured.
+- An unchanged run costs about 7 s per 30,000-file directory because of the hard links, versus 0.79 s for `synccli`. The design explains this tradeoff and why I rejected sparse snapshots.
+./run-eval-v4.sh: line 167: 11333 Terminated: 15          sleep 300
+./run-eval-v4.sh: line 181: 86148 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-86133 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-D-D1-github-copilot-claude-sonnet-5-5-high-p5r2 above)

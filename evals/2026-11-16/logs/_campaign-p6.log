@@ -1,0 +1,13 @@
+[17:44:24] START IV2-github-copilot-gemini-4-argon-high-p6
+[17:44:24] START D1-github-copilot-gemini-4-argon-high-p6
+[17:44:24] START IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6
+[17:47:15] END IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6 (exit 0)
+[17:47:24] START IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6r2
+[17:51:49] END IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6r2 (exit 0)
+[17:51:55] START D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6
+[17:57:29] END D1-github-copilot-gemini-4-argon-high-p6 (exit 0)
+[17:57:40] START D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6r2
+[17:58:22] END IV2-github-copilot-gemini-4-argon-high-p6 (exit 0)
+[18:01:55] END D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6 (exit 0)
+[18:04:40] END D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6r2 (exit 0)
+[18:04:40] CAMPAIGN P6 DONE

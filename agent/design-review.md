@@ -15,4 +15,4 @@ To cover:
 3. Maintenance cost: simpler alternatives, and what they actually sacrifice.
 4. Blind spots: edge cases, migration, what breaks at scale.
 
-Verdict at the end of the output: `GO`, `GO WITH RESERVATIONS` (list), or `STOP` (with the proposed alternative). A critique without a verdict is useless.
+Verdict at the end of the output: `sound`, `needs work` (list the reservations), or `redesign` (with the proposed alternative). A critique without a verdict is useless.

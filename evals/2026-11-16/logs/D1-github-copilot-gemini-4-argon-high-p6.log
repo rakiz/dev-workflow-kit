@@ -1,0 +1,310 @@
+[0m
+> build · gemini-4-argon
+[0m
+[0m→ [0mRead BRIEF.md
+[0m→ [0mRead .
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mpython3 -m unittest -v && python3 -c '
+import os, time, tempfile, json, shutil, synccli
+
+tmp = tempfile.mkdtemp(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode")
+try:
+    src = os.path.join(tmp, "src")
+    dst1 = os.path.join(tmp, "dst1")
+    dst2 = os.path.join(tmp, "dst2")
+    os.makedirs(src)
+    os.makedirs(dst1)
+    os.makedirs(dst2)
+    # Create 2,000 files totaling ~100 MB (50 KB each) across 20 subdirs
+    payload = b"x" * 51200
+    t0 = time.perf_counter()
+    for d in range(20):
+        dp = os.path.join(src, f"dir_{d:02d}")
+        os.makedirs(dp)
+        for f in range(100):
+            with open(os.path.join(dp, f"file_{f:04d}.bin"), "wb") as fp:
+                fp.write(payload)
+    t_create = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    m = synccli.build_manifest(src)
+    t_manifest = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    for rel in m:
+        synccli.copy_file(os.path.join(src, rel), os.path.join(dst1, rel))
+    t_copy = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    for rel in m:
+        dpath = os.path.join(dst2, rel)
+        os.makedirs(os.path.dirname(dpath), exist_ok=True)
+        os.link(os.path.join(dst1, rel), dpath)
+    t_link = time.perf_counter() - t0
+
+    mp = os.path.join(tmp, "manifest.json")
+    t0 = time.perf_counter()
+    with open(mp, "w") as fp:
+        json.dump(m, fp)
+    t_json_write = time.perf_counter() - t0
+    msize = os.path.getsize(mp)
+
+    print(f"2000 files (100MB): build_manifest={t_manifest:.3f}s, copy_file={t_copy:.3f}s, hardlink={t_link:.3f}s, json_write={t_json_write:.3f}s (size={msize}B)")
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+'
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+OK
+2000 files (100MB): build_manifest=0.049s, copy_file=0.486s, hardlink=0.755s, json_write=0.004s (size=139476B)
+[0m
+[0m$ [0mpython3 -c '
+import os, time, tempfile, json, shutil, tracemalloc, synccli
+
+tmp = tempfile.mkdtemp(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode")
+try:
+    src = os.path.join(tmp, "src")
+    dst = os.path.join(tmp, "dst")
+    os.makedirs(src)
+    os.makedirs(dst)
+    # 20,000 files * 51,200 bytes = 1,024,000,000 bytes (~1.0 GiB) across 100 subdirs
+    payload = b"x" * 51200
+    for d in range(100):
+        dp = os.path.join(src, f"dir_{d:03d}")
+        os.makedirs(dp)
+        for f in range(200):
+            with open(os.path.join(dp, f"file_{f:04d}.bin"), "wb") as fp:
+                fp.write(payload)
+
+    tracemalloc.start()
+    t0 = time.perf_counter()
+    rels = synccli.scan_files(src)
+    t_scan = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    m = synccli.build_manifest(src)
+    t_manifest = time.perf_counter() - t0
+    mem_after_manifest, peak_manifest = tracemalloc.get_traced_memory()
+
+    t0 = time.perf_counter()
+    for rel in m:
+        synccli.copy_file(os.path.join(src, rel), os.path.join(dst, rel))
+    t_copy = time.perf_counter() - t0
+
+    mp = os.path.join(dst, synccli.MANIFEST_NAME)
+    t0 = time.perf_counter()
+    with open(mp, "w", encoding="utf-8") as fp:
+        json.dump(m, fp, indent=2)
+    t_json_write = time.perf_counter() - t0
+    msize = os.path.getsize(mp)
+
+    t0 = time.perf_counter()
+    with open(mp, "r", encoding="utf-8") as fp:
+        m2 = json.load(fp)
+    t_json_read = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    diff = synccli.changed_files(m2, m)
+    t_diff = time.perf_counter() - t0
+    _, peak_total = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    print(f"20,000 files (1.024 GB):")
+    print(f"  scan_files:     {t_scan:.3f}s")
+    print(f"  build_manifest: {t_manifest:.3f}s (mem={mem_after_manifest/1e6:.2f} MB, peak={peak_manifest/1e6:.2f} MB)")
+    print(f"  copy_file loop: {t_copy:.3f}s")
+    print(f"  json.dump:      {t_json_write:.3f}s (manifest size={msize/1e6:.2f} MB)")
+    print(f"  json.load:      {t_json_read:.3f}s")
+    print(f"  changed_files:  {t_diff:.3f}s")
+    print(f"  Total full run: {t_manifest + t_copy + t_json_write:.3f}s (peak traced mem={peak_total/1e6:.2f} MB)")
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+'
+20,000 files (1.024 GB):
+  scan_files:     0.336s
+  build_manifest: 0.807s (mem=9.24 MB, peak=9.40 MB)
+  copy_file loop: 6.201s
+  json.dump:      0.098s (manifest size=1.69 MB)
+  json.load:      0.030s
+  changed_files:  0.002s
+  Total full run: 7.105s (peak traced mem=19.21 MB)
+[0m
+[0m$ [0mpython3 -c '
+import os, time, tempfile, json, shutil, synccli
+
+tmp = tempfile.mkdtemp(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode")
+try:
+    src = os.path.join(tmp, "src")
+    dst_full = os.path.join(tmp, "dst_full")
+    dst_incr = os.path.join(tmp, "dst_incr")
+    os.makedirs(src)
+    os.makedirs(dst_full)
+    os.makedirs(dst_incr)
+
+    # 20,000 files * 51,200 bytes = 1,024,000,000 bytes (1.024 GB) across 100 dirs
+    payload = b"x" * 51200
+    for d in range(100):
+        dp = os.path.join(src, f"dir_{d:03d}")
+        os.makedirs(dp)
+        for f in range(200):
+            with open(os.path.join(dp, f"file_{f:04d}.bin"), "wb") as fp:
+                fp.write(payload)
+
+    # Full backup measurement
+    t0 = time.perf_counter()
+    m1 = synccli.build_manifest(src)
+    t_manifest1 = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    created_dirs = set()
+    for rel, st in m1.items():
+        s = os.path.join(src, rel)
+        d = os.path.join(dst_full, rel)
+        parent = os.path.dirname(d)
+        if parent not in created_dirs:
+            os.makedirs(parent, exist_ok=True)
+            created_dirs.add(parent)
+        with open(s, "rb") as fsrc, open(d, "wb") as fdst:
+            shutil.copyfileobj(fsrc, fdst, length=1048576)
+        os.utime(d, (st["mtime"], st["mtime"]))
+    t_copy_full = time.perf_counter() - t0
+
+    mp1 = os.path.join(dst_full, synccli.MANIFEST_NAME)
+    t0 = time.perf_counter()
+    with open(mp1, "w", encoding="utf-8") as fp:
+        json.dump(m1, fp, indent=2)
+        fp.flush()
+        os.fsync(fp.fileno())
+    t_json1 = time.perf_counter() - t0
+
+    # Incremental backup measurement: 1% changed (200 files = 10.24 MB), 99% unchanged (19,800 files hardlinked)
+    for f in range(200):
+        p = os.path.join(src, "dir_000", f"file_{f:04d}.bin")
+        with open(p, "wb") as fp:
+            fp.write(payload + b"y")
+
+    t0 = time.perf_counter()
+    m2 = synccli.build_manifest(src)
+    t_manifest2 = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    with open(mp1, "r", encoding="utf-8") as fp:
+        old_m = json.load(fp)
+    to_copy = set(synccli.changed_files(old_m, m2))
+    t_diff = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    created_dirs2 = set()
+    for rel, st in m2.items():
+        d = os.path.join(dst_incr, rel)
+        parent = os.path.dirname(d)
+        if parent not in created_dirs2:
+            os.makedirs(parent, exist_ok=True)
+            created_dirs2.add(parent)
+        if rel in to_copy:
+            s = os.path.join(src, rel)
+            with open(s, "rb") as fsrc, open(d, "wb") as fdst:
+                shutil.copyfileobj(fsrc, fdst, length=1048576)
+            os.utime(d, (st["mtime"], st["mtime"]))
+        else:
+            os.link(os.path.join(dst_full, rel), d)
+    t_incr_apply = time.perf_counter() - t0
+
+    print(f"Full (20k files, 1.024 GB): manifest={t_manifest1:.3f}s, copy+utime={t_copy_full:.3f}s, json+fsync={t_json1:.3f}s, TOTAL={t_manifest1+t_copy_full+t_json1:.3f}s")
+    print(f"Incr (1% changed, 99% link): manifest={t_manifest2:.3f}s, diff={t_diff:.3f}s, apply={t_incr_apply:.3f}s, TOTAL={t_manifest2+t_diff+t_incr_apply+t_json1:.3f}s")
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+'
+Full (20k files, 1.024 GB): manifest=0.485s, copy+utime=5.894s, json+fsync=0.046s, TOTAL=6.425s
+Incr (1% changed, 99% link): manifest=0.471s, diff=0.010s, apply=6.822s, TOTAL=7.350s
+[0m
+[0m$ [0mpython3 -c '
+import os, time, tempfile, json, shutil, synccli
+
+tmp = tempfile.mkdtemp(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode")
+try:
+    src = os.path.join(tmp, "src")
+    dst1 = os.path.join(tmp, "dst1")
+    dst2 = os.path.join(tmp, "dst2")
+    os.makedirs(src)
+    os.makedirs(dst1)
+    os.makedirs(dst2)
+
+    # 10,000 files * 102,400 bytes = 1,024,000,000 bytes (1.024 GB) across 100 dirs
+    payload = b"x" * 102400
+    for d in range(100):
+        dp = os.path.join(src, f"dir_{d:03d}")
+        os.makedirs(dp)
+        for f in range(100):
+            with open(os.path.join(dp, f"file_{f:04d}.bin"), "wb") as fp:
+                fp.write(payload)
+
+    t0 = time.perf_counter()
+    rels = synccli.scan_files(src)
+    t_scan = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    m1 = synccli.build_manifest(src)
+    t_manifest = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    for rel in m1:
+        synccli.copy_file(os.path.join(src, rel), os.path.join(dst1, rel))
+    t_synccli_copy = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    created_dirs = set()
+    for rel, st in m1.items():
+        s = os.path.join(src, rel)
+        d = os.path.join(dst2, rel)
+        parent = os.path.dirname(d)
+        if parent not in created_dirs:
+            os.makedirs(parent, exist_ok=True)
+            created_dirs.add(parent)
+        with open(s, "rb") as fsrc, open(d, "wb") as fdst:
+            shutil.copyfileobj(fsrc, fdst, length=1048576)
+        os.utime(d, (st["mtime"], st["mtime"]))
+    t_opt_copy = time.perf_counter() - t0
+
+    mp = os.path.join(dst2, synccli.MANIFEST_NAME)
+    t0 = time.perf_counter()
+    with open(mp, "w", encoding="utf-8") as fp:
+        json.dump(m1, fp, indent=2)
+        fp.flush()
+        os.fsync(fp.fileno())
+    t_json = time.perf_counter() - t0
+
+    print(f"10,000 files (1.024 GB): scan={t_scan:.3f}s, build_manifest={t_manifest:.3f}s, synccli.copy_file={t_synccli_copy:.3f}s, opt_copy+utime={t_opt_copy:.3f}s, json+fsync={t_json:.3f}s")
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+'
+10,000 files (1.024 GB): scan=0.061s, build_manifest=0.276s, synccli.copy_file=2.607s, opt_copy+utime=2.965s, json+fsync=0.025s
+[0m
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+The `backupctl` design has been written to `DESIGN-d1.md`.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 192: 26485 Terminated: 15          ( db_warned=0; while :; do
+    sleep 300; if ! cost="$(sqlite3 "$OC_DB" "$COST_Q" 2>/dev/null)"; then
+        if [ "$db_warned" -eq 0 ]; then
+            echo "warn: cannot read $OC_DB — cost polling degraded, continuing" 1>&2; db_warned=1;
+        fi; continue;
+    fi; if [ -z "$cost" ]; then
+        continue;
+    fi; if [ "$(awk -v c="$cost" -v cap="$EVAL_ARM_CAP"            'BEGIN { print (c + 0 > 2 * cap) ? 1 : 0 }')" = 1 ]; then
+        date +%s > "$WORK/arm-killed-costcap"; kill_arm; break;
+    fi;
+done )
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 26491 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-26451 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-D-D1-github-copilot-gemini-4-argon-high-p6 above)

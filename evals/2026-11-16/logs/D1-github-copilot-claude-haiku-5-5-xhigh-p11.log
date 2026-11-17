@@ -1,0 +1,526 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead BRIEF.md
+[0m✱ [0mGlob "**/*"[90m in . · 7 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m# [0mTodos
+[✓] Read BRIEF.md and existing code (synccli.py, snaputil.py, test_synccli.py)
+[•] Run existing test suite (no pycache writes into repo)
+[ ] Verify grounding claims (bugs/behaviors) in scratch dir outside repo
+[ ] Measure constants on ~1 GB synthetic tree (scratch dir): scan, copy, hash, fsync, memory, manifest size
+[ ] Write DESIGN-d1.md at repo root
+[ ] Re-verify cited line numbers and measured numbers against doc
+[0m
+[0m$ [0mwhoami; python3 --version; df -h /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T | tail -1; sysctl -n hw.ncpu hw.memsize 2>/dev/null; cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87362 && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v 2>&1 | tail -20
+sebastien.mendez
+Python 3.10.11
+/dev/disk3s5   926Gi   549Gi   360Gi    61%    5.2M  3.8G    0%   /System/Volumes/Data
+14
+38654705664
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.046s
+
+OK
+[0m
+Existing tests pass (6/6). Next I'll check the suspected behaviors of the existing code in a scratch directory outside the repo, so nothing gets written into the repo.
+[0m$ [0mmkdir -p /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && cat > /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1/verify_claims.py <<'EOF'
+import os, sys, json, shutil, tempfile, time
+REPO = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87362"
+sys.path.insert(0, REPO)
+sys.dont_write_bytecode = True
+import synccli, snaputil
+
+def new_tmp():
+    return tempfile.mkdtemp(dir="/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1")
+
+def section(t): print("\n== " + t)
+
+# 1. scan_files drops dot-directories, keeps dot-files
+section("1 scan_files dot-dirs / dot-files")
+r = new_tmp()
+os.makedirs(os.path.join(r, ".cache")); open(os.path.join(r, ".cache", "x.bin"), "w").write("x")
+open(os.path.join(r, ".hidden.txt"), "w").write("h")
+print("scan_files ->", synccli.scan_files(r))
+
+# 2. symlinks: symlinked dir silently dropped, symlinked file kept
+section("2 scan_files symlinks")
+r = new_tmp(); real = new_tmp()
+open(os.path.join(real, "data.txt"), "w").write("d")
+os.symlink(real, os.path.join(r, "linkdir"))
+os.symlink(os.path.join(real, "data.txt"), os.path.join(r, "linkfile"))
+print("scan_files ->", synccli.scan_files(r))
+
+# 3. unreadable subdirectory: os.walk default swallows the error
+section("3 scan_files unreadable subdir (os.walk onerror ignored)")
+r = new_tmp()
+os.makedirs(os.path.join(r, "locked")); open(os.path.join(r, "locked", "s.txt"), "w").write("s")
+open(os.path.join(r, "ok.txt"), "w").write("o")
+os.chmod(os.path.join(r, "locked"), 0)
+try:
+    print("scan_files ->", synccli.scan_files(r))
+finally:
+    os.chmod(os.path.join(r, "locked"), 0o755)
+
+# 4. vanish between scan and stat: build_manifest crashes
+section("4 build_manifest when a listed file vanishes before stat")
+r = new_tmp(); open(os.path.join(r, "a.txt"), "w").write("a")
+orig = synccli.scan_files
+synccli.scan_files = lambda root: ["a.txt", "gone.txt"]
+try:
+    synccli.build_manifest(r)
+    print("no error")
+except Exception as e:
+    print("raised", type(e).__name__, e)
+finally:
+    synccli.scan_files = orig
+
+# 5. unreadable source: swallowed, manifest records it, never retried
+section("5 sync with unreadable source file")
+src = new_tmp(); dst = new_tmp()
+p = os.path.join(src, "secret.txt"); open(p, "w").write("s"); os.chmod(p, 0)
+c1 = synccli.sync(src, dst)
+print("run1 copied ->", c1, "| dst has file:", os.path.exists(os.path.join(dst, "secret.txt")))
+print("run1 manifest records it:", "secret.txt" in json.load(open(os.path.join(dst, ".sync_manifest.json"))))
+c2 = synccli.sync(src, dst)
+print("run2 copied ->", c2, "(never retried)")
+os.chmod(p, 0o644)
+print("after chmod fix, run3 copied ->", synccli.sync(src, dst))
+
+# 6. destination-side write failure: also swallowed, reported as copied
+section("6 sync with unwritable destination subdir")
+src = new_tmp(); dst = new_tmp()
+os.makedirs(os.path.join(src, "sub")); open(os.path.join(src, "sub", "f.txt"), "w").write("f")
+os.makedirs(os.path.join(dst, "sub")); os.chmod(os.path.join(dst, "sub"), 0o555)
+c = synccli.sync(src, dst)
+print("returned copied ->", c, "| dst file exists:", os.path.exists(os.path.join(dst, "sub", "f.txt")))
+os.chmod(os.path.join(dst, "sub"), 0o755)
+
+# 7. corrupt manifest: sync crashes on every later run
+section("7 sync with corrupt/truncated manifest")
+src = new_tmp(); dst = new_tmp(); open(os.path.join(src, "a.txt"), "w").write("a")
+open(os.path.join(dst, ".sync_manifest.json"), "w").write('{"a.txt": {"size": 1')
+try:
+    synccli.sync(src, dst); print("no error")
+except Exception as e:
+    print("raised", type(e).__name__)
+
+# 8. collect_stale with a generator
+section("8 collect_stale with a generator (docstring says iterable)")
+try:
+    print(synccli.collect_stale((x for x in [("a", False)])))
+except Exception as e:
+    print("raised", type(e).__name__, e)
+
+# 9. prune_snapshots keep=0 / negative
+section("9 prune_snapshots keep=0 and keep=-1")
+for keep in (0, -1, 1):
+    b = new_tmp()
+    for n in ["snap-20261110-100000-01", "snap-20261111-100000-01", "snap-20261112-100000-01"]:
+        os.makedirs(os.path.join(b, n))
+    print("keep", keep, "deleted", snaputil.prune_snapshots(b, keep), "left", snaputil.list_snapshots(b))
+
+# 10. safe_snapshot_path escapes
+section("10 safe_snapshot_path with hostile manifest paths")
+print(snaputil.safe_snapshot_path("/bk", "snap-x", "../../etc/passwd"))
+print(snaputil.safe_snapshot_path("/bk", "snap-x", "/etc/passwd"))
+
+# 11. is_stale boundary vs docstring
+section("11 is_stale at exact ref_epoch (docstring: 'not stale')")
+d = new_tmp(); t = 1_700_000_000
+os.utime(d, (t, t))
+print("is_stale(dir, mtime) ->", snaputil.is_stale(d, t))
+
+# 12. snapshot_disk_usage double-counts hardlinks
+section("12 snapshot_disk_usage with hardlinked snapshots")
+b = new_tmp()
+os.makedirs(os.path.join(b, "snap-20261110-100000-01")); os.makedirs(os.path.join(b, "snap-20261111-100000-01"))
+big = os.path.join(b, "snap-20261110-100000-01", "big.bin"); open(big, "wb").write(b"x" * 10_000_000)
+os.link(big, os.path.join(b, "snap-20261111-100000-01", "big.bin"))
+print("usage snap1", snaputil.snapshot_disk_usage(b, "snap-20261110-100000-01"),
+      "snap2", snaputil.snapshot_disk_usage(b, "snap-20261111-100000-01"))
+
+# 13. list_snapshots lists half-made dirs (no completeness check)
+section("13 list_snapshots lists any snap-* dir")
+b = new_tmp(); os.makedirs(os.path.join(b, "snap-20261112-100000-01"))  # empty, no manifest
+print(snaputil.list_snapshots(b))
+
+# 14. manifest mtime precision: float seconds vs ns
+section("14 float mtime precision in manifest")
+f = os.path.join(new_tmp(), "t.txt"); open(f, "w").write("t")
+st = os.stat(f)
+print("st_mtime_ns", st.st_mtime_ns, "float round-trip ns", int(st.st_mtime * 1e9) == st.st_mtime_ns, "diff ns", st.st_mtime_ns - int(st.st_mtime * 1e9))
+EOF
+cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && python3 verify_claims.py 2>&1
+== 1 scan_files dot-dirs / dot-files
+scan_files -> ['.hidden.txt']
+
+== 2 scan_files symlinks
+scan_files -> ['linkfile']
+
+== 3 scan_files unreadable subdir (os.walk onerror ignored)
+scan_files -> ['ok.txt']
+
+== 4 build_manifest when a listed file vanishes before stat
+raised FileNotFoundError [Errno 2] No such file or directory: '/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1/tmpkqhbdr12/gone.txt'
+
+== 5 sync with unreadable source file
+run1 copied -> ['secret.txt'] | dst has file: False
+run1 manifest records it: True
+run2 copied -> [] (never retried)
+after chmod fix, run3 copied -> []
+
+== 6 sync with unwritable destination subdir
+returned copied -> ['sub/f.txt'] | dst file exists: False
+
+== 7 sync with corrupt/truncated manifest
+raised JSONDecodeError
+
+== 8 collect_stale with a generator (docstring says iterable)
+raised TypeError object of type 'generator' has no len()
+
+== 9 prune_snapshots keep=0 and keep=-1
+keep 0 deleted ['snap-20261110-100000-01', 'snap-20261111-100000-01', 'snap-20261112-100000-01'] left []
+keep -1 deleted ['snap-20261110-100000-01', 'snap-20261111-100000-01', 'snap-20261112-100000-01'] left []
+keep 1 deleted ['snap-20261110-100000-01', 'snap-20261111-100000-01'] left ['snap-20261112-100000-01']
+
+== 10 safe_snapshot_path with hostile manifest paths
+/bk/snap-x/../../etc/passwd
+/etc/passwd
+
+== 11 is_stale at exact ref_epoch (docstring: 'not stale')
+is_stale(dir, mtime) -> True
+
+== 12 snapshot_disk_usage with hardlinked snapshots
+usage snap1 10000000 snap2 10000000
+
+== 13 list_snapshots lists any snap-* dir
+['snap-20261112-100000-01']
+
+== 14 float mtime precision in manifest
+st_mtime_ns 1794857186983885091 float round-trip ns False diff ns 35
+[0m
+The existing-code claims check out, including several bugs. Next I'll build a synthetic ~1 GB, 30k-file tree in the scratch area to measure the constants the performance budget needs.
+[0m$ [0mcat > /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1/gen_tree.py <<'EOF'
+import os, random, math, sys
+ROOT = sys.argv[1]
+N_FILES = 30000
+TARGET = 1_000_000_000
+rng = random.Random(1)
+# lognormal sizes, rescaled to ~1 GB total
+sizes = [max(1, int(rng.lognormvariate(8.5, 1.6))) for _ in range(N_FILES)]
+scale = TARGET / sum(sizes)
+sizes = [max(1, int(s * scale)) for s in sizes]
+block = os.urandom(1 << 20)
+total = 0
+for i, sz in enumerate(sizes):
+    d = os.path.join(ROOT, f"eval-{i // 100:03d}", f"sub-{(i // 10) % 10}")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, f"r{i:05d}.dat"), "wb") as f:
+        left = sz
+        while left > 0:
+            n = min(left, len(block))
+            f.write(block[:n]); left -= n
+    total += sz
+print("files", N_FILES, "bytes", total, "median", sorted(sizes)[N_FILES // 2], "max", max(sizes))
+EOF
+cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && rm -rf tree && time python3 gen_tree.py /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1/tree && find tree -type f | wc -l && du -sk tree
+files 30000 bytes 999985252 median 9337 max 6608295
+python3 gen_tree.py   0.42s user 3.88s system 87% cpu 4.929 total
+   30000
+1039964	tree
+[0m
+Tree generated: 30,000 files, 999,985,252 bytes, median 9.3 KB, max 6.6 MB. Next I'll write a scratch-only prototype of the design's copy path (outside the repo) and time each stage separately, each in its own process so peak RSS is clean.
+[0m$ [0mcat > /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1/proto.py <<'EOF'
+"""Scratch prototype of the DESIGN-d1 copy path (NOT part of the repo).
+Usage: proto.py MODE SRC SNAPROOT [BASE_SNAP_DIR] [--fsync]
+MODE: scan | read | hash | full | synccli
+"""
+import os, sys, json, hashlib, time, resource, shutil
+sys.dont_write_bytecode = True
+CHUNK = 1 << 20
+RACY_NS = 2_000_000_000  # 2 s margin (FAT granularity)
+
+def walk_entries(src, errors):
+    out = []
+    for dirpath, dirnames, filenames in os.walk(src, onerror=errors.append):
+        for name in filenames:
+            full = os.path.join(dirpath, name)
+            out.append((os.path.relpath(full, src), full))
+    return out
+
+def copy_hash(full, dst, fsync):
+    """Stream-copy full -> dst while hashing; fstat before/after to detect torn reads."""
+    fd = os.open(full, os.O_RDONLY | os.O_NOFOLLOW if False else os.O_RDONLY)
+    h = hashlib.sha256()
+    try:
+        st0 = os.fstat(fd)
+        with os.fdopen(fd, "rb") as fsrc, open(dst, "wb") as fdst:
+            fd = None
+            while True:
+                buf = fsrc.read(CHUNK)
+                if not buf:
+                    break
+                h.update(buf)
+                fdst.write(buf)
+            st1 = os.fstat(fsrc.fileno())
+            if fsync:
+                fdst.flush(); os.fsync(fdst.fileno())
+    finally:
+        if fd is not None:
+            os.close(fd)
+    torn = (st0.st_size, st0.st_mtime_ns, st0.st_ctime_ns) != (st1.st_size, st1.st_mtime_ns, st1.st_ctime_ns)
+    return [st1.st_size, st1.st_mtime_ns, st1.st_ctime_ns, st1.st_ino, h.hexdigest(), torn]
+
+def main():
+    mode, src, snaproot = sys.argv[1], sys.argv[2], sys.argv[3]
+    base = sys.argv[4] if len(sys.argv) > 4 and not sys.argv[4].startswith("--") else None
+    fsync = "--fsync" in sys.argv
+    t0 = time.perf_counter()
+    errors = []
+    if mode == "synccli":
+        sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87362")
+        import synccli
+        synccli.sync(src, snaproot)
+        n = None
+    elif mode == "scan":
+        n = len(walk_entries(src, errors))
+        for _, full in walk_entries(src, errors):
+            os.lstat(full)
+    elif mode in ("read", "hash"):
+        n = 0
+        for _, full in walk_entries(src, errors):
+            h = hashlib.sha256() if mode == "hash" else None
+            with open(full, "rb") as f:
+                while True:
+                    b = f.read(CHUNK)
+                    if not b: break
+                    if h: h.update(b)
+            n += 1
+    elif mode == "full":
+        start_ns = time.time_ns()
+        staging = os.path.join(snaproot, ".staging-x")
+        snap = os.path.join(snaproot, "snap-x")
+        os.makedirs(staging)
+        baseline = {}
+        if base:
+            bm = json.load(open(os.path.join(base, "MANIFEST.json")))
+            baseline = bm["files"]; bstart = bm["started_ns"]
+        entries = walk_entries(src, errors)
+        manifest = {}
+        linked = copied = 0
+        made = set()
+        for rel, full in entries:
+            st = os.lstat(full)
+            key = [st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino]
+            b = baseline.get(rel)
+            dst = os.path.join(staging, rel)
+            d = os.path.dirname(dst)
+            if d not in made:
+                os.makedirs(d, exist_ok=True); made.add(d)
+            if b and b[:4] == key and b[1] < bstart - RACY_NS and b[2] < bstart - RACY_NS:
+                os.link(os.path.join(base, rel), dst)
+                manifest[rel] = b; linked += 1
+            else:
+                manifest[rel] = copy_hash(full, dst, fsync); copied += 1
+        n = len(entries)
+        doc = {"started_ns": start_ns, "files": manifest}
+        tmp = os.path.join(staging, "MANIFEST.json.tmp")
+        with open(tmp, "w") as f:
+            json.dump(doc, f, separators=(",", ":"))
+            f.flush(); os.fsync(f.fileno())
+        os.rename(tmp, os.path.join(staging, "MANIFEST.json"))
+        os.rename(staging, snap)
+        print(json.dumps({"linked": linked, "copied": copied, "manifest_bytes":
+                          os.path.getsize(os.path.join(snap, "MANIFEST.json"))}))
+    el = time.perf_counter() - t0
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss  # bytes on darwin
+    print(json.dumps({"mode": mode, "fsync": fsync, "base": bool(base), "entries": n,
+                      "seconds": round(el, 3), "max_rss_MB": round(rss / 1e6, 1), "errors": len(errors)}))
+
+main()
+EOF
+cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && T=$PWD/tree && for m in scan read hash; do python3 proto.py $m $T $PWD/unused; done; python3 proto.py scan $T $PWD/unused; python3 proto.py hash $T $PWD/unused
+{"mode": "scan", "fsync": false, "base": false, "entries": 30000, "seconds": 0.957, "max_rss_MB": 24.1, "errors": 0}
+{"mode": "read", "fsync": false, "base": false, "entries": 30000, "seconds": 5.704, "max_rss_MB": 56.0, "errors": 0}
+{"mode": "hash", "fsync": false, "base": false, "entries": 30000, "seconds": 6.033, "max_rss_MB": 56.8, "errors": 0}
+{"mode": "scan", "fsync": false, "base": false, "entries": 30000, "seconds": 0.83, "max_rss_MB": 24.1, "errors": 0}
+{"mode": "hash", "fsync": false, "base": false, "entries": 30000, "seconds": 10.371, "max_rss_MB": 54.1, "errors": 0}
+[0m
+Scan, read, and hash stages are measured. Next, the full-copy runs: the current `synccli` code, then the prototype with and without per-file fsync.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && T=$PWD/tree && rm -rf dst_sync && mkdir dst_sync && python3 proto.py synccli $T $PWD/dst_sync && du -sk dst_sync | cut -f1 && python3 proto.py synccli $T $PWD/dst_sync && rm -rf dst_sync && python3 proto.py synccli $T $PWD/dst_sync; rm -rf dst_sync; mkdir -p runA && python3 proto.py full $T $PWD/runA; du -sk runA | cut -f1
+{"mode": "synccli", "fsync": false, "base": false, "entries": null, "seconds": 80.678, "max_rss_MB": 83.8, "errors": 0}
+1042548
+{"mode": "synccli", "fsync": false, "base": false, "entries": null, "seconds": 0.988, "max_rss_MB": 52.2, "errors": 0}
+{"mode": "synccli", "fsync": false, "base": false, "entries": null, "seconds": 13.595, "max_rss_MB": 75.7, "errors": 0}
+{"linked": 0, "copied": 30000, "manifest_bytes": 4754090}
+{"mode": "full", "fsync": false, "base": false, "entries": 30000, "seconds": 10.911, "max_rss_MB": 71.3, "errors": 0}
+1044608
+[0m
+First full runs: current `synccli` took 80.7 s cold and 13.6 s on a fresh destination, versus 10.9 s for the prototype. I'll repeat the runs to get stable numbers, and add the fsync and incremental cases.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && T=$PWD/tree && rm -rf runB runC && mkdir runB runC && python3 proto.py full $T $PWD/runB --fsync && du -sk runB | cut -f1 && python3 proto.py full $T $PWD/runC --base $PWD/runA/snap-x && echo "incr-nochange disk KB: $(du -sk runC | cut -f1)" && python3 - <<'EOF'
+import os, random
+T = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1/tree"
+files = []
+for dp, dn, fn in os.walk(T):
+    for n in fn: files.append(os.path.join(dp, n))
+files.sort()
+rng = random.Random(7)
+pick = rng.sample(files, 300)
+for p in pick:
+    sz = os.path.getsize(p)
+    with open(p, "r+b") as f:
+        f.write(os.urandom(min(sz, 4096)))
+print("modified", len(pick), "files (same size, new content)")
+EOF
+rm -rf runD && mkdir runD && python3 proto.py full $T $PWD/runD --base $PWD/runA/snap-x && echo "incr-1pct disk KB: $(du -sk runD | cut -f1)"
+{"linked": 0, "copied": 30000, "manifest_bytes": 4754090}
+{"mode": "full", "fsync": true, "base": false, "entries": 30000, "seconds": 36.784, "max_rss_MB": 68.1, "errors": 0}
+1044608
+{"linked": 0, "copied": 30000, "manifest_bytes": 4754090}
+{"mode": "full", "fsync": false, "base": false, "entries": 30000, "seconds": 30.161, "max_rss_MB": 73.1, "errors": 0}
+incr-nochange disk KB: 1044608
+modified 300 files (same size, new content)
+{"linked": 0, "copied": 30000, "manifest_bytes": 4754090}
+{"mode": "full", "fsync": false, "base": false, "entries": 30000, "seconds": 13.386, "max_rss_MB": 78.1, "errors": 0}
+incr-1pct disk KB: 1044608
+[0m
+The incremental runs linked 0 files. That was a bug in my scratch CLI parser (it read `--base` as the baseline path), not a property of the design. I'll fix the parser, rebuild the baseline from the current tree, and repeat each measurement three times with a sync and pause between runs, since the first numbers varied a lot.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && python3 - <<'EOF'
+p = "proto.py"
+s = open(p).read()
+s = s.replace('''    base = sys.argv[4] if len(sys.argv) > 4 and not sys.argv[4].startswith("--") else None''',
+'''    base = sys.argv[sys.argv.index("--base") + 1] if "--base" in sys.argv else None''')
+open(p, "w").write(s)
+EOF
+grep -n "base = " proto.py && rm -rf runA runB runC runD && sync && sleep 3 && T=$PWD/tree && mkdir runE && python3 proto.py full $T $PWD/runE && mkdir runC2 && python3 proto.py full $T $PWD/runC2 --base $PWD/runE/snap-x && du -sk runC2 | cut -f1
+43:    base = sys.argv[sys.argv.index("--base") + 1] if "--base" in sys.argv else None
+{"linked": 0, "copied": 30000, "manifest_bytes": 4754090}
+{"mode": "full", "fsync": false, "base": false, "entries": 30000, "seconds": 11.157, "max_rss_MB": 74.8, "errors": 0}
+{"linked": 30000, "copied": 0, "manifest_bytes": 4754090}
+{"mode": "full", "fsync": false, "base": true, "entries": 30000, "seconds": 11.703, "max_rss_MB": 56.3, "errors": 0}
+1044608
+[0m
+The incremental no-change run linked all 30,000 files but still took 11.7 s, about the same as a full copy. Hardlink creation looks like the cost, not data copying. I'll isolate per-file metadata costs (empty create, hardlink, lstat) before setting the budget.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && cat > micro.py <<'EOF'
+import os, sys, time, json, shutil
+sys.dont_write_bytecode = True
+BASE = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1"
+SNAP = os.path.join(BASE, "runE", "snap-x")
+rels = []
+for dp, dn, fn in os.walk(SNAP):
+    for n in fn:
+        if n != "MANIFEST.json":
+            rels.append(os.path.relpath(os.path.join(dp, n), SNAP))
+rels.sort()
+out = os.path.join(BASE, "micro_out")
+mode = sys.argv[1]
+shutil.rmtree(out, ignore_errors=True); os.makedirs(out)
+made = set()
+def mk(rel):
+    d = os.path.dirname(os.path.join(out, rel))
+    if d not in made:
+        os.makedirs(d, exist_ok=True); made.add(d)
+t0 = time.perf_counter()
+if mode == "link":
+    for r in rels:
+        mk(r); os.link(os.path.join(SNAP, r), os.path.join(out, r))
+elif mode == "empty":
+    for r in rels:
+        mk(r); open(os.path.join(out, r), "wb").close()
+elif mode == "lstat":
+    for r in rels:
+        os.lstat(os.path.join(SNAP, r))
+elif mode == "mkdirs":
+    for r in rels:
+        mk(r)
+print(json.dumps({"mode": mode, "files": len(rels), "seconds": round(time.perf_counter() - t0, 3)}))
+EOF
+for i in 1 2; do for m in lstat mkdirs empty link; do python3 micro.py $m; done; done
+{"mode": "lstat", "files": 30000, "seconds": 0.127}
+{"mode": "mkdirs", "files": 30000, "seconds": 0.31}
+{"mode": "empty", "files": 30000, "seconds": 2.976}
+{"mode": "link", "files": 30000, "seconds": 11.234}
+{"mode": "lstat", "files": 30000, "seconds": 0.142}
+{"mode": "mkdirs", "files": 30000, "seconds": 0.432}
+{"mode": "empty", "files": 30000, "seconds": 4.533}
+{"mode": "link", "files": 30000, "seconds": 12.835}
+[0m
+Per-file costs on this APFS volume: `lstat` about 0.005 ms, empty-file create about 0.1–0.15 ms, and `os.link` about 0.4 ms. Hardlinking unchanged files therefore costs more per file than the lstat check, and the incremental path is metadata-bound. I'll repeat each measurement to get stable medians before using them in the budget.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1 && cat > driver.py <<'EOF'
+import subprocess, shutil, os, json, time, sys
+BASE = "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/d1"
+T = os.path.join(BASE, "tree")
+def clean(*paths):
+    for p in paths:
+        shutil.rmtree(p, ignore_errors=True)
+    subprocess.run(["sync"]); time.sleep(2)
+def run(args):
+    out = subprocess.run([sys.executable, os.path.join(BASE, "proto.py")] + args,
+                         capture_output=True, text=True, timeout=900)
+    lines = [l for l in out.stdout.splitlines() if l.startswith("{\"mode\"")]
+    if out.returncode or not lines:
+        print("FAILED", args, out.stderr[-500:]); return None
+    return json.loads(lines[-1])
+results = []
+which = sys.argv[1]
+if which == "full":
+    for i in range(3):
+        d = os.path.join(BASE, f"trial_sync{i}"); clean(d); os.makedirs(d)
+        r = subprocess.run(["python3", "-c", f"import sys,time;sys.path.insert(0,'/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87362');import synccli;t=time.perf_counter();synccli.sync('{T}','{d}');print('SYNCCLI', round(time.perf_counter()-t,3))"], capture_output=True, text=True, timeout=900)
+        print("synccli full", r.stdout.strip(), r.stderr[-200:])
+        clean(d)
+    for i in range(5):
+        d = os.path.join(BASE, f"trial_full{i}"); clean(d); os.makedirs(d)
+        print("proto full nofsync", run(["full", T, d]))
+        clean(d)
+    for i in range(3):
+        d = os.path.join(BASE, f"trial_fsync{i}"); clean(d); os.makedirs(d)
+        print("proto full fsync", run(["full", T, d, "--fsync"]))
+        clean(d)
+elif which == "read":
+    for i in range(3):
+        print("scan", run(["scan", T, "x"]))
+        print("read", run(["read", T, "x"]))
+        print("hash", run(["hash", T, "x"]))
+elif which == "incr":
+    E = os.path.join(BASE, "runE", "snap-x")
+    for i in range(3):
+        d = os.path.join(BASE, f"trial_inc0_{i}"); clean(d); os.makedirs(d)
+        print("incr nochange", run(["full", T, d, "--base", E]))
+        clean(d)
+elif which == "incr1pct":
+    E = os.path.join(BASE, "runE", "snap-x")
+    for i in range(3):
+        d = os.path.join(BASE, f"trial_inc1_{i}"); clean(d); os.makedirs(d)
+        print("incr 1pct", run(["full", T, d, "--base", E]))
+        clean(d)
+EOF
+python3 driver.py full 2>&1 | tail -30
+synccli full SYNCCLI 9.069 
+synccli full SYNCCLI 9.127 
+synccli full SYNCCLI 8.311 
+proto full nofsync {'mode': 'full', 'fsync': False, 'base': False, 'entries': 30000, 'seconds': 8.873, 'max_rss_MB': 74.5, 'errors': 0}
+proto full nofsync {'mode': 'full', 'fsync': False, 'base': False, 'entries': 30000, 'seconds': 8.158, 'max_rss_MB': 71.5, 'errors': 0}
+proto full nofsync {'mode': 'full', 'fsync': False, 'base': False, 'entries': 30000, 'seconds': 9.238, 'max_rss_MB': 72.9, 'errors': 0}
+proto full nofsync {'mode': 'full', 'fsync': False, 'base': False, 'entries': 30000, 'seconds': 8.807, 'max_rss_MB': 71.7, 'errors': 0}
+proto full nofsync {'mode': 'full', 'fsync': False, 'base': False, 'entries': 30000, 'seconds': 7.834, 'max_rss_MB': 68.1, 'errors': 0}
+proto full fsync {'mode': 'full', 'fsync': True, 'base': False, 'entries': 30000, 'seconds': 8.594, 'max_rss_MB': 71.4, 'errors': 0}
+proto full fsync {'mode': 'full', 'fsync': True, 'base': False, 'entries': 30000, 'seconds': 8.33, 'max_rss_MB': 69.7, 'errors': 0}
+proto full fsync {'mode': 'full', 'fsync': True, 'base': False, 'entries': 30000, 'seconds': 10.642, 'max_rss_MB': 71.0, 'errors': 0}
+[0m
+The full-copy timings are now stable: `synccli` 8.3–9.1 s, prototype without fsync 7.8–9.2 s, prototype with per-file fsync 8.3–10.6 s. The 30–37 s outliers earlier were writeback from my own deletions. Next, the read/hash decomposition and the incremental cases.
+./run-eval-v4.sh: line 185: 87384 Terminated: 15          opencode run --dir "$WORK" --model "$MODEL" --variant "$VARIANT" --title "$TITLE" --auto "$PROMPT"
+./run-eval-v4.sh: line 167: 94577 Terminated: 15          sleep 300
+./run-eval-v4.sh: line 116: 95246 Terminated: 15          sleep 5
+arm-killed-timeout: eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-xhigh-p11 hit the 15-min watchdog; run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-87362

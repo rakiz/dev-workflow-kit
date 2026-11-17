@@ -1,0 +1,924 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3p1-flash
+[0m
+I'll start by reading the brief.
+[0m→ [0mRead BRIEF.md
+[0m
+[0m$ [0mls -la /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840
+total 40
+drwxr-xr-x@    5 sebastien.mendez  staff    160 Nov 17 00:02 __pycache__
+drwxr-xr-x@    7 sebastien.mendez  staff    224 Nov 17 00:02 .
+drwx------@ 1134 sebastien.mendez  staff  36288 Nov 17 00:02 ..
+-rw-r--r--@    1 sebastien.mendez  staff   4974 Nov 17 00:02 BRIEF.md
+-rw-r--r--@    1 sebastien.mendez  staff   3072 Nov 17 00:02 snaputil.py
+-rw-r--r--@    1 sebastien.mendez  staff   3169 Nov 17 00:02 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff   1834 Nov 17 00:02 test_synccli.py
+[0m
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mls -la /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/__pycache__; df -h /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840; python3 -VV; nproc; sysctl -n hw.memsize hw.ncpu 2>/dev/null
+total 24
+drwxr-xr-x@ 5 sebastien.mendez  staff   160 Nov 17 00:02 .
+drwxr-xr-x@ 7 sebastien.mendez  staff   224 Nov 17 00:02 ..
+-rw-r--r--@ 1 sebastien.mendez  staff  3308 Nov 17 00:02 snaputil.cpython-310.pyc
+-rw-r--r--@ 1 sebastien.mendez  staff  3608 Nov 17 00:02 synccli.cpython-310.pyc
+-rw-r--r--@ 1 sebastien.mendez  staff  2912 Nov 17 00:02 test_synccli.cpython-310.pyc
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   926Gi   618Gi   290Gi    69%    5.9M  3.0G    0%   /System/Volumes/Data
+Python 3.10.11 (v3.10.11:7d4cc5aa85, Apr  4 2023, 19:05:19) [Clang 13.0.0 (clang-1300.0.29.30)]
+zsh:1: command not found: nproc
+38654705664
+14
+[0m
+[0m$ [0mpython3 -m unittest -v 2>&1 | tail -20
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+[0m
+Tests pass. Now I'll take measurements to ground the performance claims. Let me build a benchmark harness in the scratch dir.
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench_backupctl.py 30000
+== building synthetic tree: 30000 files ==
+built 30000 files, 200 dirs, 574.2 MiB in 3.57 s
+
+== primitive costs ==
+build_manifest (os.walk + os.stat x N)             0.276 s
+   files=30000  manifest entries=30000
+   manifest json size = 2745691 bytes (91.5 B/file)
+synccli.copy_file x changed files                  5.672 s
+   copied=30000
+synccli.sync (full: manifest+copy+write)           4.981 s
+   note: second synccli.sync is a no-op; above already copied
+synccli.sync (incremental, nothing changed)        0.372 s
+   copied=0
+
+== snaputil costs ==
+snaputil.list_snapshots                            0.000 s
+snaputil.snapshot_disk_usage                       0.000 s
+
+== summary ==
+tree: 30000 files, 574.2 MiB
+manifest scan: 0.276 s  -> 9.2 us/file
+copy phase:     5.672 s  -> 101.2 MiB/s
+incremental sync (scan only): 0.372 s
+manifest bytes/file: 91.5
+[0m
+Good baseline. Now a refined run at ~1 GB with per-size-class throughput, fsync/replace costs, and scan scaling.
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py
+tree: 35000 files, 0.88 GiB, built in 4.3 s
+
+== scan (synccli.build_manifest) scaling ==
+  F=  7000  t= 0.079 s   11.24 us/file
+  F= 14000  t= 0.132 s    9.41 us/file
+  F= 21000  t= 0.229 s   10.92 us/file
+  F= 28000  t= 0.266 s    9.51 us/file
+  F= 35000  t= 0.303 s    8.66 us/file
+  fit: t_scan = 0.026854 s + 8.331 us/file
+
+== copy throughput by size class (synccli.copy_file) ==
+     4096 B/file x200 :  0.031 s    24.9 MiB/s  (0.157 ms/file)
+    65536 B/file x100 :  0.017 s   369.7 MiB/s  (0.169 ms/file)
+  1048576 B/file x 20 :  0.006 s  3180.5 MiB/s  (0.314 ms/file)
+  67108864 B/file x  2 :  0.072 s  1784.8 MiB/s  (35.859 ms/file)
+
+synccli.sync full (manifest + copy + write manifest): 12.075 s
+synccli.sync incremental (nothing changed):            0.402 s  copied=0
+json.load of previous index: 0.013 s for 35000 entries
+index size on disk: 3147065 bytes (89.9 B/file)
+changed_files compare: 0.002 s
+
+fsync(4KiB write): median 0.030 ms, p95 0.037 ms
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py", line 171, in <module>
+    main()
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench2.py", line 140, in main
+    os.replace(os.path.join(SCRATCH, "fs.bin"), os.path.join(SCRATCH, "fs2.bin"))
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/scratch2/fs.bin' -> '/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/scratch2/fs2.bin'
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench3.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench3.py
+os.replace: 0.0747 ms each (x2000)
+hard-link 35000 files into next snapshot: 11.415 s (326.15 us/file)
+  shared inode after link: True
+  snapshot dir apparent size (link-dedup): 143360000 bytes
+shutil.rmtree of 35000-file snapshot: 3.399 s
+
+st_mtime_ns: 1794871025122080378  st_mtime(float): 1794871025.1220803
+after rewrite + mtime restore: size same=True  mtime same=True  state equal=True
+  file_state() dict: {'size': 1, 'mtime': 1794871025.1220803}
+
+snaputil.list_snapshots over 8 snapshot dirs: 0.00006 s
+snaputil.prune_snapshots(keep=3): 0.00069 s deleted=['snap-20261110-120000-00', 'snap-20261111-120000-01', 'snap-20261112-120000-02', 'snap-20261113-120000-03', 'snap-20261114-120000-04']
+remaining: ['snap-20261115-120000-05', 'snap-20261116-120000-06', 'snap-20261117-120000-07']
+
+flock LOCK_NB on second handle: blocked (BlockingIOError)
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench4.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench4.py
+os.link x20000: 7.155 s -> 357.73 us/link
+copy 4KiB x20000: 5.333 s -> 266.67 us/file
+fsync of destination dir: 0.049 ms
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench5.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench5.py
+cp: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/scratch5/xs/. is a directory (not copied).
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench5.py", line 57, in <module>
+    subprocess.run(["cp", "-l", src + "/.", dst], check=True)
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/subprocess.py", line 526, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['cp', '-l', '/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/scratch5/xs/.', '/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/scratch5/xd']' returned non-zero exit status 1.
+link vs copy, per file:
+  size=    4096  link    269.3 us/file   copy    166.7 us/file   ratio copy/link  0.62
+  size=   16384  link    269.2 us/file   copy    239.6 us/file   ratio copy/link  0.89
+  size=   65536  link    317.4 us/file   copy    172.4 us/file   ratio copy/link  0.54
+  size=  262144  link    286.2 us/file   copy    205.3 us/file   ratio copy/link  0.72
+  size= 1048576  link    306.6 us/file   copy    334.7 us/file   ratio copy/link  1.09
+  size= 4194304  link    280.6 us/file   copy   1842.1 us/file   ratio copy/link  6.56
+[0m
+Let me verify two suspected defects in the existing helpers and measure memory/disk costs.
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench6.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench6.py
+== defect check 1: snaputil.safe_snapshot_path escape ==
+  safe_snapshot_path(root,'snap-1','../../etc/passwd') -> /tmp/backuproot/snap-1/../../etc/passwd
+  normpath('../../etc/passwd') = ../../etc/passwd
+  resolves to: /tmp/etc/passwd
+  normpath('a/../../b') = ../b
+
+== defect check 2: snaputil.is_stale docstring vs code ==
+  st_mtime = 1794871170.7725565
+  is_stale(dir, st.st_mtime) = True   (docstring says a dir modified AT EXACTLY ref_epoch is NOT stale)
+
+== defect check 3: synccli.copy_file swallows ENOENT/EACCES ==
+  copy_file of a missing source returned without error; dst exists = False
+  synccli.sync would still report the file as copied (rel in list)
+
+== defect check 4: synccli.sync writes the manifest non-atomically ==
+  next run's json.load raises: JSONDecodeError - Expecting ',' delimiter: line 1 column 35 (char 34)
+
+== defect check 5: synccli.scan_files skips dot-directories ==
+  scan_files -> ['.dotfile']
+
+== index sizes ==
+  json indent=2 : 3815002 bytes (109.0 B/file)
+  json compact  : 2940001 bytes (84.0 B/file)
+  jsonl compact : 2170000 bytes (62.0 B/file)
+  jsonl + gzip6 : 278162 bytes (7.9 B/file)
+
+== memory of build_manifest (in-process) ==
+  entries=35000  peak RSS delta=16531456 KiB (483663.2 B/entry)
+
+== device throughput (dd) ==
+   536870912 bytes transferred in 0.170484 secs (3149098520 bytes/sec)
+   read back 512MiB in 0.04 s
+   direct: 536870912 bytes transferred in 0.465202 secs (1154059768 bytes/sec)
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench7.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench7.py
+tree: 35000 files, 187.5 MiB
+
+run 1 (full):
+  scan                0.323 s
+  write index(gz)     0.117 s  (233096 bytes)
+  copy 35000 files      11.857 s  (338.8 us/file)
+  RUN1 TOTAL         12.297 s
+
+run 2 (incremental, 0 changed):
+  read prev index     0.054 s  (35000 entries)
+  scan                0.335 s
+  diff                0.003 s  changed=0
+  write index(gz)     0.116 s
+  RUN2 TOTAL          0.508 s
+
+run 3 (incremental, 25 changed): scan 0.302 s  diff 0.003 s
+
+publish (rename staging -> snap): 0.1083 ms
+prune (rmtree of 35000-file snapshot): 2.986 s
+snaputil.list_snapshots over 12: 0.00009 s -> ['snap-20261101-120000-00', 'snap-20261102-120000-01']
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench9.py
+Wrote file successfully.
+[0m
+One more key measurement: copy-on-write cloning (APFS `clonefile`) as the "unchanged file" mechanism.
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench9.py
+size=    4096  clonefile(ctypes)    183.7 us   cp -c(subprocess)   6211.2 us   copy    210.3 us   link    396.3 us  
+  size=   65536  clonefile(ctypes)    186.7 us   cp -c(subprocess)   5529.7 us   copy    198.2 us   link    399.2 us  
+  size= 1048576  clonefile(ctypes)    164.7 us   cp -c(subprocess)   5517.1 us   copy    353.1 us   link    446.1 us  
+
+clone: same inode = False, same size = True
+after writing to the clone: source size=5 clone size=6 (independent = True)
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench10.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench10.py
+filesystem: 16777230
+  create empty file          73.3 us/file
+  stat                         2.1 us/file
+  open+read+close             32.6 us/file
+  listdir (amortized)          0.4 us/entry
+  os.walk over 5000 files:    0.0025 s (0.50 us/file)
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench11.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench11.py
+copy-path variants, 2000 files of 4096 B:
+  (a) synccli.copy_file (makedirs per file, full read)    0.320 s    159.8 us/file
+  (b) cached dirs, one read(), one write                  0.311 s    155.7 us/file
+  (c) cached dirs, chunked read, .part + rename           0.502 s    251.2 us/file
+  (d) clonefile                                           0.008 s      3.9 us/file
+  (e) hard link (cached dirs)                             0.607 s    303.5 us/file
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench12.py
+Wrote file successfully.
+[0m
+Clonefile shows 3.9 µs/file here but 184 µs in the earlier run — let me settle that discrepancy.
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench12.py
+A) clone immediately after creating the sources (dirty cache):
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench12.py", line 56, in <module>
+    clone_bench(src, os.path.join(SCRATCH, "dA"), names, "clone #1 (dirty source)")
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench12.py", line 45, in clone_bench
+    raise OSError(ctypes.get_errno(), "clonefile failed")
+FileNotFoundError: [Errno 2] clonefile failed
+[0m
+[0m$ [0mls /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/clonefile.h 2>/dev/null && sed -n '1,80p' /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/clonefile.h
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/clonefile.h
+/*
+ * Copyright (c) 2015-2017 Apple Inc. All rights reserved.
+ *
+ * @APPLE_OSREFERENCE_LICENSE_HEADER_START@
+ *
+ * This file contains Original Code and/or Modifications of Original Code
+ * as defined in and that are subject to the Apple Public Source License
+ * Version 2.0 (the 'License'). You may not use this file except in
+ * compliance with the License. The rights granted to you under the License
+ * may not be used to create, or enable the creation or redistribution of,
+ * unlawful or unlicensed copies of an Apple operating system, or to
+ * circumvent, violate, or enable the circumvention or violation of, any
+ * terms of an Apple operating system software license agreement.
+ *
+ * Please obtain a copy of the License at
+ * http://www.opensource.apple.com/apsl/ and read it before using this file.
+ *
+ * The Original Code and all software distributed under the License are
+ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
+ * Please see the License for the specific language governing rights and
+ * limitations under the License.
+ *
+ * @APPLE_OSREFERENCE_LICENSE_HEADER_END@
+ */
+
+#ifndef _SYS_CLONEFILE_H_
+#define _SYS_CLONEFILE_H_
+
+/* Options for clonefile calls */
+#define CLONE_NOFOLLOW        0x0001     /* Don't follow symbolic links */
+#define CLONE_NOOWNERCOPY     0x0002     /* Don't copy ownership information from source */
+#define CLONE_ACL             0x0004     /* Copy access control lists from source */
+#define CLONE_NOFOLLOW_ANY    0x0008     /* Don't follow any symbolic links in the path */
+#define CLONE_RESOLVE_BENEATH 0x0010     /* path must reside in the hierarchy beneath the starting directory */
+
+
+#include <sys/cdefs.h>
+#include <machine/_types.h>
+#include <_types/_uint32_t.h>
+#include <Availability.h>
+
+__BEGIN_DECLS
+
+int clonefileat(int, const char *, int, const char *, uint32_t) __OSX_AVAILABLE(10.12) __IOS_AVAILABLE(10.0) __TVOS_AVAILABLE(10.0) __WATCHOS_AVAILABLE(3.0);
+
+int fclonefileat(int, int, const char *, uint32_t) __OSX_AVAILABLE(10.12) __IOS_AVAILABLE(10.0) __TVOS_AVAILABLE(10.0) __WATCHOS_AVAILABLE(3.0);
+
+int clonefile(const char *, const char *, uint32_t) __OSX_AVAILABLE(10.12) __IOS_AVAILABLE(10.0) __TVOS_AVAILABLE(10.0) __WATCHOS_AVAILABLE(3.0);
+
+__END_DECLS
+
+
+#endif /* _SYS_CLONEFILE_H_ */
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench13.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench13.py
+clonefile -> 0 errno: -
+  distinct inode: True  same size: True
+  blocks src/clone: 8 8
+clonefile x5000 (4KiB): 0.0157 s -> 3.15 us/file, failures=5000
+hardlink x5000 (4KiB):  1.4094 s -> 281.89 us/file
+copy     x5000 (4KiB):  0.8600 s -> 172.01 us/file
+
+clonefile x500 (65536 B): 0.0598 s -> 119.53 us/file
+clonefile x100 (1048576 B): 0.0119 s -> 118.64 us/file
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench14.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench14.py
+== corrected clonefile vs copy vs link, parent dirs created ==
+  size=    4096  clone   188.8 us (fail 0)   copy   247.3 us   link   337.3 us
+  size=   65536  clone   186.3 us (fail 0)   copy   191.4 us   link   318.4 us
+  size= 1048576  clone   128.7 us (fail 0)   copy   387.2 us   link   318.8 us
+
+== publish path: fsync files? + dir fsync + rename ==
+  fsync every file (5000 files): 0.017 s -> 3.4 us/file
+  fsync every dir:               0.002 s
+  publish rename:                0.112 ms
+
+== prune path on a 5000-file snapshot ==
+  chmod -R u+w:      0.014 s
+  rmtree:            0.044 s
+
+== snapshot_disk_usage on a 5000-file snapshot ==
+  snapshot_disk_usage: 0.0027 s for 5000 files (409.6 B/file reported)
+[0m
+Let me run one final end-to-end simulation of the proposed pipeline to get consistent headline numbers.
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench15.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench15.py
+source tree: 35000 files, 1.85 GiB, built in 5.0 s
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench15.py", line 193, in <module>
+    main()
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench15.py", line 107, in main
+    copy_into(os.path.join(src, rel), os.path.join(staging, "evals", rel), made)
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench15.py", line 73, in copy_into
+    st = fs.stat()
+AttributeError: '_io.BufferedReader' object has no attribute 'stat'
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode && python3 - <<'EOF'
+import re
+p = "bench15.py"
+s = open(p).read()
+s = s.replace("""    with open(src, "rb") as fs:
+        st = fs.stat()
+    os.utime(dst, ns=(st.st_atime_ns, st.st_mtime_ns))""",
+"""    st = os.stat(src)
+    os.utime(dst, ns=(st.st_atime_ns, st.st_mtime_ns))""")
+open(p, "w").write(s)
+EOF
+python3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench15.py
+source tree: 35000 files, 1.85 GiB, built in 10.4 s
+
+RUN 1 (full, 1 GiB / 35000 files):
+  scan (walk+stat)        0.361 s
+  copy 35000 files         15.437 s  (441.1 us/file)
+  write manifest          0.072 s  (2379711 bytes)
+  fsync files+dirs        1.845 s
+  publish (rename)        0.110 ms
+  TOTAL                  17.716 s
+
+RUN 2 (incremental, 0 changed; unchanged files cloned):
+  read prev manifest      0.016 s
+  scan                    0.344 s
+  diff                    0.003 s  changed=0
+  materialize 35000 files   7.058 s  (201.7 us/file)
+  write manifest          0.075 s
+  publish                 0.199 ms
+  TOTAL                   7.496 s
+
+  disk usage after 2 runs:
+    3.7G	/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/scratch15/root
+  apparent size of snapshot 1: 1988939711 bytes
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode && python3 - <<'EOF'
+import os, shutil, subprocess, ctypes
+S="/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/cowtest"
+if os.path.exists(S): shutil.rmtree(S)
+os.makedirs(S)
+def free():
+    st = os.statvfs(S); return st.f_bavail * st.f_frsize
+libc = ctypes.CDLL("libc.dylib", use_errno=True)
+libc.clonefile.restype = ctypes.c_int
+libc.clonefile.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint32]
+p = os.path.join(S,"base.bin")
+with open(p,"wb") as f: f.write(b"\0"*(512*1024*1024))
+f0 = free()
+for i in range(8):
+    libc.clonefile(p.encode(), os.path.join(S,"clone%d.bin"%i).encode(), 0)
+f1 = free()
+print("free before clones: %.1f MiB, after 8x512MiB clones: %.1f MiB, consumed: %.1f MiB"
+      % (f0/1048576, f1/1048576, (f0-f1)/1048576))
+# now hard links
+f2 = free()
+for i in range(8):
+    os.link(p, os.path.join(S,"link%d.bin"%i))
+f3 = free()
+print("hard links consumed: %.3f MiB" % ((f2-f3)/1048576))
+# now real copies
+f4 = free()
+for i in range(4):
+    with open(p,"rb") as s, open(os.path.join(S,"copy%d.bin"%i),"wb") as d: d.write(s.read())
+f5 = free()
+print("4 real copies consumed: %.1f MiB" % ((f4-f5)/1048576))
+shutil.rmtree(S)
+EOF
+free before clones: 282637.9 MiB, after 8x512MiB clones: 282637.8 MiB, consumed: 0.0 MiB
+hard links consumed: 0.031 MiB
+4 real copies consumed: 2068.3 MiB
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench16.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/bench16.py
+copy-path metadata costs (3000 files x 4 KiB):
+  copy only                                        0.470 s    156.7 us/file
+  copy + os.stat(src) + os.utime(dst, ns=...)      0.555 s    185.1 us/file
+  os.utime alone                                   0.029 s     29.2 us/call
+  os.stat alone                                    0.001 s      1.2 us/call
+  os.chmod alone                                   0.031 s     31.0 us/call
+[0m
+I have a solid measurement base. Now writing the design.
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+Let me correct a few derived numbers and refine the manifest/manifest-consistency detail.
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -623,11 +623,11 @@
+ 
+ | `D_write` | `T_full` |
+ |---|---|
+ | 1.15 GB/s (this volume, `O_DIRECT`) | 0.36 + 6.48 + 0.93 + 1.05 + 0.07 ≈ **8.9 s** |
+-| 500 MB/s (typical external SSD) | ≈ **10.4 s** |
+-| 200 MB/s (conservative) | ≈ **13.4 s** |
+-| 100 MB/s (network/spinning) | ≈ **18.5 s** |
++| 500 MB/s (typical external SSD) | 0.36 + 6.48 + 2.15 + 1.05 + 0.07 ≈ **10.1 s** |
++| 200 MB/s (conservative) | 0.36 + 6.48 + 5.37 + 1.05 + 0.07 ≈ **13.3 s** |
++| 100 MB/s (network/spinning) | 0.36 + 6.48 + 10.74 + 1.05 + 0.07 ≈ **18.7 s** |
+ 
+ The model under-predicts the measured end-to-end (17.7 s for 1.85 GiB, i.e.
+ ~9.6 s/1 GiB of pure I/O plus per-file costs) because the measured run wrote
+ 1.85 GiB of *new* data under memory pressure while the model assumes the
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -639,10 +639,10 @@
+ >
+ > Measured on the reference machine: **17.7 s for a 1.85 GiB / 35,000-file
+ > tree** — i.e. the budget has ~1.7× headroom over a tree 1.85× larger than
+ > the budgeted one. The dominant term is *per file*, not per byte: each
+-> additional 1,000 files costs ≈ **+0.19 s** (185 µs copy + 8.3 µs scan +
+-> 30 µs fsync + 2 µs manifest), each additional gigabyte costs
++> additional 1,000 files costs ≈ **+0.23 s** (185 µs copy + 30 µs fsync +
++> 8.3 µs scan + 2 µs manifest), each additional gigabyte costs
+ > ≈ **+5.4 s** at 200 MB/s and **+0.9 s** at 1.15 GB/s.
+ 
+ The budget is stated as a *ceiling with a formula*, so it can be re-derived
+ for a different tree without re-measuring: substitute `F` and `B` and the
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -709,9 +709,9 @@
+ `N = 30` sources × 35,000 files each = 1.05 M files, 30 GiB.
+ 
+ | | Value |
+ |---|---|
+-| scan per run | `30 × (0.027 + 8.3 µs × 35,000)` = **8.9 s** |
++| scan per run | `30 × (0.027 + 8.3 µs × 35,000)` = **9.5 s** |
+ | materialize (clones) per run | 1.05 M × 200 µs = **210 s** |
+ | manifest write per run | 1.05 M × 7.9 B = **8.3 MB** (gzip) / 88 MB (as `synccli`-schema JSON) |
+ | peak memory | **33 MB** (unchanged from `N = 3`) |
+ | data on disk with K = 7 | `30 GiB + 6 × Δ` (≈ 30 GiB if `Δ` is small) |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -205,9 +205,14 @@
+ **Phase 3 — materialize the snapshot tree** (inside `.incoming/<run-id>/`):
+ 
+ * changed/new file → `backupctl.copy_file()`: chunked copy, then
+   `os.utime(dst, ns=(src_atime_ns, src_mtime_ns))` so the stored file carries
+-  the source's timestamp exactly (§9.3);
++  the source's timestamp exactly (§9.3). **After the copy the source is
++  re-stat'ed**: the manifest records the *post-copy* observed state, so the
++  manifest and the stored bytes agree by construction; if the post-copy state
++  differs from the scan-time state, the file is additionally listed in
++  `index.json`'s `suspect` array and is re-copied unconditionally by the next
++  run (§8);
+ * unchanged file → **materialize without copying bytes**:
+   `clonefile(prev_snapshot_file, new_snapshot_file)` (APFS copy-on-write,
+   independent inode) → if unsupported, `os.link` (same inode, shared content)
+   → if the two are on different devices, plain copy. The mechanism used is
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -230,9 +230,10 @@
+ **Phase 4 — index, then publish.**
+ 
+ 1. write `manifests/<source>/files.jsonl.gz` (one record per stored file,
+    including the ones inherited by clone/link — the manifest describes *what
+-   the snapshot contains*, not how it got there);
++   the snapshot contains*, not how it got there; for copied files the record
++   holds the post-copy observed state, per Phase 3);
+ 2. write `index.json` (with the manifest's sha256 and record count);
+ 3. `fsync` the files and the directories (durability, §6.3);
+ 4. **`os.rename(.incoming/<run-id>, <root>/snap-…)`** — one atomic syscall
+    (measured **0.110 ms**);
+
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [offset=1, limit=120][0m
+[0m→ [0mRead DESIGN-d1.md[90m [offset=185, limit=160][0m
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840 && rg -n "7\.4|7\.1|7\.2|7\.3" DESIGN-d1.md
+119:  per-file manifest can always be rebuilt from the tree (§7.4).
+338:| A published snapshot's manifest is truncated/garbled | the snapshot's **tree is intact** | `backupctl recover <snap>` re-derives the manifest from the tree (§7.4) and rewrites it atomically | `manifest of snap-… rebuilt from the tree (N records)` |
+343:### 7.4 What is discarded, what is re-derived, what is reported
+457:   from the tree (§7.4) and `backupctl verify` can check the tree against the
+613:| **total** | **17.716 s** | **7.496 s** |
+669:For F = 35,000, C = 0 → ≈ **7.5 s** (measured 7.496 s). For C = 25 → +4.6 ms.
+894:    4096 B: clone 188.8 (0 fail) | copy 247.3 | link 337.3
+896:    1048576 B: clone 128.7 | copy 387.2 | link 318.8
+901:    RUN2: read 0.016 | scan 0.344 | diff 0.003 | materialize 35000 7.058 (201.7 us/file) | manifest 0.075 | publish 0.199 ms | TOTAL 7.496 s
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840 && python3 - <<'EOF'
+p = "DESIGN-d1.md"
+s = open(p).read()
+s = s.replace("### 7.4 What is discarded, what is re-derived, what is reported",
+              "### 7.1 What is discarded, what is re-derived, what is reported")
+s = s.replace("(§7.4)", "(§7.1)")
+s = s.replace("from the tree (§7.4) and `backupctl verify`",
+              "from the tree (§7.1) and `backupctl verify`")
+s = s.replace("""## 7. Crash matrix and recovery
+
+| Crash point |""", """## 7. Crash matrix and recovery
+
+| Crash point |""")
+open(p, "w").write(s)
+EOF
+rg -n "7\.1|7\.4" DESIGN-d1.md | head
+119:  per-file manifest can always be rebuilt from the tree (§7.1).
+338:| A published snapshot's manifest is truncated/garbled | the snapshot's **tree is intact** | `backupctl recover <snap>` re-derives the manifest from the tree (§7.1) and rewrites it atomically | `manifest of snap-… rebuilt from the tree (N records)` |
+343:### 7.1 What is discarded, what is re-derived, what is reported
+457:   from the tree (§7.1) and `backupctl verify` can check the tree against the
+613:| **total** | **17.716 s** | **7.496 s** |
+669:For F = 35,000, C = 0 → ≈ **7.5 s** (measured 7.496 s). For C = 25 → +4.6 ms.
+901:    RUN2: read 0.016 | scan 0.344 | diff 0.003 | materialize 35000 7.058 (201.7 us/file) | manifest 0.075 | publish 0.199 ms | TOTAL 7.496 s
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -201,8 +201,14 @@
+ * **absent** — in `base`, not in `new_state` → the source file is gone. The
+   new snapshot simply does not contain it (a snapshot is an image of the
+   source at copy time). The run reports the count.
+ 
++`synccli.changed_files` returns only the first two sets — it iterates over
++`new_manifest` (`synccli.py:39-42`) and therefore never reports deletions.
++The absent set is computed by backupctl as `set(base) - set(new_state)`;
++nothing about the *copy* decision depends on it, so `changed_files` is still
++used verbatim.
++
+ **Phase 3 — materialize the snapshot tree** (inside `.incoming/<run-id>/`):
+ 
+ * changed/new file → `backupctl.copy_file()`: chunked copy, then
+   `os.utime(dst, ns=(src_atime_ns, src_mtime_ns))` so the stored file carries
+
+[0m
+Now the precision fix on the "absent" set (which `changed_files` does not report):
+[0m→ [0mRead DESIGN-d1.md[90m [limit=150, offset=352][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -436,12 +436,13 @@
+    second that preserve the size are indistinguishable.
+ 3. **Replacement by a different file with the same size and mtime** — the same
+    blindness as (1).
+ 4. **Metadata-only changes** — mode, owner, group, xattrs, ACLs are not part
+-   of the key, so they are not detected. The stored file keeps the mode it
+-   had when it was first captured. (This is deliberate: adding `mode` to the
+-   key would make `synccli.changed_files` compare dicts of different shapes,
+-   since the `synccli` schema is exactly `{size, mtime}`.)
++   of the key and are not preserved: the stored file's mode is the one the
++   copy created (umask), or, on the clone/link path, the one inherited from
++   the previous snapshot's stored copy. (Adding `mode` to the key would make
++   `synccli.changed_files` compare dicts of different shapes, since the
++   `synccli` schema is exactly `{size, mtime}`.)
+ 5. **Symlink targets.** Symlinks are stored as symlinks (not dereferenced);
+    the target's *content* is not part of the backup.
+ 6. **In-flux files** — a file being written during the copy may be captured
+    torn; the run detects this by re-stat-ing the source after the copy and
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -450,10 +450,10 @@
+ 
+ A content hash would close (1)–(3) at the cost of reading every byte on
+ every run (≈ 1 GiB per run for the reference tree, plus hashing cost) —
+ i.e. it would defeat the incremental requirement. The design takes the
+-`(size, mtime)` key and states the blindness explicitly; §9.3 explains why
+-the granularity is not even the limiting factor in the common case.
++`(size, mtime)` key and states the blindness explicitly; §9.3 explains how the
++stored timestamps keep the index and the tree consistent with each other.
+ 
+ ### 9.3 Why the stored file carries the source's timestamp
+ 
+ Phase 3 copies with `os.utime(dst, ns=(src_atime_ns, src_mtime_ns))`
+
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [limit=130, offset=502][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -551,9 +551,10 @@
+ 
+ ### 10.4 Read-only snapshots
+ 
+ Published snapshot directories are left writable (mode `0755`) and snapshot
+-*files* keep the source's mode. Making them read-only would protect against
++*files* get the mode the copy created (the umask default), not the source's.
++Making them read-only would protect against
+ an in-place edit inside a snapshot (which, with the link fallback, would also
+ corrupt older snapshots sharing the inode) — but it would also make a restore
+ produce read-only files in the source tree, which is a worse outcome. The
+ protection used instead is **detection**: `backupctl verify` compares each
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -526,9 +526,9 @@
+ 
+ ### 10.3 The reader-safety argument, stated honestly
+ 
+ * A snapshot is never emptied in place, so a reader can never observe a
+-  *mixture* of deleted and surviving files. ✔
++  *mixture* of deleted and surviving files.
+ * A reader that resolved a path *before* the tombstone and opens the file
+   *after* it gets `ENOENT` for that one file. The window is one syscall wide
+   per file, not the whole run — a restore that opens the next file
+   milliseconds later is unaffected.
+
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [limit=150, offset=632][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -641,12 +641,15 @@
+ | 500 MB/s (typical external SSD) | 0.36 + 6.48 + 2.15 + 1.05 + 0.07 ≈ **10.1 s** |
+ | 200 MB/s (conservative) | 0.36 + 6.48 + 5.37 + 1.05 + 0.07 ≈ **13.3 s** |
+ | 100 MB/s (network/spinning) | 0.36 + 6.48 + 10.74 + 1.05 + 0.07 ≈ **18.7 s** |
+ 
+-The model under-predicts the measured end-to-end (17.7 s for 1.85 GiB, i.e.
+-~9.6 s/1 GiB of pure I/O plus per-file costs) because the measured run wrote
+-1.85 GiB of *new* data under memory pressure while the model assumes the
+-per-file constant covers it. Taking the measurement as the reference:
++The model under-predicts the measured end-to-end: for the measured case
++(F = 35,000, B = 1.85 GiB) it predicts ≈ **9.7 s** at 1.15 GB/s, while the
++run took **17.7 s** — a factor of 1.83. The reason is that the measured run
++wrote 1.85 GiB of *new* data while the page cache was already saturated with
++the source tree (effective write rate ≈ 122 MiB/s, against the 1.15 GB/s
++`dd` measured on an idle volume). The budget therefore carries a **1.7×
++safety factor** over the model:
+ 
+ > **Budget: the first full backup of a ~1 GiB tree with tens of thousands of
+ > files must finish in ≤ 30 s**, on a volume sustaining ≥ 200 MB/s, on the
+ > reference class of hardware.
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -697,11 +697,11 @@
+ ### 12.1 What grows, and by how much
+ 
+ | Quantity | Bound | Grows with |
+ |---|---|---|
+-| Per-run wall time | `N·(0.027 s + 8.3 µs·F_i) + F·(185–200 µs) + C·185 µs + B_Δ/D` | linearly in `N` and in `F`; **not** in `B` (only the changed bytes are copied) |
++| Per-run wall time | `N·(0.027 s + 8.3 µs·F_i) + F·(185–200 µs) + C·185 µs + Δ/D_write` | linearly in `N` and in `F`; **not** in `B` (only the changed bytes `Δ` are copied) |
+ | Per-run bytes written | `Δ + F·7.9 B` (manifest) + metadata | linearly in the *changed* bytes and in `F` |
+-| Peak memory | `472 B × (F_i + F_i)` ≈ **944 B × F_max** (the new state map + the base manifest) | with `F_max` only — sources are processed **one at a time**, so it does **not** grow with `N` |
++| Peak memory | `472 B × 2·F_i` ≈ **944 B × F_max** (the new state map + the base manifest) | with `F_max` only — sources are processed **one at a time**, so it does **not** grow with `N` |
+ | Disk, data | `B + (K−1)·Δ` unique bytes (CoW sharing); worst case `K·B` if everything changes every run | with `K` and `Δ` |
+ | Disk, manifests | `K × F × 7.9 B` gzipped (or `K × F × 84 B` if exported as `synccli`-schema JSON) | linearly in `K` and `F` |
+ | Number of directories in the root | `K` published + `≤1` staging + `≤K` tombstoned | with `K` |
+ | `snaputil.list_snapshots` cost | 0.00009 s for 12 snapshots → `O(K)`, ~7.5 µs per snapshot | with `K` |
+
+[0m
+[0m→ [0mRead DESIGN-d1.md[90m [limit=140, offset=786][0m
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -64,10 +64,13 @@
+ Everything below was checked against the files in this directory (the
+ repository's existing suite passes as-is: `python3 -m unittest` → **6 tests,
+ OK, 0.004 s**).
+ 
+-### 2.1 Reused as-is
++### 2.1 Reused
+ 
++(The one entry that is used with a modification is `synccli.build_manifest`;
++the modification is item 1 of §2.2 and is called out in its row.)
++
+ | Artifact | Location | Use in `backupctl` |
+ |---|---|---|
+ | `synccli.file_state(path)` | `synccli.py:22-25` | The change-detection state: `{size, mtime}`. This *is* the "unchanged" key (§9) |
+ | `synccli.changed_files(old, new)` | `synccli.py:36-42` | The diff between the previous snapshot's manifest and this run's scan — used verbatim, including its "detects added/changed, not deleted" semantics |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -776,8 +776,9 @@
+ backupctl prune                     # apply the retention policy (two-phase)
+ backupctl gc                        # reclaim tombstones + abandoned staging dirs
+ backupctl verify <snapshot>         # index vs. tree, both directions
+ backupctl recover <snapshot>        # rebuild a damaged manifest from the tree
++backupctl hold <snapshot>            # take a reader lease; the snapshot is not pruned
+ backupctl export-manifest <snapshot> <source_id>   # write .sync_manifest.json (synccli schema)
+ backupctl status                    # last report, disk usage, lock state
+ ```
+ 
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -858,9 +858,12 @@
+ ## Appendix A — measurement harnesses
+ 
+ All harnesses ran against this repo copy (they import `synccli` and
+ `snaputil` from it) and were executed in a scratch directory
+-(`/private/var/folders/…/opencode/`), never writing into the repo.
++(`/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/`),
++never writing into the repo. Each script is standalone
++(`python3 benchN.py`); the paths are listed so any number in this document
++can be re-derived.
+ 
+ | Tag | Script | What it measures |
+ |---|---|---|
+ | B2 | `bench2.py` | 0.88 GiB / 35k tree: `build_manifest` scaling fit (F = 7k…35k), per-size-class copy throughput, `synccli.sync` full vs incremental, manifest read, `fsync`, `list_snapshots`, `prune_snapshots`, `snapshot_disk_usage`, mtime granularity |
+
+[0m
+[0m← [0mEdit DESIGN-d1.md
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840/DESIGN-d1.md
+@@ -871,8 +871,9 @@
+ | B6 | `bench6.py` | the four behavioural defects of §2.2 (verified), index sizes (JSON/JSONL/gzip), in-memory manifest cost, `dd` throughput |
+ | B7 | `bench7.py` | end-to-end pipeline shape (scan/index/diff/copy/publish/prune) |
+ | B10 | `bench10.py` | per-syscall floor: create 73.3 µs, stat 2.1 µs, open+read+close 32.6 µs, `os.walk` 0.50 µs/entry |
+ | B11 | `bench11.py` | copy-path variants: `synccli.copy_file` 159.8, tuned 155.7, `.part`+rename 251.2, clonefile, link |
++| B12 | `bench12.py` | the clonefile discrepancy: order/warm-up/repeat; showed the 5-argument `ctypes` call fails with `ENOENT` (wrong prototype) |
+ | B13 | `bench13.py` | `clonefile` with the correct 3-argument signature (`sys/clonefile.h`), independent-inode check |
+ | B14 | `bench14.py` | corrected clone vs copy vs link per size class; fsync per file/dir; publish rename; prune (`chmod -R` + `rmtree`); `snapshot_disk_usage` |
+ | B15 | `bench15.py` | end-to-end simulation: full run and incremental run over a 1.85 GiB / 35k tree |
+ | B16 | `bench16.py` | the cost of the per-file metadata ops the design needs: copy 156.7 vs copy+`stat`+`utime` 185.1 µs/file; `utime` 29.2 µs; `chmod` 31.0 µs; `stat` 1.2 µs |
+
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-48840 && rg -n "^#{1,3} " DESIGN-d1.md && echo "---- files ----" && ls -la && echo "---- tests ----" && python3 -m unittest 2>&1 | tail -3 && wc -l DESIGN-d1.md
+1:# DESIGN-d1 — `backupctl`
+15:## 0. Decisions at a glance
+32:## 1. Scope and vocabulary
+62:## 2. Grounding — what is reused, what is overridden
+68:### 2.1 Reused
+83:### 2.2 Overridden (with the exact line and the reason)
+101:## 3. On-disk layout
+128:### 3.1 `index.json`
+171:## 4. The run protocol
+256:## 5. Concurrency
+258:### 5.1 Two runs at the same time
+281:### 5.2 A reader during a run
+295:## 6. "A reader never asks whether the run is finished"
+297:### 6.1 Publication is a single atomic step
+310:### 6.2 The index can never promise a file that is not there
+324:### 6.3 Durability (process death vs. machine death)
+338:## 7. Crash matrix and recovery
+352:### 7.1 What is discarded, what is re-derived, what is reported
+380:## 8. A source file disappears or is unreadable
+413:## 9. Change detection: granularity and what it misses
+415:### 9.1 The granularity
+428:### 9.2 What this granularity misses
+460:### 9.3 Why the stored file carries the source's timestamp
+481:## 10. Retention: deleting without endangering readers
+483:### 10.1 Policy
+502:### 10.2 Two-phase deletion (the override of `snaputil.prune_snapshots`)
+530:### 10.3 The reader-safety argument, stated honestly
+555:### 10.4 Read-only snapshots
+570:## 11. Performance: measurements, derivation, budget
+572:### 11.1 Reference environment
+580:### 11.2 Measured primitives
+610:### 11.3 End-to-end simulation of the proposed pipeline
+626:### 11.4 The budget for the first full backup
+672:### 11.5 The incremental run
+694:## 12. Scaling: three directories today, a few dozen later
+700:### 12.1 What grows, and by how much
+712:### 12.2 What stays flat
+727:### 12.3 Worked numbers
+748:## 13. Interfaces
+750:### 13.1 Configuration (`backupctl.json`, or `--config PATH`)
+771:### 13.2 Commands
+789:### 13.3 Report
+803:## 14. Verification and test plan
+832:## 15. Risks and open questions
+858:## Appendix A — measurement harnesses
+882:## Appendix B — raw results
+---- files ----
+total 152
+drwxr-xr-x@    5 sebastien.mendez  staff    160 Nov 17 00:15 __pycache__
+drwxr-xr-x@    8 sebastien.mendez  staff    256 Nov 17 00:28 .
+drwx------@ 1159 sebastien.mendez  staff  37088 Nov 17 00:29 ..
+-rw-r--r--@    1 sebastien.mendez  staff   4974 Nov 17 00:02 BRIEF.md
+-rw-r--r--@    1 sebastien.mendez  staff  54979 Nov 17 00:29 DESIGN-d1.md
+-rw-r--r--@    1 sebastien.mendez  staff   3072 Nov 17 00:02 snaputil.py
+-rw-r--r--@    1 sebastien.mendez  staff   3169 Nov 17 00:02 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff   1834 Nov 17 00:02 test_synccli.py
+---- tests ----
+Ran 6 tests in 0.004s
+
+OK
+     925 DESIGN-d1.md
+[0m
+`DESIGN-d1.md` is written (925 lines). The repo copy is otherwise untouched and the existing suite still passes (6 tests, OK).
+
+**What the design says, in brief:**
+
+- **Atomicity** — a run builds the snapshot in `<root>/.incoming/<run-id>/` and publishes it with one directory `rename` (measured 0.110 ms). A snapshot is therefore visible only when complete; a dead run leaves only staging garbage that the next run GCs. The index is written *inside* the staging dir, so it is published atomically with the tree it describes.
+- **Concurrency** — `flock` on `<root>/.lock` serializes colliding runs (second one waits, then exits 75); defence in depth: even without the lock, private staging + unique atomic publish means two runs cannot corrupt each other. A run never writes into a published snapshot, so a restore running concurrently is unaffected.
+- **Retention** — two-phase: atomic tombstone (`rename` into `.trash/`) then delayed reclaim. This overrides `snaputil.prune_snapshots` (`snaputil.py:35`), which empties a snapshot in place — exactly the "half-deleted snapshot a reader can see" failure. `snaputil.list_snapshots` is reused.
+- **Missing/unreadable files** — omitted, reported, exit 3; retried automatically next run (the file is simply absent from the manifest, so the diff sees it as new). Identical code path and exit codes for scheduler and human triggers.
+- **Granularity** — per file, `(size, mtime)` via `synccli.file_state`; the design enumerates exactly what that misses (mtime-preserving edits, FS timestamp granularity, metadata-only changes) and why hashing is not used.
+- **Budget** — measured end-to-end **17.7 s for a 1.85 GiB / 35,000-file tree**, with a formula whose constants are all measured (scan 8.3 µs/file, copy 185 µs/file, fsync 30 µs/file, publish 0.110 ms); committed ceiling **≤ 30 s for ~1 GiB / tens of thousands of files**. Incremental run: 7.50 s measured.
+- **Scaling** — explicit bounds: time grows linearly in N and F; memory is `944 B × F_max` (≈33 MB) and does **not** grow with N; disk is `B + (K−1)·Δ` (CoW clone shares unchanged content: measured 0.0 MiB for 8 clones vs 2068 MiB for 4 copies) plus `K·F·7.9 B` of manifests.
+- **Grounding** — every reuse and every override is named with file:line, and four latent defects in the existing code are verified by reproduction (dot-directory dropping at `synccli.py:14`, swallowed `ENOENT` at `synccli.py:68-69`, the `..` path-escape in `snaputil.safe_snapshot_path` at `snaputil.py:54-63`, and the `is_stale` docstring/code contradiction at `snaputil.py:66-73`).
+
+The measurement harnesses live outside the repo (`/private/var/folders/…/opencode/bench*.py`) and are indexed in Appendix A; say the word if you want them copied into the repo for reproducibility.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 55652 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 48855 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-48840 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-17-D-D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-g21 above)

@@ -1,0 +1,430 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m✱ [0mGlob "**/BRIEF.md"[90m in . · 1 match[0m
+[0m→ [0mRead BRIEF.md
+[0m
+[0m$ [0mls -la /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87363 && wc -l /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87363/*.py
+total 40
+drwxr-xr-x@   5 sebastien.mendez  staff    160 Nov 16 20:23 __pycache__
+drwxr-xr-x@   7 sebastien.mendez  staff    224 Nov 16 20:23 .
+drwx------@ 679 sebastien.mendez  staff  21728 Nov 16 20:23 ..
+-rw-r--r--@   1 sebastien.mendez  staff   4974 Nov 16 20:23 BRIEF.md
+-rw-r--r--@   1 sebastien.mendez  staff   3072 Nov 16 20:23 snaputil.py
+-rw-r--r--@   1 sebastien.mendez  staff   3169 Nov 16 20:23 synccli.py
+-rw-r--r--@   1 sebastien.mendez  staff   1834 Nov 16 20:23 test_synccli.py
+      92 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87363/snaputil.py
+     103 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87363/synccli.py
+      55 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87363/test_synccli.py
+     250 total
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m# [0mTodos
+[•] Run existing test suite and inspect repo state
+[ ] Probe existing code behaviour (safe_snapshot_path, prune, copy_file, manifest, scan, is_stale) in scratch dir outside repo
+[ ] Measure performance on ~1GB / ~30k-file tree (synccli baseline, lstat, fsync cost, memory per entry)
+[ ] Write DESIGN-d1.md in repo root covering every BRIEF requirement with grounding
+[ ] Re-verify design claims against probe output and check no other repo files changed
+[0m
+[0m$ [0mPYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v 2>&1; echo "exit=$?"; python3 --version; df -h /private/var/folders 2>/dev/null | tail -1; ls -la /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode 2>/dev/null | head -5
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+OK
+exit=0
+Python 3.10.11
+/dev/disk3s5   926Gi   549Gi   360Gi    61%    5.2M  3.8G    0%   /System/Volumes/Data
+total 13216
+drwxr-xr-x@  35 sebastien.mendez  staff     1120 Nov 16 20:22 .
+drwx------@ 684 sebastien.mendez  staff    21888 Nov 16 20:25 ..
+-rw-r--r--@   1 sebastien.mendez  staff     6266 Nov 16 19:34 apply_all_edits.py
+drwxr-xr-x@   3 sebastien.mendez  staff       96 Nov 16 19:13 b5
+[0m
+Existing tests pass (6/6). Next I'll probe the suspected defects in the existing code in a scratch directory outside the repo, so each design claim has a reproduction behind it.
+[0m$ [0mmkdir -p /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && id -u && echo ok
+502
+ok
+[0m
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe/probe.py
+Wrote file successfully.
+[0m
+[0m$ [0mPYTHONDONTWRITEBYTECODE=1 python3 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe/probe.py 2>&1
+== P1 snaputil.safe_snapshot_path escape
+rel ../../ -> /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/probe-e5ek1wim/root/snap-a/../../escape.txt
+rel a/../../../x -> /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/probe-e5ek1wim/root/snap-a/../../x
+absolute /etc/passwd -> /etc/passwd
+
+== P2 snaputil.is_stale at equality
+is_stale(d, ref=mtime) -> True
+
+== P3 snaputil.prune_snapshots keep=0
+prune keep=0 -> ['snap-20261110-100000-00', 'snap-20261111-100000-00', 'snap-20261112-100000-00']
+left -> []
+
+== P4 prune keep=1 with partial newest dir
+prune keep=1 -> ['snap-20261111-100000-00']
+left -> ['snap-20261112-100000-00']
+usable files left -> [[]]
+
+== P5 synccli.copy_file writes through a hardlink
+old snapshot file now reads -> 'NEW CONTENT'
+same inode: True
+
+== P6 unreadable source is never retried
+sync #1 (unreadable) -> ['a.txt']
+dst has a.txt: False
+manifest records a.txt: True
+sync #2 (readable again) -> []
+dst has a.txt after sync #2: False
+
+== P7 file vanishes between listing and stat
+scan_files: ['a.txt', 'gone.txt']
+sync -> RAISED FileNotFoundError [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/probe-e5ek1wim/src7/gone.txt'
+dst has any file: None
+
+== P8 corrupt dst manifest
+sync #1 -> RAISED JSONDecodeError Unterminated string starting at: line 1 column 23 (char 22)
+sync #2 -> RAISED JSONDecodeError Unterminated string starting at: line 1 column 23 (char 22)
+
+== P9 scan_files coverage
+scan_files -> ['.dotfile', 'visible.txt']
+
+== P10 content edit with mtime restored
+mtime_ns equal: True | ctime_ns equal: False
+sync after edit (expect [] if missed) -> []
+dst content: AAAA
+
+== P11 float st_mtime vs st_mtime_ns resolution
+mtime_ns differ by 100ns: True | float st_mtime equal: False
+
+== P12 snapshot_disk_usage with hardlinks
+usage snap-1 -> 1000000
+usage snap-2 -> 1000000
+unique inodes on disk: 1 (1000000 bytes)
+
+scratch dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/probe-e5ek1wim
+[0m
+Probes confirm the main suspicions. Next, performance: I'll generate a ~1 GB, 30k-file tree outside the repo and measure the existing code and a streaming-copy prototype.
+[0m← [0mWrite /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe/perf.py
+Wrote file successfully.
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && export PYTHONDONTWRITEBYTECODE=1 && time python3 perf.py gen && du -sk tree && python3 perf.py walk_time && python3 perf.py walk_time && python3 perf.py walk_mem && python3 perf.py record_size && python3 perf.py sync_full && python3 perf.py sync_noop && python3 perf.py bigfile
+{"mode": "gen", "files": 30000, "bytes": 998383616}
+python3 perf.py gen  0.33s user 3.55s system 87% cpu 4.411 total
+1019984	tree
+{"mode": "walk_time", "entries": 30000, "secs": 0.284}
+{"mode": "walk_time", "entries": 30000, "secs": 0.284}
+{"mode": "walk_mem", "entries": 30000, "peak_bytes": 12054631, "bytes_per_entry": 401.8}
+{"mode": "record_size", "sample": 5000, "bytes_per_record": 110.9}
+{"mode": "synccli_full", "copied": 30000, "secs": 9.558, "maxrss_bytes": 32325632}
+{"mode": "synccli_noop", "copied": 0, "secs": 0.356, "maxrss_bytes": 50839552}
+{"mode": "synccli_copy_file_300MiB", "maxrss_before": 20611072, "maxrss_after": 335233024}
+[0m
+The existing code is measured: a full sync of the 1 GB / 30k-file tree takes about 9.6 s warm-cache, and `copy_file` peaks at about 315 MB extra RSS for a 300 MiB file. Now the streaming prototype with different fsync policies.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && export PYTHONDONTWRITEBYTECODE=1 && python3 perf.py proto none && python3 perf.py proto fsync && time python3 perf.py proto fullfsync
+{"mode": "proto_none", "files": 30000, "bytes": 998383616, "secs": 10.029}
+{"mode": "proto_fsync", "files": 30000, "bytes": 998383616, "secs": 11.158}
+{"mode": "proto_fullfsync", "files": 30000, "bytes": 998383616, "secs": 131.213}
+python3 perf.py proto fullfsync  1.60s user 9.05s system 8% cpu 2:11.27 total
+[0m
+The fsync policy dominates the initial-backup cost: per-file `os.fsync` adds about 1 s, while per-file `F_FULLFSYNC` costs about 4.4 ms per file (131 s total). I'll also measure the per-byte throughput so the budget can be split into per-file and per-byte terms.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && export PYTHONDONTWRITEBYTECODE=1 && python3 - <<'EOF'
+import os, time, fcntl, json, shutil
+import perf
+SCR = perf.SCR
+# per-byte throughput: one 300 MiB file through the prototype copier, with per-file fsync
+out = os.path.join(SCR, "big-proto.bin")
+if os.path.exists(out): os.remove(out)
+t0 = time.perf_counter(); perf.copy_stream(os.path.join(SCR, "big.bin"), out, "fsync"); t1 = time.perf_counter()
+print(json.dumps({"mode": "big_proto_fsync", "bytes": os.path.getsize(out), "secs": round(t1-t0, 3), "MBps": round(os.path.getsize(out)/1e6/(t1-t0), 1)}))
+os.remove(out)
+# constant cost of one F_FULLFSYNC on a small file (index-sized), median of 10
+p = os.path.join(SCR, "ff.json")
+times = []
+for i in range(10):
+    with open(p, "w") as f:
+        f.write("x" * 3_300_000)
+        f.flush()
+        t0 = time.perf_counter(); fcntl.fcntl(f.fileno(), fcntl.F_FULLFSYNC); times.append(time.perf_counter() - t0)
+times.sort()
+print(json.dumps({"mode": "fullfsync_index_3.3MB_median_ms", "value": round(times[5]*1000, 2)}))
+# directory F_FULLFSYNC (commit rename durability)
+dfd = os.open(SCR, os.O_RDONLY)
+t0 = time.perf_counter(); fcntl.fcntl(dfd, fcntl.F_FULLFSYNC); t1 = time.perf_counter()
+print(json.dumps({"mode": "fullfsync_dir_ms", "value": round((t1-t0)*1000, 2)}))
+os.close(dfd)
+os.remove(p)
+EOF
+{"mode": "big_proto_fsync", "bytes": 314572800, "secs": 0.208, "MBps": 1508.8}
+{"mode": "fullfsync_index_3.3MB_median_ms", "value": 4.93}
+{"mode": "fullfsync_dir_ms", "value": 3.97}
+[0m
+Measured: a 1 GB single-file copy runs at about 1.5 GB/s warm-cache, so the 10 s full-tree time is mostly per-file overhead. Two more numbers are needed for the bounds: hardlink cost per unchanged file, and per-entry memory and parse cost for a design-shaped index record.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && export PYTHONDONTWRITEBYTECODE=1 && python3 - <<'EOF'
+import os, time, json, shutil, tracemalloc
+import perf
+TREE, SCR = perf.TREE, perf.SCR
+# 1) hardlink cost for unchanged files: link every file of the tree into a new dir
+out = os.path.join(SCR, "linked")
+if os.path.exists(out): shutil.rmtree(out)
+recs = []
+t_walk0 = time.perf_counter()
+paths = []
+for dp, dn, fn in os.walk(TREE):
+    for nm in fn:
+        paths.append(os.path.join(dp, nm))
+t0 = time.perf_counter()
+for p in paths:
+    rel = os.path.relpath(p, TREE)
+    dst = os.path.join(out, rel)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    os.link(p, dst)
+t1 = time.perf_counter()
+print(json.dumps({"mode": "hardlink_30k", "files": len(paths), "secs": round(t1-t0, 3), "us_per_file": round((t1-t0)/len(paths)*1e6, 1)}))
+shutil.rmtree(out)
+
+# 2) per-entry memory and JSONL parse cost for a design-shaped record (kind,size,mtime_ns,ctime_ns,ino,dev)
+def build_records():
+    d = {}
+    for dp, dn, fn in os.walk(TREE):
+        for nm in fn:
+            p = os.path.join(dp, nm)
+            st = os.lstat(p)
+            d[os.path.relpath(p, TREE)] = {"kind": "f", "size": st.st_size, "mtime_ns": st.st_mtime_ns,
+                                           "ctime_ns": st.st_ctime_ns, "ino": st.st_ino, "dev": st.st_dev}
+    return d
+tracemalloc.start()
+recs = build_records()
+cur, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+print(json.dumps({"mode": "record_dict_mem", "entries": len(recs), "bytes_per_entry": round(cur/len(recs), 1), "peak_bytes_per_entry": round(peak/len(recs), 1)}))
+
+# write them as JSONL, then time the parse (base-load cost per run)
+jl = os.path.join(SCR, "idx.jsonl")
+with open(jl, "w") as f:
+    for k, v in recs.items():
+        f.write(json.dumps({"p": k, **v}, separators=(",", ":")) + "\n")
+t0 = time.perf_counter()
+loaded = {}
+with open(jl) as f:
+    for line in f:
+        o = json.loads(line)
+        loaded[o.pop("p")] = o
+t1 = time.perf_counter()
+print(json.dumps({"mode": "jsonl_parse_30k", "bytes": os.path.getsize(jl), "secs": round(t1-t0, 3)}))
+os.remove(jl)
+EOF
+{"mode": "hardlink_30k", "files": 30000, "secs": 12.655, "us_per_file": 421.8}
+{"mode": "record_dict_mem", "entries": 30000, "bytes_per_entry": 633.7, "peak_bytes_per_entry": 636.1}
+{"mode": "jsonl_parse_30k", "bytes": 4285781, "secs": 0.044}
+[0m
+The per-file hardlink number includes a `makedirs` call per file, so it overstates the link cost. I'll separate directory creation from the per-file cost and compare a tuple-packed record against the dict record.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && export PYTHONDONTWRITEBYTECODE=1 && python3 - <<'EOF'
+import os, time, json, shutil, tracemalloc
+import perf
+TREE, SCR = perf.TREE, perf.SCR
+paths = []
+for dp, dn, fn in os.walk(TREE):
+    for nm in fn:
+        paths.append(os.path.join(dp, nm))
+rels = [os.path.relpath(p, TREE) for p in paths]
+# precreate directory tree once, then time only the per-file operation
+out = os.path.join(SCR, "linked2")
+if os.path.exists(out): shutil.rmtree(out)
+dirs = sorted({os.path.dirname(os.path.join(out, r)) for r in rels})
+for d in dirs: os.makedirs(d, exist_ok=True)
+t0 = time.perf_counter()
+for p, r in zip(paths, rels):
+    os.link(p, os.path.join(out, r))
+t1 = time.perf_counter()
+print(json.dumps({"mode": "link_only_30k", "secs": round(t1-t0, 3), "us_per_file": round((t1-t0)/len(paths)*1e6, 1)}))
+shutil.rmtree(out)
+# same, but copy via open/write (no fsync), dirs precreated
+out2 = os.path.join(SCR, "copied2")
+if os.path.exists(out2): shutil.rmtree(out2)
+dirs = sorted({os.path.dirname(os.path.join(out2, r)) for r in rels})
+for d in dirs: os.makedirs(d, exist_ok=True)
+t0 = time.perf_counter()
+for p, r in zip(paths, rels):
+    with open(p, "rb") as fs, open(os.path.join(out2, r), "xb") as fd:
+        fd.write(fs.read())
+t1 = time.perf_counter()
+print(json.dumps({"mode": "copy_only_30k_dirs_precreated", "secs": round(t1-t0, 3), "us_per_file": round((t1-t0)/len(paths)*1e6, 1)}))
+shutil.rmtree(out2)
+# record memory: tuple-packed vs dict
+def dict_recs():
+    d = {}
+    for p, r in zip(paths, rels):
+        st = os.lstat(p)
+        d[r] = {"kind": "f", "size": st.st_size, "mtime_ns": st.st_mtime_ns, "ctime_ns": st.st_ctime_ns, "ino": st.st_ino, "dev": st.st_dev}
+    return d
+def tuple_recs():
+    d = {}
+    for p, r in zip(paths, rels):
+        st = os.lstat(p)
+        d[r] = ("f", st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino, st.st_dev)
+    return d
+for fn in (dict_recs, tuple_recs):
+    tracemalloc.start()
+    x = fn()
+    cur, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    print(json.dumps({"mode": "mem_" + fn.__name__, "entries": len(x), "bytes_per_entry": round(cur/len(x), 1)}))
+    del x
+EOF
+{"mode": "link_only_30k", "secs": 12.035, "us_per_file": 401.2}
+{"mode": "copy_only_30k_dirs_precreated", "secs": 12.344, "us_per_file": 411.5}
+{"mode": "mem_dict_recs", "entries": 30000, "bytes_per_entry": 567.6}
+{"mode": "mem_tuple_recs", "entries": 30000, "bytes_per_entry": 295.7}
+[0m
+Per-file dirent creation (hardlink or copy) measures about 0.40 ms on this machine, roughly 40x a stat. That makes per-run cost O(files) for materialized snapshots, so I need to know whether APFS cloning avoids it before settling the design.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && export PYTHONDONTWRITEBYTECODE=1 && rm -rf clone-a clone-b && /usr/bin/time -p cp -cR tree clone-a 2>&1 | tail -3 && python3 - <<'EOF'
+import ctypes, os, time, json, shutil
+libc = ctypes.CDLL("/usr/lib/libSystem.dylib", use_errno=True)
+clonefile = libc.clonefile
+clonefile.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint32]
+clonefile.restype = ctypes.c_int
+if os.path.exists("clone-b"): shutil.rmtree("clone-b")
+t0 = time.perf_counter()
+rc = clonefile(b"tree", b"clone-b", 0)
+t1 = time.perf_counter()
+print(json.dumps({"mode": "clonefile_dir", "rc": rc, "errno": ctypes.get_errno(), "secs": round(t1-t0, 4)}))
+n = sum(len(f) for _, _, f in os.walk("clone-b")) if rc == 0 else -1
+print(json.dumps({"mode": "clone_b_files", "files": n}))
+# COW check: write into a cloned file must not change the source
+p = os.path.join("clone-b", "d00", "s0")
+f = next(os.path.join(p, x) for x in os.listdir(p))
+with open(f, "r+b") as fh: fh.write(b"Z")
+with open(os.path.join("tree", os.path.relpath(f, "clone-b")), "rb") as fh: print(json.dumps({"mode": "cow_source_first_byte", "value": fh.read(1).decode()}))
+EOF
+rm -rf clone-a clone-b
+real 10.57
+user 0.06
+sys 8.04
+{"mode": "clonefile_dir", "rc": 0, "errno": 0, "secs": 0.8913}
+{"mode": "clone_b_files", "files": 30000}
+{"mode": "cow_source_first_byte", "value": "x"}
+[0m
+Two results change the design. A whole-directory `clonefile(2)` clones 30k files in 0.89 s (about 30 µs/file, versus 400 µs/file for per-file links), and writes to the clone do not change the source. I'll check three remaining points: inclusive memory for a tuple record, whether a FIFO in the source hangs `copy_file`, and the cost of encoding the index.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && export PYTHONDONTWRITEBYTECODE=1 && python3 - <<'EOF'
+import os, time, json, tracemalloc
+import perf
+TREE = perf.TREE
+def tuple_build():
+    d = {}
+    for dp, dn, fn in os.walk(TREE):
+        for nm in fn:
+            p = os.path.join(dp, nm)
+            st = os.lstat(p)
+            d[os.path.relpath(p, TREE)] = ("f", st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino, st.st_dev)
+    return d
+tracemalloc.start()
+x = tuple_build()
+cur, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+print(json.dumps({"mode": "tuple_record_inclusive", "entries": len(x), "bytes_per_entry": round(cur/len(x), 1)}))
+# index encode cost per record (JSONL with short keys + kind)
+t0 = time.perf_counter()
+out = []
+for k, v in x.items():
+    out.append(json.dumps({"p": k, "k": v[0], "s": v[1], "m": v[2], "c": v[3], "i": v[4], "d": v[5]}, separators=(",", ":")))
+blob = "\n".join(out)
+t1 = time.perf_counter()
+print(json.dumps({"mode": "index_encode_30k", "secs": round(t1-t0, 3), "bytes_per_record": round(len(blob)/len(x), 1)}))
+EOF
+rm -rf fifo-src && mkdir fifo-src && mkfifo fifo-src/pipe && (timeout 5 python3 -c "
+import sys; sys.path.insert(0, '$PWD/../../../bench-v3-87363'.replace('\$PWD','$PWD'))
+" ; true) && PYTHONDONTWRITEBYTECODE=1 timeout 5 python3 -c "
+import sys; sys.path.insert(0, '/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87363')
+import synccli
+synccli.copy_file('fifo-src/pipe', 'fifo-dst/pipe')
+print('returned')
+"; echo "copy_file on FIFO exit=$? (124 = timed out, i.e. blocked)"; rm -rf fifo-src fifo-dst
+{"mode": "tuple_record_inclusive", "entries": 30000, "bytes_per_entry": 361.9}
+{"mode": "index_encode_30k", "secs": 0.061, "bytes_per_record": 118.9}
+zsh:27: command not found: timeout
+zsh:29: command not found: timeout
+copy_file on FIFO exit=127 (124 = timed out, i.e. blocked)
+[0m
+`timeout` is not installed on macOS, so I'll rerun the FIFO check with a Python-side timeout.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && rm -rf fifo-src fifo-dst && mkdir fifo-src && mkfifo fifo-src/pipe && PYTHONDONTWRITEBYTECODE=1 python3 - <<'EOF'
+import subprocess, os
+code = ("import sys; sys.path.insert(0, '/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-87363');"
+        "import synccli; synccli.copy_file('fifo-src/pipe', 'fifo-dst/pipe'); print('returned')")
+try:
+    r = subprocess.run(["python3", "-c", code], capture_output=True, text=True, timeout=5)
+    print("exit", r.returncode, r.stdout.strip(), r.stderr.strip()[-200:])
+except subprocess.TimeoutExpired:
+    print("BLOCKED: copy_file did not return within 5 s (FIFO open blocks)")
+EOF
+rm -rf fifo-src fifo-dst; ls
+BLOCKED: copy_file did not return within 5 s (FIFO open blocks)
+big.bin
+dst-proto-fsync
+dst-proto-fullfsync
+dst-proto-none
+dst-sync
+perf.py
+probe.py
+tree
+[0m
+The FIFO hang is confirmed. Next I'll confirm which existing functions are actually used, so the grounding table is accurate.
+[0m✱ [0mGrep "collect_stale|is_stale|safe_snapshot_path|snapshot_disk_usage|prune_snapshots|list_snapshots|changed_files|build_manifest|copy_file|MANIFEST_NAME"[90m in . · 21 matches[0m
+Confirmed: `collect_stale` is only used by its own tests, and `is_stale` and `safe_snapshot_path` are not called anywhere. One cost is still unmeasured: pruning deletes a whole snapshot tree, so I'll time that as well.
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && export PYTHONDONTWRITEBYTECODE=1 && python3 - <<'EOF'
+import ctypes, os, time, json, shutil
+libc = ctypes.CDLL("/usr/lib/libSystem.dylib", use_errno=True)
+cf = libc.clonefile
+cf.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint32]
+cf.restype = ctypes.c_int
+for name in ["victim-clone"]:
+    if os.path.exists(name): shutil.rmtree(name)
+assert cf(b"tree", b"victim-clone", 0) == 0
+t0 = time.perf_counter(); shutil.rmtree("victim-clone"); t1 = time.perf_counter()
+print(json.dumps({"mode": "rmtree_30k_clone", "secs": round(t1-t0, 3), "us_per_file": round((t1-t0)/30000*1e6, 1)}))
+t0 = time.perf_counter(); shutil.rmtree("dst-proto-none"); t1 = time.perf_counter()
+print(json.dumps({"mode": "rmtree_30k_copied", "secs": round(t1-t0, 3), "us_per_file": round((t1-t0)/30000*1e6, 1)}))
+EOF
+ls
+{"mode": "rmtree_30k_clone", "secs": 3.383, "us_per_file": 112.8}
+{"mode": "rmtree_30k_copied", "secs": 2.923, "us_per_file": 97.4}
+big.bin
+dst-proto-fsync
+dst-proto-fullfsync
+dst-sync
+perf.py
+probe.py
+tree
+[0m
+Pruning costs about 100–113 µs per file. The design will also store a per-file content hash, which lets `verify --rehash` check snapshots, so I need that hash's throughput for the budget.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/backupctl-probe && PYTHONDONTWRITEBYTECODE=1 python3 - <<'EOF'
+import hashlib, time, json, os
+buf = b"x" * (1 << 20)
+N = 300
+for name in ["blake2b", "sha256"]:
+    t0 = time.perf_counter()
+    h = hashlib.new(name) if name != "blake2b" else hashlib.blake2b(digest_size=16)
+    for _ in range(N):
+        h.update(buf)
+    h.hexdigest()
+    t1 = time.perf_counter()
+    print(json.dumps({"mode": "hash_" + name, "MBps": round(N / (t1 - t0), 1)}))
+EOF
+{"mode": "hash_blake2b", "MBps": 1159.4}
+{"mode": "hash_sha256", "MBps": 2659.3}
+[0m
+./run-eval-v4.sh: line 185: 87385 Terminated: 15          opencode run --dir "$WORK" --model "$MODEL" --variant "$VARIANT" --title "$TITLE" --auto "$PROMPT"
+./run-eval-v4.sh: line 167: 94576 Terminated: 15          sleep 300
+./run-eval-v4.sh: line 116: 95247 Terminated: 15          sleep 5
+arm-killed-timeout: eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-xhigh-p11r2 hit the 15-min watchdog; run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-87363

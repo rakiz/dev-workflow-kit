@@ -1,0 +1,56 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m✱ [0mGlob "**/DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+[0m✱ [0mGlob "**/{state.py,syncd.py,synccli*,*sync*}"[90m 3 matches[0m
+[0m→ [0mRead state.py
+[0m→ [0mRead syncd.py
+**Verdict: not ready to build.** Two issues can silently lose data, and several guarantees in DESIGN.md are false by its own arithmetic. `syncd.py` and `state.py` already exist, so the same problems are already in code. I haven't changed anything.
+
+**Data loss**
+
+1. **Source disappears, dst gets wiped.** `os.walk` ignores errors by default (`state.py:13`). An unmounted or unreadable `src` yields an empty snapshot, and the reconcile step (DESIGN.md:38-40) then deletes every file from `dst`. Needs `onerror` to raise, a root-exists check, and an abort when one cycle would delete more than a small threshold.
+2. **Case-only renames on APFS.** `Foo.c` to `foo.c` is delete+create on the same path. If the delete runs after the copy, the new file is deleted and the manifest still says it's synced. DESIGN.md:40 "needs no special handling" is wrong. Deletes must run before copies, and paths need a samefile check.
+3. **Whole-second mtime.** `int(st.st_mtime)` (`state.py:19`, `syncd.py:52`) means two same-size edits within one second produce one copy, deterministically. DESIGN.md:57-58 says mtime "is guaranteed to change on every edit"; that's false at this resolution, and false for tools that restore mtimes (`cp -p`, `tar`, `rsync -t`). Use `st_mtime_ns`, re-verify entries whose mtime is within ~2 s of the snapshot (git's racy-clean fix), and hash during copy. The copy already reads every byte, so DESIGN.md:57's "extra read" objection doesn't hold.
+
+**Wedging**
+
+4. **A crash leaves a permanent stale lock.** `acquire_lock` is an existence check with no liveness check (`state.py:37-44`), and release only runs on the success path. `os.stat` in `snapshot` (`state.py:18`) and `open(src)` (`syncd.py:46`) are unguarded. A build temp file deleted mid-walk kills the daemon and leaves `syncd.lock`, and every restart then fails with "already running." DESIGN.md:49-51 says this race is handled.
+5. **Single instance is not guaranteed.** The lock is taken per cycle (DESIGN.md:44-48), so a second daemon can start between cycles. The commit also runs unlocked (`syncd.py:68-70`), so load-update-write is a lost-update window. DESIGN.md:47-48 says entries "merge cleanly," but nothing merges: `commit_manifest` overwrites the file (`state.py:31-34`). `synccli` writes the same `dst`, and that isn't addressed.
+
+**What breaks under load**
+
+6. **The budget ignores manifest I/O.** The 100 ms claim (DESIGN.md:12-15) counts only the stat walk. Each cycle also does a full `json.load` and `json.dump` of the manifest (`syncd.py:30`, `state.py:34`). At 50k entries that's roughly 5 MB (estimate), rewritten twice a second, idle included. DESIGN.md:59-61 blames the rename's fsync for write amplification; the real cost is the full rewrite every cycle.
+7. **Initial sync is one transaction.** The first poll copies all 50k files serially under the lock before the first commit (`syncd.py:64-70`). Kill it at 90% and it starts over.
+8. **Serial copy loop.** At an estimated 5 ms per small file, a 300-file burst takes about 1.5 s, so the 500 ms cycle overruns and the last file lags 3+ polls. "Pending set bounded by one poll's worth" (DESIGN.md:21-24) holds only when copies are faster than polls.
+9. **Big files and continuous writers.** A multi-GB copy blocks the loop for seconds, and a writer that touches it mid-copy causes endless requeues. A continuously written file never reaches a quiet period (DESIGN.md:16-20), so it never syncs and `dst` goes stale without warning. The "under one poll + 200 ms even while written continuously" claim is false; latency is unbounded. Needs a max-wait cap and tmp+rename writes in `dst`, so readers never see a partial file.
+10. **The 200 ms debounce never binds.** It's shorter than the 500 ms poll, so the effective debounce is "unchanged since the previous poll." Latency is about two polls plus copy time, not one poll plus 200 ms.
+
+**Missing or wrong in the design**
+
+- No ignore policy. `state.py:14` silently skips dot-dirs (`.git`). Build output, editor swap files, symlinks, permissions, and dst-side edits (silently clobbered, since sync is one-way) are unspecified.
+- The code has no deletion step (`syncd.py` `poll` is add-only), and `replay_journal` is never called. The journal grows forever, and it has no fsync (`state.py:51-54`), so a power loss can record "synced" before the bytes reach disk.
+- Polling costs about 100k stat calls per second, steady state. The "measured" figure has no stated conditions (cold cache, build load, EDR/Spotlight). Measure before fixing `POLL_SECONDS`.
+
+**Change first, in order**
+
+1. Delete guard, `onerror` raising, root-exists check.
+2. Deletes before copies, with a samefile check for case-only renames.
+3. `flock` on a lock file held for the daemon's lifetime; treat vanished files as skip-and-retry; wrap the loop so one error can't kill it.
+4. Replace manifest + journal + per-cycle lock with SQLite (WAL): one transaction per cycle, atomic, crash-safe, no replay code. Commit only when something changed.
+5. `st_mtime_ns` + size + hash-on-copy, with racy-entry re-verification.
+6. Copy to a tmp file in `dst` then rename; max-wait debounce cap; bounded worker pool; size policy for large files.
+7. Measure scan + manifest + copy on a real 50k-file tree, cold and during a build, before settling the poll interval. Report oldest-pending age, not pending count.
+
+I can rewrite DESIGN.md with these decisions if you want, once you confirm.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 18649 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 119: 18647 Terminated: 15          ( while :; do
+    sleep 300; if ! cost="$(sqlite3 "$OC_DB" "$COST_Q" 2>/dev/null)"; then
+        continue;
+    fi; [ -z "$cost" ] && continue; if [ "$(awk -v c="$cost" -v cap="$EVAL_ARM_CAP" 'BEGIN { print (c + 0 > 2 * cap) ? 1 : 0 }')" = 1 ]; then
+        date +%s > "$WORK/arm-killed-costcap"; kill_arm; break;
+    fi;
+done )
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 18650 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-18636 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-xhigh-g21)

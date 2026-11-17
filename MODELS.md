@@ -119,8 +119,8 @@ confirmation runs at 10/10 avg @ $0.0082, replacing the old deepseek flash
 Minimax is a lineage distinct from impl's glm and review's claude — keep that
 property when replacing either side. For a high-stakes design, escalate the
 critique: `strong-design-review` rung (`deepseek-v4p1-flash-1017` `medium`,
-then `gemini-4-argon` `high`, `deepseek-v4-pro` `high`) or straight to
-`claude-opus-5.5`.
+then `gemini-4-argon` `high`, `deepseek-v4-pro` `high` — reported re-availability
+probed UNAVAILABLE 11-16: 404 both providers) or straight to `claude-opus-5.5`.
 
 ### deep — `github-copilot/claude-opus-5.5` (family: claude)
 
@@ -165,13 +165,13 @@ Two rules bind the whole grid:
 | Function \ tier | cheap | strong | alternative | alternative2 |
 |---|---|---|---|---|
 | design (producer) | `cheap-design` glm | `strong-design` s5.5 `high` | `strong-design-alternative` terra 6.1 | `strong-design-alternative2` opus |
-| design-review | `cheap-design-review` **M3.1 `medium`** (10-23 confirmation: 10/10 avg 3 runs @ $0.0082, replaces old deepseek flash 9/10 @ $0.0076 — same price, +1 category) | `strong-design-review` 1017 `medium` (10-19: 10/10-0FP @ $0.0143, first T4 sweep; replaces sol — 9/10 @ $0.076+) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` pro `high` |
+| design-review | `cheap-design-review` **M3.1 `medium`** (10-23 confirmation: 10/10 avg 3 runs @ $0.0082, replaces old deepseek flash 9/10 @ $0.0076 — same price, +1 category) | `strong-design-review` 1017 `medium` (10-19: 10/10-0FP @ $0.0143, first T4 sweep; replaces sol — 9/10 @ $0.076+) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` grok-4.7 (pro's reported direct-Fireworks return probed unavailable 11-16 — 404 both providers; grok keeps the rung until it actually exists) |
 | code (impl) | `cheap-code` glm `high` | `strong-code` s5.5 `high` | `strong-code-alternative` terra 6.1 | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
 | code-review | `cheap-review` haiku `default` | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
 | orchestration | session default model: glm — the user's configured default model; **pin `high`** (T1: PASS @ `high` $0.0050, PARTIAL @ `low`); recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
-Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol (off the roster 10-26 — dominated by terra), opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = fw-deepseek-v4-pro, argon = gemini-4-argon, 1017 = deepseek-v4p1-flash-1017 (fireworks direct), M3.1 = minimax-m3p1-flash, terra = gpt-6.1-terra.
+Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol (off the roster 10-26 — dominated by terra), opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = deepseek-v4-pro (OFF roster 11-16: old gateway id dead AND reported direct-Fireworks equivalent probed 404 — restore only when an id actually resolves), argon = gemini-4-argon, 1017 = deepseek-v4p1-flash-1017 (fireworks direct), M3.1 = minimax-m3p1-flash, terra = gpt-6.1-terra.
 
 Eval 2026-09-30 addendum — qwen and pro join as the 7th/8th families
 (`evals/2026-09-30-qwen3p8/`, `evals/2026-09-30-deepseek-v4-pro/`): qwen
@@ -191,9 +191,11 @@ Eval 2026-10-14 addendum — gemini-4-argon `high` takes the
 9/10 average over 2 runs (10, 8) at ~$0.09/task vs s5.5's ~$0.13 — rung
 swap, one more distinct lineage in the cross-review chain.
 
-Escalation semantics: rung N+1 is invoked only when rung N failed, stalled or
-expressed doubt — never speculatively. Invoke rung N+1 with rung N's output
-attached — the escalation reads what the previous rung already produced. The
+### Escalation semantics
+
+Rung N+1 is invoked only when rung N failed, stalled or expressed doubt —
+never speculatively. Invoke rung N+1 with rung N's output attached — the
+escalation reads what the previous rung already produced. The
 `-alternative2` rung is the step before human intervention; its output must
 state what a human must decide.
 

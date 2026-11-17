@@ -1,0 +1,8 @@
+14:33:47 ok D gemini-4-hydrogen xhigh g52 spent=84.25
+14:34:22 ok I2 gemini-4-hydrogen xhigh g51 spent=84.59
+14:38:37 ok D gemini-4-hydrogen xhigh g51 spent=85.61
+14:41:27 ok I2 gemini-4-hydrogen xhigh g52 spent=86.02
+14:59:23 rc125 I2 gemini-4-carbon high g51 spent=89.06
+15:03:38 rc125 I2 gemini-4-carbon high g52 spent=89.44
+15:06:12 ok I2 minimax-m3p1-flash xhigh g51 spent=89.48
+15:09:09 ok D gemini-4-carbon high g51 spent=89.82

@@ -1,0 +1,115 @@
+[0m
+> build · claude-sonnet-5.5
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m✱ [0mGlob "**/*"[90m in . · 8 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead incremental.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead test_synccli.py
+# Execution plan: `--json` output mode for synccli
+
+I read GOAL.md, README.md, `synccli.py`, `test_synccli.py`, `incremental.py` and DESIGN.md, and changed nothing.
+
+## Findings that shape the plan
+
+- **`skipped` has no source today.** `sync()` returns only the list of copied paths. Computing `skipped = total_source_files - len(copied)` needs the total file count. The constraint is that `sync()`'s signature stays stable, and its return type should too, since internal callers exist.
+- **The baseline test suite is probably already red.** `collect_stale` starts its loop at `range(1, ...)` and skips item 0. The existing test `test_first_item_stale_is_included` asserts the opposite, so it should fail. This is outside the goal, so I treat it as a baseline to record, not something to fix.
+- **Other out-of-scope defects:**
+  - `copy_file` swallows `OSError`, so a failed copy still appears in `copied` and is written to the manifest. The `--json` output would then report files that were not actually copied.
+  - `incremental.py` has a mutable default argument in `filter_excluded`, `copy_many` has a dead `except`, and its mtime comparison is questionable.
+  - DESIGN.md describes a different feature, a daemon, and is not part of this goal.
+- **Stdout purity is easy to meet.** `sync()` prints nothing today, so only `main()` writes to stdout.
+- **Wrong-mode output.** An uncaught exception under `--json` goes to stderr as a traceback, which keeps stdout clean. The exit code is unchanged: `main()` always returns 0, and uncaught exceptions give 1.
+
+## Tasks
+
+### T0. Baseline and call-site recon
+- **Agent:** `explore`
+- **Objective:**
+  - Run `python3 -m unittest -v` and record the baseline result, expecting `test_first_item_stale_is_included` to fail.
+  - Grep for all callers of `sync()` and `main()` across the repo, including `incremental.py` and any `syncd`.
+  - Confirm that no code other than `main()` prints to stdout.
+- **Files:** none created or modified.
+- **Risks:** the baseline failure could be mistaken for a regression introduced later.
+- **Acceptance:** a short report listing the pre-existing failures verbatim and the full list of `sync()` callers. T1 and T2 do not start without it.
+
+### T1. Design check of the `skipped` computation (small, a note and not a document)
+- **Agent:** `design-review` (cheap tier)
+- **Objective:** choose how to get the total file count without changing `sync()`'s public signature or return type. The candidate is a private helper `_sync(src, dst, dry_run) -> (copied, total)`, with `sync()` as a thin wrapper returning `copied`. The alternative is calling `build_manifest`/`scan_files` again in `main()`. That alternative scans twice and has a race, because the file set can change between the two scans, so `skipped` could go negative.
+- **Files:** none. The output is a recommendation.
+- **Risks:**
+  - Defining `skipped` ambiguously. It should mean "source files not in `copied`", so it is `>= 0` and `copied + skipped == source file count`.
+  - Whether the manifest file itself counts as a source file. `scan_files` skips dot-directories but not dot-files, so a `.sync_manifest.json` in `src` would be counted.
+- **Acceptance:** a written decision on the helper approach and the definition of `skipped`. The invariant `len(copied) + skipped == total` is stated and testable.
+
+### T2. Implement `--json` in `synccli.py`
+- **Agent:** `impl` (cheap-code)
+- **Objective:**
+  - Add `--json` (`action="store_true"`) to the parser.
+  - Under `--json`, `main()` prints exactly one `json.dumps({"copied": [...], "skipped": N, "src": args.src, "dst": args.dst})` plus a newline, and nothing else.
+  - Without `--json`, keep the one-path-per-line behaviour byte for byte.
+  - Apply the T1 decision so `sync()` keeps its signature and `list` return.
+  - Honour dry-run: `copied` lists what would be copied, and nothing is written to `dst`.
+- **Files:** modify `synccli.py` only.
+- **Risks:**
+  - A stray `print` that breaks the single-object guarantee.
+  - Changing the return type or signature of `sync()`.
+  - Path separators: `copied` entries use `os.sep` as `scan_files` produces them, so the format is OS-dependent. Document this, do not normalise it.
+  - Not using `ensure_ascii` consistently.
+  - Scope creep into `copy_file`'s error swallowing. That must not be touched.
+- **Acceptance:**
+  - `python3 -m synccli SRC DST --json | python3 -c "import sys,json; json.load(sys.stdin)"` exits 0.
+  - Output contains exactly the four keys.
+  - Human mode output on a fixture is identical to the pre-change output.
+  - `sync(src, dst)` and `sync(src, dst, dry_run=True)` still work as before.
+
+### T3. Add unit tests in `test_synccli.py`
+- **Agent:** `impl` (cheap-code). It can be the same session as T2 if T2 is small. Its output must be reviewed independently.
+- **Objective:** add tests that call `main([...])` with `contextlib.redirect_stdout` and `io.StringIO`:
+  - `--json` stdout parses as a single JSON document (use `json.loads` on the whole captured string, so extra output fails).
+  - The keys `copied`, `skipped`, `src` and `dst` are present, with correct values.
+  - A second run gives `copied == []` and `skipped == N`.
+  - `--json --dry-run` lists what would be copied and leaves `dst` without files or manifest.
+  - The invariant `len(copied) + skipped == total`.
+  - Human mode prints one path per line and is not JSON.
+  - The return code is 0.
+- **Files:** modify `test_synccli.py` only.
+- **Risks:**
+  - Tests that pass vacuously.
+  - Filesystem state leaking between tests, since the existing `setUp` uses `mkdtemp` and never cleans up. New tests should use `addCleanup(shutil.rmtree, ...)`.
+  - Order dependence from relying on `sorted` output.
+- **Acceptance:** all new tests pass. Mutation check: temporarily adding a stray `print("x")` to the JSON path makes at least one test fail. The only failing tests in the full run are the pre-existing ones from T0.
+
+### T4. Review of T2 + T3
+- **Agent:** `review` (a fresh cheap-review session with a self-contained brief)
+- **Objective:** check the diff against GOAL.md line by line and look for these defects:
+  - stdout leakage
+  - a `sync()` signature or return-type change
+  - new dependencies, or syntax newer than Python 3.10
+  - test weakness
+  - any change to `copy_file`, `incremental.py` or `collect_stale`
+- **Files:** read-only.
+- **Risks:** the reviewer flags the out-of-scope defects as blockers. Brief it that these are known and must be reported separately, not fixed.
+- **Acceptance:** findings classified as minor or major.
+  - Minor findings go back to the T2/T3 implementer via `task_id`.
+  - A major finding escalates to `strong-code`.
+  - The task ends when the reviewer reports no blocking findings.
+
+### T5. Final verification
+- **Agent:** `explore` or the orchestrator running the commands. This is read-only verification, not coding.
+- **Objective:**
+  - Run `python3 -m unittest -v`.
+  - Run an end-to-end CLI check on a temp tree: real run, repeat run, `--dry-run`, `--json`, and `--json --dry-run`.
+  - Check that no `.py` file outside `synccli.py` and `test_synccli.py` changed (`git diff --stat`).
+- **Acceptance:** each GOAL.md item 1 to 4 is mapped to a passing check. The only red tests are those recorded in T0.
+
+## Decisions for you
+
+- **README.** It does not mention `--json` or `--dry-run`. Should I add a short usage section? It is not in GOAL.md, so I won't do it without your yes.
+- **Pre-existing defects.** Do you want a separate follow-up task for the `collect_stale` off-by-one, the `copy_file` swallowed errors that make `copied` unreliable, and the `incremental.py` issues? I'd keep them out of this release.
+- **DESIGN.md.** It is for a different feature and has several weak points: a full-tree poll every 500 ms with up to 50,000 files, a non-atomic manifest rewrite, and errors logged to stdout. If the daemon work comes next, it deserves its own `design-review` pass before any implementation.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 99198 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 99199 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-99170 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-17-T1-github-copilot-claude-sonnet-5-5-high-o21)

@@ -54,27 +54,29 @@
 # --update behavior (synchronizes an already-initialized project):
 #   - KIT-MANAGED files only: agent/*.md, skill/dev-workflow/SKILL.md, the
 #     pre-commit hook, the model:/variant: frontmatter defaults injected
-#     from models.json, and the five kit-authored rule/convention files
+#     from models.json, and the six kit-authored rule/convention files
 #     CONVENTIONS.md, RULES.md, CONVENTIONS.cpp.md,
-#     CONVENTIONS.cpp23.md and CONVENTIONS.python.md (see below).
+#     CONVENTIONS.cpp23.md, CONVENTIONS.python.md and CONVENTIONS.go.md
+#     (see below).
 #   - Project-state files (dev-workflow.json, TODO.md, SPEC.md,
 #     INPROGRESS.md, CHANGELOG.md, DESIGNS.md) are NEVER touched by --update — not
 #     created, not overwritten, not removed — whatever their state. They
 #     are pure project-owned content with no kit default to converge
 #     toward. --with-rules has no effect combined with --update (a warning
 #     says so).
-#   - The five rule/convention files follow the same lock-based "ours vs
+#   - The six rule/convention files follow the same lock-based "ours vs
 #     theirs" contract as the agents — kept up to date while used
 #     unmodified, frozen with a .dev-workflow-kit-new sibling the moment
 #     they are edited — but are never CREATED by --update (an absent
-#     RULES.md, CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md or
-#     CONVENTIONS.python.md stays absent). CONVENTIONS.md
+#     RULES.md, CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md,
+#     CONVENTIONS.python.md or CONVENTIONS.go.md stays absent). CONVENTIONS.md
 #     and RULES.md are compared and replaced only above their
 #     `## Project rules` heading (the kit-managed prefix); project-specific
 #     rules appended below it are 100% the project's — never touched,
 #     never even considered when deciding whether the kit part was
-#     customized. CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md and
-#     CONVENTIONS.python.md are synced whole-file (no user-append zone).
+#     customized. CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md,
+#     CONVENTIONS.python.md and CONVENTIONS.go.md are synced whole-file
+#     (no user-append zone).
 #   - A file whose body matches the lock's baseline (untouched since the
 #     last sync) is auto-updated to the kit's current version; a locally
 #     customized file is NEVER overwritten — the kit's current version is
@@ -735,7 +737,7 @@ warn_shadowed_agents() {
 #       "CONVENTIONS.cpp.md": { "body_sha256": "<whole-file sha256>" } } }
 # body_sha256 = hash of the KIT'S SOURCE content that was last synced (not
 # of the target): _body_hash (model:/variant: lines stripped) for agents and
-# the skill, raw prefix/file bytes for the five rule/convention files.
+# the skill, raw prefix/file bytes for the six rule/convention files.
 # The pre-commit hook has NO entry: sync_hook detects its drift by comparing
 # the files directly, so a recorded hash would be dead metadata nothing
 # reads. model/variant = what the kit last injected for that agent (recorded
@@ -890,9 +892,9 @@ lock_record_if_synced() {
 }
 
 # lock_record_rules_if_synced REL : install-mode baseline for one of the
-# five rule/convention files (CONVENTIONS.md, RULES.md — CONVENTIONS.
-# cpp.md, CONVENTIONS.cpp23.md and CONVENTIONS.python.md are never
-# copied by install so they never get one here).
+# six rule/convention files (CONVENTIONS.md, RULES.md — CONVENTIONS.
+# cpp.md, CONVENTIONS.cpp23.md, CONVENTIONS.python.md and CONVENTIONS.go.md
+# are never copied by install so they never get one here).
 # Records the kit's comparison-unit hash — the `## Project rules` prefix
 # hash for marker-bearing files, the whole-file raw hash otherwise — when
 # the target's own unit matches the kit's (freshly copied above, or still
@@ -1260,13 +1262,13 @@ update_convention_whole() {
   [[ $BODY_CURRENT -eq 1 ]] && up_to_date+=("$rel")
 }
 
-# update_rules_conventions : the --update step for the five kit-authored
+# update_rules_conventions : the --update step for the six kit-authored
 # rule/convention files — run after the agent/skill/hook sync, before the
 # summary. Only files ALREADY present in the target are synced: --update
 # never creates any of them.
 update_rules_conventions() {
   local rel src dst
-  for rel in CONVENTIONS.md RULES.md CONVENTIONS.cpp.md CONVENTIONS.cpp23.md CONVENTIONS.python.md; do
+  for rel in CONVENTIONS.md RULES.md CONVENTIONS.cpp.md CONVENTIONS.cpp23.md CONVENTIONS.python.md CONVENTIONS.go.md; do
     src="$KIT_DIR/templates/$rel"
     dst="$TARGET/$rel"
     [[ -f "$dst" && -f "$src" ]] || continue

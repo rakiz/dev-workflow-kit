@@ -1,0 +1,588 @@
+[0m
+> build · gemini-4-carbon
+[0m
+[0m→ [0mRead BRIEF.md
+[0m✱ [0mGlob "**/*"[90m in . · 7 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead .
+[0m
+[0m$ [0mpython3 --version && python3 -m unittest -v
+Python 3.10.11
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+OK
+[0m
+[0m$ [0mpython3 -c '
+import json, os, shutil, sys, tempfile, time, tracemalloc
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-80768")
+import synccli, snaputil
+
+with tempfile.TemporaryDirectory(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode") as tmp:
+    src = os.path.join(tmp, "src")
+    dst1 = os.path.join(tmp, "dst1")
+    dst2 = os.path.join(tmp, "dst2")
+    dst_link = os.path.join(tmp, "dst_link")
+    os.makedirs(src)
+    os.makedirs(dst1)
+    os.makedirs(dst2)
+    os.makedirs(dst_link)
+
+    # Create 2,500 files across 50 subdirs totaling ~100 MiB (1/10th of 25,000 files / 1 GiB)
+    n_dirs = 50
+    files_per_dir = 50
+    payload_small = b"x" * (32 * 1024)  # 32 KiB * 2490 = ~77.8 MiB
+    payload_med = b"y" * (2560 * 1024)  # 2.5 MiB * 10 = 25 MiB -> ~102.8 MiB total
+    t0 = time.perf_counter()
+    idx = 0
+    for d in range(n_dirs):
+        dpath = os.path.join(src, f"run_{d:03d}")
+        os.makedirs(dpath)
+        for f in range(files_per_dir):
+            fpath = os.path.join(dpath, f"result_{f:04d}.json")
+            with open(fpath, "wb") as fp:
+                fp.write(payload_med if idx < 10 else payload_small)
+            idx += 1
+    t_create = time.perf_counter() - t0
+
+    # Measure memory of build_manifest
+    tracemalloc.start()
+    snap_before = tracemalloc.take_snapshot()
+    t0 = time.perf_counter()
+    m = synccli.build_manifest(src)
+    t_manifest = time.perf_counter() - t0
+    cur_mem, peak_mem = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    # Measure JSON serialize + fsync
+    m_path = os.path.join(tmp, "manifest.json")
+    t0 = time.perf_counter()
+    with open(m_path, "w", encoding="utf-8") as fp:
+        json.dump(m, fp)
+        fp.flush()
+        os.fsync(fp.fileno())
+    t_json_write = time.perf_counter() - t0
+    m_bytes = os.path.getsize(m_path)
+
+    t0 = time.perf_counter()
+    with open(m_path, "r", encoding="utf-8") as fp:
+        _ = json.load(fp)
+    t_json_read = time.perf_counter() - t0
+
+    # Measure synccli.sync (full copy of 2,500 files / 102.8 MiB)
+    t0 = time.perf_counter()
+    synccli.sync(src, dst1)
+    t_synccli = time.perf_counter() - t0
+
+    # Measure chunked copy (1 MiB buffer, pre-created dirs)
+    t0 = time.perf_counter()
+    seen_dirs = set()
+    for rel in m:
+        sp = os.path.join(src, rel)
+        dp = os.path.join(dst2, rel)
+        dd = os.path.dirname(dp)
+        if dd not in seen_dirs:
+            os.makedirs(dd, exist_ok=True)
+            seen_dirs.add(dd)
+        with open(sp, "rb") as fs, open(dp, "wb") as fd:
+            shutil.copyfileobj(fs, fd, length=1048576)
+    t_chunked = time.perf_counter() - t0
+
+    # Measure os.link for 2,500 unchanged files
+    t0 = time.perf_counter()
+    seen_dirs.clear()
+    for rel in m:
+        sp = os.path.join(dst2, rel)
+        dp = os.path.join(dst_link, rel)
+        dd = os.path.dirname(dp)
+        if dd not in seen_dirs:
+            os.makedirs(dd, exist_ok=True)
+            seen_dirs.add(dd)
+        os.link(sp, dp)
+    t_link = time.perf_counter() - t0
+
+    # Measure sequential large-file throughput (256 MiB single file)
+    big_src = os.path.join(tmp, "big.bin")
+    big_dst = os.path.join(tmp, "big_dst.bin")
+    chunk = b"z" * (1024 * 1024)
+    with open(big_src, "wb") as fp:
+        for _ in range(256):
+            fp.write(chunk)
+    t0 = time.perf_counter()
+    with open(big_src, "rb") as fs, open(big_dst, "wb") as fd:
+        shutil.copyfileobj(fs, fd, length=1048576)
+        fd.flush()
+        os.fsync(fd.fileno())
+    t_big = time.perf_counter() - t0
+
+    print(f"2500 files (~102.8 MiB) create: {t_create:.3f}s")
+    print(f"build_manifest (2500 files): {t_manifest:.4f}s ({2500/t_manifest:.0f} files/s)")
+    print(f"manifest memory: cur={cur_mem} bytes ({cur_mem/2500:.1f} B/file), peak={peak_mem} bytes ({peak_mem/2500:.1f} B/file)")
+    print(f"manifest JSON size: {m_bytes} bytes ({m_bytes/2500:.1f} B/file), write+fsync={t_json_write:.4f}s, read={t_json_read:.4f}s")
+    print(f"synccli.sync (2500 files, 102.8 MiB): {t_synccli:.3f}s")
+    print(f"chunked copy (2500 files, 102.8 MiB): {t_chunked:.3f}s ({2500/t_chunked:.0f} files/s)")
+    print(f"os.link (2500 files): {t_link:.4f}s ({2500/t_link:.0f} links/s)")
+    print(f"256 MiB streaming copy+fsync: {t_big:.4f}s ({256/t_big:.0f} MiB/s)")
+'
+2500 files (~102.8 MiB) create: 0.367s
+build_manifest (2500 files): 0.1096s (22801 files/s)
+manifest memory: cur=970036 bytes (388.0 B/file), peak=990803 bytes (396.3 B/file)
+manifest JSON size: 184353 bytes (73.7 B/file), write+fsync=0.0058s, read=0.0012s
+synccli.sync (2500 files, 102.8 MiB): 0.706s
+chunked copy (2500 files, 102.8 MiB): 0.529s (4728 files/s)
+os.link (2500 files): 0.8197s (3050 links/s)
+256 MiB streaming copy+fsync: 0.2148s (1192 MiB/s)
+[0m
+[0m$ [0mpython3 -c '
+import fcntl, json, os, shutil, sys, tempfile, time, tracemalloc
+
+with tempfile.TemporaryDirectory(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode") as tmp:
+    src = os.path.join(tmp, "src")
+    dst = os.path.join(tmp, "dst")
+    os.makedirs(src)
+    os.makedirs(dst)
+
+    # Full 25,000 files totaling 1,024 MiB (1 GiB):
+    # 24,900 small files * 36 KiB = 875.39 MiB + 100 medium files * 1,522 KiB = 148.63 MiB -> 1,024.02 MiB (1.00 GiB)
+    payload_small = b"a" * (36 * 1024)
+    payload_med = b"b" * (1522 * 1024)
+    for d in range(250):
+        dpath = os.path.join(src, f"eval_{d:04d}")
+        os.makedirs(dpath)
+        for f in range(100):
+            idx = d * 100 + f
+            with open(os.path.join(dpath, f"out_{f:03d}.json"), "wb") as fp:
+                fp.write(payload_med if idx < 100 else payload_small)
+
+    # 1. Scan + stat (single-pass scandir with size, mtime_ns, mode)
+    tracemalloc.start()
+    t0 = time.perf_counter()
+    manifest = {}
+    stack = [""]
+    while stack:
+        rel_dir = stack.pop()
+        abs_dir = os.path.join(src, rel_dir) if rel_dir else src
+        with os.scandir(abs_dir) as it:
+            for entry in it:
+                name = entry.name
+                if entry.is_dir(follow_symlinks=False):
+                    if not name.startswith("."):
+                        stack.append(os.path.join(rel_dir, name) if rel_dir else name)
+                elif entry.is_file(follow_symlinks=False):
+                    st = entry.stat(follow_symlinks=False)
+                    rel = os.path.join(rel_dir, name) if rel_dir else name
+                    manifest[rel] = {"size": st.st_size, "mtime_ns": st.st_mtime_ns, "mode": st.st_mode & 0o777}
+    manifest = dict(sorted(manifest.items()))
+    t_scan = time.perf_counter() - t0
+    cur_mem, peak_mem = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    # 2. Full copy of 25,000 files / 1 GiB + post-fstat check + copystat
+    t0 = time.perf_counter()
+    seen_dirs = set()
+    total_bytes = 0
+    for rel, meta in manifest.items():
+        sp = os.path.join(src, rel)
+        dp = os.path.join(dst, rel)
+        dd = os.path.dirname(dp)
+        if dd not in seen_dirs:
+            os.makedirs(dd, exist_ok=True)
+            seen_dirs.add(dd)
+        with open(sp, "rb") as fs, open(dp, "wb") as fd:
+            shutil.copyfileobj(fs, fd, length=1048576)
+            st2 = os.fstat(fs.fileno())
+            total_bytes += st2.st_size
+        os.chmod(dp, meta["mode"])
+        os.utime(dp, ns=(st2.st_atime_ns, meta["mtime_ns"]))
+    t_copy = time.perf_counter() - t0
+
+    # 3. Manifest write + fsync
+    m_tmp = os.path.join(dst, ".manifest.tmp")
+    m_fin = os.path.join(dst, "manifest.json")
+    t0 = time.perf_counter()
+    with open(m_tmp, "w", encoding="utf-8") as fp:
+        json.dump(manifest, fp, separators=(",", ":"))
+        fp.flush()
+        os.fsync(fp.fileno())
+    os.replace(m_tmp, m_fin)
+    t_manifest_commit = time.perf_counter() - t0
+    m_size = os.path.getsize(m_fin)
+
+    # 4. Measure 100 os.fsync vs 10 F_FULLFSYNC to see cost
+    t0 = time.perf_counter()
+    for i in range(100):
+        p = os.path.join(tmp, f"fs_{i}")
+        with open(p, "wb") as fp:
+            fp.write(b"x")
+            fp.flush()
+            os.fsync(fp.fileno())
+    t_100_fsync = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    for i in range(10):
+        p = os.path.join(tmp, f"ffs_{i}")
+        with open(p, "wb") as fp:
+            fp.write(b"x")
+            fp.flush()
+            if hasattr(fcntl, "F_FULLFSYNC"):
+                fcntl.fcntl(fp.fileno(), fcntl.F_FULLFSYNC)
+    t_10_fullfsync = time.perf_counter() - t0
+
+    print(f"25,000 files ({total_bytes / (1024**3):.3f} GiB):")
+    print(f"  scandir+stat: {t_scan:.3f}s ({25000/t_scan:.0f} files/s)")
+    print(f"  manifest RAM: cur={cur_mem:,} B ({cur_mem/25000:.1f} B/file), peak={peak_mem:,} B ({peak_mem/25000:.1f} B/file)")
+    print(f"  copy+fstat+chmod+utime: {t_copy:.3f}s ({25000/t_copy:.0f} files/s, {(total_bytes/1024**2)/t_copy:.1f} MiB/s)")
+    print(f"  manifest write+fsync+replace: {t_manifest_commit:.4f}s, size={m_size:,} B ({m_size/25000:.1f} B/file)")
+    print(f"  total end-to-end: {t_scan + t_copy + t_manifest_commit:.3f}s")
+    print(f"  100x os.fsync: {t_100_fsync:.4f}s ({t_100_fsync*10:.2f}ms each)")
+    print(f"  10x F_FULLFSYNC: {t_10_fullfsync:.4f}s ({t_10_fullfsync*100:.2f}ms each)")
+'
+25,000 files (1.000 GiB):
+  scandir+stat: 0.781s (32019 files/s)
+  manifest RAM: cur=11,397,580 B (455.9 B/file), peak=14,785,332 B (591.4 B/file)
+  copy+fstat+chmod+utime: 8.917s (2804 files/s, 114.8 MiB/s)
+  manifest write+fsync+replace: 0.0535s, size=2,050,201 B (82.0 B/file)
+  total end-to-end: 9.752s
+  100x os.fsync: 0.0131s (0.13ms each)
+  10x F_FULLFSYNC: 0.0634s (6.34ms each)
+[0m
+[0m$ [0mpython3 -c '
+import os, sys, tempfile, time, tracemalloc
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-80768")
+import synccli
+
+with tempfile.TemporaryDirectory(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode") as tmp:
+    src = os.path.join(tmp, "src")
+    dst = os.path.join(tmp, "dst")
+    os.makedirs(src)
+    os.makedirs(dst)
+    payload_small = b"a" * (36 * 1024)
+    payload_med = b"b" * (1522 * 1024)
+    for d in range(250):
+        dpath = os.path.join(src, f"eval_{d:04d}")
+        os.makedirs(dpath)
+        for f in range(100):
+            idx = d * 100 + f
+            with open(os.path.join(dpath, f"out_{f:03d}.json"), "wb") as fp:
+                fp.write(payload_med if idx < 100 else payload_small)
+
+    tracemalloc.start()
+    t0 = time.perf_counter()
+    m = synccli.build_manifest(src)
+    t_bm = time.perf_counter() - t0
+    bm_cur, bm_peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    t0 = time.perf_counter()
+    copied = synccli.sync(src, dst)
+    t_sync = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    copied2 = synccli.sync(src, dst)
+    t_noop = time.perf_counter() - t0
+
+    print(f"synccli.build_manifest(25k): {t_bm:.3f}s, cur={bm_cur:,} B ({bm_cur/25000:.1f} B/file), peak={bm_peak:,} B ({bm_peak/25000:.1f} B/file)")
+    print(f"synccli.sync full (25k, 1.000 GiB): {t_sync:.3f}s ({len(copied)} copied)")
+    print(f"synccli.sync noop (25k): {t_noop:.3f}s ({len(copied2)} copied)")
+'
+synccli.build_manifest(25k): 0.993s, cur=10,191,248 B (407.6 B/file), peak=10,392,013 B (415.7 B/file)
+synccli.sync full (25k, 1.000 GiB): 8.395s (25000 copied)
+synccli.sync noop (25k): 0.657s (0 copied)
+[0m
+[0m$ [0mpython3 -c '
+import fcntl, os, stat, tempfile
+
+with tempfile.TemporaryDirectory(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode") as tmp:
+    d = os.path.join(tmp, "snap-20261117-120000-0001")
+    os.makedirs(d)
+    os.chmod(d, 0o555)  # read-only directory!
+    fd1 = os.open(d, os.O_RDONLY)
+    fd2 = os.open(d, os.O_RDONLY)
+    fd3 = os.open(d, os.O_RDONLY)
+    fcntl.flock(fd1, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    fcntl.flock(fd2, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    try:
+        fcntl.flock(fd3, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        print("UNEXPECTED: LOCK_EX succeeded while LOCK_SH held")
+    except BlockingIOError:
+        print("OK: LOCK_EX blocked by LOCK_SH on 0555 directory fd!")
+    os.close(fd1)
+    os.close(fd2)
+    fcntl.flock(fd3, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    print("OK: LOCK_EX succeeded after LOCK_SH closed!")
+    os.close(fd3)
+    os.chmod(d, 0o755)
+'
+OK: LOCK_EX blocked by LOCK_SH on 0555 directory fd!
+OK: LOCK_EX succeeded after LOCK_SH closed!
+[0m
+[0m$ [0mpython3 -c '
+import fcntl, hashlib, json, os, shutil, stat, sys, tempfile, time
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-80768")
+import synccli
+
+def fsync_durable(fd):
+    if hasattr(fcntl, "F_FULLFSYNC"):
+        fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+    else:
+        os.fsync(fd)
+
+with tempfile.TemporaryDirectory(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode") as tmp:
+    src = os.path.join(tmp, "src")
+    broot = os.path.join(tmp, "backup_root")
+    staging = os.path.join(broot, ".staging-bench")
+    os.makedirs(src)
+    os.makedirs(os.path.join(staging, "sources", "evals"))
+
+    # 25,000 files = 1.000 GiB (1,073,766,400 B) across 250 dirs
+    payload_small = b"a" * (36 * 1024)
+    payload_med = b"b" * (1522 * 1024)
+    for d in range(250):
+        dpath = os.path.join(src, f"eval_{d:04d}")
+        os.makedirs(dpath)
+        for f in range(100):
+            idx = d * 100 + f
+            with open(os.path.join(dpath, f"out_{f:03d}.json"), "wb") as fp:
+                fp.write(payload_med if idx < 100 else payload_small)
+
+    # Phase 1: Scan via synccli.scan_files + lstat
+    t0 = time.perf_counter()
+    rels = synccli.scan_files(src)
+    cand = {}
+    for rel in rels:
+        if rel == synccli.MANIFEST_NAME:
+            continue
+        st = os.lstat(os.path.join(src, rel))
+        if stat.S_ISREG(st.st_mode):
+            cand[rel] = {"size": st.st_size, "mtime_ns": st.st_mtime_ns, "mode": st.st_mode & 0o777}
+    t_scan = time.perf_counter() - t0
+
+    # Phase 2: Diff via synccli.changed_files
+    t0 = time.perf_counter()
+    to_copy = synccli.changed_files({}, cand)
+    t_diff = time.perf_counter() - t0
+
+    # Phase 3: Copy via .part + fstat check + os.fsync + utime + chmod(ro) + replace
+    t0 = time.perf_counter()
+    dst_base = os.path.join(staging, "sources", "evals")
+    seen_dirs = set()
+    committed = {}
+    for rel in to_copy:
+        sp = os.path.join(src, rel)
+        dp = os.path.join(dst_base, rel)
+        dd = os.path.dirname(dp)
+        if dd not in seen_dirs:
+            os.makedirs(dd, exist_ok=True)
+            seen_dirs.add(dd)
+        part = dp + ".part"
+        with open(sp, "rb") as fs:
+            pre = os.fstat(fs.fileno())
+            with open(part, "wb") as fd:
+                shutil.copyfileobj(fs, fd, length=1048576)
+                os.fsync(fd.fileno())
+            post = os.fstat(fs.fileno())
+        os.utime(part, ns=(post.st_atime_ns, post.st_mtime_ns))
+        os.chmod(part, post.st_mode & 0o555)
+        os.replace(part, dp)
+        committed[rel] = {"size": post.st_size, "mtime_ns": post.st_mtime_ns, "mode": post.st_mode & 0o777}
+    t_copy = time.perf_counter() - t0
+
+    # Phase 4: Seal dirs 0o555 + write manifest + F_FULLFSYNC + atomic rename + F_FULLFSYNC root
+    t0 = time.perf_counter()
+    for d in sorted(seen_dirs, key=len, reverse=True):
+        os.chmod(d, 0o555)
+    os.chmod(dst_base, 0o555)
+    os.chmod(os.path.join(staging, "sources"), 0o555)
+
+    body = json.dumps({"version": 1, "sources": {"evals": {"files": committed}}}, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    digest = hashlib.sha256(body).hexdigest()
+    envelope = json.dumps({"sha256": digest, "payload": json.loads(body)}).encode("utf-8")
+    m_tmp = os.path.join(staging, "manifest.json.tmp")
+    m_fin = os.path.join(staging, "manifest.json")
+    with open(m_tmp, "wb") as fp:
+        fp.write(envelope)
+        fp.flush()
+        fsync_durable(fp.fileno())
+    os.replace(m_tmp, m_fin)
+    os.chmod(m_fin, 0o444)
+    os.chmod(staging, 0o555)
+    sfd = os.open(staging, os.O_RDONLY)
+    fsync_durable(sfd)
+    os.close(sfd)
+
+    snap_path = os.path.join(broot, "snap-20261117-150000-0001")
+    os.rename(staging, snap_path)
+    bfd = os.open(broot, os.O_RDONLY)
+    fsync_durable(bfd)
+    os.close(bfd)
+    t_commit = time.perf_counter() - t0
+
+    # Cleanup permissions so TemporaryDirectory can remove 0o555 dirs!
+    for dirpath, dirnames, _ in os.walk(broot):
+        os.chmod(dirpath, 0o700)
+
+    total = t_scan + t_diff + t_copy + t_commit
+    print(f"Scan+lstat (synccli.scan_files + lstat): {t_scan:.3f}s")
+    print(f"Diff (synccli.changed_files):            {t_diff:.4f}s")
+    print(f"Copy+fstat+fsync+utime+chmod+replace:    {t_copy:.3f}s ({25000/t_copy:.0f} files/s)")
+    print(f"Seal+manifest+F_FULLFSYNC+rename:        {t_commit:.3f}s")
+    print(f"TOTAL full 1.000 GiB / 25,000 files:     {total:.3f}s")
+'
+Traceback (most recent call last):
+  File "<string>", line 96, in <module>
+PermissionError: [Errno 13] Permission denied: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/tmpvoafcuzj/backup_root/.staging-bench' -> '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/tmpvoafcuzj/backup_root/snap-20261117-150000-0001'
+[0m
+[0m$ [0mpython3 -c '
+import fcntl, hashlib, json, os, shutil, stat, sys, tempfile, time
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-80768")
+import synccli
+
+def fsync_durable(fd):
+    if hasattr(fcntl, "F_FULLFSYNC"):
+        fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+    else:
+        os.fsync(fd)
+
+with tempfile.TemporaryDirectory(dir="/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode") as tmp:
+    src = os.path.join(tmp, "src")
+    broot = os.path.join(tmp, "backup_root")
+    staging = os.path.join(broot, ".staging-bench")
+    trash = os.path.join(broot, ".trash")
+    os.makedirs(src)
+    os.makedirs(os.path.join(staging, "sources", "evals"))
+    os.makedirs(trash)
+
+    # 25,000 files = 1.000 GiB (1,073,766,400 B) across 250 dirs
+    payload_small = b"a" * (36 * 1024)
+    payload_med = b"b" * (1522 * 1024)
+    for d in range(250):
+        dpath = os.path.join(src, f"eval_{d:04d}")
+        os.makedirs(dpath)
+        for f in range(100):
+            idx = d * 100 + f
+            with open(os.path.join(dpath, f"out_{f:03d}.json"), "wb") as fp:
+                fp.write(payload_med if idx < 100 else payload_small)
+
+    # Phase 1: Scan via synccli.scan_files + lstat
+    t0 = time.perf_counter()
+    rels = synccli.scan_files(src)
+    cand = {}
+    for rel in rels:
+        if rel == synccli.MANIFEST_NAME:
+            continue
+        st = os.lstat(os.path.join(src, rel))
+        if stat.S_ISREG(st.st_mode):
+            cand[rel] = {"size": st.st_size, "mtime_ns": st.st_mtime_ns, "mode": st.st_mode & 0o777}
+    t_scan = time.perf_counter() - t0
+
+    # Phase 2: Diff via synccli.changed_files
+    t0 = time.perf_counter()
+    to_copy = synccli.changed_files({}, cand)
+    t_diff = time.perf_counter() - t0
+
+    # Phase 3: Copy via .part + fstat check + os.fsync + utime + chmod(ro) + replace
+    t0 = time.perf_counter()
+    dst_base = os.path.join(staging, "sources", "evals")
+    seen_dirs = set()
+    committed = {}
+    for rel in to_copy:
+        sp = os.path.join(src, rel)
+        dp = os.path.join(dst_base, rel)
+        dd = os.path.dirname(dp)
+        if dd not in seen_dirs:
+            os.makedirs(dd, exist_ok=True)
+            seen_dirs.add(dd)
+        part = dp + ".part"
+        with open(sp, "rb") as fs:
+            pre = os.fstat(fs.fileno())
+            with open(part, "wb") as fd:
+                shutil.copyfileobj(fs, fd, length=1048576)
+                os.fsync(fd.fileno())
+            post = os.fstat(fs.fileno())
+        os.utime(part, ns=(post.st_atime_ns, post.st_mtime_ns))
+        os.chmod(part, post.st_mode & 0o555)
+        os.replace(part, dp)
+        committed[rel] = {"size": post.st_size, "mtime_ns": post.st_mtime_ns, "mode": post.st_mode & 0o777}
+    t_copy = time.perf_counter() - t0
+
+    # Phase 4: Write manifest + F_FULLFSYNC + atomic rename + F_FULLFSYNC root
+    t0 = time.perf_counter()
+    body = json.dumps({"version": 1, "sources": {"evals": {"files": committed}}}, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    digest = hashlib.sha256(body).hexdigest()
+    envelope = json.dumps({"sha256": digest, "payload": json.loads(body)}).encode("utf-8")
+    m_tmp = os.path.join(staging, "manifest.json.tmp")
+    m_fin = os.path.join(staging, "manifest.json")
+    with open(m_tmp, "wb") as fp:
+        fp.write(envelope)
+        fp.flush()
+        fsync_durable(fp.fileno())
+    os.replace(m_tmp, m_fin)
+    os.chmod(m_fin, 0o444)
+    sfd = os.open(staging, os.O_RDONLY)
+    fsync_durable(sfd)
+    os.close(sfd)
+
+    snap_path = os.path.join(broot, "snap-20261117-150000-0001")
+    os.rename(staging, snap_path)
+    bfd = os.open(broot, os.O_RDONLY)
+    fsync_durable(bfd)
+    os.close(bfd)
+    t_commit = time.perf_counter() - t0
+
+    # Verify incremental run (0% changed -> 25,000 hardlinks!)
+    t0 = time.perf_counter()
+    staging2 = os.path.join(broot, ".staging-bench2")
+    dst_base2 = os.path.join(staging2, "sources", "evals")
+    os.makedirs(dst_base2)
+    rels2 = synccli.scan_files(src)
+    cand2 = {rel: {"size": (st := os.lstat(os.path.join(src, rel))).st_size, "mtime_ns": st.st_mtime_ns, "mode": st.st_mode & 0o777} for rel in rels2}
+    changed2 = set(synccli.changed_files(committed, cand2))
+    seen_dirs2 = set()
+    for rel in cand2:
+        if rel not in changed2:
+            dp2 = os.path.join(dst_base2, rel)
+            dd2 = os.path.dirname(dp2)
+            if dd2 not in seen_dirs2:
+                os.makedirs(dd2, exist_ok=True)
+                seen_dirs2.add(dd2)
+            os.link(os.path.join(snap_path, "sources", "evals", rel), dp2)
+    snap_path2 = os.path.join(broot, "snap-20261117-150001-0001")
+    os.rename(staging2, snap_path2)
+    t_incr = time.perf_counter() - t0
+
+    # Verify two-phase trash rename + rmtree works cleanly with 0o444 files!
+    t0 = time.perf_counter()
+    trash_entry = os.path.join(trash, "snap-20261117-150000-0001.1700000000")
+    os.rename(snap_path, trash_entry)
+    shutil.rmtree(trash_entry)
+    t_prune = time.perf_counter() - t0
+
+    total = t_scan + t_diff + t_copy + t_commit
+    print(f"Scan+lstat (synccli.scan_files + lstat): {t_scan:.3f}s")
+    print(f"Diff (synccli.changed_files):            {t_diff:.4f}s")
+    print(f"Copy+fstat+fsync+utime+chmod+replace:    {t_copy:.3f}s ({25000/t_copy:.0f} files/s)")
+    print(f"Manifest+F_FULLFSYNC+atomic rename:      {t_commit:.3f}s")
+    print(f"TOTAL full 1.000 GiB / 25,000 files:     {total:.3f}s")
+    print(f"Incremental 0%-changed (25k hardlinks):  {t_incr:.3f}s (changed={len(changed2)})")
+    print(f"Two-phase trash rename + rmtree (25k):   {t_prune:.3f}s")
+'
+Scan+lstat (synccli.scan_files + lstat): 0.637s
+Diff (synccli.changed_files):            0.0009s
+Copy+fstat+fsync+utime+chmod+replace:    13.932s (1794 files/s)
+Manifest+F_FULLFSYNC+atomic rename:      0.058s
+TOTAL full 1.000 GiB / 25,000 files:     14.628s
+Incremental 0%-changed (25k hardlinks):  9.536s (changed=0)
+Two-phase trash rename + rmtree (25k):   1.971s
+[0m
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 83718 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 80783 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-80768 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-17-D-D1-github-copilot-gemini-4-carbon-high-g51 above)

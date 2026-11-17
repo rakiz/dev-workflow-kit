@@ -1,0 +1,108 @@
+[0m
+> build · accounts/fireworks/models/muse-spark-open
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m→ [0mRead .
+GOAL and README captured — inspecting repo layout to ground the plan.
+[0m✱ [0mGlob "**/*"[90m 8 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead incremental.py
+# Execution Plan — `GOAL.md` + `README.md` — TEXT ONLY (no modifications)
+
+Source: `GOAL.md:1-14`, `README.md:1-7`, `synccli.py:72-99`, `test_synccli.py:1-55`, `DESIGN.md:1-31`, `incremental.py:1-40`
+
+## Context Summary
+
+Current `synccli.py:90-99` is a one-shot sync: `main()` parses `src`, `dst`, `--dry-run`, calls `sync()` (`synccli.py:72`) and prints one `rel` per line. Goal adds `--json` machine-readable mode: single JSON object on `stdout` `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` with identical exit code, `dry-run` interplay (no copy), human mode unchanged, new unit tests in `test_synccli.py`, stdlib-only, `sync()` signature frozen.
+
+---
+
+### Task 1 — Inventory & Baseline (Prerequisite)
+
+- **Objective:** Establish current contract to protect against regressions. Confirm `sync()` signature, CLI behavior, existing test expectations, and unrelated landmines.
+- **Files to read (no modify):** `synccli.py:72-99`, `test_synccli.py:35-52`, `incremental.py:1-40`, `DESIGN.md:1-31`
+- **Pipeline agent:** `explore`
+- **Risks:**
+  - `synccli.py:55-59` skips index 0 (`range(1, len(items))`) — contradicts `test_synccli.py:22-24` (`test_first_item_stale_is_included`). Any refactor near `scan_files`/`collect_stale` could be blamed.
+  - `incremental.py:10-15` mutable default `excluded=[]` and wrong `EXCLUDE_TOP_DIRS` entry — must not leak scope into GOAL.
+  - `DESIGN.md` daemon design must be explicitly excluded to prevent scope creep (500ms poll loop etc.).
+- **Verifiable Acceptance Criterion:**
+  - `python3 -m unittest -v` output captured; failing/passing test list recorded. Inventory notes `sync(src_root, dst_root, dry_run=False)` params and that `main()` currently always prints per-line.
+
+### Task 2 — Design Review: `--json` Contract
+
+- **Objective:** Resolve ambiguities in `GOAL.md:5-6` before code. Define `skipped`, `src`/`dst` serialization, `stdout` isolation.
+- **Files to create/modify:** None (produce short decision record reviewed in-place). If persisted, `DESIGN.md` appendix or ephemeral `docs/design-json-mode.md` — but plan keeps text-only, reviewer signs off verbally.
+- **Pipeline agent:** `design-review` (cheap-design-review; escalate to strong-design-review only on unresolved ambiguity)
+- **Risks:**
+  - `skipped` undefined: total scanned vs manifest-diff skipped vs copy-errors skipped. Must decide: `skipped = len(src_manifest) - len(copied)` or `len(src_manifest) - to_copy`? Needs alignment with `synccli.py:38-42` and `synccli.py:74-80`.
+  - `src`/`dst` in JSON: absolute vs `args.src` verbatim. Recommendation: echo `args.src`/`args.dst` verbatim (least surprise, matches CLI contract); document.
+  - `stdout` exclusivity: `copy_file:68-69` swallows `OSError` silently; `synccli.py:98` print must be fully suppressed in JSON mode. `stderr` remains allowed for future logging. Must specify `json.dump(..., indent=None)` single line vs pretty. Ensure single `print(json.dumps(...))` with no trailing debug.
+  - `changed_files` uses `size+mtime` equality — `skipped` semantics must reflect that.
+- **Verifiable Acceptance Criterion:** Reviewer approves written answers to: (1) `skipped` formula, (2) `src`/`dst` value source, (3) `stdout` must be exactly `json.loads(stdout)` == expected dict with no extra bytes/lines, (3b) `stderr` unconstrained, (4) `exit 0` in both modes, (5) `sync()` signature frozen confirmed.
+
+### Task 3 — Implement `--json` Flag in `synccli.py`
+
+- **Objective:** Add `parser.add_argument("--json", action="store_true")` in `synccli.py:90-95` and branch output in `main()`: when `--json`, emit single JSON object `{"copied": copied, "skipped": N, "src": args.src, "dst": args.dst}` to `stdout`; otherwise preserve per-line loop `synccli.py:97-98`.
+- **Files to modify:** `synccli.py:90-99` (only `main()`); **must NOT modify** `synccli.py:72` (`sync()` signature) per `GOAL.md:14`.
+- **Pipeline agent:** `impl` (cheap-code) → `review` (cheap-review) mandatory
+- **Risks:**
+  - Accidentally changing `sync()` signature or adding dependency (violates `GOAL.md:14` stdlib-only).
+  - Printing JSON plus legacy lines (violates "Nothing else may be printed to stdout" `GOAL.md:6-7`).
+  - Computing `skipped` incorrectly: need `build_manifest` or `scan_files` call without double-scanning; decide if `skipped` counts only up-to-date files vs all not-copied. Reuse `sync()` return + extra `build_manifest(src_root)` for total if formula needs it.
+  - `argparse` conflict with Python 3.10 `json` stdlib; no new imports beyond `json` (already present `synccli.py:3`).
+- **Verifiable Acceptance Criterion:**
+  - `python3 -m synccli /tmp/src /tmp/dst --json | python3 -m json.tool` succeeds and object has keys `copied` (list), `skipped` (int), `src` (str), `dst` (str) — no extra keys.
+  - `python3 -m synccli /tmp/src /tmp/dst --json > out.txt; wc -l out.txt` == 1 and `python3 -c "import json; json.load(open('out.txt'))"` exits 0.
+  - `python3 -m synccli /tmp/src /tmp/dst; echo $?` still 0 and prints one path per line (human mode unchanged).
+  - `grep -n "def sync" synccli.py` shows unchanged `def sync(src_root, dst_root, dry_run=False):`.
+
+### Task 4 — Implement `--dry-run` × `--json` Interplay
+
+- **Objective:** Ensure `--json --dry-run` lists `copied` as would-be copies without side effects (`synccli.py:81-82` already returns `to_copy` without copying/writing manifest). Compute `skipped` consistently in dry-run path. Verify no file copied, no manifest written.
+- **Files to modify:** `synccli.py:90-99` (same branch as Task 3 — implement together, verify separately)
+- **Pipeline agent:** `impl` (same cheap-code session as Task 3; do not spawn fresh) → `review`
+- **Risks:**
+  - Double-calling `sync()` + `build_manifest` causing extra I/O or manifest mutation. Must call `sync(dry_run=True)` exactly once in dry-run case.
+  - `skipped` off-by-one if `src` empty dir: expect `skipped=0`.
+  - Existing `copy_file:68-69` silently skips unreadable files — whether those count as `skipped` or still in `copied` needs Design decision from Task 2.
+- **Verifiable Acceptance Criterion:**
+  - Pre-condition `ls $DST | wc -l == 0`; run `python3 -m synccli $SRC $DST --dry-run --json > out.json`; assert `jq .copied out.json` non-empty when src differs from dst; `ls $DST` still empty; `test ! -f $DST/.sync_manifest.json` or manifest unchanged (no write on dry-run per `synccli.py:81-82`).
+  - `python3 -m synccli $SRC $DST --dry-run |` per-line output matches `jq -r '.copied[]' out.json` (same list content, different formatting).
+
+### Task 5 — Unit Tests for JSON Shape & Dry-Run Semantics
+
+- **Objective:** Add to `test_synccli.py` tests per `GOAL.md:10-11`: valid JSON, keys present, dry-run semantics, stdout exclusivity, human mode unchanged.
+- **Files to modify:** `test_synccli.py` (append new `TestJsonOutput` class); optional `test_synccli_helpers.py` if isolation preferred but GOAL says `test_synccli.py`.
+- **Pipeline agent:** `impl` (cheap-code, fresh session with full Task 2 spec as brief) → `review`
+- **Risks:**
+  - Capturing `stdout` incorrectly: tests must patch `sys.stdout` or use `subprocess.run(..., capture_output=True)`; ensure no stray `print` in `synccli.py` breaks JSON.
+  - Flaky `mtime` resolution on fast temp files — need `time.sleep(0.01)` or assert via manifest diff.
+  - Over-mocking `sync()` violates signature-stability intent; tests should exercise `main()` via CLI entry, not just `sync()`.
+- **Verifiable Acceptance Criterion:**
+  - `python3 -m unittest -v -k TestJsonOutput` passes 4+ tests covering:
+    1. `test_json_valid_and_keys` — `json.loads(stdout)` has `{"copied","skipped","src","dst"}`.
+    2. `test_json_nothing_else_on_stdout` — `stdout.strip()` == `json.dumps(obj)` single line, no extra newline beyond one.
+    3. `test_dry_run_copied_is_would_copy` — `--dry-run --json` `copied` == non-dry `--dry-run` per-line list, and `dst` file absent.
+    4. `test_human_mode_unchanged` — without `--json`, output is `\n`-joined basenames, not JSON.
+  - Full `python3 -m unittest -v` passes (including `TestSync:42-51` existing).
+
+### Task 6 — Final Verification & Constraint Audit
+
+- **Objective:** End-to-end gate: no new deps, py3.10 stdlib only, signature stable, both modes exit 0.
+- **Files to read:** `synccli.py:1-5` (imports), `synccli.py:72`, `test_synccli.py` full
+- **Pipeline agent:** `review` (cheap-review; strong-review only if major finding on isolation)
+- **Risks:** Hidden import added, `argparse` help text change breaks scripts parsing legacy output.
+- **Verifiable Acceptance Criterion:**
+  - `python3 -c "import ast,sys; print([n.module for n in ast.walk(ast.parse(open('synccli.py').read())) if isinstance(n, ast.Import)])"` shows only `argparse,json,os,sys` (`synccli.py:2-5`).
+  - `python3 -m py_compile synccli.py` with `python3.10` succeeds.
+  - Manual matrix 2×2: `[--json?, --dry-run?]` all return `exit 0`, correct output shape per Task 2 spec.
+  - `git diff --stat` shows only `synccli.py` and `test_synccli.py` modified.
+
+**Execution order:** 1 → 2 → 3+4 (single impl session) → 5 → 6. Tasks 1 and 2 are blocking; 3/4 must not start before 2 is signed off due to `skipped` ambiguity.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 102: 61126 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 111: 61127 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-61095 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium-g21)

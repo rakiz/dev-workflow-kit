@@ -1,0 +1,240 @@
+[0m
+> build · gemini-4-carbon
+[0m
+[0m→ [0mRead GOAL.md
+[0m✱ [0mGlob "**/*"[90m 12 matches[0m
+[0m→ [0mRead reportgen.py
+[0m→ [0mRead transforms.py
+[0m→ [0mRead cache.py
+[0m→ [0mRead rules.example.toml
+[0m→ [0mRead test_reportgen.py
+[0m→ [0mRead test_legacy_report.py
+[0m
+[0m# [0mTodos
+[•] Run both shipped test suites before changing anything and record exact commands and outputs
+[ ] Audit codebase and input files for all defects and invariant violations
+[ ] Implement boolean transform and cache hygiene (future schema version handling)
+[ ] Fix discovered defects with minimal changes keeping invariants holding
+[ ] Add tests for new features and one regression test per fixed defect without touching unrelated tests
+[ ] Run full test suite and CLI verification, then write final report with baseline test outputs and trade-offs
+[0m
+[0m$ [0mpython3 -m unittest test_legacy_report
+F
+======================================================================
+FAIL: test_sample_values_do_not_leak_markup (test_legacy_report.HtmlOutputTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-79954/test_legacy_report.py", line 26, in test_sample_values_do_not_leak_markup
+    self.assertNotIn("<b>", html)
+AssertionError: '<b>' unexpectedly found in "<!doctype html>\n<html><head><meta charset='utf-8'>\n<title>reportgen summary</title></head><body>\n<h1>labels.csv</h1>\n<p>1 rows</p>\n<table border='1'>\n<tr><th>column</th><th>non_empty</th><th>distinct</th><th>sample</th></tr>\n<tr><td>item</td><td>1</td><td>1</td><td>i1</td></tr>\n<tr><td>label</td><td>1</td><td>1</td><td>red <b> & bold</td></tr>\n</table>\n</body></html>"
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (failures=1)
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen
+../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-79954/test_reportgen.py:128: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-pto2wv1o/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-79954/test_reportgen.py:130: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-pto2wv1o/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..........
+----------------------------------------------------------------------
+Ran 12 tests in 0.212s
+
+OK
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+[0m→ [0mRead input/small_employees.csv
+[0m→ [0mRead input/small_devices.csv
+[0m→ [0mRead input/small_transactions.csv
+[0m→ [0mRead .
+[0m→ [0mRead input/big_transactions.csv[90m [limit=30][0m
+[0m
+[0m$ [0mls -la /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-79954 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-79954/cache 2>&1 || true
+ls: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-79954/cache: No such file or directory
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-79954:
+total 80
+drwxr-xr-x@    7 sebastien.mendez  staff    224 Nov 17 14:36 __pycache__
+drwxr-xr-x@   12 sebastien.mendez  staff    384 Nov 17 14:36 .
+drwx------@ 1634 sebastien.mendez  staff  52288 Nov 17 14:37 ..
+-rw-r--r--@    1 sebastien.mendez  staff   2565 Nov 17 14:34 cache.py
+-rw-r--r--@    1 sebastien.mendez  staff   2054 Nov 17 14:34 GOAL.md
+drwxr-xr-x@    6 sebastien.mendez  staff    192 Nov 17 14:34 input
+drwxr-xr-x@    3 sebastien.mendez  staff     96 Nov 17 14:34 output
+-rw-r--r--@    1 sebastien.mendez  staff   8341 Nov 17 14:34 reportgen.py
+-rw-r--r--@    1 sebastien.mendez  staff    349 Nov 17 14:34 rules.example.toml
+-rw-r--r--@    1 sebastien.mendez  staff   1024 Nov 17 14:34 test_legacy_report.py
+-rw-r--r--@    1 sebastien.mendez  staff   5488 Nov 17 14:34 test_reportgen.py
+-rw-r--r--@    1 sebastien.mendez  staff   2250 Nov 17 14:34 transforms.py
+[0m
+[0m# [0mTodos
+[✓] Run both shipped test suites before changing anything and record exact commands and outputs
+[•] Audit codebase and input files for all defects and invariant violations
+[ ] Implement boolean transform and cache hygiene (future schema version handling)
+[ ] Fix discovered defects with minimal changes keeping invariants holding
+[ ] Add tests for new features and one regression test per fixed defect without touching unrelated tests
+[ ] Run full test suite and CLI verification, then write final report with baseline test outputs and trade-offs
+[0m
+[0m→ [0mRead input/big_transactions.csv[90m [limit=50, offset=31][0m
+[0m→ [0mRead input/big_transactions.csv[90m [limit=35, offset=11970][0m
+[0m
+[0m$ [0mpython3 -c '
+import csv, datetime, glob
+for p in sorted(glob.glob("input/*.csv")):
+    with open(p, newline="") as f:
+        r = csv.DictReader(f)
+        bad_dates = []
+        empty_counts = {k: 0 for k in r.fieldnames}
+        rows = 0
+        for row in r:
+            rows += 1
+            for k, v in row.items():
+                if v == "":
+                    empty_counts[k] += 1
+            if "date" in row:
+                m, d, y = row["date"].split("/")
+                try:
+                    datetime.date(int(y), int(m), int(d))
+                except ValueError:
+                    bad_dates.append(row["date"])
+        print(p, "rows=", rows, "empty=", empty_counts, "bad_dates=", len(bad_dates), bad_dates[:5])
+'
+input/big_transactions.csv rows= 12000 empty= {'tx_id': 0, 'merchant': 0, 'amount': 0, 'date': 0, 'share': 0} bad_dates= 0 []
+input/small_devices.csv rows= 3 empty= {'device_id': 0, 'status': 3, 'notes': 0} bad_dates= 0 []
+input/small_employees.csv rows= 5 empty= {'emp_id': 0, 'name': 0, 'dept': 0, 'salary': 0} bad_dates= 0 []
+input/small_transactions.csv rows= 4 empty= {'tx_id': 0, 'merchant': 0, 'amount': 0, 'date': 0} bad_dates= 0 []
+[0m
+[0m$ [0mpython3 -c '
+import csv
+with open("input/big_transactions.csv") as f:
+    r = csv.DictReader(f)
+    amounts = [float(row["amount"].replace("$","")) for row in r]
+print("count:", len(amounts), "distinct:", len(set(amounts)), "sum_all:", round(sum(amounts), 2), "sum_set:", round(sum(set(amounts)), 2))
+'
+count: 12000 distinct: 5000 sum_all: 26999940.0 sum_set: 12499975.0
+[0m
+[0m$ [0mpython3 -c '
+import csv
+with open("input/big_transactions.csv") as f:
+    rows = list(csv.DictReader(f))
+for i in [0, 1, 14, 15, 999, 1000, 1999, 2000, 5999, 6000, 11999]:
+    print(i, rows[i])
+'
+0 {'tx_id': 't000000', 'merchant': 'Merchant-00', 'amount': '$0.00', 'date': '03/01/2026', 'share': '0.0000'}
+1 {'tx_id': 't000001', 'merchant': 'Merchant-01', 'amount': '$1.07', 'date': '03/02/2026', 'share': '0.0010'}
+14 {'tx_id': 't000014', 'merchant': 'Merchant-14', 'amount': '$14.98', 'date': '03/15/2026', 'share': '0.0140'}
+15 {'tx_id': 't000015', 'merchant': 'Merchant-15', 'amount': '$15.05', 'date': '03/16/2026', 'share': '0.0150'}
+999 {'tx_id': 't000999', 'merchant': 'Merchant-19', 'amount': '$999.93', 'date': '03/10/2026', 'share': '0.9990'}
+1000 {'tx_id': 't001000', 'merchant': 'Merchant-00', 'amount': '$1000.00', 'date': '03/11/2026', 'share': '0.0000'}
+1999 {'tx_id': 't001999', 'merchant': 'Merchant-19', 'amount': '$1999.93', 'date': '03/20/2026', 'share': '0.9990'}
+2000 {'tx_id': 't002000', 'merchant': 'Merchant-00', 'amount': '$2000.00', 'date': '03/21/2026', 'share': '0.0000'}
+5999 {'tx_id': 't005999', 'merchant': 'Merchant-19', 'amount': '$999.93', 'date': '04/29/2026', 'share': '0.9990'}
+6000 {'tx_id': 't006000', 'merchant': 'Merchant-00', 'amount': '$1000.00', 'date': '04/30/2026', 'share': '0.0000'}
+11999 {'tx_id': 't011999', 'merchant': 'Merchant-19', 'amount': '$1999.93', 'date': '03/30/2026', 'share': '0.9990'}
+[0m
+[0m$ [0mpython3 -c '
+import csv
+with open("input/big_transactions.csv") as f:
+    amounts = [round(float(r["amount"].replace("$","")), 2) for r in csv.DictReader(f)]
+s = set(amounts)
+print("sum(s):", repr(sum(s)), round(sum(s), 2))
+print("sum(sorted(s)):", repr(sum(sorted(s))), round(sum(sorted(s)), 2))
+print("sum(amounts):", repr(sum(amounts)), round(sum(amounts), 2))
+'
+sum(s): 12499975.0 12499975.0
+sum(sorted(s)): 12499974.999999998 12499975.0
+sum(amounts): 26999940.0 26999940.0
+[0m
+[0m$ [0mpython3 -c '
+import csv
+with open("input/big_transactions.csv") as f:
+    rows = list(csv.DictReader(f))
+for i in [0, 1, 2, 1999, 2000, 2999, 3000, 4999, 5000]:
+    print(i, rows[i])
+'
+0 {'tx_id': 't000000', 'merchant': 'Merchant-00', 'amount': '$0.00', 'date': '03/01/2026', 'share': '0.0000'}
+1 {'tx_id': 't000001', 'merchant': 'Merchant-01', 'amount': '$1.07', 'date': '03/02/2026', 'share': '0.0010'}
+2 {'tx_id': 't000002', 'merchant': 'Merchant-02', 'amount': '$2.14', 'date': '03/03/2026', 'share': '0.0020'}
+1999 {'tx_id': 't001999', 'merchant': 'Merchant-19', 'amount': '$1999.93', 'date': '03/20/2026', 'share': '0.9990'}
+2000 {'tx_id': 't002000', 'merchant': 'Merchant-00', 'amount': '$2000.00', 'date': '03/21/2026', 'share': '0.0000'}
+2999 {'tx_id': 't002999', 'merchant': 'Merchant-19', 'amount': '$2999.93', 'date': '03/30/2026', 'share': '0.9990'}
+3000 {'tx_id': 't003000', 'merchant': 'Merchant-00', 'amount': '$3000.00', 'date': '03/31/2026', 'share': '0.0000'}
+4999 {'tx_id': 't004999', 'merchant': 'Merchant-19', 'amount': '$4999.93', 'date': '04/19/2026', 'share': '0.9990'}
+5000 {'tx_id': 't005000', 'merchant': 'Merchant-00', 'amount': '$0.00', 'date': '04/20/2026', 'share': '0.0000'}
+[0m
+[0m$ [0mpython3 -c '
+import reportgen
+rules = reportgen.load_rules("rules.example.toml")
+for name in ["big_transactions.csv", "small_devices.csv", "small_employees.csv", "small_transactions.csv"]:
+    h, rows = reportgen.load_rows("input/" + name)
+    print("=== " + name + " ===")
+    print("generated_from:", reportgen.generated_from(h, rows, rules))
+    print(reportgen.summarize_file(h, rows, rules))
+'
+=== big_transactions.csv ===
+generated_from: 4
+{'columns': {'amount': {'non_empty': 12000, 'distinct': 5000, 'sample': [0.0, 1.07, 10.7], 'numeric_sum': 12499975.0}, 'date': {'non_empty': 12000, 'distinct': 90, 'sample': ['2026-03-01', '2026-03-02', '2026-03-03']}, 'merchant': {'non_empty': 12000, 'distinct': 20, 'sample': ['merchant-00', 'merchant-01', 'merchant-02']}, 'share': {'non_empty': 12000, 'distinct': 1000, 'sample': ['0.0000', '0.0010', '0.0020']}, 'tx_id': {'non_empty': 12000, 'distinct': 12000, 'sample': ['t000000', 't000001', 't000002']}}, 'skipped_rows': []}
+=== small_devices.csv ===
+generated_from: 1
+{'columns': {'device_id': {'non_empty': 3, 'distinct': 3, 'sample': ['d1', 'd2', 'd3']}, 'notes': {'non_empty': 3, 'distinct': 3, 'sample': ['sensor-a', 'sensor-c', 'wrapped\nnote']}, 'status': {'non_empty': 0, 'distinct': 1, 'sample': ['']}}, 'skipped_rows': []}
+=== small_employees.csv ===
+generated_from: 3
+{'columns': {'dept': {'non_empty': 5, 'distinct': 3, 'sample': ['Design', 'Eng', 'Ops']}, 'emp_id': {'non_empty': 5, 'distinct': 5, 'sample': ['e01', 'e02', 'e03']}, 'name': {'non_empty': 5, 'distinct': 5, 'sample': ['Ada Poe', 'Ann Premier', 'Bo Li']}, 'salary': {'non_empty': 5, 'distinct': 5, 'sample': [114000.0, 69000.0, 72500.0], 'numeric_sum': 430000.0}}, 'skipped_rows': []}
+=== small_transactions.csv ===
+generated_from: 4
+{'columns': {'amount': {'non_empty': 4, 'distinct': 4, 'sample': [120.5, 25.1, 40.0], 'numeric_sum': 275.59}, 'date': {'non_empty': 4, 'distinct': 4, 'sample': ['2026-01-15', '2026-01-16', '2026-01-17']}, 'merchant': {'non_empty': 4, 'distinct': 3, 'sample': ['acme', 'bolt', 'cirrus']}, 'tx_id': {'non_empty': 4, 'distinct': 4, 'sample': ['t1', 't2', 't3']}}, 'skipped_rows': []}
+[0m
+[0m$ [0mpython3 -c '
+import csv, math
+from decimal import Decimal
+with open("input/big_transactions.csv") as f:
+    raws = [r["amount"].replace("$","") for r in csv.DictReader(f)]
+decs = [Decimal(x) for x in raws]
+floats = [round(float(x), 2) for x in raws]
+print("exact Decimal sum:", sum(decs))
+print("sum(floats):", repr(sum(floats)), "round2:", round(sum(floats), 2))
+print("math.fsum(floats):", repr(math.fsum(floats)), "round2:", round(math.fsum(floats), 2))
+print("sum(sorted(floats)):", repr(sum(sorted(floats))), "round2:", round(sum(sorted(floats)), 2))
+'
+exact Decimal sum: 26999940.00
+sum(floats): 26999940.0 round2: 26999940.0
+math.fsum(floats): 26999940.0 round2: 26999940.0
+sum(sorted(floats)): 26999939.99999999 round2: 26999940.0
+[0m
+[0m$ [0mpython3 -c '
+import csv
+with open("input/big_transactions.csv") as f:
+    shares = [round(float(r["share"]), 2) for r in csv.DictReader(f)]
+s = set(shares)
+print("shares distinct:", len(s), "sum(s):", repr(sum(s)), "sum(sorted(s)):", repr(sum(sorted(s))))
+'
+shares distinct: 101 sum(s): 50.50000000000002 sum(sorted(s)): 50.5
+[0m
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 185: 79965 Terminated: 15          opencode run --dir "$WORK" --model "$MODEL" --variant "$VARIANT" --title "$TITLE" --auto "$PROMPT"
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 116: 82820 Terminated: 15          sleep 5
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 79969 Terminated: 15          sleep "$TIMEOUT_SECS"
+arm-killed-costcap: eval-2026-11-17-IV2-RG3-github-copilot-gemini-4-carbon-high-g51 cost exceeded 2x EVAL_ARM_CAP (cap $0.6); run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-79954
