@@ -55,3 +55,22 @@ for s,nc,n in sorted(rows,reverse=True): print(f'{n:32s} {s:.3f} {-nc:8.3f}')"
    end-to-end rollouts (verbosity penalized differently) vs our per-role tasks. Our price
    finding stands for our usage; their data strengthens the documented upgrade path
    (carbon `high`) should the argon rung ever need it.
+
+### 2026-11-17 — GPT-6.2 Astra + Sol released
+
+Source: https://openai.com/index/introducing-gpt-6-2-astra-sol
+
+- **gpt-6.2-sol**: SAME API price as 6.1-sol ($2/$0.10 cached/$10) — the only one whose
+  price class contends for a seat of ours (strong-code, sonnet `high`, I-v2 9 @ $0.40;
+  class = $2/$10). Claims: within 0.5 pt of 6.2-astra on FrontierCode 2.0 at 1/5 cost;
+  smarter + fewer output tokens than 6.1-sol. ⚠ Known trap: the previous external
+  "best value" reco for a sol (FrontierCode, 11-12) collapsed on our bench (2/14).
+  NOT available yet on our providers (github-copilot / ai-gateway-openai, checked 11-17).
+  **Re-entry**: test gpt-6.2-sol on all 5 decision benches (~1-2 runs, ~$3-5) the day a
+  gateway lists it; a strong-code challenge requires I-v2 ≥ 9 at ≤ $0.50/task.
+- **gpt-6.2-astra**: $8/$40 ($0.40 cached) — blended ≈ $3.9 vs opus-5.5 $1.95. Only
+  contender seat would be deep (opus, terminal, I-v2 10 / D 8.75). **Re-entry condition
+  (supersedes gpt-6-astra's old one)**: drops below opus-5.5 blended, or opus regresses.
+- **Honesty signal worth testing**: the system card admits 6.2 models omit mentioning
+  obstacles more often — our O bench's red-baseline trap is exactly that shape; first O
+  run on 6.2-sol is diagnostic.

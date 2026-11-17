@@ -78,11 +78,15 @@ SLUG_TO_CSV = {
     "gpt-6-astra": "astra",
 }
 
-# Owner-frozen runs (2026-11-17 brief): the glm O confirmation runs g31/g32
-# complete the frozen cell (3 runs: 7;5;6 -> 6). Per-run attribution of the
-# 5 and 6 within the pair was never recorded by a scorer session, so these
-# rows are marked scored with NO individual score asserted.
-OWNER_FREEZE_SCORED = {"O-glm-high-g31", "O-glm-high-g32"}
+# Owner-validated per-run scores for the glm O confirmation runs (2026-11-17):
+# g31 = 5/8, g32 = 6/8; together with the 10-16 re-scored run (7) they give the
+# frozen cell mean (7+5+6)/3 = 6 in grid2-scores.csv. The notes column carries
+# the rubric breakdown / FLAG for each run.
+OWNER_FREEZE_SCORES = {
+    "O-glm-high-g31": ("5", "base=2 ground=1 agents=1 crit=1; FLAG: unexecuted "
+                            'verification claim "grep shows no callers"'),
+    "O-glm-high-g32": ("6", "base=1 ground=2 agents=2 crit=1"),
+}
 
 _cache = {}
 
@@ -588,8 +592,9 @@ def collect_runs():
         elif score:
             # a scored deliverable counts even if the arm was killed afterwards
             status = "retry" if is_retry else "scored"
-        elif run_id in OWNER_FREEZE_SCORED:
-            status = "scored"  # owner-frozen cell; per-run score not asserted
+        elif run_id in OWNER_FREEZE_SCORES:
+            status = "scored"
+            score = OWNER_FREEZE_SCORES[run_id][0]
         elif log["arm_kill"]:
             status = "DNF"
         elif log.get("prov_error"):
@@ -760,7 +765,9 @@ def collect_runs():
                      "model": csv_model, "effort": effort, "tag": tag,
                      "status": run["status"], "score": run["score"],
                      "dnf_reason": run["dnf_reason"],
-                     "evidence_path": evidence})
+                     "evidence_path": evidence,
+                     "notes": OWNER_FREEZE_SCORES.get(
+                         run["run_id"], ("", ""))[1]})
     return rows, sessions
 
 
@@ -835,7 +842,7 @@ def main():
     rows, _ = collect_runs()
     tsv_path = os.path.join(BASE, "grid2-run-scores.tsv")
     cols = ["run_id", "bench", "model", "effort", "tag", "status", "score",
-            "dnf_reason", "evidence_path"]
+            "dnf_reason", "evidence_path", "notes"]
     with open(tsv_path, "w") as f:
         f.write("\t".join(cols) + "\n")
         for r in sorted(rows, key=lambda x: x["run_id"]):
