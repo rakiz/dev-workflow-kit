@@ -8,7 +8,7 @@ effort grid. 4/4 runs completed, zero errors, zero retries.
 Method: `evals/run-eval.sh <T1..T4> github-copilot/mai-code-1.1-flash`
 (session titles `eval-2026-10-29-T*-github-copilot-mai-code-1-1-flash`).
 T2 verified objectively in the run dir; T3/T4/T1 scored against the seeded
-traps. Raw evidence: `raw/run-outputs.md`, `raw/sessions.tsv`, `raw/costs.json`.
+traps. Raw evidence: `sessions/run-outputs.md`, `sessions/sessions.tsv`, `sessions/costs.json`.
 
 **Delegation rule applied (README step 4)**: zero child sessions on all 4 arms
 (`session.parent_id` query returned 0) — costs are parent-only; no child

@@ -17,7 +17,7 @@ four models with a perfect v1 T4 were run at their rostered effort:
 saturated. **Argon ties qwen at the top (10/14) at lower cost** ($0.1226 vs
 $0.1308) — decisive for the design-review ladder question raised this
 campaign (see "Design-review ladder comparison" below). Qwen3.8-2.4T and
-argon both found all 10 seeded categories. Raw outputs: `raw/*.md` (all arms:
+argon both found all 10 seeded categories. Raw outputs: `sessions/*.md` (all arms:
 zero proofs-by-execution — only `ls` and file reads — so the +4 proof bonus
 was never earned by anyone).
 

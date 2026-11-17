@@ -105,7 +105,8 @@ bench it was decided on.
 3. Verify T2 objectively (`python3 -m unittest` in the copy), score T3/T4
    against the lists above, judge T1 (grounding + trap detection).
  4. Extract cost/tokens/duration from the opencode DB (session titles are
-    `eval-YYYY-MM-DD-<TASK>-<TAG>`, per `run-eval.sh`; cost = the provider's
+    `eval-YYYY-MM-DD-<TASK>-<TAG>`, per the current runners (`run-eval-v4.sh`
+    for I2/D, `run-eval-v5.sh` for O/IR/DR2); cost = the provider's
     standard API rate, not the plan's real billing). **Delegation rule
     (2026-10-23, the minimax-m3p1 lesson): if the eval session spawns
     subagents, the arm's cost = parent + ALL child sessions** (linked by

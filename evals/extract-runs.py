@@ -32,6 +32,7 @@ Idempotent: a second run over the same sources produces a zero diff.
 
 import csv
 import glob
+import gzip
 import json
 import os
 import re
@@ -96,6 +97,14 @@ def q(sql):
 
 def strip_ansi(t):
     return re.sub(r"\x1b\[[0-9;]*m", "", t)
+
+
+def read_text(path):
+    """Read a (possibly gzipped) text file."""
+    if path.endswith(".gz"):
+        with gzip.open(path, "rt", encoding="utf-8", errors="replace") as f:
+            return f.read()
+    return open(path, encoding="utf-8", errors="replace").read()
 
 
 # ------------------------------------------------------------ identifiers --
@@ -229,8 +238,8 @@ CHROME = re.compile(r"^(?:→|✓|•|\$|!|\?|> build ·)")
 
 def parse_log(path):
     """-> dict(stem, path, title, run_dir, arm_kill) or None for driver logs."""
-    stem = os.path.basename(path)[:-4]
-    t = strip_ansi(open(path, encoding="utf-8", errors="replace").read())
+    stem = re.sub(r"\.log(\.gz)?$", "", os.path.basename(path))
+    t = strip_ansi(read_text(path))
     titles = [t.rstrip(")").replace(" above", "")
               for t in re.findall(r"session title (\S+)", t)]
     rdirs = re.findall(r"run dir: \S*?(bench-v3-[\w-]+)", t)
@@ -251,7 +260,7 @@ def parse_log(path):
 def build_log_text(log):
     """Fallback deliverable text from a legacy-bench log: after the last
     chrome (tool-call / prompt) line, trailing runner noise removed."""
-    t = strip_ansi(open(log["path"], encoding="utf-8", errors="replace").read())
+    t = strip_ansi(read_text(log["path"]))
     lines = t.splitlines()
     cut = len(lines)
     for i in range(len(lines) - 1, -1, -1):
@@ -448,10 +457,13 @@ def write_artifacts(run, rundir):
                 f.write(run["text"])
             made.append(path)
     elif bench == "I2":
-        path = os.path.join(RUNS, run_id + ".diff")
-        with open(path, "w") as f:
-            f.write(diff_dir(rundir) if rundir else "")
-        made.append(path)
+        if rundir:
+            # no rundir (retired raw tree): keep the committed artifact,
+            # never overwrite with an empty diff
+            path = os.path.join(RUNS, run_id + ".diff")
+            with open(path, "w") as f:
+                f.write(diff_dir(rundir))
+            made.append(path)
         if run["text"]:
             path = os.path.join(RUNS, run_id + ".report.md")
             with open(path, "w") as f:
@@ -488,7 +500,7 @@ def collect_runs():
 
     logs = []
     for sub in ("", "grid/", "grid2/"):
-        logs += sorted(glob.glob(os.path.join(BASE, "logs", sub, "*.log")))
+        logs += sorted(glob.glob(os.path.join(BASE, "logs", sub, "*.log*")))
     parsed = [p for p in (parse_log(l) for l in logs) if p]
     log_by_stem = {p["stem"]: p for p in parsed}
     log_by_rundir = {}
@@ -498,14 +510,17 @@ def collect_runs():
 
     run_dirs = {}
     raw = os.path.join(BASE, "raw")
-    for d in sorted(os.listdir(raw)):
-        p = os.path.join(raw, d)
-        if os.path.isdir(p) and d != "grid2":
-            run_dirs[d] = p
-    for d in sorted(os.listdir(os.path.join(raw, "grid2"))):
-        p = os.path.join(raw, "grid2", d)
-        if os.path.isdir(p):
-            run_dirs.setdefault(d, p)
+    if os.path.isdir(raw):
+        for d in sorted(os.listdir(raw)):
+            p = os.path.join(raw, d)
+            if os.path.isdir(p) and d != "grid2":
+                run_dirs[d] = p
+        g2 = os.path.join(raw, "grid2")
+        if os.path.isdir(g2):
+            for d in sorted(os.listdir(g2)):
+                p = os.path.join(g2, d)
+                if os.path.isdir(p):
+                    run_dirs.setdefault(d, p)
     scratch = os.path.join(BASE, "scratch")
     if os.path.isdir(scratch):
         for d in sorted(os.listdir(scratch)):
@@ -622,16 +637,39 @@ def collect_runs():
                "log": "", "rundir": d, "session": sess, "text": ""}
         add(run)
 
-    # --- round-2 pilot dirs (source c): raw-round2 *-p3/p4 ---
+    # --- round-2 pilot dirs (source c): raw-round2 *-p3/p4. Once raw-round2
+    # is retired (deleted at cleanup), the run list falls back to the
+    # committed runs/ artifacts for the same *-p3/p4 run ids.
+    round2_names = set()
     if os.path.isdir(ROUND2):
-        for d in sorted(os.listdir(ROUND2)):
-            rundir = os.path.join(ROUND2, d)
-            if not os.path.isdir(rundir) or not re.search(r"-p[34]", d):
-                continue
+        round2_names = {d for d in os.listdir(ROUND2)
+                        if os.path.isdir(os.path.join(ROUND2, d))
+                        and re.search(r"-p[34]", d)}
+    else:
+        # retired raw tree: reconstruct the run list from the committed
+        # runs/ artifacts plus the scorer-session arm keys (DNF arms have
+        # no artifact of their own)
+        round2_names = {re.sub(r"\.(diff|design\.md|report\.md)$", "", f)
+                        for f in os.listdir(RUNS)
+                        if re.match(r"^(?:IV2|D)-.*-p[34]", f)}
+        round2_names |= {k for k in scorer_by_key
+                         if re.match(r"^(?:IV2|D)-.*-p[34]", k)}
+        # recorded DNF arms: dirs deleted at cleanup, never scored (their
+        # DNF rows are in the committed TSV / RESULTS history)
+        round2_names |= {"D-opus-default-p3-DNF", "D-opus-default-p3r2-DNF",
+                         "D-sonnet-high-p4-DNF", "D-sonnet-high-p4r2-DNF"}
+    for d in sorted(round2_names):
+            rundir = os.path.join(ROUND2, d) if os.path.isdir(
+                os.path.join(ROUND2, d)) else None
             sess_list = dir_of_session.get(d, [])
             sess = sess_list[-1] if sess_list else None
-            bench = "I2" if os.path.exists(os.path.join(rundir, "reportgen.py")) \
-                else "D"
+            if rundir:
+                bench = "I2" if os.path.exists(
+                    os.path.join(rundir, "reportgen.py")) else "D"
+            else:
+                # retired raw tree: bench from the committed artifact kind
+                bench = "I2" if os.path.exists(
+                    os.path.join(RUNS, d + ".diff")) else "D"
             run_id = d
             score, dnf = resolve_score(d, d, bench, "", "", "")
             if "-DNF" in d and not score:
@@ -694,22 +732,29 @@ def collect_runs():
         elif run["bench"] in LEGACY_BENCHES and run["log"]:
             text = final_assistant_text(sess["id"]) if sess else ""
             if not text:
-                text = build_log_text(log_by_stem[os.path.basename(run["log"])[:-4]])
+                text = build_log_text(log_by_stem[re.sub(r"\.log(\.gz)?$","",os.path.basename(run["log"]))])
         run["text"] = text
         rundir = None
         if run["rundir"]:
             rundir = run_dirs.get(run["rundir"])
             if rundir is None and run["log"]:
                 # raw/ copies keep the log stem as directory name
-                stem = os.path.basename(run["log"])[:-4]
+                stem = re.sub(r"\.log(\.gz)?$","",os.path.basename(run["log"]))
                 rundir = run_dirs.get(stem)
             if rundir is None:
                 cand = os.path.join(ROUND2, run["rundir"])
                 rundir = cand if os.path.isdir(cand) else None
         made = write_artifacts(run, rundir)
-        evidence = os.path.relpath(run["log"], ROOT) if run["log"] else \
-            (os.path.relpath(made[0], ROOT) if made else
-             (os.path.relpath(rundir, ROOT) if rundir else ""))
+        if run["log"]:
+            evidence = os.path.relpath(run["log"], ROOT)
+        elif made:
+            evidence = os.path.relpath(made[0], ROOT)
+        else:
+            # raw tree retired: fall back to any committed runs/ artifact
+            existing = sorted(f for f in os.listdir(RUNS)
+                              if f.startswith(run["run_id"] + "."))
+            evidence = os.path.relpath(os.path.join(RUNS, existing[0]), ROOT) \
+                if existing else ""
         _, csv_model, effort, tag = run_id_parts(run["run_id"])
         rows.append({"run_id": run["run_id"], "bench": run["bench"],
                      "model": csv_model, "effort": effort, "tag": tag,
