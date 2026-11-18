@@ -67,7 +67,7 @@ BENCHES = [
      "Implementation (I-v2, /14): haiku-high edges opus on the official panel mean (8.83 vs 8.5); the multi-scorer re-score reshapes the grid",
      14, "I2", "score on this bench", None, "I-v2"),
     ("Code review",
-     "Code review (IR, /3+bonus): saturated - panel means land 2.2-4.5; only dsflash (2.2) separates",
+     "Code review (IR, /3+bonus): the 3 seeded defects stop separating at 3 - the bonus axis ranks the top crowd (3.0-4.35); the bottom cluster (2.0-2.5) misses a seeded defect",
      5, "IR", "IR /3 seeded (+bonus up to +2)", (3, "seeded ceiling"), "IR"),
 ]
 
@@ -130,6 +130,7 @@ def frontier(pts):
 
 def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
     key = next(k for k in REASONS if title.startswith(k))
+    ref_box = None
     o = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-label="{html.escape(title)}" font-family="system-ui" font-size="12" style="max-width:100%;height:auto">']
     # gridlines + y labels
     step = 1 if ymax <= 14 else 2
@@ -150,7 +151,8 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
         v, lab = ref
         y = ypos(v, ymax)
         o.append(f'<line x1="{L}" x2="{W-R}" y1="{y:.1f}" y2="{y:.1f}" stroke="#6b7280" stroke-dasharray="5 4" stroke-width="1.3"/>')
-        o.append(f'<text x="{W-R-4}" y="{y-4:.1f}" text-anchor="end" fill="#6b7280">{lab}</text>')
+        ref_box = (L + 4, ypos(v, ymax) - 11, L + 4 + len(lab) * 6.9, ypos(v, ymax) + 3)
+        o.append(f'<text x="{L+4}" y="{ypos(v, ymax):.1f}" text-anchor="start" fill="#6b7280">{lab}</text>')
     # frontier
     fr = frontier(pts)
     if len(fr) > 1:
@@ -194,8 +196,8 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
             o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col}"/>')
         label = name  # model name (with effort qualifier) only; tooltip carries score/cost/seat/why
         w = len(label) * CH
-        cands = [(x+9, y-4, "start"), (x+9, y+14, "start"), (x-9, y-4, "end"), (x-9, y+14, "end"),
-                 (x+9, y-20, "start"), (x-9, y-20, "end"), (x+9, y+30, "start"), (x-9, y+30, "end")]
+        cands = [(x+9, y+d, "start") for d in (-4, 14, -20, 30, -34, 44)] \
+              + [(x-9, y+d, "end") for d in (-4, 14, -20, 30, -34, 44)]
         chosen = None
         for cx, cy, anc in cands:
             bx = box(cx, cy, w, anc)
@@ -205,11 +207,29 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
                 continue
             chosen = (cx, cy, anc, bx); break
         if chosen is None:
+            # vertical scan: 14px steps up/down from the dot until the box fits
+            # the plot area without overlap - guarantees a free slot whenever
+            # one exists in the band; last resort = first candidate
+            for delta in range(-90, 105, 14):
+                for cx, anc in ((x + 9, "start"), (x - 9, "end")):
+                    bx = box(cx, y + delta, w, anc)
+                    if bx[0] < L or bx[2] > W - R + 40 or bx[1] < T - 5 or bx[3] > H - B:
+                        continue
+                    if any(overlap(bx, q) for q in placed):
+                        continue
+                    chosen = (cx, y + delta, anc, bx); break
+                if chosen: break
+        if chosen is None:
             cx, cy, anc = cands[0]; chosen = (cx, cy, anc, box(cx, cy, w, anc))
         cx, cy, anc, bx = chosen
         placed.append(bx)
         fill = "#1d4ed8" if here else "#374151"
         o.append(f'<text class="pt" data-tip="{data_tip}" x="{cx:.1f}" y="{cy:.1f}" text-anchor="{"start" if anc=="start" else "end"}" fill="{fill}" stroke="#fff" stroke-width="3" paint-order="stroke">{html.escape(label)}</text>')
+    if ref is not None:
+        assert ref_box is not None
+        boxes = placed + [ref_box]
+        overlaps = [(i, j) for i in range(len(boxes)) for j in range(i + 1, len(boxes)) if overlap(boxes[i], boxes[j])]
+        assert not overlaps, f"label collisions on {title[:40]}: {overlaps}"
     o.append('</svg>')
     return "\n".join(o)
 
