@@ -1,0 +1,105 @@
+[0m
+> build · fw-glm-5.3-flash
+[0m
+[0m$ [0mgit show HEAD
+commit aced801db251d3f0af8038328e1dcb583e377f23
+Author: eval <eval@example.com>
+Date:   Wed Nov 18 18:17:48 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mgit log --oneline; git show HEAD --stat; ls
+aced801 v0.2: add exclude filter, batch copy and manifest merge
+7b21b2c Initial synccli
+commit aced801db251d3f0af8038328e1dcb583e377f23
+Author: eval <eval@example.com>
+Date:   Wed Nov 18 18:17:48 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+__pycache__
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+[0m
+[0m→ [0mRead synccli.py
+[0m
+[0m$ [0mgrep -n "copy_file\|def " synccli.py | head -30
+10:def scan_files(root):
+22:def file_state(path):
+28:def build_manifest(root):
+36:def changed_files(old_manifest, new_manifest):
+45:def collect_stale(items, seen=None):
+62:def copy_file(src, dst):
+72:def sync(src_root, dst_root, dry_run=False):
+84:        copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+90:def main(argv=None):
+[0m
+The commit adds `incremental.py` only (viewed against `synccli.py` from the initial commit). Real defects:
+
+**1. Major — `filter_excluded` mutable default argument (`excluded=[]`)**
+The docstring promises "the subset of paths that must be excluded", but when called without `excluded`, the same list object is reused across calls and results accumulate: a second call returns all previously excluded paths plus new ones. Callers relying on the return value will wrongly skip files on every sync after the first — files silently never reach the destination. (It also mutates any list the caller passes in, an undocumented side effect.)
+
+**2. Major — `copy_many` reports failed copies as done**
+`copy_file` (synccli.py:62) already swallows `OSError` internally and returns normally, so a copy that failed to open/read/write still reaches `done.append(dst)`; the `try/except Exception: continue` only catches non-OSError errors. The returned "dst paths done" therefore includes files that were never actually copied — false success reporting that can lead a caller to record unsynced files as current (silent data loss / stale destination treated as up to date).
+
+**3. Minor — `merge_manifest` never persists anything**
+The name and docstring ("Merge new file states into the destination manifest") imply the file at `dst_manifest_path` is updated, but the function only reads it and returns the merged dict. A caller believing the contract will never write the result, leaving the on-disk manifest stale. Related: entries for files deleted on the source side are kept forever, so the merged manifest drifts from reality.
+
+**4. Minor — `merge_manifest` crashes on malformed manifests**
+`old[rel]["mtime"]` assumes every existing entry has an `mtime` key; a truncated/corrupt or older-format manifest raises a bare `KeyError`, aborting the merge (and, combined with defect 3, leaving no manifest written at all).
+./run-eval-v5.sh: line 102:  5306 Terminated: 15          sleep 300
+./run-eval-v5.sh: line 111:  5308 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-5183 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-18-T3-ai-gateway-misc-fw-glm-5-3-flash-high-r94)

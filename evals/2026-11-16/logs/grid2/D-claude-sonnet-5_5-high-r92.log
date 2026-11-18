@@ -1,0 +1,453 @@
+[0m
+> build · claude-sonnet-5.5
+[0m
+[0m→ [0mRead BRIEF.md
+[0m✱ [0mGlob "**/*"[90m in . · 7 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-95775 && python3 --version && python3 -m unittest 2>&1 | tail -5 && uname -a && df -h . | tail -1 && sysctl -n machdep.cpu.brand_string hw.ncpu
+Python 3.10.11
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+OK
+Darwin M-M2F74HXTVH 24.6.0 Darwin Kernel Version 24.6.0: Sun Aug 23 20:37:27 PDT 2026; root:xnu-11417.140.69.712.69~1/RELEASE_ARM64_T6031 arm64
+/dev/disk3s5   926Gi   642Gi   247Gi    73%    6.9M  2.6G    0%   /System/Volumes/Data
+Apple M3 Max
+14
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; rm -rf $S; mkdir -p $S; cd $S
+cat > probe.py <<'EOF'
+import sys, os, json, tempfile, time
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-95775")
+import synccli, snaputil
+t = tempfile.mkdtemp()
+print("safe ../..:", snaputil.safe_snapshot_path("/r","snap-1","../../etc/passwd"))
+print("safe abs:", snaputil.safe_snapshot_path("/r","snap-1","/etc/passwd"))
+# prune
+def mk(n):
+    r = tempfile.mkdtemp()
+    for i in range(n):
+        os.makedirs(os.path.join(r, "snap-20260101-00000%d-0%d"%(i,i)))
+    os.makedirs(os.path.join(r, "snap-20260102-000000-99.tmp"))  # in-progress style
+    return r
+r = mk(3); print("list incl tmp:", snaputil.list_snapshots(r))
+r = mk(3); print("prune keep=0 deleted:", snaputil.prune_snapshots(r, 0), os.listdir(r))
+r = mk(3); print("prune keep=-1 deleted:", snaputil.prune_snapshots(r, -1), os.listdir(r))
+r = mk(0); os.makedirs(os.path.join(r,"snap-20260101-000000-99")); os.makedirs(os.path.join(r,"snap-20260101-000000-100"))
+print("seq order 99 vs 100:", snaputil.list_snapshots(r))
+# is_stale equality
+d = tempfile.mkdtemp(); m = os.stat(d).st_mtime
+print("is_stale at equality:", snaputil.is_stale(d, m))
+# disk usage dangling symlink
+d2 = tempfile.mkdtemp(); os.makedirs(os.path.join(d2,"snap-x")); os.symlink("/nonexistent", os.path.join(d2,"snap-x","l"))
+try: print(snaputil.snapshot_disk_usage(d2,"snap-x"))
+except Exception as e: print("disk_usage dangling symlink ->", type(e).__name__)
+# hardlink double count
+d3 = tempfile.mkdtemp(); os.makedirs(os.path.join(d3,"a")); os.makedirs(os.path.join(d3,"b"))
+open(os.path.join(d3,"a","f"),"wb").write(b"x"*1000); os.link(os.path.join(d3,"a","f"), os.path.join(d3,"b","f"))
+print("hardlink usage a,b:", snaputil.snapshot_disk_usage(d3,"a"), snaputil.snapshot_disk_usage(d3,"b"))
+# synccli
+src = tempfile.mkdtemp(); dst = tempfile.mkdtemp()
+os.makedirs(os.path.join(src,".hid")); open(os.path.join(src,".hid","h"),"w").write("h")
+open(os.path.join(src,".dot"),"w").write("d")
+os.makedirs(os.path.join(src,"real")); open(os.path.join(src,"real","x"),"w").write("x")
+os.symlink("real", os.path.join(src,"linkdir")); os.symlink("/nonexistent", os.path.join(src,"dangling"))
+print("scan_files:", synccli.scan_files(src))
+try: synccli.build_manifest(src)
+except Exception as e: print("build_manifest w/ dangling ->", type(e).__name__)
+os.unlink(os.path.join(src,"dangling"))
+# unreadable subdir silently dropped
+os.makedirs(os.path.join(src,"locked")); open(os.path.join(src,"locked","s"),"w").write("s"); os.chmod(os.path.join(src,"locked"),0)
+print("scan with unreadable dir:", synccli.scan_files(src)); os.chmod(os.path.join(src,"locked"),0o755)
+# unreadable file: copy_file swallow + manifest promises
+os.unlink(os.path.join(src,"linkdir"))
+open(os.path.join(src,"secret"),"w").write("s"); os.chmod(os.path.join(src,"secret"),0)
+copied = synccli.sync(src, dst)
+print("sync copied list includes secret:", "secret" in copied, "| exists in dst:", os.path.exists(os.path.join(dst,"secret")), "| in manifest:", "secret" in json.load(open(os.path.join(dst,".sync_manifest.json"))))
+print("2nd sync re-copies secret?:", "secret" in synccli.sync(src,dst))
+os.chmod(os.path.join(src,"secret"),0o644)
+print("3rd sync after fix copies secret?:", "secret" in synccli.sync(src,dst))
+# deletion not propagated
+os.unlink(os.path.join(src,"real","x")); synccli.sync(src,dst); print("deleted src file still in dst:", os.path.exists(os.path.join(dst,"real","x")))
+# corrupt manifest
+open(os.path.join(dst,".sync_manifest.json"),"w").write('{"a": {"size": 1, "mt')
+try: synccli.sync(src,dst)
+except Exception as e: print("corrupt manifest ->", type(e).__name__)
+# same size+mtime edit missed
+f = os.path.join(src,"edit"); open(f,"w").write("AAAA"); st=os.stat(f)
+dst2=tempfile.mkdtemp(); synccli.sync(src,dst2)
+open(f,"w").write("BBBB"); os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns))
+print("same-size mtime-preserved edit detected:", "edit" in synccli.sync(src,dst2))
+# float mtime precision
+f2 = os.path.join(src,"ns"); open(f2,"w").write("1"); os.utime(f2, ns=(0, 1_700_000_000_000_000_001))
+a = synccli.file_state(f2); os.utime(f2, ns=(0, 1_700_000_000_000_000_050))
+print("50ns mtime delta visible via float:", a != synccli.file_state(f2))
+# vanish between scan and stat
+import synccli as s
+orig = s.scan_files
+def sf(root):
+    l = orig(root); os.unlink(os.path.join(root, l[0])); return l
+s.scan_files = sf
+try: s.build_manifest(src)
+except Exception as e: print("vanish between list and stat ->", type(e).__name__)
+EOF
+python3 probe.py
+safe ../..: /r/snap-1/../../etc/passwd
+safe abs: /etc/passwd
+list incl tmp: ['snap-20260101-000000-00', 'snap-20260101-000001-01', 'snap-20260101-000002-02', 'snap-20260102-000000-99.tmp']
+prune keep=0 deleted: ['snap-20260101-000000-00', 'snap-20260101-000001-01', 'snap-20260101-000002-02', 'snap-20260102-000000-99.tmp'] []
+prune keep=-1 deleted: ['snap-20260101-000000-00', 'snap-20260101-000001-01', 'snap-20260101-000002-02', 'snap-20260102-000000-99.tmp'] []
+seq order 99 vs 100: ['snap-20260101-000000-100', 'snap-20260101-000000-99', 'snap-20260102-000000-99.tmp']
+is_stale at equality: True
+disk_usage dangling symlink -> FileNotFoundError
+hardlink usage a,b: 1000 1000
+scan_files: ['.dot', 'dangling', 'real/x']
+build_manifest w/ dangling -> FileNotFoundError
+scan with unreadable dir: ['.dot', 'real/x']
+sync copied list includes secret: True | exists in dst: False | in manifest: True
+2nd sync re-copies secret?: False
+3rd sync after fix copies secret?: False
+deleted src file still in dst: True
+corrupt manifest -> JSONDecodeError
+same-size mtime-preserved edit detected: False
+50ns mtime delta visible via float: False
+vanish between list and stat -> FileNotFoundError
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd $S
+cat > gen.py <<'EOF'
+import os, random, sys
+root = sys.argv[1]; random.seed(1)
+buf = os.urandom(1<<20)
+plan = [(28000, 10_000), (1900, 200_000), (100, 3_400_000)]
+total = 0; n = 0
+for count, size in plan:
+    for i in range(count):
+        d = os.path.join(root, "run%03d" % (n % 120), "sub%02d" % (n % 17))
+        os.makedirs(d, exist_ok=True)
+        sz = max(1, int(random.gauss(size, size*0.3)))
+        off = random.randrange(0, len(buf)-1)
+        data = (buf[off:] + buf[:off])[:sz] if sz <= len(buf) else buf*(sz//len(buf)+1)
+        with open(os.path.join(d, "f%d.dat" % n), "wb") as f: f.write(data[:sz])
+        total += sz; n += 1
+print(n, "files", total/1e6, "MB")
+EOF
+rm -rf src; mkdir src; time python3 gen.py src/evals
+30000 files 1011.536899 MB
+python3 gen.py src/evals  1.50s user 4.13s system 85% cpu 6.598 total
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd $S
+cat > bench1.py <<'EOF'
+import sys, os, time, shutil, tracemalloc, resource
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-95775")
+import synccli
+src = "src/evals"; dst = "dst_sync"; shutil.rmtree(dst, ignore_errors=True)
+t=time.time(); fl = synccli.scan_files(src); print("scan_files %.2fs n=%d" % (time.time()-t, len(fl)))
+t=time.time(); m = synccli.build_manifest(src); print("build_manifest %.2fs" % (time.time()-t))
+tracemalloc.start(); m = synccli.build_manifest(src); cur,peak = tracemalloc.get_traced_memory(); tracemalloc.stop()
+print("manifest mem: %.1f MB (%d B/entry)" % (cur/1e6, cur/len(m)))
+import json; print("manifest json bytes/entry:", len(json.dumps(m, indent=2))/len(m))
+t=time.time(); c = synccli.sync(src, dst); print("sync FULL (synccli) %.2fs copied=%d" % (time.time()-t, len(c)))
+t=time.time(); c = synccli.sync(src, dst); print("sync NOOP (synccli) %.2fs copied=%d" % (time.time()-t, len(c)))
+r = resource.getrusage(resource.RUSAGE_SELF); print("maxrss MB", r.ru_maxrss/1e6)
+EOF
+python3 bench1.py
+scan_files 2.25s n=30000
+build_manifest 2.52s
+manifest mem: 12.0 MB (399 B/entry)
+manifest json bytes/entry: 85.96596666666667
+sync FULL (synccli) 16.46s copied=30000
+sync NOOP (synccli) 3.14s copied=0
+maxrss MB 157.073408
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd $S
+cat > bench2.py <<'EOF'
+import sys, os, time, shutil, hashlib, stat, tracemalloc, cProfile, pstats
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-95775")
+import synccli
+src = "src/evals"
+def scan(root):
+    out = {}
+    stack = [""]
+    while stack:
+        rel = stack.pop()
+        with os.scandir(os.path.join(root, rel) if rel else root) as it:
+            for e in it:
+                r = os.path.join(rel, e.name) if rel else e.name
+                st = e.stat(follow_symlinks=False)
+                if stat.S_ISDIR(st.st_mode): stack.append(r)
+                elif stat.S_ISREG(st.st_mode):
+                    out[r] = {"size": st.st_size, "mtime_ns": st.st_mtime_ns, "ctime_ns": st.st_ctime_ns}
+    return out
+t=time.time(); m = scan(src); print("scandir+lstat scan %.2fs n=%d" % (time.time()-t, len(m)))
+t=time.time(); m = scan(src); print("again %.2fs" % (time.time()-t))
+tracemalloc.start(); m = scan(src); cur,_ = tracemalloc.get_traced_memory(); tracemalloc.stop(); print("mem B/entry", cur/len(m))
+import json
+old = json.loads(json.dumps(m))
+t=time.time(); ch = synccli.changed_files(old, m); print("changed_files %.3fs changed=%d" % (time.time()-t, len(ch)))
+t=time.time(); synccli.scan_files(src); print("scan_files again %.2fs" % (time.time()-t))
+def copy(srcp, dstp, h, mode):
+    sfd = os.open(srcp, os.O_RDONLY)
+    try:
+        st = os.fstat(sfd)
+        dfd = os.open(dstp, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)
+        try:
+            hh = hashlib.sha256() if h else None
+            while True:
+                b = os.read(sfd, 1<<20)
+                if not b: break
+                if hh: hh.update(b)
+                os.write(dfd, b)
+            if mode == "fsync": os.fsync(dfd)
+            os.utime(dfd, ns=(st.st_atime_ns, st.st_mtime_ns))
+            os.fchmod(dfd, (st.st_mode & 0o7555) | 0o444)
+        finally: os.close(dfd)
+    finally: os.close(sfd)
+def full(name, h, mode):
+    d = "snapA_"+name; shutil.rmtree(d, ignore_errors=True)
+    dirs=set()
+    t=time.time()
+    for rel in m:
+        p = os.path.join(d, rel); dn = os.path.dirname(p)
+        if dn not in dirs: os.makedirs(dn, exist_ok=True); dirs.add(dn)
+        copy(os.path.join(src, rel), p, h, mode)
+    t1=time.time()-t
+    if mode == "sync": os.sync()
+    print("%-22s copy %.2fs  total(with sync if any) %.2fs" % (name, t1, time.time()-t))
+full("plain", False, "none")
+full("sha256", True, "none")
+full("sha256+sync", True, "sync")
+full("sha256+fsync", True, "fsync")
+EOF
+python3 bench2.py
+scandir+lstat scan 0.24s n=30000
+again 0.23s
+mem B/entry 454.6956666666667
+changed_files 0.003s changed=0
+scan_files again 2.69s
+plain                  copy 13.53s  total(with sync if any) 13.53s
+sha256                 copy 14.34s  total(with sync if any) 14.34s
+sha256+sync            copy 16.05s  total(with sync if any) 16.12s
+sha256+fsync           copy 13.83s  total(with sync if any) 13.83s
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd $S
+cat > bench3.py <<'EOF'
+import sys, os, time, shutil, hashlib, stat, fcntl, json
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp")
+exec(open("bench2.py").read().split("def copy(")[0].split("t=time.time(); m = scan(src)")[0])
+m = scan(src)
+class T:
+    def __init__(s): s.d={}
+    def add(s,k,v): s.d[k]=s.d.get(k,0)+v
+tm = T()
+def copy(srcp, dstp):
+    t0=time.perf_counter()
+    sfd = os.open(srcp, os.O_RDONLY); st = os.fstat(sfd)
+    dfd = os.open(dstp, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)
+    t1=time.perf_counter(); tm.add("open/create", t1-t0)
+    hh = hashlib.sha256()
+    while True:
+        b = os.read(sfd, 1<<20)
+        if not b: break
+        hh.update(b); os.write(dfd, b)
+    t2=time.perf_counter(); tm.add("read+hash+write", t2-t1)
+    os.fsync(dfd)
+    t3=time.perf_counter(); tm.add("fsync", t3-t2)
+    os.utime(dfd, ns=(st.st_atime_ns, st.st_mtime_ns)); os.fchmod(dfd, (st.st_mode & 0o7555)|0o444)
+    t4=time.perf_counter(); tm.add("utime+chmod", t4-t3)
+    os.close(dfd); os.close(sfd)
+    tm.add("close", time.perf_counter()-t4)
+d = "snapB"; shutil.rmtree(d, ignore_errors=True)
+dirs=set(); t=time.time()
+for rel in m:
+    p = os.path.join(d, rel); dn = os.path.dirname(p)
+    if dn not in dirs:
+        t0=time.perf_counter(); os.makedirs(dn, exist_ok=True); tm.add("makedirs", time.perf_counter()-t0); dirs.add(dn)
+    copy(os.path.join(src, rel), p)
+print("FULL copy %.2fs" % (time.time()-t), {k: round(v,2) for k,v in tm.d.items()})
+t=time.time()
+fd = os.open(d, os.O_RDONLY); os.fsync(fd)
+try: fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+except Exception as e: print("fullfsync err", e)
+os.close(fd); print("F_FULLFSYNC once %.3fs" % (time.time()-t))
+# verify walk count
+t=time.time(); n=0
+for dp, dn_, fn in os.walk(d): n+=len(fn)
+print("verify os.walk %.2fs n=%d" % (time.time()-t, n))
+t=time.time(); n=scan(d); print("verify scandir+lstat %.2fs n=%d" % (time.time()-t, len(n)))
+# hardlink no-change run
+d2="snapC"; shutil.rmtree(d2, ignore_errors=True); dirs=set(); t=time.time(); bad=0
+for rel in m:
+    p = os.path.join(d2, rel); dn = os.path.dirname(p)
+    if dn not in dirs: os.makedirs(dn, exist_ok=True); dirs.add(dn)
+    pp = os.path.join(d, rel); st = os.lstat(pp)
+    if st.st_size != m[rel]["size"]: bad+=1
+    os.link(pp, p)
+print("hardlink run (lstat+link) %.2fs bad=%d (+scan 0.24s)" % (time.time()-t, bad))
+# disk usage of linked snapshot dirs
+os.sync()
+import subprocess
+print(subprocess.run(["du","-sk","snapB","snapC"],capture_output=True,text=True).stdout.strip())
+print(subprocess.run(["du","-sk","snapB"],capture_output=True,text=True).stdout.strip())
+# delete snapshot C (all hardlinks) and B
+t=time.time(); shutil.rmtree(d2); print("rmtree linked snapshot (30k names) %.2fs" % (time.time()-t))
+t=time.time(); shutil.rmtree(d); print("rmtree full snapshot %.2fs" % (time.time()-t))
+EOF
+python3 bench3.py; df -k . | tail -1
+FULL copy 14.34s {'makedirs': 0.21, 'open/create': 4.22, 'read+hash+write': 6.59, 'fsync': 0.98, 'utime+chmod': 1.95, 'close': 0.29}
+F_FULLFSYNC once 0.010s
+verify os.walk 0.18s n=30000
+verify scandir+lstat 0.25s n=30000
+hardlink run (lstat+link) 12.51s bad=0 (+scan 0.24s)
+1047628	snapB
+0	snapC
+1047628	snapB
+rmtree linked snapshot (30k names) 3.43s
+rmtree full snapshot 4.79s
+/dev/disk3s5   971350180 679903148 252037828    73% 7129899 2520378280    0%   /System/Volumes/Data
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd $S
+cat > bench4.py <<'EOF'
+import os, time, shutil, subprocess
+src="src/evals"
+for rep in range(2):
+    shutil.rmtree("full", ignore_errors=True); shutil.rmtree("lk", ignore_errors=True)
+    t=time.time(); subprocess.run(["cp","-R",src,"full"]); print("cp -R full copy %.2fs" % (time.time()-t))
+    # hardlink forest, pre-created dirs (separate dir creation from link)
+    t=time.time()
+    paths=[]
+    for dp,dn,fn in os.walk("full"):
+        rel=os.path.relpath(dp,"full")
+        os.makedirs(os.path.join("lk",rel), exist_ok=True)
+        for f in fn: paths.append(os.path.join(rel,f))
+    t1=time.time()-t; t=time.time()
+    for r in paths: os.link(os.path.join("full",r), os.path.join("lk",r))
+    print("rep%d dirs %.2fs links %.2fs for %d (%.0f us/link)" % (rep, t1, time.time()-t, len(paths), (time.time()-t)/len(paths)*1e6))
+# empty-file create rate and symlink rate for comparison
+shutil.rmtree("e", ignore_errors=True); os.makedirs("e")
+t=time.time()
+for i in range(30000): os.close(os.open("e/%d"%i, os.O_WRONLY|os.O_CREAT))
+print("30k empty creates %.2fs" % (time.time()-t))
+t=time.time()
+for i in range(30000): os.symlink("x", "e/s%d"%i)
+print("30k symlinks %.2fs" % (time.time()-t))
+t=time.time()
+for i in range(30000): os.rename("e/%d"%i, "e/r%d"%i)
+print("30k renames %.2fs" % (time.time()-t))
+EOF
+python3 bench4.py; sysctl -n kern.hv_vmm_present 2>/dev/null; mount | grep -E "Data|disk3s5" | head -2
+cp -R full copy 31.48s
+rep0 dirs 0.50s links 9.68s for 30000 (323 us/link)
+cp -R full copy 28.37s
+rep1 dirs 0.66s links 12.88s for 30000 (429 us/link)
+30k empty creates 3.28s
+30k symlinks 3.61s
+30k renames 4.72s
+0
+/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, protect, root data)
+map auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd $S
+cat > bench5.py <<'EOF'
+import os, time, shutil, subprocess
+from concurrent.futures import ThreadPoolExecutor
+paths=[]
+for dp,dn,fn in os.walk("full"):
+    rel=os.path.relpath(dp,"full")
+    for f in fn: paths.append(os.path.join(rel,f))
+dirs = sorted({os.path.dirname(p) for p in paths})
+for w in (1,4,8):
+    shutil.rmtree("lk", ignore_errors=True)
+    for d in dirs: os.makedirs(os.path.join("lk",d), exist_ok=True)
+    t=time.time()
+    if w==1:
+        for r in paths: os.link(os.path.join("full",r), os.path.join("lk",r))
+    else:
+        with ThreadPoolExecutor(w) as ex: list(ex.map(lambda r: os.link(os.path.join("full",r), os.path.join("lk",r)), paths))
+    print("link workers=%d: %.2fs" % (w, time.time()-t))
+EOF
+python3 bench5.py
+cat > bench6.py <<'EOF'
+import os, time, shutil, hashlib
+from concurrent.futures import ThreadPoolExecutor
+src="src/evals"
+paths=[]
+for dp,dn,fn in os.walk(src):
+    rel=os.path.relpath(dp,src)
+    for f in fn: paths.append(os.path.join(rel,f))
+dirs = sorted({os.path.dirname(p) for p in paths})
+def copy(r):
+    sfd=os.open(os.path.join(src,r),os.O_RDONLY); st=os.fstat(sfd)
+    dfd=os.open(os.path.join("cp8",r),os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600); h=hashlib.sha256()
+    while True:
+        b=os.read(sfd,1<<20)
+        if not b: break
+        h.update(b); os.write(dfd,b)
+    os.fsync(dfd); os.utime(dfd,ns=(st.st_atime_ns,st.st_mtime_ns)); os.fchmod(dfd,0o444); os.close(dfd); os.close(sfd)
+for w in (1,4,8):
+    shutil.rmtree("cp8", ignore_errors=True)
+    for d in dirs: os.makedirs(os.path.join("cp8",d), exist_ok=True)
+    t=time.time()
+    if w==1:
+        for r in paths: copy(r)
+    else:
+        with ThreadPoolExecutor(w) as ex: list(ex.map(copy, paths))
+    print("copy workers=%d: %.2fs" % (w, time.time()-t))
+EOF
+python3 bench6.py
+link workers=1: 12.33s
+link workers=4: 6.81s
+link workers=8: 6.69s
+copy workers=1: 13.99s
+copy workers=4: 5.47s
+copy workers=8: 5.08s
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd $S
+cat > bench7.py <<'EOF'
+import os, time, shutil
+def free(): s=os.statvfs("."); return s.f_bavail*s.f_frsize
+paths=[]
+for dp,dn,fn in os.walk("full"):
+    rel=os.path.relpath(dp,"full")
+    for f in fn: paths.append(os.path.join(rel,f))
+dirs = sorted({os.path.dirname(p) for p in paths})
+shutil.rmtree("lkA", ignore_errors=True); shutil.rmtree("lkB", ignore_errors=True); os.sync(); time.sleep(2)
+for name in ("lkA","lkB"):
+    f0=free()
+    for d in dirs: os.makedirs(os.path.join(name,d), exist_ok=True)
+    for r in paths: os.link(os.path.join("full",r), os.path.join(name,r))
+    os.sync(); time.sleep(3); f1=free()
+    print(name, "free delta bytes:", f0-f1, "per file:", (f0-f1)/len(paths))
+EOF
+python3 bench7.py
+lkA free delta bytes: 15998976 per file: 533.2992
+lkB free delta bytes: -1866166272 per file: -62205.5424
+[0m
+[0m$ [0mexport PYTHONDONTWRITEBYTECODE=1; S=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe; cd $S
+python3 - <<'EOF'
+import sys, os, time, cProfile, pstats
+sys.path.insert(0, "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-95775")
+import synccli
+for i in range(2):
+    t=time.time(); synccli.scan_files("src/evals"); print("scan_files %.2f" % (time.time()-t))
+t=time.time()
+for dp,dn,fn in os.walk("src/evals"):
+    pass
+print("bare os.walk %.2f" % (time.time()-t))
+t=time.time()
+for dp,dn,fn in os.walk("src/evals"):
+    for n in fn: os.path.relpath(os.path.join(dp,n),"src/evals")
+print("walk+relpath %.2f" % (time.time()-t))
+EOF
+scan_files 2.49
+scan_files 2.34
+bare os.walk 0.13
+walk+relpath 2.05
+[0m
+./run-eval-v4.sh: line 185: 95854 Terminated: 15          opencode run --dir "$WORK" --model "$MODEL" --variant "$VARIANT" --title "$TITLE" --auto "$PROMPT"
+./run-eval-v4.sh: line 167: 98560 Terminated: 15          sleep 300
+./run-eval-v4.sh: line 116:  5111 Terminated: 15          sleep 5
+arm-killed-timeout: eval-2026-11-18-D-D1-github-copilot-claude-sonnet-5-5-high-r92 hit the 15-min watchdog; run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-95775

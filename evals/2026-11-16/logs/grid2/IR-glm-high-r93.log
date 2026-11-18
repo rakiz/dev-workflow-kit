@@ -1,0 +1,92 @@
+[0m
+> build · fw-glm-5.3-flash
+[0m
+[0m$ [0mgit show HEAD
+commit aced801db251d3f0af8038328e1dcb583e377f23
+Author: eval <eval@example.com>
+Date:   Wed Nov 18 18:17:48 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mls -R; git log --oneline
+__pycache__
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+
+./__pycache__:
+synccli.cpython-310.pyc
+test_synccli.cpython-310.pyc
+aced801 v0.2: add exclude filter, batch copy and manifest merge
+7b21b2c Initial synccli
+[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+Review of `aced801` (`incremental.py`, new file). Real defects:
+
+**1. Mutable default argument shared across calls — `filter_excluded(paths, excluded=[])` (incremental.py:9)** — **major**
+When the caller omits `excluded`, results are appended into the *same* list object on every call and returned. Calling the function twice leaks the first call's results into the second: the second caller receives paths it never asked about, and the exclusion set grows for the process lifetime. Result depends on call history, not inputs — corrupted output for any caller using the documented one-argument form.
+
+**2. `copy_many` silently swallows every failure, enabling silent data loss (incremental.py:19-24)** — **major**
+`except Exception: continue` drops the failed pair and the reason; the caller can only infer *that* something failed, never which file or why. In the sync pipeline (`sync()` writes the manifest unconditionally, and `merge_manifest` folds in the scanned state), a failed/truncated copy still ends up recorded in the manifest as synced — the destination is missing or corrupt while the manifest claims it is current, and the incremental logic will never retry it. Also leaves a half-written `dst` file on disk with no cleanup.
+
+**3. `filter_excluded` silently no-ops on absolute paths (incremental.py:11)** — **minor**
+It matches `p.split(os.sep)[0]` against `EXCLUDE_TOP_DIRS`. For an absolute path (or Windows drive path) the first component is `""` / `/` / `C:\`, so *nothing* is ever excluded and no error is raised. The docstring promises "the subset of paths that must be excluded" — a caller passing absolute paths gets a full pass-through disguised as a correct filter, letting `.git` and the manifest file into the sync.
+
+**4. `merge_manifest` keeps stale entries on mtime regression and never drops deletions (incremental.py:33-40)** — **minor**
+If `state["mtime"] < old[rel]["mtime"]` (file restored from backup, `git checkout`, coarser timestamp resolution), the freshly scanned — and truthful — state is discarded in favor of the stale entry, so the manifest diverges from both trees. Deletions are also never propagated: keys absent from `new_manifest` survive forever, so the merged manifest misrepresents the source. Neither is stated in the docstring, which presents the result as a faithful merge of `new_manifest`.
+
+No other defects found in this commit.
+./run-eval-v5.sh: line 102:  5312 Terminated: 15          sleep 300
+./run-eval-v5.sh: line 111:  5313 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-5180 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-18-T3-ai-gateway-misc-fw-glm-5-3-flash-high-r93)

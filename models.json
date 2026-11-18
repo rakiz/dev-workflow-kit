@@ -29,9 +29,9 @@
       "variant": "default"
     },
     "cheap-review": {
-      "model": "ai-gateway-misc/fw-glm-5.3-flash",
-      "family_hint": "glm",
-      "variant": "low"
+      "model": "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash",
+      "family_hint": "minimax",
+      "variant": "xhigh"
     },
     "cheap-mech": {
       "model": "ai-gateway-misc/fw-deepseek-v4.1-flash",
@@ -53,7 +53,7 @@
       "variant": "xhigh"
     },
     "strong-code-alternative": {
-      "model": "github-copilot/claude-sonnet-5.5",
+      "model": "github-copilot/claude-haiku-5.5",
       "family_hint": "claude",
       "variant": "high"
     },
@@ -62,14 +62,14 @@
       "family_hint": "claude"
     },
     "strong-review": {
-      "model": "ai-gateway-misc/fw-glm-5.3-flash",
-      "family_hint": "glm",
-      "variant": "high"
-    },
-    "strong-review-alternative": {
       "model": "github-copilot/claude-sonnet-5.5",
       "family_hint": "claude",
       "variant": "medium"
+    },
+    "strong-review-alternative": {
+      "model": "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017",
+      "family_hint": "deepseek",
+      "variant": "high"
     },
     "strong-review-alternative2": {
       "model": "fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b",
@@ -82,8 +82,8 @@
       "variant": "high"
     },
     "strong-design-alternative": {
-      "model": "github-copilot/gemini-4-hydrogen",
-      "family_hint": "gemini",
+      "model": "github-copilot/claude-sonnet-5.5",
+      "family_hint": "claude",
       "variant": "high"
     },
     "strong-design-alternative2": {

@@ -164,11 +164,11 @@ Two rules bind the whole grid:
 
 | Function \ tier | cheap | strong | alternative | alternative2 |
 |---|---|---|---|---|
-| design (producer) | `cheap-design` **haiku `medium`** (v2 11-17: glm scored ≤1/11 on D at every effort — the H3 false-contract FP −3 every round; haiku `medium` D 7 @ ~$0.02) | `strong-design` **1017 `high`** (v2: D 8.25/11 — the best design authoring outside opus — @ $0.12/task; was s5.5 `high`, D 7 @ $0.40–1.26) | `strong-design-alternative` **hydrogen `high`** (v2: D 6 vs terra's 4; terra = documented fallback) | `strong-design-alternative2` opus |
+| design (producer) | `cheap-design` **haiku `medium`** (v2 11-17: glm scored ≤1/11 on D at every effort — the H3 false-contract FP −3 every round; haiku `medium` D 7 @ ~$0.02) | `strong-design` **1017 `high`** (v2: D 8.25/11 — the best design authoring outside opus — @ $0.12/task; was s5.5 `high`, D 7 @ $0.40–1.26) | `strong-design-alternative` **s5.5 `high`** (final 11-19: D 8.17/11 — 4 runs 7.5;DNF;8.5;8.5, 30-min watchdog required — @ $0.83/task; replaces hydrogen `high`, D 5.5 — below the cheap tier, haiku medium 8.08; terra = documented fallback) | `strong-design-alternative2` opus |
 | design-review | `cheap-design-review` **M3.1 `medium`** (10-23 confirmation: 10/10 avg 3 runs @ $0.0082, replaces old deepseek flash 9/10 @ $0.0076 — same price, +1 category) | `strong-design-review` **M3.1 `xhigh`** (v2: DR2 11.5/14 with 4 executed proofs @ $0.03/task — the best design review measured; was 1017 `medium`, DR2 5.5. Dual rung with `cheap-design-review` — SPOF accepted, fallback argon `high` → opus) | `strong-design-review-alternative` argon `high` | `strong-design-review-alternative2` grok-4.7 (pro's reported direct-Fireworks return probed unavailable 11-16 — 404 both providers; grok keeps the rung until it actually exists) |
-| code (impl) | `cheap-code` **haiku `default`** (v2: I2 7.5/14 vs glm's 5.5, at ~$0.02/task vs $0.03. ⚠ Cliff: haiku prompts >100k tokens pay 5× — keep impl briefs under 90k; fallback 1017 `medium`) | `strong-code` **M3.1 `xhigh`** (v2 swap, owner vote 11-18: I2 7.67/14 arbitrated @ $0.03/task — takes the rung on price at I2 parity with s5.5 `high` 7.75, 13× cheaper. Third minimax rung — SPOF accepted by owner, fallback for the DR rungs: carbon `high`) | `strong-code-alternative` **s5.5 `high`** (v2 swap, owner vote 11-18 — the safety escalation: O 8 top, adds multi-bench stability, not I2 points, @ $0.40–1.26/task; fallback opus) | `strong-code-alternative2` opus |
+| code (impl) | `cheap-code` **haiku `default`** (v2: I2 7.5/14 vs glm's 5.5, at ~$0.02/task vs $0.03. ⚠ Cliff: haiku prompts >100k tokens pay 5× — keep impl briefs under 90k; fallback 1017 `medium`) | `strong-code` **M3.1 `xhigh`** (v2 swap, owner vote 11-18: I2 7.67/14 arbitrated @ $0.03/task — takes the rung on price at I2 parity with s5.5 `high` 7.75, 13× cheaper. Third minimax rung — SPOF accepted by owner, fallback for the DR rungs: carbon `high`) | `strong-code-alternative` **haiku `high`** (final 11-19: I2 8.83/14 @ ~$0.15/task — the capability step above cheap-code 8.33; sonnet `high` left the code ladder for strong-design-alternative; fallback opus) | `strong-code-alternative2` opus |
 | mech (small mechanical edits) | `cheap-mech` deepseek | — | — | — |
-| code-review | `cheap-review` **glm `low`** (v2: lineage swap — the impl floor is now haiku (claude family), so the review floor must be a different family; glm `low` IR 3/3+2 0FP @ $0.0051, single run) | `strong-review` glm `high` | `strong-review-alternative` s5.5 `medium` | `strong-review-alternative2` qwen `xhigh` |
+| code-review | `cheap-review` **M3.1 `xhigh`** (final 11-19: IR 4.33 bonus-inclusive, clean 3/3 runs @ $0.014 — gates fail silently, so floor recall is the protection; glm `low` left review at 2.5 and is documented as the lineage-legal fallback reviewer for deepseek/gemini-produced work only) | `strong-review` **s5.5 `medium`** (final 11-19: IR 4.75 — 4 valid runs 5;5;4;5 @ $0.09 — a fresh family vs the minimax floor it escalates from) | `strong-review-alternative` **1017 `high`** (final 11-19, new holder: IR 3.62 bonus-inclusive @ $0.016 — the lineage-legal fallback rung: deepseek reviews claude/glm/minimax-produced work) | `strong-review-alternative2` qwen `xhigh` (IR 4.0 — 2 runs 4;4, misses seeded-3 both runs) |
 | orchestration | session default model: glm — the user's configured default model; **pin `high`** (T1: PASS @ `high` $0.0050, PARTIAL @ `low`; O /8 re-read: PASS-equivalent 5–7 at 1/10 the cost of any claude); recommended route: the AI Gateway id (`ai-gateway-misc/fw-glm-5.3-flash`, same model as fireworks direct at −18.6% catalog price — the session config is per-machine, outside the kit) | switch session model to s5.5 `high` | opus — only if the task already crossed design+impl strong rungs | — |
 
 **Roster v2 (owner-validated 2026-11-17)** — six seats changed on the
@@ -183,15 +183,49 @@ s5.5→**1017** `high` (8.25 vs 7 at a quarter of the cost),
 is REFUTED for review rungs — IR 1–2 FP/run — keep it off review seats).
 The hard rule is unchanged: **impl and review are never the same family**.
 
-**Project vs global — impl/review pairing.** The two rosters now pair the
-same two models in opposite directions, and that is intentional: the project
+**Roster final (owner-validated 2026-11-19)** — five seats changed on the
+grid2 panel evidence (`evals/2026-11-16/grid2-scores.csv`, cell-level source
+of truth; confirmation runs r91–r94, m83/m84):
+
+1. `cheap-review` glm `low` → **minimax `xhigh`** (IR 4.33 bonus-inclusive,
+   clean 3/3 runs, @ $0.014/task). Rationale: gates fail silently — floor
+   recall is the protection, and the bonus-inclusive mean is the best recall
+   measured at floor price. glm `low` (2.5) leaves review; it stays documented
+   as the lineage-legal fallback reviewer for deepseek/gemini-produced work.
+2. `strong-review` glm `high` → **sonnet `medium`** (IR 4.75 — 4 valid runs
+   5;5;4;5, trace restored — @ $0.09/task). Rationale: a fresh family vs the
+   minimax floor it escalates from; the rung above the floor is never the
+   floor's own family.
+3. `strong-review-alternative` sonnet `medium` → **1017 `high`** (IR 3.62
+   bonus-inclusive @ $0.016/task). New holder — the lineage-legal fallback
+   rung: deepseek reviews claude/glm/minimax-produced work. muse `medium`
+   (IR 3.75, 4 valid runs) scores higher but at 5–7× the cost — price wins
+   at near-parity.
+4. `strong-design-alternative` hydrogen `high` → **sonnet `high`** (D 8.17 —
+   4 runs 7.5;DNF;8.5;8.5, r92 DNF, 30-min watchdog required — @ $0.83/task).
+   Rationale: hydrogen's 5.5 sits below the cheap tier (haiku medium 8.08) —
+   an escalation rung below the floor it escalates to is not an escalation.
+5. `strong-code-alternative` sonnet `high` → **haiku `high`** (I2 8.83/14 @
+   ~$0.15/task — the capability step above cheap-code 8.33). Sonnet `high`
+   left the code ladder for `strong-design-alternative`; it holds no code
+   rung.
+
+Unchanged: `strong-code` minimax `xhigh` (7.67 arbitrated),
+`strong-review-alternative2` qwen `xhigh` (IR 4.0 — 2 runs 4;4, misses
+seeded-3 both runs), orchestration glm `high` (O 7). The hard rule is
+unchanged: **impl and review are never the same family**.
+
+**Project vs global — impl/review pairing.** The two rosters now pair
+different models, and that is intentional: the project
 roster keeps `impl` glm / `review` haiku (the 09-29/10-07 pairing, unchanged
 — project pipelines that already run it have no measured reason to flip);
-the global roster runs `cheap-code` haiku / `cheap-review` glm `low` (the
-v2 grid: haiku implements better, glm reviews claude-family impl at the
-floor price). Both satisfy the only invariant that matters: **the reviewer's
-family differs from the implementer's.** The scopes sync independently
-(`--update` vs `--update --global`).
+the global roster runs `cheap-code` haiku / `cheap-review` minimax `xhigh`
+(the final grid: haiku implements the bulk, minimax reviews claude-family
+impl at the floor with the best recall measured there — IR 4.33
+bonus-inclusive @ $0.014; glm `low` remains the documented fallback reviewer
+for deepseek/gemini-produced work). Both satisfy the only invariant that
+matters: **the reviewer's family differs from the implementer's.** The
+scopes sync independently (`--update` vs `--update --global`).
 
 Abbreviations (`models.json` model values): s5.5 = claude-sonnet-5.5, sol = gpt-6.1-sol (off the roster 10-26 — dominated by terra), opus = claude-opus-5.5, grok = grok-4.7, glm = glm-5p3-flash (gateway id: fw-glm-5.3-flash), qwen = qwen3p8-2p4t-a95b, pro = deepseek-v4-pro (OFF roster 11-16: old gateway id dead AND reported direct-Fireworks equivalent probed 404 — restore only when an id actually resolves), argon = gemini-4-argon, hydrogen = gemini-4-hydrogen, 1017 = deepseek-v4p1-flash-1017 (fireworks direct), M3.1 = minimax-m3p1-flash, terra = gpt-6.1-terra.
 
@@ -255,8 +289,10 @@ by review); review floors at **`default`** (cheap-review — haiku 5.5 caught
 3/3 seeded defects at default effort in the 2026-10-07 eval, cheaper than any
 `low`-effort rung); strong rungs pinned to the eval's
 best effort — **`xhigh`** for strong-code (minimax, v2 swap 11-18) and
-**`high`** for strong-design (1017) and
-strong-review (glm), **`medium`** for the s5.5 review alternative,
+cheap-review (minimax, final 11-19), **`high`** for strong-design (1017),
+strong-review-alternative (1017, final 11-19), strong-code-alternative
+(haiku, final 11-19) and strong-design-alternative (s5.5, final 11-19),
+**`medium`** for strong-review (s5.5, final 11-19) and
 **`high`** for the gemini design-review alternative (the eval's effort facts
 above apply).
 

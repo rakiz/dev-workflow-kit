@@ -1,0 +1,658 @@
+[0m
+> build · claude-sonnet-5.5
+[0m
+[0m→ [0mRead BRIEF.md
+[0m✱ [0mGlob "**/*"[90m in . · 7 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && df -h . | tail -1; python3 --version; python3 -m unittest 2>&1 | tail -4; uname -a; sysctl -n machdep.cpu.brand_string; mount | head -3
+/dev/disk3s5   926Gi   647Gi   241Gi    73%    7.2M  2.5G    0%   /System/Volumes/Data
+Python 3.10.11
+----------------------------------------------------------------------
+Ran 6 tests in 0.005s
+
+OK
+Darwin M-M2F74HXTVH 24.6.0 Darwin Kernel Version 24.6.0: Sun Aug 23 20:37:27 PDT 2026; root:xnu-11417.140.69.712.69~1/RELEASE_ARM64_T6031 arm64
+Apple M3 Max
+/dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)
+devfs on /dev (devfs, local, nobrowse)
+/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && mkdir -p .scratch && cat > .scratch/probe.py <<'EOF'
+import os, sys, tempfile, json, shutil
+sys.path.insert(0, '.')
+import synccli, snaputil
+
+# 1. safe_snapshot_path escape
+print("safe '../../etc/passwd':", snaputil.safe_snapshot_path('/b', 'snap-1', '../../etc/passwd'))
+print("safe '/etc/passwd':", snaputil.safe_snapshot_path('/b', 'snap-1', '/etc/passwd'))
+print("safe 'a/../../x':", snaputil.safe_snapshot_path('/b', 'snap-1', 'a/../../x'))
+
+# 2. prune keep=0 / negative
+for keep in (0, -1):
+    b = tempfile.mkdtemp()
+    for n in ('snap-20261112-150000-00','snap-20261112-150000-01','snap-20261112-150000-02'):
+        os.makedirs(os.path.join(b, n))
+    print("prune keep=%d deleted:"%keep, snaputil.prune_snapshots(b, keep), "left:", snaputil.list_snapshots(b))
+# 2b. seq overflow ordering
+b = tempfile.mkdtemp()
+for n in ('snap-20261112-150000-99','snap-20261112-150000-100','.staging-x','snap-tmp'):
+    os.makedirs(os.path.join(b, n))
+print("list order:", snaputil.list_snapshots(b))
+
+# 3. vanished file during build_manifest
+s = tempfile.mkdtemp(); open(os.path.join(s,'a'),'w').write('x'); open(os.path.join(s,'b'),'w').write('y')
+orig = synccli.scan_files
+def scan_then_delete(r):
+    res = orig(r); os.remove(os.path.join(r,'b')); return res
+synccli.scan_files = scan_then_delete
+try: synccli.build_manifest(s)
+except Exception as e: print("vanish ->", type(e).__name__)
+synccli.scan_files = orig
+
+# 4. corrupt manifest
+s = tempfile.mkdtemp(); d = tempfile.mkdtemp(); open(os.path.join(s,'a'),'w').write('x')
+synccli.sync(s, d)
+mp = os.path.join(d, synccli.MANIFEST_NAME)
+txt = open(mp).read(); open(mp,'w').write(txt[:len(txt)//2])
+try: synccli.sync(s, d)
+except Exception as e: print("corrupt manifest ->", type(e).__name__)
+
+# 5. unreadable file: copy_file swallow, manifest still records it
+s = tempfile.mkdtemp(); d = tempfile.mkdtemp()
+p = os.path.join(s,'secret'); open(p,'w').write('data'); os.chmod(p, 0)
+print("copied:", synccli.sync(s, d))
+print("dst has secret:", os.path.exists(os.path.join(d,'secret')), "size", os.path.getsize(os.path.join(d,'secret')) if os.path.exists(os.path.join(d,'secret')) else None)
+print("manifest has secret:", 'secret' in json.load(open(os.path.join(d, synccli.MANIFEST_NAME))))
+os.chmod(p, 0o600)
+print("after fixing perms, second sync copies:", synccli.sync(s, d))
+
+# 6. scan_files hidden dir, dot-file, symlinks, empty dir, fifo, unreadable dir
+s = tempfile.mkdtemp()
+os.makedirs(os.path.join(s,'.git')); open(os.path.join(s,'.git','c'),'w').write('1')
+open(os.path.join(s,'.hidden'),'w').write('1')
+os.makedirs(os.path.join(s,'empty'))
+os.makedirs(os.path.join(s,'real')); open(os.path.join(s,'real','f'),'w').write('1')
+os.symlink('real', os.path.join(s,'linkdir')); os.symlink('nonexist', os.path.join(s,'broken'))
+os.mkfifo(os.path.join(s,'fifo'))
+os.makedirs(os.path.join(s,'locked')); open(os.path.join(s,'locked','g'),'w').write('1'); os.chmod(os.path.join(s,'locked'),0)
+print("scan:", synccli.scan_files(s))
+try: print(synccli.build_manifest(s).keys())
+except Exception as e: print("build_manifest ->", type(e).__name__)
+os.chmod(os.path.join(s,'locked'),0o700)
+
+# 7. float mtime vs ns
+p = os.path.join(s,'real','f'); st=os.stat(p); print("mtime float", repr(st.st_mtime), "ns", st.st_mtime_ns, "roundtrip-exact:", int(st.st_mtime*1e9)==st.st_mtime_ns)
+# 8. same-size edit with preserved mtime missed
+s = tempfile.mkdtemp(); d = tempfile.mkdtemp(); p=os.path.join(s,'a'); open(p,'w').write('AAAA')
+synccli.sync(s,d); st=os.stat(p); open(p,'w').write('BBBB'); os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns))
+print("mtime-preserved same-size edit detected by sync:", synccli.sync(s,d), "| ctime changed:", os.stat(p).st_ctime_ns != st.st_ctime_ns)
+# 9. dst file deleted -> not restored
+os.remove(os.path.join(d,'a')); print("dst file deleted, re-sync copies:", synccli.sync(s,d))
+# 10. source deletion propagation
+os.remove(p); synccli.sync(s,d); print("dst still has deleted src file:", os.path.exists(os.path.join(d,'a')) , "manifest keys", list(json.load(open(os.path.join(d,synccli.MANIFEST_NAME)))))
+EOF
+python3 .scratch/probe.py
+safe '../../etc/passwd': /b/snap-1/../../etc/passwd
+safe '/etc/passwd': /etc/passwd
+safe 'a/../../x': /b/snap-1/../x
+prune keep=0 deleted: ['snap-20261112-150000-00', 'snap-20261112-150000-01', 'snap-20261112-150000-02'] left: []
+prune keep=-1 deleted: ['snap-20261112-150000-00', 'snap-20261112-150000-01', 'snap-20261112-150000-02'] left: []
+list order: ['snap-20261112-150000-100', 'snap-20261112-150000-99', 'snap-tmp']
+vanish -> FileNotFoundError
+corrupt manifest -> JSONDecodeError
+copied: ['secret']
+dst has secret: False size None
+manifest has secret: True
+after fixing perms, second sync copies: []
+scan: ['.hidden', 'broken', 'fifo', 'real/f']
+build_manifest -> FileNotFoundError
+mtime float 1795022414.2012784 ns 1795022414201278370 roundtrip-exact: False
+mtime-preserved same-size edit detected by sync: [] | ctime changed: True
+dst file deleted, re-sync copies: []
+dst still has deleted src file: False manifest keys []
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && cat > .scratch/gen.py <<'EOF'
+import os, random, sys
+root = sys.argv[1]; random.seed(1)
+total = 0; n = 0
+os.makedirs(root, exist_ok=True)
+chunk = os.urandom(1<<20)
+def mk(path, size):
+    with open(path,'wb') as f:
+        off = random.randrange(0, 1<<19)
+        f.write((chunk*((size>>20)+2))[off:off+size])
+plan = [(27500, 4000, 24000), (2300, 100_000, 400_000), (120, 1_000_000, 3_000_000)]
+i = 0
+for count, lo, hi in plan:
+    for _ in range(count):
+        d = os.path.join(root, "d%03d" % (i % 500), "s%02d" % (i % 7))
+        os.makedirs(d, exist_ok=True)
+        s = random.randint(lo, hi); mk(os.path.join(d, "f%06d.dat" % i), s); total += s; n += 1; i += 1
+print(n, "files", total/1e6, "MB")
+EOF
+time python3 .scratch/gen.py .scratch/src
+29920 files 1204.778091 MB
+python3 .scratch/gen.py .scratch/src  1.93s user 5.25s system 90% cpu 7.918 total
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && cat > .scratch/bench.py <<'EOF'
+import os, sys, time, shutil, hashlib, json
+sys.path.insert(0,'.')
+import synccli
+SRC='.scratch/src'
+def T(label, fn):
+    t=time.perf_counter(); r=fn(); dt=time.perf_counter()-t; print(f"{label}: {dt:.2f}s"); return r
+
+# purge not possible without sudo; note warm cache
+m = T("synccli.scan_files", lambda: synccli.scan_files(SRC))
+man = T("synccli.build_manifest", lambda: synccli.build_manifest(SRC))
+print("files", len(man), "manifest json bytes (indent=2):", len(json.dumps(man, indent=2)))
+shutil.rmtree('.scratch/dst1', ignore_errors=True)
+T("synccli.sync full (existing, read()-whole-file, no fsync)", lambda: synccli.sync(SRC, '.scratch/dst1'))
+T("synccli.sync no-op second", lambda: synccli.sync(SRC, '.scratch/dst1'))
+
+# prototype scan: scandir + lstat ns
+def scan_ns(root):
+    out={}
+    def rec(p, rel):
+        with os.scandir(p) as it:
+            for e in it:
+                r = rel + e.name if not rel else rel + '/' + e.name
+                if e.is_dir(follow_symlinks=False): rec(e.path, r)
+                elif e.is_file(follow_symlinks=False):
+                    st=e.stat(follow_symlinks=False)
+                    out[r]={"size":st.st_size,"mtime_ns":st.st_mtime_ns,"ctime_ns":st.st_ctime_ns}
+    rec(root,'')
+    return out
+nm = T("prototype scan_ns (scandir+lstat)", lambda: scan_ns(SRC))
+# measured peak mem of manifest
+import tracemalloc
+tracemalloc.start(); nm2 = scan_ns(SRC); cur,peak = tracemalloc.get_traced_memory(); tracemalloc.stop()
+print("manifest in-memory (tracemalloc) MB:", cur/1e6, "bytes/file", cur/len(nm2))
+
+def copy_stream(src, dst, h=True):
+    hh = hashlib.sha256()
+    with open(src,'rb') as a, open(dst,'wb') as b:
+        while True:
+            buf=a.read(1<<20)
+            if not buf: break
+            if h: hh.update(buf)
+            b.write(buf)
+        return hh.hexdigest(), b
+def run_full(dstroot, fsync_mode, hashing=True):
+    shutil.rmtree(dstroot, ignore_errors=True); os.makedirs(dstroot)
+    made=set(); paths=[]
+    for rel,st in nm.items():
+        d=os.path.join(dstroot,rel); dd=os.path.dirname(d)
+        if dd not in made: os.makedirs(dd, exist_ok=True); made.add(dd)
+        hh=hashlib.sha256()
+        with open(os.path.join(SRC,rel),'rb') as a, open(d,'wb') as b:
+            while True:
+                buf=a.read(1<<20)
+                if not buf: break
+                if hashing: hh.update(buf)
+                b.write(buf)
+            if fsync_mode=='each': os.fsync(b.fileno())
+        os.utime(d, ns=(st["mtime_ns"], st["mtime_ns"]))
+        paths.append(d)
+    if fsync_mode=='batch':
+        for d in paths:
+            fd=os.open(d, os.O_RDONLY); os.fsync(fd); os.close(fd)
+    return len(paths)
+T("proto full copy, sha256, no fsync", lambda: run_full('.scratch/dst2','none'))
+T("proto full copy, no hash, no fsync", lambda: run_full('.scratch/dst3','none', False))
+T("proto full copy, sha256, fsync each file", lambda: run_full('.scratch/dst4','each'))
+T("proto full copy, sha256, batch fsync after (reopen)", lambda: run_full('.scratch/dst5','batch'))
+# sha256 raw throughput
+buf=os.urandom(1<<20); t=time.perf_counter()
+h=hashlib.sha256()
+for _ in range(1024): h.update(buf)
+print("sha256 throughput MB/s:", 1074/ (time.perf_counter()-t))
+
+# hardlink pass
+def link_all(dstroot, base):
+    os.makedirs(dstroot, exist_ok=True); made=set()
+    for rel in nm:
+        d=os.path.join(dstroot,rel); dd=os.path.dirname(d)
+        if dd not in made: os.makedirs(dd, exist_ok=True); made.add(dd)
+        os.link(os.path.join(base,rel), d)
+shutil.rmtree('.scratch/dst6', ignore_errors=True)
+T("hardlink 29920 files (no-change incremental link pass)", lambda: link_all('.scratch/dst6','.scratch/dst2'))
+# validate base via lstat compare
+def verify_base(base):
+    bad=0
+    for rel,st in nm.items():
+        s=os.lstat(os.path.join(base,rel))
+        if s.st_size!=st["size"] or s.st_mtime_ns!=st["mtime_ns"]: bad+=1
+    return bad
+print("bad", T("lstat-verify base tree", lambda: verify_base('.scratch/dst2')))
+# rename (publish) + rmtree prune cost
+T("rename snapshot dir", lambda: os.rename('.scratch/dst6','.scratch/dst6.trash'))
+T("rmtree hardlinked 29920-file snapshot", lambda: shutil.rmtree('.scratch/dst6.trash'))
+T("rmtree full copy snapshot", lambda: shutil.rmtree('.scratch/dst5'))
+EOF
+python3 .scratch/bench.py
+synccli.scan_files: 2.73s
+synccli.build_manifest: 2.62s
+files 29920 manifest json bytes (indent=2): 2499713
+synccli.sync full (existing, read()-whole-file, no fsync): 15.53s
+synccli.sync no-op second: 3.09s
+prototype scan_ns (scandir+lstat): 0.33s
+manifest in-memory (tracemalloc) MB: 13.547 bytes/file 452.774064171123
+proto full copy, sha256, no fsync: 15.79s
+proto full copy, no hash, no fsync: 14.64s
+proto full copy, sha256, fsync each file: 15.44s
+proto full copy, sha256, batch fsync after (reopen): 15.17s
+sha256 throughput MB/s: 2733.2831600272943
+hardlink 29920 files (no-change incremental link pass): 11.04s
+lstat-verify base tree: 0.12s
+bad 0
+rename snapshot dir: 0.00s
+rmtree hardlinked 29920-file snapshot: 2.96s
+rmtree full copy snapshot: 3.03s
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && cat > .scratch/bench2.py <<'EOF'
+import os, sys, time, shutil
+sys.path.insert(0,'.'); import synccli
+SRC='.scratch/src'
+def T(label, fn):
+    t=time.perf_counter(); r=fn(); dt=time.perf_counter()-t; print(f"{label}: {dt:.2f}s"); return r
+for i in range(3): T(f"synccli.scan_files run{i}", lambda: synccli.scan_files(SRC))
+for i in range(2): T(f"synccli.build_manifest run{i}", lambda: synccli.build_manifest(SRC))
+rels = synccli.scan_files(SRC)
+# micro-ops
+base='.scratch/micro'; shutil.rmtree(base, ignore_errors=True); os.makedirs(base)
+def create(n):
+    for i in range(n):
+        with open(f"{base}/c{i}",'wb') as f: f.write(b'x'*8000)
+T("create+write 8KB x 5000", lambda: create(5000))
+def link(n):
+    os.makedirs(base+'/l', exist_ok=True)
+    for i in range(n): os.link(f"{base}/c{i}", f"{base}/l/c{i}")
+T("link x 5000 (same dir)", lambda: link(5000))
+def mkd(n):
+    for i in range(n): os.makedirs(f"{base}/m/d{i}")
+T("mkdir x 3500", lambda: mkd(3500))
+def ut(n):
+    for i in range(n): os.utime(f"{base}/c{i}", ns=(1,1))
+T("utime x 5000", lambda: ut(5000))
+def unl(n):
+    for i in range(n): os.unlink(f"{base}/l/c{i}")
+T("unlink linked x 5000", lambda: unl(5000))
+shutil.rmtree(base)
+EOF
+python3 .scratch/bench2.py; ls .scratch
+synccli.scan_files run0: 2.67s
+synccli.scan_files run1: 2.51s
+synccli.scan_files run2: 2.70s
+synccli.build_manifest run0: 3.10s
+synccli.build_manifest run1: 3.60s
+create+write 8KB x 5000: 0.91s
+link x 5000 (same dir): 2.46s
+mkdir x 3500: 0.46s
+utime x 5000: 1.09s
+unlink linked x 5000: 0.51s
+bench.py
+bench2.py
+dst1
+dst2
+dst3
+dst4
+gen.py
+probe.py
+src
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && cat > .scratch/bench3.py <<'EOF'
+import os, sys, time, shutil, subprocess
+from concurrent.futures import ThreadPoolExecutor
+sys.path.insert(0,'.')
+SRC='.scratch/src'; BASE='.scratch/dst2'
+rels=[]
+for dp,dn,fn in os.walk(SRC):
+    for f in fn: rels.append(os.path.relpath(os.path.join(dp,f),SRC))
+def df():
+    out=subprocess.check_output(['df','-k','.scratch']).decode().split('\n')[1].split()
+    return int(out[3])
+def link_job(chunk, dst):
+    for rel in chunk:
+        d=os.path.join(dst,rel); os.makedirs(os.path.dirname(d),exist_ok=True); os.link(os.path.join(BASE,rel), d)
+for jobs in (1,4,8):
+    dst=f'.scratch/lk{jobs}'; shutil.rmtree(dst, ignore_errors=True)
+    chunks=[rels[i::jobs] for i in range(jobs)]
+    a=df(); t=time.perf_counter()
+    with ThreadPoolExecutor(jobs) as ex: list(ex.map(lambda c: link_job(c,dst), chunks))
+    dt=time.perf_counter()-t
+    print(f"link jobs={jobs}: {dt:.2f}s  df-delta KiB={a-df()}")
+def copy_job(chunk, dst):
+    for rel in chunk:
+        d=os.path.join(dst,rel); os.makedirs(os.path.dirname(d),exist_ok=True)
+        with open(os.path.join(SRC,rel),'rb') as a, open(d,'wb') as b:
+            while True:
+                buf=a.read(1<<20)
+                if not buf: break
+                b.write(buf)
+for jobs in (1,4,8):
+    dst=f'.scratch/cp{jobs}'; shutil.rmtree(dst, ignore_errors=True)
+    chunks=[rels[i::jobs] for i in range(jobs)]
+    t=time.perf_counter()
+    with ThreadPoolExecutor(jobs) as ex: list(ex.map(lambda c: copy_job(c,dst), chunks))
+    print(f"copy jobs={jobs}: {time.perf_counter()-t:.2f}s")
+    shutil.rmtree(dst)
+for j in (1,4,8): shutil.rmtree(f'.scratch/lk{j}', ignore_errors=True)
+EOF
+python3 .scratch/bench3.py
+link jobs=1: 11.39s  df-delta KiB=746212
+link jobs=4: 7.18s  df-delta KiB=360360
+link jobs=8: 9.19s  df-delta KiB=8664
+copy jobs=1: 14.85s
+copy jobs=4: 6.41s
+copy jobs=8: 5.43s
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && cat > .scratch/bench4.py <<'EOF'
+import os, json, time, hashlib, tracemalloc
+SRC='.scratch/src'
+man={}
+for dp,dn,fn in os.walk(SRC):
+    for f in fn:
+        p=os.path.join(dp,f); st=os.lstat(p); rel=os.path.relpath(p,SRC)
+        man[rel]={"size":st.st_size,"mtime_ns":st.st_mtime_ns,"ctime_ns":st.st_ctime_ns,"sha256":hashlib.sha256(rel.encode()).hexdigest(),"racy":False}
+t=time.perf_counter(); body=json.dumps({"files":man}, sort_keys=True, separators=(',',':')); a=time.perf_counter()-t
+print("index bytes", len(body), "per file", len(body)/len(man), "dump s", round(a,3))
+t=time.perf_counter(); dig=hashlib.sha256(body.encode()).hexdigest(); print("digest s", round(time.perf_counter()-t,3))
+t=time.perf_counter(); json.loads(body); print("load s", round(time.perf_counter()-t,3))
+tracemalloc.start(); x=json.loads(body); cur,_=tracemalloc.get_traced_memory(); print("loaded MB", cur/1e6, "B/file", cur/len(x["files"]))
+EOF
+python3 .scratch/bench4.py
+index bytes 5649251 per file 188.81186497326203 dump s 0.038
+digest s 0.003
+load s 0.021
+loaded MB 16.671801 B/file 557.2126002673797
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && cat > .scratch/bench5.py <<'EOF'
+import os, time, shutil, hashlib
+SRC='.scratch/src'
+rels=[]
+for dp,dn,fn in os.walk(SRC):
+    for f in fn: 
+        p=os.path.join(dp,f); rels.append((os.path.relpath(p,SRC), os.path.getsize(p)))
+def cp(sel, dst, hashing=False):
+    shutil.rmtree(dst, ignore_errors=True); made=set(); nb=0
+    t=time.perf_counter()
+    for rel,sz in sel:
+        d=os.path.join(dst,rel); dd=os.path.dirname(d)
+        if dd not in made: os.makedirs(dd,exist_ok=True); made.add(dd)
+        h=hashlib.sha256()
+        with open(os.path.join(SRC,rel),'rb') as a, open(d,'wb') as b:
+            while True:
+                buf=a.read(1<<20)
+                if not buf: break
+                if hashing: h.update(buf)
+                b.write(buf)
+        nb+=sz
+    dt=time.perf_counter()-t; return dt, nb
+for name,sel in (("big>=1MB",[r for r in rels if r[1]>=1_000_000]),("mid",[r for r in rels if 100_000<=r[1]<1_000_000]),("small",[r for r in rels if r[1]<100_000])):
+    dt,nb=cp(sel,'.scratch/dstx',True); print(f"{name}: files={len(sel)} bytes={nb/1e6:.0f}MB time={dt:.2f}s per-file={dt/len(sel)*1e3:.2f}ms MB/s={nb/1e6/dt:.0f}")
+shutil.rmtree('.scratch/dstx')
+EOF
+python3 .scratch/bench5.py
+big>=1MB: files=120 bytes=243MB time=0.30s per-file=2.51ms MB/s=806
+mid: files=2300 bytes=577MB time=1.50s per-file=0.65ms MB/s=386
+small: files=27500 bytes=385MB time=8.78s per-file=0.32ms MB/s=44
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && cat > .scratch/bench6.py <<'EOF'
+import os, time, shutil
+base='.scratch/micro'; shutil.rmtree(base, ignore_errors=True); os.makedirs(base)
+N=5000
+t=time.perf_counter()
+for i in range(N):
+    with open(f"{base}/a{i}",'wb') as f: f.write(b'x'*8000)
+print("create+write", round((time.perf_counter()-t)/N*1e6), "us")
+t=time.perf_counter()
+for i in range(N):
+    with open(f"{base}/b{i}",'wb') as f:
+        f.write(b'x'*8000); os.utime(f.fileno(), ns=(1,1))
+print("create+write+utime(fd)", round((time.perf_counter()-t)/N*1e6), "us")
+t=time.perf_counter()
+for i in range(N):
+    with open(f"{base}/c{i}",'wb') as f: f.write(b'x'*8000)
+    os.utime(f"{base}/c{i}", ns=(1,1))
+print("create+write+utime(path)", round((time.perf_counter()-t)/N*1e6), "us")
+shutil.rmtree(base)
+EOF
+python3 .scratch/bench6.py
+create+write 137 us
+create+write+utime(fd) 151 us
+create+write+utime(path) 152 us
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && cat > .scratch/bench7.py <<'EOF'
+import os, time, shutil, hashlib, json
+from concurrent.futures import ThreadPoolExecutor
+SRC='.scratch/src'
+def scan(root):
+    out={}
+    def rec(p, rel):
+        with os.scandir(p) as it:
+            for e in it:
+                r = e.name if not rel else rel+'/'+e.name
+                if e.is_dir(follow_symlinks=False): rec(e.path, r)
+                elif e.is_file(follow_symlinks=False):
+                    st=e.stat(follow_symlinks=False)
+                    out[r]={"size":st.st_size,"mtime_ns":st.st_mtime_ns,"ctime_ns":st.st_ctime_ns}
+    rec(root,''); return out
+def full(jobs, dst):
+    shutil.rmtree(dst, ignore_errors=True); os.makedirs(dst+'.staging')
+    t0=time.perf_counter(); m=scan(SRC); t1=time.perf_counter()
+    rels=list(m); chunks=[rels[i::jobs] for i in range(jobs)]
+    def job(c):
+        made=set()
+        for rel in c:
+            d=os.path.join(dst+'.staging',rel); dd=os.path.dirname(d)
+            if dd not in made: os.makedirs(dd,exist_ok=True); made.add(dd)
+            h=hashlib.sha256()
+            with open(os.path.join(SRC,rel),'rb') as a, open(d,'wb') as b:
+                while True:
+                    buf=a.read(1<<20)
+                    if not buf: break
+                    h.update(buf); b.write(buf)
+                os.fsync(b.fileno()); os.utime(b.fileno(), ns=(m[rel]["mtime_ns"],)*2)
+            m[rel]["sha256"]=h.hexdigest()
+    with ThreadPoolExecutor(jobs) as ex: list(ex.map(job, chunks))
+    t2=time.perf_counter()
+    for rel in rels:
+        s=os.lstat(os.path.join(dst+'.staging',rel)); assert s.st_size==m[rel]["size"]
+    t3=time.perf_counter()
+    open(dst+'.staging/idx.json','w').write(json.dumps(m,separators=(',',':')))
+    os.rename(dst+'.staging', dst); t4=time.perf_counter()
+    print(f"jobs={jobs}: scan {t1-t0:.2f} copy {t2-t1:.2f} verify {t3-t2:.2f} index+publish {t4-t3:.2f} total {t4-t0:.2f}")
+for j in (1,4,8): full(j, f'.scratch/full{j}')
+for j in (1,4,8): shutil.rmtree(f'.scratch/full{j}', ignore_errors=True)
+EOF
+python3 .scratch/bench7.py
+jobs=1: scan 0.34 copy 10.54 verify 0.08 index+publish 0.03 total 10.98
+jobs=4: scan 0.38 copy 5.58 verify 0.07 index+publish 0.02 total 6.06
+jobs=8: scan 0.33 copy 5.67 verify 0.07 index+publish 0.03 total 6.10
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182/.scratch && cat > probe2.py <<'EOF'
+import os, fcntl, subprocess, sys, time, tempfile
+d=tempfile.mkdtemp(); lock=os.path.join(d,'.run.lock')
+child=subprocess.Popen([sys.executable,'-c',f"import fcntl,os,time;f=os.open({lock!r},os.O_CREAT|os.O_RDWR);fcntl.flock(f,fcntl.LOCK_EX);print('held',flush=True);time.sleep(60)"],stdout=subprocess.PIPE)
+child.stdout.readline()
+fd=os.open(lock,os.O_RDWR)
+try: fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB); print("acquired while held (BAD)")
+except BlockingIOError: print("busy while holder alive: OK")
+child.kill(); child.wait()
+fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB); print("acquired after kill -9: OK")
+# rename semantics
+os.makedirs(d+'/a/x'); os.makedirs(d+'/b/y')
+try: os.rename(d+'/a', d+'/b'); print("rename onto non-empty dir succeeded (BAD)")
+except OSError as e: print("rename onto non-empty dir:", e.errno, os.strerror(e.errno))
+os.makedirs(d+'/c'); os.rename(d+'/a', d+'/c'); print("rename onto EMPTY dir silently replaced:", os.listdir(d+'/c'))
+EOF
+python3 probe2.py
+busy while holder alive: OK
+acquired after kill -9: OK
+rename onto non-empty dir: 66 Directory not empty
+rename onto EMPTY dir silently replaced: ['x']
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && rm -rf .scratch && ls -a && python3 -m unittest 2>&1 | tail -3
+__pycache__
+.
+..
+BRIEF.md
+snaputil.py
+synccli.py
+test_synccli.py
+Ran 6 tests in 0.005s
+
+OK
+[0m
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T && python3 - <<'EOF'
+import os, time, tempfile
+d=tempfile.mkdtemp()
+for i in range(500):
+    for j in range(7):
+        p=os.path.join(d,"d%03d"%i,"s%02d"%j); os.makedirs(p)
+        for k in range(9): open(os.path.join(p,"f%d"%k),"w").close()
+t=time.perf_counter(); n=0
+for dp,dn,fn in os.walk(d):
+    for f in fn: n+=1
+print("walk only", n, round(time.perf_counter()-t,2))
+t=time.perf_counter()
+for dp,dn,fn in os.walk(d):
+    for f in fn: os.path.relpath(os.path.join(dp,f), d)
+print("walk+relpath", round(time.perf_counter()-t,2))
+import shutil; shutil.rmtree(d)
+EOF
+ls /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 -a
+walk only 31500 0.45
+walk+relpath 0.63
+ls: -a: No such file or directory
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182:
+__pycache__
+BRIEF.md
+DESIGN-d1.md
+snaputil.py
+synccli.py
+test_synccli.py
+[0m
+[0m$ [0mmkdir -p /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182/.s && cd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && python3 - <<'EOF'
+import os, random, time, cProfile, pstats, sys
+sys.path.insert(0,'.')
+random.seed(1); root='.s/src'; chunk=os.urandom(1<<20); i=0
+for count,lo,hi in [(27500,4000,24000),(2300,100000,400000),(120,1000000,3000000)]:
+    for _ in range(count):
+        d=os.path.join(root,"d%03d"%(i%500),"s%02d"%(i%7)); os.makedirs(d,exist_ok=True)
+        s=random.randint(lo,hi); open(os.path.join(d,"f%06d.dat"%i),'wb').write((chunk*((s>>20)+2))[:s]); i+=1
+import synccli
+for r in range(2):
+    t=time.perf_counter(); synccli.scan_files(root); print("scan_files", round(time.perf_counter()-t,2))
+t=time.perf_counter()
+n=0
+for dp,dn,fn in os.walk(root): n+=len(fn)
+print("bare os.walk", round(time.perf_counter()-t,2), n)
+t=time.perf_counter()
+for dp,dn,fn in os.walk(root):
+    for f in fn: os.path.relpath(os.path.join(dp,f), root)
+print("walk+relpath", round(time.perf_counter()-t,2))
+cProfile.run("synccli.scan_files(root)", ".s/prof")
+pstats.Stats(".s/prof").sort_stats("cumtime").print_stats(8)
+EOF
+scan_files 2.51
+scan_files 2.49
+bare os.walk 0.26 29920
+walk+relpath 2.47
+Wed Nov 18 18:31:52 2026    .s/prof
+
+         2985754 function calls (2974254 primitive calls) in 2.854 seconds
+
+   Ordered by: cumulative time
+   List reduced from 36 to 8 due to restriction <8>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    2.854    2.854 {built-in method builtins.exec}
+        1    0.000    0.000    2.854    2.854 <string>:1(<module>)
+        1    0.026    0.026    2.854    2.854 /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182/./synccli.py:10(scan_files)
+    29920    0.069    0.000    2.513    0.000 /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/posixpath.py:466(relpath)
+    59840    0.056    0.000    2.307    0.000 /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/posixpath.py:377(abspath)
+    59840    1.910    0.000    1.910    0.000 {built-in method posix.getcwd}
+15502/4002    0.026    0.000    0.280    0.000 /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/os.py:345(_walk)
+    59840    0.158    0.000    0.218    0.000 /Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/posixpath.py:338(normpath)
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-5182 && rm -rf .s && python3 - <<'EOF'
+p='DESIGN-d1.md'; s=open(p).read()
+old1="`:17` `os.path.relpath` is the dominant cost: **2.6 s for 29,920 files [measured]** versus **0.33 s** for a `scandir` + `DirEntry.stat` walk that computes the relative path by string join (B-perf). `scan_tree` keeps"
+new1="`:17` `os.path.relpath(full, root)` calls `abspath` twice per file, and when `root` is *relative* each `abspath` calls `os.getcwd()`: profiled at **1.9 s of 2.85 s** for 29,920 files [measured, B-perf]; with an absolute `root` the same walk+relpath is ~0.2 s over a bare `os.walk` (0.26 s) [measured on a 31,500-file tree]. backupctl resolves configured paths to absolute, so speed is *not* the reason for the override; correctness is. `scan_tree` computes the relative path by string join, folds in `lstat`, and keeps"
+assert old1 in s; s=s.replace(old1,new1)
+old2="| `synccli.scan_files` (existing) | **2.5–2.7 s** (3 runs) |"
+new2="| `synccli.scan_files` (existing), called with a *relative* root as in my runs | **2.5–2.7 s** (several runs; 1.9 s of it is `os.getcwd()` inside `relpath`, B-perf) |"
+assert old2 in s; s=s.replace(old2,new2)
+old3="| existing `synccli.sync` full copy to empty dst | **15.5 s** |"
+new3="| existing `synccli.sync` full copy to empty dst (relative paths, so includes ~2.5 s of the `getcwd` overhead) | **15.5 s** |"
+assert old3 in s; s=s.replace(old3,new3)
+old4="The existing code's 15.5 s is the same\nworkload on one thread with `relpath` overhead."
+new4="The existing code's 15.5 s is the same\nworkload on one thread, whole-file `read()`, no hash, plus the relative-root\n`relpath` overhead."
+assert old4 in s; s=s.replace(old4,new4)
+old5="* **B-perf** `scan_files` 2.5–2.7 s vs `scandir` walk 0.33 s on 29,920\n  files (the cost is `os.path.relpath`, `synccli.py:17`)."
+new5="* **B-perf** `scan_files(\".s/src\")` (relative root) 2.5 s on 29,920 files;\n  `cProfile`: `relpath` 2.5 s cumulative, of which `posix.getcwd` 1.9 s\n  (59,840 calls). Bare `os.walk` of the same tree: 0.26 s. `scandir` walk\n  with `lstat` per entry: 0.33 s. With an absolute root `relpath` is cheap\n  (walk+relpath 0.63 s vs walk 0.45 s on a separate 31,500-file tree).\n  So the relative-root cost is an artifact of `synccli.py:17`, avoided by\n  absolute paths."
+assert old5 in s; s=s.replace(old5,new5)
+open(p,'w').write(s)
+EOF
+grep -n "relpath" DESIGN-d1.md | head; ls -a
+52:| `MANIFEST_NAME` / manifest shape `{relpath: {size, mtime}}` (`:7`, `:28-33`) | **Shape reused, file name not.** | The per-directory index keeps the "relpath → state dict" shape so `changed_files` applies. The name `.sync_manifest.json` is not used: it is written into the *destination tree* (`:75`, `:85`), which would pollute restored trees. backupctl's index lives in `<snap>/.backupctl/`, outside every `<dirkey>/` subtree. |
+54:| `scan_files(root)` (`:10-19`) | **Overridden by `scan_tree`.** | `:13` `os.walk` with default `onerror=None` silently drops unreadable directories (reproduced, B7: `locked/g` vanished from the scan without any error). `:14` drops *every* dot-directory (`.git`, `.cache`, …) which for a backup is silent data loss; exclusion must be an explicit config list. `:15` iterates only `filenames`: empty directories, symlinked directories and (per `os.walk`) special files are lost or mis-listed (a FIFO and a broken symlink are listed as files, B7). `:17` `os.path.relpath(full, root)` calls `abspath` twice per file, and when `root` is *relative* each `abspath` calls `os.getcwd()`: profiled at **1.9 s of 2.85 s** for 29,920 files [measured, B-perf]; with an absolute `root` the same walk+relpath is ~0.2 s over a bare `os.walk` (0.26 s) [measured on a 31,500-file tree]. backupctl resolves configured paths to absolute, so speed is *not* the reason for the override; correctness is. `scan_tree` computes the relative path by string join, folds in `lstat`, and keeps `scan_files`' contract (sorted relative paths, `root`-relative) but uses `/` separators, records errors, and returns entries for dirs/symlinks too. |
+408:| `synccli.scan_files` (existing), called with a *relative* root as in my runs | **2.5–2.7 s** (several runs; 1.9 s of it is `os.getcwd()` inside `relpath`, B-perf) |
+429:`relpath` overhead.
+676:  `cProfile`: `relpath` 2.5 s cumulative, of which `posix.getcwd` 1.9 s
+678:  with `lstat` per entry: 0.33 s. With an absolute root `relpath` is cheap
+679:  (walk+relpath 0.63 s vs walk 0.45 s on a separate 31,500-file tree).
+__pycache__
+.
+..
+BRIEF.md
+DESIGN-d1.md
+snaputil.py
+synccli.py
+test_synccli.py
+[0m
+I've written the design to `DESIGN-d1.md` in this repo copy. It's design only: no `backupctl` code exists yet. I ran the existing tests (6 pass) and the timing runs and probes behind the numbers. I deleted the scratch data and scripts afterwards.
+
+**The design in short**
+- One run produces one snapshot of all N directories. It is built in a hidden staging directory and published by one atomic `rename()`, so a reader never sees a partial snapshot.
+- Unchanged files are hard-linked from the previous snapshot, so every snapshot is a complete tree and deleting one never breaks another.
+- Runs are serialized by an exclusive lock on `<root>/.run.lock`, which the kernel releases on any death, including `kill -9`. The loser exits 75 ("busy").
+- Retention is a keep-set that is never empty. Deletion takes a per-snapshot lease, then renames the snapshot into `.trash/`, then removes it.
+- A corrupt index is discarded and re-derived from the snapshot tree. The run reports what was recovered and compares on size and mtime only for that directory.
+- Vanished, unreadable and unstable source files are absent from the snapshot and listed in the report, with the same exit codes for scheduler and person.
+
+**Performance**
+- Measured on a 29,920-file, 1.2 GB tree on APFS with a warm cache, the prototype pipeline took 11.0 s with 1 job and 6.1 s with 4 jobs.
+- The existing `synccli.sync` took 15.5 s on the same tree.
+- The budget is 30 s. Only this host was measured; spinning disks and other filesystems are called out as outside the budget.
+- The scaling section gives explicit formulas and measured constants for time, memory and disk.
+
+**The design's weak point**
+- Every run that publishes a snapshot re-creates one directory entry per file, so its cost grows linearly with total file count. I estimate roughly 8 s per 30k-file directory on this host, derived rather than measured at that scale.
+- I did not measure link cost on other filesystems. §12 records the rejected alternative.
+
+**Defects in the existing code, each reproduced and cited by function and line**
+- `snaputil.safe_snapshot_path` does not stop `..` or absolute paths from escaping the snapshot directory.
+- `snaputil.prune_snapshots` with `keep=0` or a negative value deletes every snapshot, and it deletes in place.
+- `snaputil.list_snapshots` returns names like `snap-tmp` and mis-sorts a 3-digit sequence number.
+- `synccli.copy_file` swallows errors, and `sync` still records the file in the manifest, so it is never retried.
+- A half-written manifest makes `synccli.sync` raise `JSONDecodeError` on every later run.
+- `build_manifest` crashes on a vanished file or a broken symlink.
+- `scan_files` silently drops dot-directories and unreadable directories.
+- `file_state` uses float mtime and ignores ctime, so an edit that restores mtime goes undetected.
+
+**What it builds on**
+- `synccli.changed_files` is reused verbatim, `sync()` is the pipeline template, and `snaputil` is fixed in place.
+- Everything else is overridden, with the reason given per function.
+- I found `scan_files`' slowness comes from calling `relpath` on a relative root (`getcwd` per call). With absolute paths it's cheap, so the design overrides `scan_files` for correctness, not speed.
+./run-eval-v4.sh: line 167:  7001 Terminated: 15          sleep 300
+./run-eval-v4.sh: line 181:  5258 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-5182 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-18-D-D1-github-copilot-claude-sonnet-5-5-high-r94 above)

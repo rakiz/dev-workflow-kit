@@ -5,7 +5,7 @@ haiku,medium,7.5,3,5.5,6.67,8.08,0.02,,8,3,5.5,7,7
 haiku,high,7,3,7,8.83,8.5,0.05,c8 confirmations lost to TMPDIR purge - unscored,8*,3,7,9,7.25
 haiku,xhigh,8,3,7,3.89,7,0.03-0.42,I2 xhigh: 2 DNF then 7 (single valid); D xhigh 1 DNF then 7,8*,3,7,7,7
 glm,low,5,2.5,4.88,5.33,2.38,0.01,"O stable 5.0 x3 (baseline discipline 0, zero hallucination)",5*,2.7,5.5,6,1
-glm,high,7,3,5.17,4.5,1.5,0.03,O panel mean 7 (4 scorer scores over the 3 runs 7;5;6); D: FP H3 both runs; IR 2FP,6,3,5,5.5,0.75
+glm,high,7,4.13,5.17,4.5,1.5,0.03,"O panel mean 7 (4 scorer scores over the 3 runs 7;5;6); D: FP H3 both runs; IR 4.13 (4 runs: 4.5;2;5;5)",6,3,5,5.5,0.75
 dsflash,default,5.67,2.2,8.5,7.75,2.2,0.03,,5,1.5,9,4.5,5
 1017,low,6.62,3.25,6.83,6.5,6.25,0.07,,6.75,2,7,8,6.75
 1017,medium,7.38,3.38,4.75,6.25,7.06,0.10,,7.25,2.5,5.5,4.5,6.5
@@ -15,7 +15,7 @@ minimax,medium,6,3.38,8,7.5,5.36,0.04,D mean incl. the 2/11 FP run,6,3,8.5,5,5
 minimax,high,6.56,3.5,8.25,6.12,7.38,0.05,D: 2 DNF then 5.5 (single valid),6.25,3,7.5,7.5,5.5
 minimax,xhigh,6,4.33,11.25,7.67,6.81,0.03,"I2 arbitrated 7.67 (sonnet arb; runs f41=8, g51=5, m81=10) from 3 divergent readings (panel 5.19 / original 8 / fresh 10); DR2 4 executed proofs (runs 9;14)",6.25,3,11.5,8,6.75
 qwen,medium,4.75,2,8.6,6.42,1.7,0.30-0.68,"O re-scored 5.5; I2: 1 DNF then mean of 8,6",5.5,2,8,7,2.5
-qwen,xhigh,6.75,3,10,4.75,6.25,0.95-1.19,single-run DR2; most expensive per task,6,3,10,5.3,4.7
+qwen,xhigh,6.75,4.0,10,4.75,6.25,0.95-1.19,"IR 4.0 (2 runs: 4;4) - misses seeded-3 both runs; single-run DR2; most expensive per task",6,3,10,5.3,4.7
 hydrogen,low,not measured,not measured,not measured,not measured,not measured,,-skipped (effort policy),not measured,not measured,not measured,not measured,not measured
 hydrogen,medium,6,4,5,5.25,5.23,0.09-0.29,O verdicts PARTIAL x2 (p8) + 5 (f41),5,3,4.5,5,6.25
 hydrogen,high,7.75,3,3.3,7.15,5.5,0.08-0.65,O: PARTIAL/PASS (p8) + 7 (f41); DR2 refuted,7,2,0.5,9,6
@@ -38,13 +38,13 @@ sol,medium,7,2,4.5,5.6,5.32,0.09-0.10,,7,2,5,8,5.75
 sol,xhigh,7,2,not measured,not measured,not measured,0.09,,7,2,not measured,not measured,not measured
 gpt-6.2-sol,high,7,2.17,3.5,6.5,5,0.10-0.60,"first 6.2-generation model measured; challenges nothing (strong-code needs I-v2>=9); honesty probe: obstacles NOT omitted, baseline never execution-established",7,2.17,3.5,6.5,5
 muse,low,5*,3,not measured,not measured,not measured,0.09-0.11,O single valid run,5*,3,not measured,not measured,not measured
-muse,medium,6.4,3.75,3.8,3.4,3.25,0.07-0.12,"O mean of 3 runs (2;7;2); IR 4 valid runs (3;3;4;5) - confirmation runs m83=4, m84=5; strong-review-alt stays sonnet-medium (4.0)",4.5,3,1,4.5,2.75
+muse,medium,6.4,3.75,3.8,3.4,3.25,0.07-0.12,"O mean of 3 runs (2;7;2); IR 4 valid runs (3;3;4;5) - confirmation runs m83=4, m84=5; strong-review-alternative went to 1017-high (3.62 at $0.016)",4.5,3,1,4.5,2.75
 muse,high,7*,3,not measured,not measured,not measured,0.12-0.17,O single valid run,7*,3,not measured,not measured,not measured
 muse,xhigh,3*,3,not measured,not measured,not measured,0.09-0.10,O single valid run; invents a green baseline,3*,3,not measured,not measured,not measured
 kimi,medium,5.19,2.38,5.5,6.75,6.94,0.15-0.20,,3.25,2,5.5,7,6
 kimi,high,5.12,not measured,not measured,not measured,not measured,0.16-0.19,,3.5,not measured,not measured,not measured,not measured
-sonnet,medium,5.5,4,not measured,not measured,not measured,0.09-0.10,IR: best reviewer of its class,5,3,not measured,not measured,not measured
-sonnet,high,8,4,7,7.75,8,0.40-1.26,"D: 30-min watchdog needed; D 2 valid (6.5,7.5); I2 panel mean 7.75 (4 raw runs 7;9;6;10 - c81=6, c82=10), variance 4 pts flagged",6.7,3,7,9,7
+sonnet,medium,5.5,4.75,not measured,not measured,not measured,0.09-0.10,IR 4 valid runs (5;5;4;5) - trace restored; holds strong-review,5,3,not measured,not measured,not measured
+sonnet,high,8,4,7,7.75,8.17,0.40-1.26,"D 4 runs (7.5;DNF;8.5;8.5) - watchdog 30-min needed, r92 DNF; I2 panel mean 7.75 (4 raw runs 7;9;6;10 - c81=6, c82=10), variance 4 pts flagged",6.7,3,7,9,7
 opus,default,6.56,4,0,8.5,8.58,0.95-1.82,DR2 0/14: 2 FP - worst DR2 measured,6.7,3,0,10,8.75
 fable,default,6,3,2,5.67,2,~4,O: hallucination -3; D: FP H3,1,2,2,6,1.5
 astra,default,7.4,2.8,4.6,5.6,6.12,~4,priced out (re-entry: price drop); performs at sonnet-class here,6,2,5,8,6

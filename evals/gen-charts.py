@@ -32,22 +32,23 @@ FULLIDS = {
     "kimi": "fireworks-ai/accounts/fireworks/models/kimi-k3p1-pro",
 }
 
-# roster v2 seat map: (CSV model, effort) -> [(seat name, deciding bench code)].
+# roster final seat map: (CSV model, effort) -> [(seat name, deciding bench code)].
 # Source of truth: models.json "global" + the roster's "Decided on" citations.
+# glm-low left review (documented fallback reviewer for deepseek/gemini-produced
+# work); hydrogen-high holds no seat.
 SEATS = {
-    ("glm", "high"): [("orchestration", "O"), ("strong-review", "IR")],
-    ("glm", "low"): [("cheap-review", "IR")],
+    ("glm", "high"): [("orchestration", "O")],
     ("haiku", "default"): [("cheap-code", "I-v2")],
     ("haiku", "medium"): [("cheap-design", "D")],
+    ("haiku", "high"): [("strong-code-alternative", "I-v2")],
     ("dsflash", "default"): [("cheap-mech", "I-v2"), ("explore", "I-v2")],
     ("minimax", "medium"): [("cheap-design-review", "DR-v2")],
-    ("minimax", "xhigh"): [("strong-design-review", "DR-v2"), ("strong-code", "I-v2")],
-    ("sonnet", "high"): [("strong-code-alternative", "I-v2")],
+    ("minimax", "xhigh"): [("cheap-review", "IR"), ("strong-design-review", "DR-v2"), ("strong-code", "I-v2")],
     ("opus", "default"): [("deep", "I-v2"), ("strong-code-alternative2", "I-v2"), ("strong-design-alternative2", "D")],
-    ("sonnet", "medium"): [("strong-review-alternative", "IR")],
+    ("sonnet", "medium"): [("strong-review", "IR")],
+    ("sonnet", "high"): [("strong-design-alternative", "D")],
     ("qwen", "xhigh"): [("strong-review-alternative2", "IR")],
-    ("1017", "high"): [("strong-design", "D")],
-    ("hydrogen", "high"): [("strong-design-alternative", "D")],
+    ("1017", "high"): [("strong-design", "D"), ("strong-review-alternative", "IR")],
     ("argon", "high"): [("strong-design-review-alternative", "DR-v2")],
 }
 
@@ -244,7 +245,11 @@ def build_and_write():
 <tr><td>strong-design-review-alt</td><td>carbon (10 at $0.15-0.23) and qwen (10 at ~$1.07)</td><td>argon holds the rung on a two-run 9.5. carbon's 10 is one valid run; qwen's 10 is a single run at ~$1/task with 0-7.5 variance elsewhere.</td></tr>
 <tr><td>cheap-design</td><td>1017 (7.06 at $0.10; high posts 9.44)</td><td>haiku medium holds the rung: 8.08 at $0.02/task — higher and 5x cheaper than 1017 medium. 1017 high holds strong-design; minimax cannot write designs (collapsing runs, false claim).</td></tr>
 <tr><td>cheap-code</td><td>haiku-high (8.83 at $0.05)</td><td>The seat is haiku default (8.33 official I-v2 mean at $0.02-0.03): the cheap tier needs cheap, not best, and briefs &gt;90k tokens already pay a 5&times; cliff at default.</td></tr>
-<tr><td>strong-code</td><td>sonnet-high (7.75 at $0.40-1.26, 4-run panel mean)</td><td>Lost it 11-18 (owner vote seat swap): minimax-xhigh takes the rung on price at I2 parity (7.67 arbitrated vs 7.75, 13&times; cheaper). Sonnet holds strong-code-alternative instead - the safety escalation: adds multi-bench stability, not I2 points.</td></tr>
+<tr><td>cheap-review</td><td>glm-low (2.5 at $0.005, the previous holder)</td><td>minimax-xhigh takes the rung (IR 4.33 bonus-inclusive at $0.014): gates fail silently, so floor recall is the protection - the 4.33 mean on top of clean 3/3 runs buys the recall the 2.5 floor lacks. glm-low leaves review (2.5) and is documented as the lineage-legal fallback reviewer for deepseek/gemini-produced work only.</td></tr>
+<tr><td>strong-review</td><td>minimax-xhigh (4.33 at $0.014, holds cheap-review)</td><td>sonnet-medium takes the rung (IR 4.75, 4 valid runs 5;5;4;5 at $0.09) - a fresh family vs the minimax floor it escalates from; keeping the rung in the floor's own family would pair minimax review with minimax review.</td></tr>
+<tr><td>strong-code-alternative</td><td>sonnet-high (7.75 at $0.40-1.26, 4-run panel mean)</td><td>Sonnet-high left the code ladder for strong-design-alternative (D 8.17). haiku-high takes the rung: 8.83 official I2 at ~$0.15/task - the capability step above cheap-code (8.33) while opus (8.5 at ~$1.39) costs 9x more.</td></tr>
+<tr><td>strong-design-alternative</td><td>hydrogen-high (5.5, the previous holder)</td><td>sonnet-high takes the rung (D 8.17 at $0.83): hydrogen's 5.5 sits below the cheap tier (haiku medium 8.08) - an escalation rung below the floor it escalates to is not an escalation. Sonnet keeps a seat, just on a different bench.</td></tr>
+<tr><td>strong-code</td><td>sonnet-high (7.75 at $0.40-1.26, 4-run panel mean)</td><td>Lost it 11-18 (owner vote seat swap): minimax-xhigh takes the rung on price at I2 parity (7.67 arbitrated vs 7.75, 13&times; cheaper).</td></tr>
 </tbody></table>''')
     blocks.append('''<div id="tooltip" style="position:fixed;pointer-events:none;background:#1f2937;color:#fff;padding:8px 10px;border-radius:6px;font:12px system-ui;max-width:340px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none"></div>
 <script>
