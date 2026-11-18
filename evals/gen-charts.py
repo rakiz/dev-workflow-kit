@@ -229,15 +229,16 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
     o.append('</svg>')
     return "\n".join(o)
 
-blocks = []
-blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one measured model&times;effort cell, read directly from the score CSV (dots = measured cells; not measured / DNF / categorical cells have no dot). Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
-for key, title, ymax, column, ylabel, ref, bench in BENCHES:
-    pts = load_dots(column)
-    blocks.append(f'<h3>{html.escape(title)}</h3>')
-    blocks.append(svg(title, ymax, pts, bench, ylabel, ref))
-    blocks.append('<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · dashed = frontier · hover = provider/model id, effort, score, cost, seats, why, CSV note</p>')
-blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
-blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>
+def build_and_write():
+    blocks = []
+    blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one measured model&times;effort cell, read directly from the score CSV (dots = measured cells; not measured / DNF / categorical cells have no dot). Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
+    for key, title, ymax, column, ylabel, ref, bench in BENCHES:
+        pts = load_dots(column)
+        blocks.append(f'<h3>{html.escape(title)}</h3>')
+        blocks.append(svg(title, ymax, pts, bench, ylabel, ref))
+        blocks.append('<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · dashed = frontier · hover = provider/model id, effort, score, cost, seats, why, CSV note</p>')
+    blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
+    blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>
 <tr><td>cheap-design-review</td><td>qwen-xhigh (10 at ~$1.07, one valid run)</td><td>minimax holds it twice over: medium effort holds this rung (8.0 at $0.04, on price - qwen-medium posts 8.6 at 8x the cost), xhigh holds strong-design-review (11.25 with 4 executed proofs) — a same-family effort escalation the owner accepted. Minimax is critique-only: its design authoring collapses across runs (two DNFs, false claim).</td></tr>
 <tr><td>strong-design-review</td><td>carbon-high (10 at $0.15-0.23, one valid run)</td><td>minimax-xhigh holds the rung on the complete grid: 11.25/14 with 4 executed proofs at $0.03 — the best DR2 measured. 1017 medium measures 4.75 on the official panel.</td></tr>
 <tr><td>strong-design</td><td>opus (8.58 at ~$1.39)</td><td>Held by 1017 high (9.44 at $0.12), ahead of opus at about 12x less cost. opus holds strong-design-alternative2, the parking rung for good models we hesitate to drop.</td></tr>
@@ -245,7 +246,7 @@ blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-chea
 <tr><td>cheap-design</td><td>1017 (7.06 at $0.10; high posts 9.44)</td><td>haiku medium holds the rung: 8.08 at $0.02/task — higher and 5x cheaper than 1017 medium. 1017 high holds strong-design; minimax cannot write designs (collapsing runs, false claim).</td></tr>
 <tr><td>cheap-code</td><td>haiku-high (8.83 at $0.05)</td><td>The seat is haiku default (8.33 official I-v2 mean at $0.02-0.03): the cheap tier needs cheap, not best, and briefs &gt;90k tokens already pay a 5&times; cliff at default.</td></tr>
 </tbody></table>''')
-blocks.append('''<div id="tooltip" style="position:fixed;pointer-events:none;background:#1f2937;color:#fff;padding:8px 10px;border-radius:6px;font:12px system-ui;max-width:340px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none"></div>
+    blocks.append('''<div id="tooltip" style="position:fixed;pointer-events:none;background:#1f2937;color:#fff;padding:8px 10px;border-radius:6px;font:12px system-ui;max-width:340px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none"></div>
 <script>
 (function () {
   var tip = document.getElementById('tooltip');
@@ -269,12 +270,16 @@ blocks.append('''<div id="tooltip" style="position:fixed;pointer-events:none;bac
   });
 })();
 </script>''')
-blocks.append('</section>\n')
-new = "\n".join(blocks)
+    blocks.append('</section>\n')
+    new = "\n".join(blocks)
 
-src = open(PATH).read()
-start = src.index('<section id="charts">')
-end = src.index('<section id="codes">')
-src = src[:start] + new + src[end:]
-open(PATH, "w").write(src)
-print("charts rewritten")
+    src = open(PATH).read()
+    start = src.index('<section id="charts">')
+    end = src.index('<section id="codes">')
+    src = src[:start] + new + src[end:]
+    open(PATH, "w").write(src)
+    print("charts rewritten")
+
+
+if __name__ == "__main__":
+    build_and_write()
