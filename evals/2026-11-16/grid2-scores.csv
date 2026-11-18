@@ -25,7 +25,7 @@ argon,medium,6*,2*,not measured,not measured,not measured,0.08-0.09,O re-scored 
 argon,high,7.5,3,9.5,3.79,4.62,0.13-0.96,O single (f41); I2/D: many provider DNFs (4+ retries),6,2,9.5,7,5.25
 carbon,low,7.12,2,4*,not measured,not measured,0.10-0.13,,6,2,4*,not measured,not measured
 carbon,medium,7.5,2,not measured,not measured,not measured,0.15-0.21,,6.5,2,not measured,not measured,not measured
-carbon,high,7.5,2,10,3.35,5.69,0.15-0.23,I2: 4 costcap DNFs - unmeasurable at $0.60 cap; D single valid 6.5 (g5 re-run = no-deliverable DNF),7,2,10,DNF,6.5
+carbon,high,7.5,2,10,3.35,5.69*,0.15-0.23,I2: 4 costcap DNFs - unmeasurable at $0.60 cap; D single valid 6.5 (g5 re-run = no-deliverable DNF),7,2,10,DNF,6.5
 gem38,low,5*,3,not measured,not measured,not measured,0.05,O re-scored 5* (was PARTIAL),5*,3,not measured,not measured,not measured
 gem38,medium,5*,2,7.1,7.5,0.75,0.04-0.09,O re-scored 5* (was PARTIAL); D: FP H3 both runs,5*,2,6.5,7.5,0.5
 gem38,high,5*,2,not measured,not measured,not measured,0.05,O re-scored 5* (was PARTIAL),5*,2,not measured,not measured,not measured

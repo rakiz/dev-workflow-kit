@@ -32,43 +32,43 @@ FULLIDS = {
     "kimi": "fireworks-ai/accounts/fireworks/models/kimi-k3p1-pro",
 }
 
-# roster v2 seat map: (CSV model, effort) -> [seat names]. A dot is blue on
-# every chart if its model x effort holds any seat.
+# roster v2 seat map: (CSV model, effort) -> [(seat name, deciding bench code)].
+# Source of truth: models.json "global" + the roster's "Decided on" citations.
 SEATS = {
-    ("glm", "high"): ["orchestration", "strong-review"],
-    ("glm", "low"): ["cheap-review"],
-    ("haiku", "default"): ["cheap-code"],
-    ("haiku", "medium"): ["cheap-design"],
-    ("dsflash", "default"): ["cheap-mech", "explore"],
-    ("minimax", "medium"): ["cheap-design-review"],
-    ("minimax", "xhigh"): ["strong-design-review"],
-    ("sonnet", "high"): ["strong-code"],
-    ("terra", "medium"): ["strong-code-alternative"],
-    ("opus", "default"): ["deep", "strong-code-alternative2", "strong-design-alternative2"],
-    ("sonnet", "medium"): ["strong-review-alternative"],
-    ("qwen", "xhigh"): ["strong-review-alternative2"],
-    ("1017", "high"): ["strong-design"],
-    ("hydrogen", "high"): ["strong-design-alternative"],
-    ("argon", "high"): ["strong-design-review-alternative"],
+    ("glm", "high"): [("orchestration", "O"), ("strong-review", "IR")],
+    ("glm", "low"): [("cheap-review", "IR")],
+    ("haiku", "default"): [("cheap-code", "I-v2")],
+    ("haiku", "medium"): [("cheap-design", "D")],
+    ("dsflash", "default"): [("cheap-mech", "I-v2"), ("explore", "I-v2")],
+    ("minimax", "medium"): [("cheap-design-review", "DR-v2")],
+    ("minimax", "xhigh"): [("strong-design-review", "DR-v2")],
+    ("sonnet", "high"): [("strong-code", "I-v2")],
+    ("terra", "medium"): [("strong-code-alternative", "I-v2")],
+    ("opus", "default"): [("deep", "I-v2"), ("strong-code-alternative2", "I-v2"), ("strong-design-alternative2", "D")],
+    ("sonnet", "medium"): [("strong-review-alternative", "IR")],
+    ("qwen", "xhigh"): [("strong-review-alternative2", "IR")],
+    ("1017", "high"): [("strong-design", "D")],
+    ("hydrogen", "high"): [("strong-design-alternative", "D")],
+    ("argon", "high"): [("strong-design-review-alternative", "DR-v2")],
 }
 
 # bench charts: (REASONS key, title, y-max, CSV column, y-axis label, ref line)
 BENCHES = [
     ("Orchestration",
      "Orchestration (O, /8): sonnet-high plans best (8); glm keeps the seat on price (7 at $0.005 - 20x cheaper than the top scorers)",
-     8, "O8", "score on this bench", None),
+     8, "O8", "score on this bench", None, "O"),
     ("Design writing",
      "Design writing (D, /11): 1017-high best (9.44 at $0.12), opus 8.58 at 12x the cost; glm and gem38 cannot write designs",
-     11, "D", "score on this bench", None),
+     11, "D", "score on this bench", None, "D"),
     ("Design review",
      "Design review (DR-v2, /14): minimax-xhigh posts 11.25 with 4 executed proofs and takes the strong rung; opus scores 0 (2 FPs)",
-     14, "DR2", "score on this bench", None),
+     14, "DR2", "score on this bench", None, "DR-v2"),
     ("Implementation",
      "Implementation (I-v2, /14): haiku-high edges opus on the official panel mean (8.83 vs 8.5); the multi-scorer re-score reshapes the grid",
-     14, "I2", "score on this bench", None),
+     14, "I2", "score on this bench", None, "I-v2"),
     ("Code review",
      "Code review (IR, /3+bonus): saturated - panel means land 2.2-4.5; only dsflash (2.2) separates",
-     5, "IR", "IR /3 seeded (+bonus up to +2)", (3, "seeded ceiling")),
+     5, "IR", "IR /3 seeded (+bonus up to +2)", (3, "seeded ceiling"), "IR"),
 ]
 
 
@@ -127,7 +127,7 @@ def frontier(pts):
     return out
 
 
-def svg(title, ymax, pts, ylabel="score on this bench", ref=None):
+def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
     key = next(k for k in REASONS if title.startswith(k))
     o = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-label="{html.escape(title)}" font-family="system-ui" font-size="12" style="max-width:100%;height:auto">']
     # gridlines + y labels
@@ -168,8 +168,11 @@ def svg(title, ymax, pts, ylabel="score on this bench", ref=None):
     for entry in sorted(pts, key=lambda p: (p[2], -p[1])):
         name, s_, c, seats, single, note = entry
         x, y = xpos(c), ypos(s_, ymax)
-        seat = bool(seats)
-        col = "#1d4ed8" if seat else "#9ca3af"
+        # three seat states on this bench: here / elsewhere / none
+        here = [f"{n} ({b})" for n, b in seats if b == bench]
+        elsewhere = [f"{n} ({b})" for n, b in seats if b != bench]
+        col_fill = "#1d4ed8" if here else "#9ca3af"          # blue fill = seat on THIS bench
+        col_ring = "#1d4ed8" if seats else "#9ca3af"          # blue ring = seated (here or elsewhere)
         # full model id (provider/model) + effort for the tooltip
         base, eff = name, "default"
         for e in ("default", "low", "medium", "high", "xhigh"):
@@ -178,18 +181,25 @@ def svg(title, ymax, pts, ylabel="score on this bench", ref=None):
                 break
         full = FULLIDS[base]
         why = REASONS[key].get(name, "")
-        seat_line = (f'<span style="color:#1d4ed8">seat: {html.escape(", ".join(seats))}</span>'
-                     if seats else '<span style="color:#9ca3af">no seat</span>')
+        if here:
+            seat_line = f'<span style="color:#1d4ed8">seat on this bench: {html.escape(", ".join(here))}</span>'
+        else:
+            seat_line = '<span style="color:#9ca3af">no seat on this bench</span>'
+        if elsewhere:
+            seat_line += f'<br><span style="color:#1d4ed8">seated elsewhere: {html.escape(", ".join(elsewhere))}</span>'
         TIPHTML = (f'<b>{html.escape(full)}</b> <i>{html.escape(eff)}</i><br>'
-                   f'score {s_:g} · ${c:g}/task<br>'
-                   f'{seat_line}'
+                   f'score {s_:g} · ${c:g}/task'
+                   + (' · single valid run' if single else '')
+                   + f'<br>{seat_line}'
                    + (f'<br><small>{html.escape(why)}</small>' if why else '')
                    + (f'<br><small>note: {html.escape(note)}</small>' if note else ''))
         data_tip = html.escape(TIPHTML, quote=True)
         if single:
-            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#fff" stroke="{col}" stroke-width="2"/>')
+            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#fff" stroke="{col_ring}" stroke-width="2"/>')
+        elif elsewhere and not here:
+            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#9ca3af" stroke="{col_ring}" stroke-width="2"/>')
         else:
-            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col}"/>')
+            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col_fill}"/>')
         label = name  # model name (with effort qualifier) only; tooltip carries score/cost/seat/why
         w = len(label) * CH
         cands = [(x+9, y-4, "start"), (x+9, y+14, "start"), (x-9, y-4, "end"), (x-9, y+14, "end"),
@@ -206,18 +216,18 @@ def svg(title, ymax, pts, ylabel="score on this bench", ref=None):
             cx, cy, anc = cands[0]; chosen = (cx, cy, anc, box(cx, cy, w, anc))
         cx, cy, anc, bx = chosen
         placed.append(bx)
-        fill = "#1d4ed8" if seat else "#374151"
+        fill = "#1d4ed8" if here else "#374151"
         o.append(f'<text class="pt" data-tip="{data_tip}" x="{cx:.1f}" y="{cy:.1f}" text-anchor="{"start" if anc=="start" else "end"}" fill="{fill}" stroke="#fff" stroke-width="3" paint-order="stroke">{html.escape(label)}</text>')
     o.append('</svg>')
     return "\n".join(o)
 
 blocks = []
 blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one measured model&times;effort cell, read directly from the score CSV (dots = measured cells; not measured / DNF / categorical cells have no dot). Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
-for key, title, ymax, column, ylabel, ref in BENCHES:
+for key, title, ymax, column, ylabel, ref, bench in BENCHES:
     pts = load_dots(column)
     blocks.append(f'<h3>{html.escape(title)}</h3>')
-    blocks.append(svg(title, ymax, pts, ylabel, ref))
-    blocks.append('<p class="note">blue = holds a seat (seat name on hover) · grey = no seat · hollow = single valid run (*) · dashed = best trade-off frontier (no model is both cheaper and better) · hover = provider/model id, effort, score, cost, seat, why, CSV note</p>')
+    blocks.append(svg(title, ymax, pts, bench, ylabel, ref))
+    blocks.append('<p class="note">blue = seat on this bench · grey/blue-ring = seated on another bench (hover: which) · plain grey = no seat · hollow = single valid run · dashed = frontier · hover = provider/model id, effort, score, cost, seats (all benches), why, CSV note</p>')
 blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
 blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>
 <tr><td>cheap-design-review</td><td>qwen-xhigh (10 at ~$1.07; old 11-01 run)</td><td>minimax holds it twice over: medium effort holds this rung (8.0 at $0.04, on price - qwen-medium posts 8.6 at 8x the cost), xhigh holds strong-design-review (11.25 with 4 executed proofs) — a same-family effort escalation the owner accepted. Minimax is critique-only: its design-writing score fell from 8 to 2 across runs (two DNFs).</td></tr>
