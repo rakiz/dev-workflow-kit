@@ -4,7 +4,7 @@ haiku,low,4.58,3,5.5,5.67,7.17,0.02,"O low 1 hallucination run (mean of 7,3)",4,
 haiku,medium,7.5,3,5.5,6.67,8.08,0.02,,8,3,5.5,7,7
 haiku,high,7,3,7,8.83,8.5,0.05,c8 confirmations lost to TMPDIR purge - unscored,8*,3,7,9,7.25
 haiku,xhigh,8,3,7,3.89,7,0.03-0.42,I2 xhigh: 2 DNF then 7 (single valid); D xhigh 1 DNF then 7,8*,3,7,7,7
-glm,low,5*,2.5,4.88,5.33,2.38,0.01,O re-scored 5* (was categorical PARTIAL; numeric arm had 2 DNFs),5*,2.7,5.5,6,1
+glm,low,5,2.5,4.88,5.33,2.38,0.01,"O re-scored 5 (was categorical PARTIAL; numeric arm had 2 DNFs); O stable 5.0 x3 (baseline discipline 0, zero hallucination)",5*,2.7,5.5,6,1
 glm,high,7,3,5.17,4.5,1.5,0.03,O 6 (3 runs: 7;5;6; was categorical PASS); D: FP H3 both runs; IR 2FP (10-14),6,3,5,5.5,0.75
 dsflash,default,5.67,2.2,8.5,7.75,2.2,0.03,,5,1.5,9,4.5,5
 1017,low,6.62,3.25,6.83,6.5,6.25,0.07,,6.75,2,7,8,6.75

@@ -34,7 +34,7 @@ REASONS = {
         "qwen-xhigh": "6.75 official at ~$1.07/task - the most expensive O measured; no seat at that price.",
         "qwen-low": "2 on one run - hallucinated the baseline (10-14).",
         "glm-high": "Holds orchestration. 7 official (3 runs: 7;5;6 + panel confirmation) at $0.005/task - kept on price - see revisit condition: revisit if glm O < 5 or haiku loses a seat (haiku-medium posts 7.5).",
-        "glm-low": "5 on one re-scored run at $0.005/task.",
+        "glm-low": "5 confirmed on 3 runs (5;5;5) at $0.005/task - stable, baseline discipline 0, zero hallucination.",
         "dsflash": "Holds cheap-mech/explore. 5.67 official at $0.008/task - enough planning for those rungs.",
         "dsflash-low": "5 on one run at $0.008/task.",
         "hydrogen-high": "7.75 official at $0.06/task - historically PARTIAL: baseline caught by reading, never by execution.",
