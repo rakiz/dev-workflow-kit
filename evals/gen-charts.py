@@ -53,7 +53,7 @@ CHARTS = [
   ]),
  ("Implementation (I-v2, /14): haiku-high edges opus on the official panel mean (8.83 vs 8.5); the multi-scorer re-score reshapes the grid", 14, [
   ("opus", 8.5, 1.385, ["deep", "strong-code-alt2"], False),
-  ("sonnet-high", 7.75, 0.83, ["strong-code"], False),
+  ("sonnet-high", 8, 0.83, ["strong-code"], False),
   ("hydrogen-high", 7.15, 0.365, [], False),
   ("haiku-high", 8.83, 0.05, [], False),
   ("1017-low", 6.5, 0.07, [], False),
