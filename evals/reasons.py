@@ -4,7 +4,7 @@
 # history is kept where it explains the value.
 REASONS = {
     "Orchestration": {
-        "sol62-high": "external claim (FrontierCode) collapses again - far from every seat holder. obstacles not omitted - but glm keeps the seat on price.",
+        "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder. obstacles not omitted - but glm keeps the seat on price.",
         "opus": "6.56 official (was 7.5 single-scorer) at ~$1.50/task - no longer top O: sonnet-high posts 8. The deep/alt2 rungs keep it off the default path.",
         "haiku-medium": "7.5 official (was 8) at $0.01/task - top-tier O at trivial cost; no seat - revisit if glm O < 5 or haiku loses a seat.",
         "1017-high": "7.5 official (unchanged) at $0.02/task - tier-1 planning at flash price.",
@@ -48,7 +48,7 @@ REASONS = {
         "fable": "6 official (was 1 single-scorer) at ~$4/task - the panel re-read lifted it, the price keeps it out.",
     },
     "Implementation": {
-        "sol62-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
+        "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
         "opus": "Holds strong-code-alternative2 + deep (terminal rung). 8.5 official (was 10 single-scorer) at ~$1.39/task; haiku-high beats it at 5% of the price - watch item.",
         "sonnet-high": "Holds strong-code. 4-run mean 8.0 (7;9;6;10 - the two c8 confirmation runs, c81=6 vs c82=10: variance 4 pts flagged) at $0.40-1.26/task.",
         "hydrogen-high": "7.15 official at $0.08-0.65/task - review stays refuted; implementation only.",
@@ -84,7 +84,7 @@ REASONS = {
         "hydrogen-xhigh": "2 (runs 2;2 - no-edit watchdog kills) at $0.50-0.90/task - xhigh impl is broken, effort non-monotone.",
     },
     "Design writing": {
-        "sol62-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
+        "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
         "opus": "Holds strong-design-alternative2 (terminal). 8.58 official (was 8.75) - no longer top: 1017-high posts 9.44 at 12x less cost.",
         "1017-high": "Holds strong-design. 9.44 official (was 8.25) at $0.12/task - the best value AND the top score on this bench.",
         "sonnet-high": "8 official at $0.40-1.26/task; lost strong-design to 1017-high (9.44 at $0.12).",
@@ -121,7 +121,7 @@ REASONS = {
         "hydrogen-xhigh": "6.19 official at $0.50-0.90/task - solid but does not threaten 1017-high (9.44) at 5-8x the cost.",
     },
     "Design review": {
-        "sol62-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
+        "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
         "minimax-xhigh": "Holds strong-design-review. 11.25/14 official (two-run mean: 9, 14) with 4 executed proofs - the best DR2 measured; medium holds cheap-design-review.",
         "carbon-high": "10 on one valid run at $0.15-0.23/task; kept out on price.",
         "qwen-xhigh": "10 on one old (11-01) run at ~$1.07/task; unstable on the other benches.",
@@ -156,7 +156,7 @@ REASONS = {
         "opus": "0/14 - two false positives; the worst DR2 measured (panel single-score unofficial).",
     },
     "Code review": {
-        "sol62-high": "external claim (FrontierCode) collapses again - far from every seat holder. misses the deletion-purge defect in both runs.",
+        "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder. misses the deletion-purge defect in both runs.",
         "minimax-low": "2.75 official (3/3 but 2 false positives in its runs).",
         "minimax-medium": "3.38 official (3/3 but 2 false positives in its runs).",
         "minimax-high": "3.5 official (3/3 clean in its runs).",

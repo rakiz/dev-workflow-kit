@@ -1,203 +1,15 @@
-import math, re, html
+import csv, html, math
 from reasons import REASONS
-PATH = "/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/LEADERBOARD.html"
 
-# name, score, cost, seats, single_run [, label_suffix]
-# Full-effort dot sets from 2026-11-16/grid2-scores.csv. Costs are the CSV
-# cost_per_task_est (midpoint of a range, ~N -> N). label_suffix (optional,
-# used by the IR chart) is appended to the dot label: "3+2" style bonus/FP.
-CHARTS = [
- ("Orchestration (O, /8): sonnet-high plans best (8); glm keeps the seat on price (7 at $0.005 - 20x cheaper than the top scorers)", 8, [
-   ("opus", 6.56, 1.50, ["deep"], False),
-   ("haiku-medium", 7.5, 0.01, [], False),
-   ("1017-high", 7.5, 0.02, [], False),
-   ("haiku-default", 7.25, 0.01, ["cheap-code"], False),
-   ("1017-medium", 7.38, 0.02, [], False),
-   ("1017-low", 6.62, 0.02, [], False),
-   ("haiku-high", 7, 0.02, [], True),
-   ("haiku-xhigh", 8, 0.03, [], True),
-   ("haiku-low", 4.58, 0.01, [], False),
-   ("sonnet-high", 8, 0.10, ["strong-code"], False),
-   ("sonnet-medium", 5.5, 0.10, ["strong-review-alt"], False),
-   ("argon-medium", 6, 0.09, [], True),
-   ("argon-high", 7.5, 0.10, ["strong-design-review-alt"], False),
-   ("argon-low", 5, 0.09, [], True),
-   ("carbon-high", 7.5, 0.21, [], False),
-   ("carbon-medium", 7.5, 0.18, [], False),
-   ("carbon-low", 7.12, 0.15, [], False),
-   ("astra", 7.4, 4.00, [], False),
-   ("minimax-high", 6.56, 0.01, [], False),
-   ("minimax-xhigh", 6, 0.01, [], False),
-   ("minimax-medium", 6, 0.01, [], False),
-   ("minimax-low", 5.5, 0.01, [], False),
-   ("sol-low", 7, 0.09, [], False),
-   ("sol-medium", 7, 0.095, [], False),
-   ("sol-xhigh", 7, 0.09, [], False),
-   ("qwen-medium", 4.75, 0.10, [], False),
-   ("qwen-xhigh", 6.75, 1.07, [], False),
-   ("qwen-low", 2, 0.09, [], True),
-   ("glm-high", 7, 0.005, ["orchestration"], False),
-   ("glm-low", 5, 0.005, [], True),
-   ("dsflash", 5.67, 0.008, ["cheap-mech", "explore"], False),
-   ("dsflash-low", 5, 0.008, [], True),
-   ("hydrogen-high", 7.75, 0.06, [], True),
-   ("hydrogen-medium", 6, 0.06, [], True),
-   ("muse-medium", 6.4, 0.10, [], False),
-   ("muse-high", 7, 0.15, [], True),
-   ("muse-low", 5, 0.10, [], True),
-   ("muse-xhigh", 3, 0.10, [], True),
-   ("kimi-medium", 5.19, 0.18, [], False),
-   ("kimi-high", 5.12, 0.18, [], False),
-   ("fable", 6, 4.00, [], False),
-   ("sol62-high", 7, 0.10, [], False),
-  ]),
- ("Implementation (I-v2, /14): haiku-high edges opus on the official panel mean (8.83 vs 8.5); the multi-scorer re-score reshapes the grid", 14, [
-  ("opus", 8.5, 1.385, ["deep", "strong-code-alt2"], False),
-  ("sonnet-high", 8, 0.83, ["strong-code"], False),
-  ("hydrogen-high", 7.15, 0.365, [], False),
-  ("haiku-high", 8.83, 0.05, [], False),
-  ("1017-low", 6.5, 0.07, [], False),
-  ("1017-high", 5.75, 0.12, [], False),
-  ("minimax-low", 8, 0.03, [], False),
-  ("sol-medium", 5.6, 0.095, [], False),
-  ("astra", 5.6, 4.0, [], False),
-  ("haiku-default", 8.33, 0.025, ["cheap-code"], False),
-  ("minimax-high", 6.12, 0.05, [], False),
-  ("gem38-medium", 7.5, 0.065, [], False),
-  ("terra-medium", 5.75, 0.09, ["strong-code-alt"], False),
-  ("haiku-medium", 6.67, 0.02, [], False),
-  ("kimi-medium", 6.75, 0.175, [], False),
-  ("qwen-medium", 6.42, 0.49, [], False),
-  ("haiku-xhigh", 3.89, 0.225, [], True),
-  ("argon-high", 3.79, 0.545, [], True),
-  ("glm-low", 5.33, 0.01, [], False),
-  ("haiku-low", 5.67, 0.02, [], False),
-  ("fable", 5.67, 4.0, [], False),
-  ("terra-low", 4.6, 0.05, [], False),
-  ("terra-high", 5.25, 0.05, [], False),
-  ("terra-xhigh", 4.6, 0.05, [], False),
-  ("qwen-xhigh", 4.75, 1.07, [], False),
-  ("hydrogen-medium", 5.25, 0.19, [], False),
-  ("minimax-medium", 7.5, 0.04, [], False),
-  ("muse-medium", 3.4, 0.095, [], False),
-  ("dsflash", 7.75, 0.03, [], False),
-  ("glm-high", 4.5, 0.03, [], False),
-  ("1017-medium", 6.25, 0.10, [], False),
-  ("minimax-xhigh", 5.19, 0.03, [], False),
-  ("hydrogen-xhigh", 2, 0.70, [], False),
-  ("sol62-high", 6.5, 0.55, [], False),
- ]),
- ("Design writing (D, /11): 1017-high best (9.44 at $0.12), opus 8.58 at 12x the cost; glm and gem38 cannot write designs", 11, [
-  ("opus", 8.58, 1.385, ["strong-design-alt2"], False),
-   ("1017-high", 9.44, 0.12, ["strong-design"], False),
-   ("sonnet-high", 8, 0.83, [], False),
-   ("haiku-high", 8.5, 0.05, [], False),
-   ("haiku-medium", 8.08, 0.02, ["cheap-design"], False),
-   ("haiku-xhigh", 7, 0.225, [], True),
-   ("1017-low", 6.25, 0.07, [], False),
-   ("minimax-xhigh", 6.81, 0.03, [], False),
-   ("1017-medium", 7.06, 0.10, [], False),
-  ("hydrogen-medium", 5.23, 0.19, [], False),
-  ("carbon-high", 5.69, 0.19, [], True),
-  ("hydrogen-high", 5.5, 0.365, ["strong-design-alt"], False),
-  ("astra", 6.12, 4.0, [], False),
-  ("kimi-medium", 6.94, 0.175, [], False),
-  ("sol-medium", 5.32, 0.095, [], False),
-  ("haiku-low", 7.17, 0.02, [], False),
-  ("minimax-medium", 5.36, 0.04, [], False),
-  ("haiku-default", 6.92, 0.025, [], False),
-  ("dsflash", 2.2, 0.03, [], True),
-  ("argon-high", 4.62, 0.545, [], True),
-  ("muse-medium", 3.25, 0.095, [], False),
-  ("qwen-medium", 1.7, 0.49, [], False),
-  ("qwen-xhigh", 6.25, 1.07, [], False),
-  ("terra-low", 5.12, 0.05, [], False),
-  ("terra-medium", 5, 0.09, [], False),
-  ("terra-high", 5.3, 0.05, [], False),
-  ("terra-xhigh", 5.12, 0.05, [], False),
-  ("glm-high", 1.5, 0.03, [], False),
-  ("minimax-low", 2.08, 0.03, [], False),
-  ("fable", 2, 4.0, [], False),
-  ("gem38-medium", 0.75, 0.065, [], False),
-  ("glm-low", 2.38, 0.01, [], False),
-  ("minimax-high", 7.38, 0.05, [], True),
-  ("hydrogen-xhigh", 6.19, 0.70, [], False),
-  ("sol62-high", 5, 0.60, [], False),
- ]),
- ("Design review (DR-v2, /14): minimax-xhigh posts 11.25 with 4 executed proofs and takes the strong rung; opus scores 0 (2 FPs)", 14, [
-   ("minimax-xhigh", 11.25, 0.03, ["strong-design-review"], False),
-  ("carbon-high", 10, 0.19, [], True),
-  ("qwen-xhigh", 10, 1.07, [], True),
-  ("argon-high", 9.5, 0.545, ["strong-design-review-alt"], False),
-  ("dsflash", 8.5, 0.03, [], False),
-  ("minimax-medium", 8, 0.04, ["cheap-design-review"], False),
-  ("qwen-medium", 8.6, 0.49, [], False),
-  ("minimax-high", 8.25, 0.05, [], False),
-  ("haiku-high", 7, 0.05, [], False),
-  ("haiku-xhigh", 7, 0.225, [], False),
-  ("1017-low", 6.83, 0.07, [], False),
-  ("1017-high", 7, 0.12, [], False),
-  ("sonnet-high", 7, 0.83, [], False),
-  ("gem38-medium", 7.1, 0.065, [], False),
-  ("minimax-low", 6.75, 0.03, [], False),
-  ("haiku-low", 5.5, 0.02, [], False),
-  ("haiku-medium", 5.5, 0.02, [], False),
-  ("kimi-medium", 5.5, 0.175, [], False),
-   ("1017-medium", 4.75, 0.10, [], False),
-   ("sol-medium", 4.5, 0.095, [], False),
-   ("haiku-default", 5.75, 0.025, [], False),
-   ("astra", 4.6, 4.0, [], False),
-   ("terra-xhigh", 7, 0.05, [], False),
-   ("terra-low", 7.6, 0.05, [], False),
-   ("terra-medium", 8, 0.09, [], True),
-   ("glm-high", 5.17, 0.03, [], False),
-   ("glm-low", 4.88, 0.01, [], False),
-   ("fable", 2, 4.0, [], False),
-  ("muse-medium", 3.8, 0.095, [], False),
-  ("hydrogen-medium", 5, 0.19, [], False),
-  ("hydrogen-high", 3.3, 0.365, [], False),
-  ("opus", 0, 1.385, [], False),
-  ("sol62-high", 3.5, 0.12, [], False),
- ]),
- ("Code review (IR, /3+bonus): saturated - panel means land 2.2-4.5; only dsflash (2.2) separates", 3, [
-  ("minimax-low", 2.75, 0.03, [], False, " (2FP)"),
-  ("minimax-medium", 3.38, 0.04, [], False, " (2FP)"),
-  ("minimax-high", 3.5, 0.05, [], False, ""),
-  ("minimax-xhigh", 4.33, 0.03, [], False, ""),
-  ("muse-medium", 4.38, 0.095, [], False, ""),
-  ("opus", 4, 1.385, [], False, "+2"),
-  ("sonnet-high", 4, 0.83, [], False, "+2, 1FP"),
-  ("qwen-xhigh", 3, 1.07, ["strong-review-alt2"], False, "+2 proven"),
-  ("haiku-xhigh", 3, 0.225, [], False, "+2 proven"),
-  ("haiku-default", 3.83, 0.025, [], False, ""),
-  ("haiku-low", 3, 0.02, [], False, ""),
-  ("1017-medium", 3.38, 0.10, [], False, ""),
-  ("1017-high", 3.62, 0.12, [], False, ""),
-  ("glm-low", 2.5, 0.01, ["cheap-review"], False, ""),
-  ("glm-high", 3, 0.03, ["strong-review"], False, " (2FP)"),
-  ("gem38-low", 3, 0.05, [], False, ""),
-  ("hydrogen-medium", 4, 0.19, [], False, " (FP)"),
-  ("sonnet-medium", 3, 0.095, ["strong-review-alt"], False, ""),
-  ("carbon-high", 2, 0.19, [], False, ""),
-  ("argon-high", 3, 0.545, [], False, ""),
-  ("astra", 2.8, 4.0, [], False, ""),
-  ("kimi-medium", 2.38, 0.175, [], False, ""),
-  ("1017-low", 3.25, 0.07, [], False, ""),
-  ("terra-high", 2, 0.05, [], False, ""),
-  ("sol-medium", 2, 0.095, [], False, ""),
-  ("dsflash", 2.2, 0.03, [], False, ""),
-  ("qwen-medium", 2, 0.49, [], False, ""),
-  ("fable", 3, 4.0, [], False, ""),
-  ("sol62-high", 2.17, 0.10, [], False, ""),
- ]),
-]
+PATH = "/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/LEADERBOARD.html"
+CSVPATH = "/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/grid2-scores.csv"
 
 W, H = 1200, 540
 L, R, T, B = 80, 60, 30, 60
 X0, X1 = 0.004, 5.0   # log range in USD (fable/astra sit at ~$4/task)
 Y1 = 0.0
 
-# provider-prefixed model ids for the tooltips
+# provider-prefixed model ids for the tooltips (keys = CSV model field)
 FULLIDS = {
     "opus": "github-copilot/claude-opus-5.5",
     "sonnet": "github-copilot/claude-sonnet-5.5",
@@ -205,7 +17,7 @@ FULLIDS = {
     "fable": "github-copilot/claude-fable-5",
     "terra": "github-copilot/gpt-6.1-terra",
     "sol": "github-copilot/gpt-6.1-sol",
-    "sol62": "github-copilot/gpt-6.2-sol",
+    "gpt-6.2-sol": "github-copilot/gpt-6.2-sol",
     "astra": "github-copilot/gpt-6-astra",
     "argon": "github-copilot/gemini-4-argon",
     "carbon": "github-copilot/gemini-4-carbon",
@@ -220,12 +32,91 @@ FULLIDS = {
     "kimi": "fireworks-ai/accounts/fireworks/models/kimi-k3p1-pro",
 }
 
+# roster v2 seat map: (CSV model, effort) -> [seat names]. A dot is blue on
+# every chart if its model x effort holds any seat.
+SEATS = {
+    ("glm", "high"): ["orchestration", "strong-review"],
+    ("glm", "low"): ["cheap-review"],
+    ("haiku", "default"): ["cheap-code"],
+    ("haiku", "medium"): ["cheap-design"],
+    ("dsflash", "default"): ["cheap-mech", "explore"],
+    ("minimax", "medium"): ["cheap-design-review"],
+    ("minimax", "xhigh"): ["strong-design-review"],
+    ("sonnet", "high"): ["strong-code"],
+    ("terra", "medium"): ["strong-code-alternative"],
+    ("opus", "default"): ["deep", "strong-code-alternative2", "strong-design-alternative2"],
+    ("sonnet", "medium"): ["strong-review-alternative"],
+    ("qwen", "xhigh"): ["strong-review-alternative2"],
+    ("1017", "high"): ["strong-design"],
+    ("hydrogen", "high"): ["strong-design-alternative"],
+    ("argon", "high"): ["strong-design-review-alternative"],
+}
+
+# bench charts: (REASONS key, title, y-max, CSV column, y-axis label, ref line)
+BENCHES = [
+    ("Orchestration",
+     "Orchestration (O, /8): sonnet-high plans best (8); glm keeps the seat on price (7 at $0.005 - 20x cheaper than the top scorers)",
+     8, "O8", "score on this bench", None),
+    ("Design writing",
+     "Design writing (D, /11): 1017-high best (9.44 at $0.12), opus 8.58 at 12x the cost; glm and gem38 cannot write designs",
+     11, "D", "score on this bench", None),
+    ("Design review",
+     "Design review (DR-v2, /14): minimax-xhigh posts 11.25 with 4 executed proofs and takes the strong rung; opus scores 0 (2 FPs)",
+     14, "DR2", "score on this bench", None),
+    ("Implementation",
+     "Implementation (I-v2, /14): haiku-high edges opus on the official panel mean (8.83 vs 8.5); the multi-scorer re-score reshapes the grid",
+     14, "I2", "score on this bench", None),
+    ("Code review",
+     "Code review (IR, /3+bonus): saturated - panel means land 2.2-4.5; only dsflash (2.2) separates",
+     5, "IR", "IR /3 seeded (+bonus up to +2)", (3, "seeded ceiling")),
+]
+
+
+def parse_cost(c):
+    c = c.strip().lstrip("~").strip()
+    if not c:
+        return None
+    if "-" in c:
+        a, _, b = c.partition("-")
+        try:
+            return (float(a) + float(b)) / 2
+        except ValueError:
+            return None
+    try:
+        return float(c)
+    except ValueError:
+        return None
+
+
+def load_dots(column):
+    """One dot per CSV row whose cell in `column` is numeric (a trailing *
+    marks a single-valid run). not measured / DNF / cat * render no dot."""
+    pts = []
+    for r in csv.DictReader(open(CSVPATH)):
+        v = r[column].strip()
+        single = v.endswith("*")
+        try:
+            s = float(v.rstrip("*"))
+        except ValueError:
+            continue
+        cost = parse_cost(r["cost_per_task_est"])
+        if cost is None:
+            continue
+        model, eff = r["model"].strip(), r["effort"].strip()
+        name = model if eff == "default" else f"{model}-{eff}"
+        pts.append((name, s, cost, SEATS.get((model, eff), []), single,
+                    r["notes"].strip().lstrip("-").strip()))
+    return pts
+
+
 def xpos(c):
     lo, hi = math.log10(X0), math.log10(X1)
     return L + (math.log10(c) - lo) / (hi - lo) * (W - L - R)
 
+
 def ypos(s, ymax):
     return T + (1 - (s - Y1) / (ymax - Y1)) * (H - T - B)
+
 
 def frontier(pts):
     srt = sorted(pts, key=lambda p: (p[2], -p[1]))
@@ -235,7 +126,8 @@ def frontier(pts):
             out.append(p); best = p[1]
     return out
 
-def svg(title, ymax, pts):
+
+def svg(title, ymax, pts, ylabel="score on this bench", ref=None):
     key = next(k for k in REASONS if title.startswith(k))
     o = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-label="{html.escape(title)}" font-family="system-ui" font-size="12" style="max-width:100%;height:auto">']
     # gridlines + y labels
@@ -252,14 +144,20 @@ def svg(title, ymax, pts):
     o.append(f'<line x1="{L}" x2="{W-R}" y1="{H-B}" y2="{H-B}" stroke="#333"/>')
     o.append(f'<line x1="{L}" x2="{L}" y1="{T}" y2="{H-B}" stroke="#333"/>')
     o.append(f'<text x="{(L+W-R)/2:.0f}" y="{H-12}" text-anchor="middle" fill="#333">cost per task (USD, log scale): left = cheaper, right = pricier</text>')
-    o.append(f'<text transform="translate(16 {(T+H-B)/2:.0f}) rotate(-90)" text-anchor="middle" fill="#333">score on this bench</text>')
+    o.append(f'<text transform="translate(16 {(T+H-B)/2:.0f}) rotate(-90)" text-anchor="middle" fill="#333">{ylabel}</text>')
+    if ref is not None:
+        v, lab = ref
+        y = ypos(v, ymax)
+        o.append(f'<line x1="{L}" x2="{W-R}" y1="{y:.1f}" y2="{y:.1f}" stroke="#6b7280" stroke-dasharray="5 4" stroke-width="1.3"/>')
+        o.append(f'<text x="{W-R-4}" y="{y-4:.1f}" text-anchor="end" fill="#6b7280">{lab}</text>')
     # frontier
     fr = frontier(pts)
     if len(fr) > 1:
         d = " ".join(f"{xpos(p[2]):.1f},{ypos(p[1], ymax):.1f}" for p in fr)
         o.append(f'<polyline points="{d}" fill="none" stroke="#6b7280" stroke-dasharray="5 4" stroke-width="1.3"/>')
     # points + labels: each label sits next to its own dot; pick the first
-    # candidate position whose box does not overlap a placed label
+    # candidate position whose box does not overlap a placed label.
+    # Single tooltip: data-tip only (JS div); no native <title>.
     placed = []
     CH = 6.9  # px per character at 12px
     def box(cx, cy, w, anchor):
@@ -268,8 +166,7 @@ def svg(title, ymax, pts):
     def overlap(a, b):
         return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
     for entry in sorted(pts, key=lambda p: (p[2], -p[1])):
-        name, s_, c, seats, single = entry[:5]
-        extra = entry[5] if len(entry) > 5 else ""
+        name, s_, c, seats, single, note = entry
         x, y = xpos(c), ypos(s_, ymax)
         seat = bool(seats)
         col = "#1d4ed8" if seat else "#9ca3af"
@@ -280,22 +177,19 @@ def svg(title, ymax, pts):
                 base, eff = name[: -(len(e) + 1)], e
                 break
         full = FULLIDS[base]
-        TIP = f"{full} ({eff}): {s_:g}{extra}" + (f" - ${c:g}/task" if c else "") + (f"\nseat: {', '.join(seats)}" if seats else "")
         why = REASONS[key].get(name, "")
-        TIP = TIP + (f"\n{why}" if why else "")
-        tip_el = f'<title>{html.escape(TIP)}</title>'
-        # rich HTML tooltip (JS-enhanced via data-tip; <title> stays as fallback)
         seat_line = (f'<span style="color:#1d4ed8">seat: {html.escape(", ".join(seats))}</span>'
                      if seats else '<span style="color:#9ca3af">no seat</span>')
         TIPHTML = (f'<b>{html.escape(full)}</b> <i>{html.escape(eff)}</i><br>'
-                   f'score {s_:g}{html.escape(extra)} · ${c:g}/task<br>'
+                   f'score {s_:g} · ${c:g}/task<br>'
                    f'{seat_line}'
-                   + (f'<br><small>{html.escape(why)}</small>' if why else ''))
+                   + (f'<br><small>{html.escape(why)}</small>' if why else '')
+                   + (f'<br><small>note: {html.escape(note)}</small>' if note else ''))
         data_tip = html.escape(TIPHTML, quote=True)
         if single:
-            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#fff" stroke="{col}" stroke-width="2">{tip_el}</circle>')
+            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#fff" stroke="{col}" stroke-width="2"/>')
         else:
-            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col}">{tip_el}</circle>')
+            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col}"/>')
         label = name  # model name (with effort qualifier) only; tooltip carries score/cost/seat/why
         w = len(label) * CH
         cands = [(x+9, y-4, "start"), (x+9, y+14, "start"), (x-9, y-4, "end"), (x-9, y+14, "end"),
@@ -313,19 +207,17 @@ def svg(title, ymax, pts):
         cx, cy, anc, bx = chosen
         placed.append(bx)
         fill = "#1d4ed8" if seat else "#374151"
-        o.append(f'<text class="pt" data-tip="{data_tip}" x="{cx:.1f}" y="{cy:.1f}" text-anchor="{"start" if anc=="start" else "end"}" fill="{fill}" stroke="#fff" stroke-width="3" paint-order="stroke">{html.escape(label)}{tip_el}</text>')
+        o.append(f'<text class="pt" data-tip="{data_tip}" x="{cx:.1f}" y="{cy:.1f}" text-anchor="{"start" if anc=="start" else "end"}" fill="{fill}" stroke="#fff" stroke-width="3" paint-order="stroke">{html.escape(label)}</text>')
     o.append('</svg>')
     return "\n".join(o)
 
 blocks = []
-blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one model on one bench. Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
-ORDER = ["Orchestration", "Design writing", "Design review", "Implementation", "Code review"]
-CHARTS = sorted(CHARTS, key=lambda c: next(i for i, k in enumerate(ORDER) if c[0].startswith(k)))
-for title, ymax, pts in CHARTS:
-    fr = frontier(pts)
+blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one measured model&times;effort cell, read directly from the score CSV (dots = measured cells; not measured / DNF / categorical cells have no dot). Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
+for key, title, ymax, column, ylabel, ref in BENCHES:
+    pts = load_dots(column)
     blocks.append(f'<h3>{html.escape(title)}</h3>')
-    blocks.append(svg(title, ymax, pts))
-    blocks.append('<p class="note">blue = holds a seat (seat name on hover) · grey = no seat · hollow = single valid run (*) · dashed = best trade-off frontier (no model is both cheaper and better) · hover = provider/model id, effort, score, cost, seat, why</p>')
+    blocks.append(svg(title, ymax, pts, ylabel, ref))
+    blocks.append('<p class="note">blue = holds a seat (seat name on hover) · grey = no seat · hollow = single valid run (*) · dashed = best trade-off frontier (no model is both cheaper and better) · hover = provider/model id, effort, score, cost, seat, why, CSV note</p>')
 blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
 blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>
 <tr><td>cheap-design-review</td><td>qwen-xhigh (10 at ~$1.07; old 11-01 run)</td><td>minimax holds it twice over: medium effort holds this rung (8.0 at $0.04, on price - qwen-medium posts 8.6 at 8x the cost), xhigh holds strong-design-review (11.25 with 4 executed proofs) — a same-family effort escalation the owner accepted. Minimax is critique-only: its design-writing score fell from 8 to 2 across runs (two DNFs).</td></tr>
