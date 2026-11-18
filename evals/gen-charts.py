@@ -41,8 +41,8 @@ SEATS = {
     ("haiku", "medium"): [("cheap-design", "D")],
     ("dsflash", "default"): [("cheap-mech", "I-v2"), ("explore", "I-v2")],
     ("minimax", "medium"): [("cheap-design-review", "DR-v2")],
-    ("minimax", "xhigh"): [("strong-design-review", "DR-v2"), ("strong-code-alternative", "I-v2")],
-    ("sonnet", "high"): [("strong-code", "I-v2")],
+    ("minimax", "xhigh"): [("strong-design-review", "DR-v2"), ("strong-code", "I-v2")],
+    ("sonnet", "high"): [("strong-code-alternative", "I-v2")],
     ("opus", "default"): [("deep", "I-v2"), ("strong-code-alternative2", "I-v2"), ("strong-design-alternative2", "D")],
     ("sonnet", "medium"): [("strong-review-alternative", "IR")],
     ("qwen", "xhigh"): [("strong-review-alternative2", "IR")],
@@ -244,7 +244,7 @@ def build_and_write():
 <tr><td>strong-design-review-alt</td><td>carbon (10 at $0.15-0.23) and qwen (10 at ~$1.07)</td><td>argon holds the rung on a two-run 9.5. carbon's 10 is one valid run; qwen's 10 is a single run at ~$1/task with 0-7.5 variance elsewhere.</td></tr>
 <tr><td>cheap-design</td><td>1017 (7.06 at $0.10; high posts 9.44)</td><td>haiku medium holds the rung: 8.08 at $0.02/task — higher and 5x cheaper than 1017 medium. 1017 high holds strong-design; minimax cannot write designs (collapsing runs, false claim).</td></tr>
 <tr><td>cheap-code</td><td>haiku-high (8.83 at $0.05)</td><td>The seat is haiku default (8.33 official I-v2 mean at $0.02-0.03): the cheap tier needs cheap, not best, and briefs &gt;90k tokens already pay a 5&times; cliff at default.</td></tr>
-<tr><td>strong-code-alternative</td><td>terra-medium (5.75 at ~$0.09-0.11, single valid run)</td><td>Lost it 11-18 (owner vote): minimax-xhigh takes the seat on I-v2 arbitrated 7.67 — +1.9 pts and 3.7x cheaper; terra stays the documented fallback. Third minimax rung: the single-family SPOF is accepted by the owner, fallback carbon documented for the DR rungs.</td></tr>
+<tr><td>strong-code</td><td>sonnet-high (7.75 at $0.40-1.26, 4-run panel mean)</td><td>Lost it 11-18 (owner vote seat swap): minimax-xhigh takes the rung on price at I2 parity (7.67 arbitrated vs 7.75, 13&times; cheaper). Sonnet holds strong-code-alternative instead - the safety escalation: adds multi-bench stability, not I2 points.</td></tr>
 </tbody></table>''')
     blocks.append('''<div id="tooltip" style="position:fixed;pointer-events:none;background:#1f2937;color:#fff;padding:8px 10px;border-radius:6px;font:12px system-ui;max-width:340px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none"></div>
 <script>

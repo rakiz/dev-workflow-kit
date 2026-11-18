@@ -48,14 +48,14 @@
       "variant": "medium"
     },
     "strong-code": {
-      "model": "github-copilot/claude-sonnet-5.5",
-      "family_hint": "claude",
-      "variant": "high"
-    },
-    "strong-code-alternative": {
       "model": "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash",
       "family_hint": "minimax",
       "variant": "xhigh"
+    },
+    "strong-code-alternative": {
+      "model": "github-copilot/claude-sonnet-5.5",
+      "family_hint": "claude",
+      "variant": "high"
     },
     "strong-code-alternative2": {
       "model": "github-copilot/claude-opus-5.5",
