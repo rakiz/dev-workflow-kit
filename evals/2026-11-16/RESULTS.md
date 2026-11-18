@@ -197,3 +197,32 @@ defect is missed in both IR runs.
 **Verdict: challenges nothing** — strong-code needs I-v2 ≥ 9; every seat
 holder beats it on its own bench. The external FrontierCode claim pattern
 repeats (cf. gpt-6.1-sol, 11-12). **Roster v2 unchanged.**
+
+## challenge closures (muse/carbon/minimax-xhigh, 11-18)
+
+Closing the three open challenges from the confirmation phase:
+
+- **muse `medium` IR 3.75 — seat holds.** Four valid runs (3;3;4;5 —
+  confirmation runs m83=4, m84=5; m81/m82 costcap DNFs) stay below
+  sonnet `medium` (4.0): **strong-review-alternative stays sonnet-medium**.
+- **minimax `xhigh` I-v2 arbitrated 7.67** (sonnet-high arbitration session
+  `panel-sonnet-I2-arb-xhigh`, $0.39 under the $0.60 cap, rubric-strict with
+  pristine-fixture re-probes): per-run arbitrated scores **f41=8, g51=5,
+  m81=10**. The three divergent cell readings — panel mean 5.19 (scorers
+  8/4.25/4.25/4.25), original first-pass 8 (runs 8;8), fresh 11-18 scorer 10 —
+  resolved to the run-level truth: g51's regression-test file is unrecoverable
+  from its artifact ("Only in") and its delete-prior-artifacts policy fails
+  probe D, so it drops to 5; f41 and m81 hold at 8 and 10. **7.67 exceeds
+  terra `medium` (5.75, the strong-code-alternative seat) by more than the
+  1-point margin — OWNER DECISION flagged: minimax-xhigh challenges the
+  strong-code-alternative rung. The seat is NOT changed here.** minimax stays
+  critique-only elsewhere.
+- **carbon `high` I-v2 unmeasurable — challenge abandoned.** 7 DNFs total
+  (watchdog+costcap) at caps up to $3.00; the only delivered artifact scored
+  2/14. **hydrogen `high` keeps strong-design-alternative** (carbon's DR2 10
+  is one valid run at 5-8× the cost and its I-v2 cannot be measured at
+  reasonable cost).
+
+Chart/CSV integrity after the fold: `evals/verify-charts.py` re-derives every
+dot in LEADERBOARD.html from `grid2-scores.csv` (same math as gen-charts) —
+197/197 dots match; regeneration is byte-deterministic.
