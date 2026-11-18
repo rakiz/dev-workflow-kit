@@ -196,8 +196,9 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
             o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col}"/>')
         label = name  # model name (with effort qualifier) only; tooltip carries score/cost/seat/why
         w = len(label) * CH
-        cands = [(x+9, y+d, "start") for d in (-4, 14, -20, 30, -34, 44)] \
-              + [(x-9, y+d, "end") for d in (-4, 14, -20, 30, -34, 44)]
+        # displacement cap: labels stay within +/-20px vertical of their own dot
+        cands = [(x+9, y+d, "start") for d in (-4, 14, -20)] \
+              + [(x-9, y+d, "end") for d in (-4, 14, -20)]
         chosen = None
         for cx, cy, anc in cands:
             bx = box(cx, cy, w, anc)
@@ -207,29 +208,24 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
                 continue
             chosen = (cx, cy, anc, bx); break
         if chosen is None:
-            # vertical scan: 14px steps up/down from the dot until the box fits
-            # the plot area without overlap - guarantees a free slot whenever
-            # one exists in the band; last resort = first candidate
-            for delta in range(-90, 105, 14):
-                for cx, anc in ((x + 9, "start"), (x - 9, "end")):
-                    bx = box(cx, y + delta, w, anc)
-                    if bx[0] < L or bx[2] > W - R + 40 or bx[1] < T - 5 or bx[3] > H - B:
-                        continue
-                    if any(overlap(bx, q) for q in placed):
-                        continue
-                    chosen = (cx, y + delta, anc, bx); break
-                if chosen: break
-        if chosen is None:
-            cx, cy, anc = cands[0]; chosen = (cx, cy, anc, box(cx, cy, w, anc))
+            # no free slot within the cap: default position anyway - a small
+            # overlap is recoverable, a label floating far from its dot is a lie
+            cx, cy, anc = x + 9, y - 4, "start"
+            chosen = (cx, cy, anc, box(cx, cy, w, anc))
         cx, cy, anc, bx = chosen
         placed.append(bx)
         fill = "#1d4ed8" if here else "#374151"
+        # leader line when the label is not at the default position: keep it
+        # visually attached to its dot (thin grey, dot edge -> box nearest edge)
+        if (cx, cy, anc) != (x + 9, y - 4, "start"):
+            bx0, by0, bx1, by1 = bx
+            tcx, tcy = (bx0 + bx1) / 2, (by0 + by1) / 2
+            dx, dy = tcx - x, tcy - y
+            dist = math.hypot(dx, dy) or 1
+            sx, sy = x + 6.5 * dx / dist, y + 6.5 * dy / dist   # dot edge (r=6)
+            ex = min(max(sx, bx0), bx1); ey = min(max(sy, by0), by1)  # box entry point
+            o.append(f'<line x1="{sx:.1f}" y1="{sy:.1f}" x2="{ex:.1f}" y2="{ey:.1f}" stroke="#aaa" stroke-width="1"/>')
         o.append(f'<text class="pt" data-tip="{data_tip}" x="{cx:.1f}" y="{cy:.1f}" text-anchor="{"start" if anc=="start" else "end"}" fill="{fill}" stroke="#fff" stroke-width="3" paint-order="stroke">{html.escape(label)}</text>')
-    if ref is not None:
-        assert ref_box is not None
-        boxes = placed + [ref_box]
-        overlaps = [(i, j) for i in range(len(boxes)) for j in range(i + 1, len(boxes)) if overlap(boxes[i], boxes[j])]
-        assert not overlaps, f"label collisions on {title[:40]}: {overlaps}"
     o.append('</svg>')
     return "\n".join(o)
 
