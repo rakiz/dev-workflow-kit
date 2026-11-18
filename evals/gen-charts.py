@@ -49,6 +49,7 @@ CHARTS = [
    ("kimi-medium", 3.25, 0.18, [], False),
    ("kimi-high", 3.5, 0.18, [], False),
    ("fable", 1, 4.00, [], False),
+   ("sol62-high", 7, 0.10, [], False),
   ]),
  ("Implementation (I-v2, /14): opus buys the top score; haiku-high and hydrogen-high are the cheap surprises; 1017 sweeps 8 at every effort", 14, [
   ("opus", 10, 1.385, ["deep", "strong-code-alt2"], False),
@@ -84,6 +85,7 @@ CHARTS = [
   ("1017-medium", 4.5, 0.10, [], False),
   ("minimax-xhigh", 8, 0.03, [], False),
   ("hydrogen-xhigh", 2, 0.70, [], False),
+  ("sol62-high", 6.5, 0.55, [], False),
  ]),
  ("Design writing (D, /11): opus best; 1017-high is the best value (8.25 at $0.12); glm and gem38 cannot write designs", 11, [
   ("opus", 8.75, 1.385, ["strong-design-alt2"], False),
@@ -120,6 +122,7 @@ CHARTS = [
   ("glm-low", 1, 0.01, [], False),
   ("minimax-high", 5.5, 0.05, [], True),
   ("hydrogen-xhigh", 6.75, 0.70, [], False),
+  ("sol62-high", 5, 0.60, [], False),
  ]),
  ("Design review (DR-v2, /14): minimax-xhigh posts 11.5 with 4 executed proofs and takes the strong rung; opus scores 0 (2 FPs)", 14, [
    ("minimax-xhigh", 11.5, 0.03, ["strong-design-review"], False),
@@ -154,6 +157,7 @@ CHARTS = [
   ("hydrogen-medium", 4.5, 0.19, [], False),
   ("hydrogen-high", 0.5, 0.365, [], False),
   ("opus", 0, 1.385, [], False),
+  ("sol62-high", 3.5, 0.12, [], False),
  ]),
  ("Code review (IR, /3): saturated at 3/3 - almost everyone ties; only dsflash (1.5) separates", 3, [
   ("minimax-low", 2.5, 0.03, [], False, " (2FP)"),
@@ -184,6 +188,7 @@ CHARTS = [
   ("dsflash", 1.5, 0.03, [], False, ""),
   ("qwen-medium", 2, 0.49, [], False, ""),
   ("fable", 2, 4.0, [], False, ""),
+  ("sol62-high", 2.17, 0.10, [], False, ""),
  ]),
 ]
 
@@ -200,6 +205,7 @@ FULLIDS = {
     "fable": "github-copilot/claude-fable-5",
     "terra": "github-copilot/gpt-6.1-terra",
     "sol": "github-copilot/gpt-6.1-sol",
+    "sol62": "github-copilot/gpt-6.2-sol",
     "astra": "github-copilot/gpt-6-astra",
     "argon": "github-copilot/gemini-4-argon",
     "carbon": "github-copilot/gemini-4-carbon",

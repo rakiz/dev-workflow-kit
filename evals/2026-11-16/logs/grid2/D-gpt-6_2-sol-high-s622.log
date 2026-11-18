@@ -1,0 +1,31 @@
+[0m
+> build · gpt-6.2-sol
+[0m
+[0m→ [0mRead BRIEF.md
+[0m→ [0mRead .
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead snaputil.py
+[0m
+[0m$ [0mPYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.008s
+
+OK
+[0m
+The existing sync code can supply scanning and change detection, but it silently skips copy errors and still writes the source manifest. The design will reuse those building blocks while making a snapshot visible only after its files and index are complete.
+[0m% [0mPatch 1 file
+[0m% [0mPatch 1 file
+Wrote [DESIGN-d1.md](DESIGN-d1.md) in this repo copy. It specifies atomic snapshot publication, crash and index recovery, reader-safe retention, and incremental reuse, with exact references to `synccli.py` and `snaputil.py`. It also derives a 180-second initial-backup budget and states how to validate it.
+
+All six existing tests passed. No implementation files were changed, and no subagents were used.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 167: 83461 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 181: 83462 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-83447 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-18-D-D1-github-copilot-gpt-6-2-sol-high-s622 above)

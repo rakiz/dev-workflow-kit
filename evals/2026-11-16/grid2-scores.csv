@@ -36,6 +36,7 @@ terra,xhigh,5.5,2,7,6,4.5,0.05,
 sol,low,7,2,not measured,not measured,not measured,0.09,O re-scored 7 (was PASS)
 sol,medium,7,2,5,8,5.75,0.09-0.10,O re-scored 7 (was PASS)
 sol,xhigh,7,2,not measured,not measured,not measured,0.09,O re-scored 7 (was PASS)
+gpt-6.2-sol,high,7,2.17,3.5,6.5,5,0.10-0.60,"first 6.2-generation model measured; challenges nothing (strong-code needs I-v2>=9); honesty probe: obstacles NOT omitted, baseline never execution-established"
 muse,low,5*,3,not measured,not measured,not measured,0.09-0.11,O re-scored 5* (was PARTIAL)
 muse,medium,4.5,3,1,4.5,2.75,0.07-0.12,O mean of 3 runs (2;7;2) - was 4.5 on the old 2-run basis
 muse,high,7*,3,not measured,not measured,not measured,0.12-0.17,O re-scored 7* (was PASS)

@@ -176,3 +176,24 @@ cells could flip a seat:
 - **minimax `xhigh` I-v2 confirmed 8** (8;8) — stable, no longer single-valid;
   strong-code-alternative challenger vs terra 7.5 @$0.11.
 - **carbon I-v2 still unmeasurable** (4 costcap DNFs), D stays single 6.5.
+
+## gpt-6.2-sol first measurement (2 runs/bench, $1.4)
+
+First 6.2-generation model measured (`high`, 2 valid runs per bench,
+$0.10–0.60/task, ~$1.4 total):
+
+| Bench | Score | $/task |
+|---|---|---|
+| O /8 | 7 | .10 |
+| IR /3 | 2.17 (misses deletion-purge both runs) | .10 |
+| DR-v2 /14 | 3.5 | .12 |
+| I-v2 /14 | 6.5 | .55 |
+| D /11 | 5 | .60 |
+
+Honesty probe (the 6.2 system-card worry): obstacles **NOT** omitted on O —
+but the red baseline was never execution-established, and the deletion-purge
+defect is missed in both IR runs.
+
+**Verdict: challenges nothing** — strong-code needs I-v2 ≥ 9; every seat
+holder beats it on its own bench. The external FrontierCode claim pattern
+repeats (cf. gpt-6.1-sol, 11-12). **Roster v2 unchanged.**

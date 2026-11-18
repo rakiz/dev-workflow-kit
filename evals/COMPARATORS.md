@@ -68,6 +68,8 @@ Source: https://openai.com/index/introducing-gpt-6-2-astra-sol
   NOT available yet on our providers (github-copilot / ai-gateway-openai, checked 11-17).
   **Re-entry**: test gpt-6.2-sol on all 5 decision benches (~1-2 runs, ~$3-5) the day a
   gateway lists it; a strong-code challenge requires I-v2 ≥ 9 at ≤ $0.50/task.
+  **MEASURED 11-17** (high, 2 runs/bench): O 7/8, IR 2.17 (misses deletion-purge both runs),
+  DR2 3.5, I2 6.5, D 5 — takes no seat; the external claim pattern repeats.
 - **gpt-6.2-astra**: $8/$40 ($0.40 cached) — blended ≈ $3.9 vs opus-5.5 $1.95. Only
   contender seat would be deep (opus, terminal, I-v2 10 / D 8.75). **Re-entry condition
   (supersedes gpt-6-astra's old one)**: drops below opus-5.5 blended, or opus regresses.
