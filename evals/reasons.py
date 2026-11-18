@@ -61,7 +61,7 @@ REASONS = {
         "haiku-default": "Holds cheap-code. 8.33 official at $0.02-0.03/task; briefs >90k tokens pay 5x (cliff) - fallback 1017 medium.",
         "minimax-high": "6.12 official at $0.05/task.",
         "gem38-medium": "7.5 at $0.04-0.09/task.",
-        "terra-medium": "Holds strong-code-alternative. 5.75 official (was 7.5) at ~$0.09-0.14/task - minimax-xhigh I2 arbitrated 7.67 above it (owner decision pending, seat unchanged); watch item.",
+        "terra-medium": "No seat: lost strong-code-alternative to minimax-xhigh (7.67 arbitrated, owner vote 11-18). 5.75 official (was 7.5) at ~$0.09-0.14/task - documented fallback for the rung.",
         "haiku-medium": "6.67 official at $0.02/task.",
         "kimi-medium": "6.75 official at $0.15-0.20/task.",
         "qwen-medium": "6.42 official (runs 8,6 - one DNF) at $0.30-0.68/task.",
@@ -80,7 +80,7 @@ REASONS = {
         "dsflash": "Holds cheap-mech/explore. 7.75 official (was 4.5) at $0.03/task - the panel re-score lifted it well above its rungs' needs.",
         "glm-high": "4.5 official at $0.03/task; holds orchestration + strong-review instead.",
         "1017-medium": "6.25 official (was 4.5) at $0.10/task - now 1017's mid effort, low/high re-scored down.",
-        "minimax-xhigh": "7.67 arbitrated (sonnet arb over 3 divergent readings: panel 5.19 / original 8 / fresh 10; runs 8;5;10) at $0.03/task - clears terra-medium (5.75) by >1: owner decision flagged, seat unchanged.",
+        "minimax-xhigh": "Takes strong-code-alternative (owner vote 11-18). 7.67 arbitrated (sonnet arb over 3 divergent readings: panel 5.19 / original 8 / fresh 10; runs 8;5;10) at $0.03/task - +1.9 pts over terra-medium (5.75), 3.7x cheaper; minimax SPOF accepted.",
         "hydrogen-xhigh": "2 (runs 2;2 - no-edit watchdog kills) at $0.50-0.90/task - xhigh impl is broken, effort non-monotone.",
     },
     "Design writing": {

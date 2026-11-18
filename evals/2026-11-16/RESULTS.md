@@ -223,6 +223,8 @@ Closing the three open challenges from the confirmation phase:
   is one valid run at 5-8× the cost and its I-v2 cannot be measured at
   reasonable cost).
 
+**strong-code-alternative → minimax xhigh (owner vote; arbitrated I2 7.67 vs terra 5.75).**
+
 Chart/CSV integrity after the fold: `evals/verify-charts.py` re-derives every
 dot in LEADERBOARD.html from `grid2-scores.csv` (same math as gen-charts) —
 197/197 dots match; regeneration is byte-deterministic.
