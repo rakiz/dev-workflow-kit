@@ -355,3 +355,15 @@ O-muse-spark-open-medium-g22	O	muse	medium	g22	scored	2	none	2026-11-16/logs/gri
 O-qwen-xhigh-q21	O	qwen	xhigh	q21	scored	5	none	2026-11-16/logs/grid2/O-qwen-xhigh-q21.log.gz	
 O-qwen-xhigh-q22	O	qwen	xhigh	q22	scored	7	none	2026-11-16/logs/grid2/O-qwen-xhigh-q22.log.gz	
 O-qwen3p8-2p4t-a95b-medium-f41	O	qwen	medium	f41	scored	4	none	2026-11-16/logs/grid2/O-qwen3p8-2p4t-a95b-medium-f41.log.gz	
+IR-muse-spark-open-medium-m81	IR	muse	medium	m81	DNF	0	costcap	2026-11-16/logs/grid2/IR-muse-medium-m81.log.gz	confirmation run: costcap kill, no deliverable
+IR-muse-spark-open-medium-m82	IR	muse	medium	m82	DNF	0	costcap	2026-11-16/logs/grid2/IR-muse-medium-m82.log.gz	confirmation run: costcap kill, no deliverable
+IR-muse-spark-open-medium-m83	IR	muse	medium	m83	scored	4	none	2026-11-16/logs/grid2/IR-muse-medium-m83.log.gz	confirmation run: 3/3 seeded + 1 bonus (mtime-gated update), 0 FP
+IR-muse-spark-open-medium-m84	IR	muse	medium	m84	scored	5	none	2026-11-16/logs/grid2/IR-muse-medium-m84.log.gz	confirmation run: 3/3 seeded + 2 bonus (EXCLUDE_TOP_DIRS), 0 FP
+I2-minimax-m3p1-flash-xhigh-m81	I2	minimax	xhigh	m81	scored	10	none	2026-11-16/logs/grid2/I2-minimax-xhigh-m81.log.gz	fresh 11-18 confirmation run; first-pass fresh scorer 10 — cell divergent (panel 5.19 / original 8 / fresh 10), sent to sonnet arbitration
+I2-gemini-4-carbon-high-m81	I2	carbon	high	m81	DNF	0	watchdog	2026-11-16/logs/grid2/I2-gemini-4-carbon-high-m81.log.gz	confirmation run: arm-killed-timeout (15-min)
+I2-gemini-4-carbon-high-m82	I2	carbon	high	m82	DNF	0	watchdog	2026-11-16/logs/grid2/I2-gemini-4-carbon-high-m82.log.gz	confirmation run: arm-killed-timeout (15-min)
+D-gemini-4-carbon-high-m81	D	carbon	high	m81	DNF	0	watchdog	2026-11-16/logs/grid2/D-gemini-4-carbon-high-m81.log.gz	confirmation run: arm-killed-timeout (15-min)
+I2-claude-sonnet-5_5-high-c81	I2	sonnet	high	c81	scored	6	none	2026-11-16/logs/grid2/I2-claude-sonnet-5_5-high-c81.log.gz	confirmation run; d probe exit=0 (fix point 0); baseline paraphrase
+I2-claude-sonnet-5_5-high-c82	I2	sonnet	high	c82	scored	10	none	2026-11-16/logs/grid2/I2-claude-sonnet-5_5-high-c82.log.gz	confirmation run
+I2-claude-haiku-5_5-high-c81	I2	haiku	high	c81	unscored		none	2026-11-16/logs/grid2/I2-claude-haiku-5_5-high-c81.log.gz	valid run but run dir gone — probes unexecutable (log-only review)
+I2-claude-haiku-5_5-high-c82	I2	haiku	high	c82	unscored		none	2026-11-16/logs/grid2/I2-claude-haiku-5_5-high-c82.log.gz	valid run but run dir gone — probes unexecutable (log-only review)
