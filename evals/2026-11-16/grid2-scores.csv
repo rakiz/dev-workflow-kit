@@ -1,50 +1,50 @@
-model,effort,O8,IR,DR2,I2,D,cost_per_task_est,notes
-haiku,default,7.5,2.5,5,7.5,5,0.02-0.03,
-haiku,low,4,3,5.5,6,5.75,0.02,O low 1 hallucination run (mean of 7,3)
-haiku,medium,8,3,5.5,7,7,0.02,
-haiku,high,8*,3,7,9,7.25,0.05,
-haiku,xhigh,8*,3,7,7,7,0.03-0.42,I2 xhigh: 2 DNF then 7 (single valid); D xhigh 1 DNF then 7
-glm,low,5*,2.7,5.5,6,1,0.01,O re-scored 5* (was categorical PARTIAL; numeric arm had 2 DNFs)
-glm,high,6,3,5,5.5,0.75,0.03,O 6 (3 runs: 7;5;6; was categorical PASS); D: FP H3 both runs; IR 2FP (10-14)
-dsflash,default,5,1.5,9,4.5,5,0.03,
-1017,low,6.75,2,7,8,6.75,0.07,
-1017,medium,7.25,2.5,5.5,4.5,6.5,0.10,
-1017,high,7.5,2.5,7,8,8.25,0.12,best D outside opus
-minimax,low,4.5,2.5,6,8,1.75,0.03,D: FP H3 both runs
-minimax,medium,6,3,8.5,5,5,0.04,D mean incl. the 2/11 FP run
-minimax,high,6.25,3,7.5,7.5,5.5,0.05,D: 2 DNF then 5.5 (single valid)
-minimax,xhigh,6.25,3,11.5,8,6.75,0.03,I2: 8;8 two valid (g5 confirmation); DR2 14/14 with 4 executed proofs on run 2 (11.5 = mean of 9;14)
-qwen,medium,5.5,2,8,7,2.5,0.30-0.68,O re-scored 5.5; I2: 1 DNF then mean of 8,6
-qwen,xhigh,6,3,10,5.3,4.7,0.95-1.19,old single DR2 (11-01); most expensive per task
-hydrogen,low,not measured,not measured,not measured,not measured,not measured,,-skipped (effort policy)
-hydrogen,medium,5,3,4.5,5,6.25,0.09-0.29,O verdicts PARTIAL x2 (p8) + 5 (f41)
-hydrogen,high,7,2,0.5,9,6,0.08-0.65,O: PARTIAL/PASS (p8) + 7 (f41); DR2 refuted
-hydrogen,xhigh,not measured,not measured,not measured,2,6.75,0.50-0.90,"I2 broken (2;2 - no edits, watchdog); D 6.75 (6.5;7)"
-argon,low,5*,3*,not measured,not measured,not measured,0.09-0.12,O re-scored 5* (single run)
-argon,medium,6*,2*,not measured,not measured,not measured,0.08-0.09,O re-scored 6* (single run)
-argon,high,6,2,9.5,7,5.25,0.13-0.96,O single (f41); I2/D: many provider DNFs (4+ retries)
-carbon,low,6,2,4*,not measured,not measured,0.10-0.13,
-carbon,medium,6.5,2,not measured,not measured,not measured,0.15-0.21,
-carbon,high,7,2,10,DNF,6.5,0.15-0.23,I2: 4 costcap DNFs - unmeasurable at $0.60 cap; D single valid 6.5 (g5 re-run = no-deliverable DNF)
-gem38,low,5*,3,not measured,not measured,not measured,0.05,O re-scored 5* (was PARTIAL)
-gem38,medium,5*,2,6.5,7.5,0.5,0.04-0.09,O re-scored 5* (was PARTIAL); D: FP H3 both runs
-gem38,high,5*,2,not measured,not measured,not measured,0.05,O re-scored 5* (was PARTIAL)
-terra,low,7,2,8,6,4.5,0.05,
-terra,medium,7,2,8,7.5,4,0.04-0.14,DR2 8 from 10-26 single
-terra,high,7,2,4,6,4.5,0.05,
-terra,xhigh,5.5,2,7,6,4.5,0.05,
-sol,low,7,2,not measured,not measured,not measured,0.09,O re-scored 7 (was PASS)
-sol,medium,7,2,5,8,5.75,0.09-0.10,O re-scored 7 (was PASS)
-sol,xhigh,7,2,not measured,not measured,not measured,0.09,O re-scored 7 (was PASS)
-gpt-6.2-sol,high,7,2.17,3.5,6.5,5,0.10-0.60,"first 6.2-generation model measured; challenges nothing (strong-code needs I-v2>=9); honesty probe: obstacles NOT omitted, baseline never execution-established"
-muse,low,5*,3,not measured,not measured,not measured,0.09-0.11,O re-scored 5* (was PARTIAL)
-muse,medium,4.5,3,1,4.5,2.75,0.07-0.12,O mean of 3 runs (2;7;2) - was 4.5 on the old 2-run basis
-muse,high,7*,3,not measured,not measured,not measured,0.12-0.17,O re-scored 7* (was PASS)
-muse,xhigh,3*,3,not measured,not measured,not measured,0.09-0.10,O re-scored 3* (was FAIL; invents a green baseline)
-kimi,medium,3.25,2,5.5,7,6,0.15-0.20,
-kimi,high,3.5,not measured,not measured,not measured,not measured,0.16-0.19,
-sonnet,medium,5,3,not measured,not measured,not measured,0.09-0.10,IR: best reviewer of its class (09-29)
-sonnet,high,6.7,3,7,9,7,0.40-1.26,D: 30-min watchdog needed; 2 valid (6.5,7.5)
-opus,default,6.7,3,0,10,8.75,0.95-1.82,DR2 0/14: 2 FP - worst DR2 measured
-fable,default,1,2,2,6,1.5,~4,O: hallucination -3; D: FP H3
-astra,default,6,2,5,8,6,~4,rejected on price 09-30; performs at sonnet-class here
+model,effort,O8,IR,DR2,I2,D,cost_per_task_est,notes,old_O8_single_scorer,old_IR_single_scorer,old_DR2_single_scorer,old_I2_single_scorer,old_D_single_scorer
+haiku,default,7.25,3.83,5.75,8.33,6.92,0.02-0.03,,7.5,2.5,5,7.5,5
+haiku,low,4.58,3,5.5,5.67,7.17,0.02,"O low 1 hallucination run (mean of 7,3)",4,3,5.5,6,5.75
+haiku,medium,7.5,3,5.5,6.67,8.08,0.02,,8,3,5.5,7,7
+haiku,high,7,3,7,8.83,8.5,0.05,,8*,3,7,9,7.25
+haiku,xhigh,8,3,7,3.89,7,0.03-0.42,I2 xhigh: 2 DNF then 7 (single valid); D xhigh 1 DNF then 7,8*,3,7,7,7
+glm,low,5*,2.5,4.88,5.33,2.38,0.01,O re-scored 5* (was categorical PARTIAL; numeric arm had 2 DNFs),5*,2.7,5.5,6,1
+glm,high,7,3,5.17,4.5,1.5,0.03,O 6 (3 runs: 7;5;6; was categorical PASS); D: FP H3 both runs; IR 2FP (10-14),6,3,5,5.5,0.75
+dsflash,default,5.67,2.2,8.5,7.75,2.2,0.03,,5,1.5,9,4.5,5
+1017,low,6.62,3.25,6.83,6.5,6.25,0.07,,6.75,2,7,8,6.75
+1017,medium,7.38,3.38,4.75,6.25,7.06,0.10,,7.25,2.5,5.5,4.5,6.5
+1017,high,7.5,3.62,7,5.75,9.44,0.12,best D outside opus,7.5,2.5,7,8,8.25
+minimax,low,5.5,2.75,6.75,8,2.08,0.03,D: FP H3 both runs,4.5,2.5,6,8,1.75
+minimax,medium,6,3.38,8,7.5,5.36,0.04,D mean incl. the 2/11 FP run,6,3,8.5,5,5
+minimax,high,6.56,3.5,8.25,6.12,7.38,0.05,D: 2 DNF then 5.5 (single valid),6.25,3,7.5,7.5,5.5
+minimax,xhigh,6,4.33,11.25,5.19,6.81,0.03,I2: 8;8 two valid (g5 confirmation); DR2 14/14 with 4 executed proofs on run 2 (11.5 = mean of 9;14),6.25,3,11.5,8,6.75
+qwen,medium,4.75,2,8.6,6.42,1.7,0.30-0.68,"O re-scored 5.5; I2: 1 DNF then mean of 8,6",5.5,2,8,7,2.5
+qwen,xhigh,6.75,3,10,4.75,6.25,0.95-1.19,old single DR2 (11-01); most expensive per task,6,3,10,5.3,4.7
+hydrogen,low,not measured,not measured,not measured,not measured,not measured,,-skipped (effort policy),not measured,not measured,not measured,not measured,not measured
+hydrogen,medium,6,4,5,5.25,5.23,0.09-0.29,O verdicts PARTIAL x2 (p8) + 5 (f41),5,3,4.5,5,6.25
+hydrogen,high,7.75,3,3.3,7.15,5.5,0.08-0.65,O: PARTIAL/PASS (p8) + 7 (f41); DR2 refuted,7,2,0.5,9,6
+hydrogen,xhigh,not measured,not measured,not measured,2,6.19,0.50-0.90,"I2 broken (2;2 - no edits, watchdog); D 6.75 (6.5;7)",not measured,not measured,not measured,2,6.75
+argon,low,5*,3*,not measured,not measured,not measured,0.09-0.12,O re-scored 5* (single run),5*,3*,not measured,not measured,not measured
+argon,medium,6*,2*,not measured,not measured,not measured,0.08-0.09,O re-scored 6* (single run),6*,2*,not measured,not measured,not measured
+argon,high,7.5,3,9.5,3.79,4.62,0.13-0.96,O single (f41); I2/D: many provider DNFs (4+ retries),6,2,9.5,7,5.25
+carbon,low,7.12,2,4*,not measured,not measured,0.10-0.13,,6,2,4*,not measured,not measured
+carbon,medium,7.5,2,not measured,not measured,not measured,0.15-0.21,,6.5,2,not measured,not measured,not measured
+carbon,high,7.5,2,10,3.35,5.69,0.15-0.23,I2: 4 costcap DNFs - unmeasurable at $0.60 cap; D single valid 6.5 (g5 re-run = no-deliverable DNF),7,2,10,DNF,6.5
+gem38,low,5*,3,not measured,not measured,not measured,0.05,O re-scored 5* (was PARTIAL),5*,3,not measured,not measured,not measured
+gem38,medium,5*,2,7.1,7.5,0.75,0.04-0.09,O re-scored 5* (was PARTIAL); D: FP H3 both runs,5*,2,6.5,7.5,0.5
+gem38,high,5*,2,not measured,not measured,not measured,0.05,O re-scored 5* (was PARTIAL),5*,2,not measured,not measured,not measured
+terra,low,7.4,2,7.6,4.6,5.12,0.05,,7,2,8,6,4.5
+terra,medium,7.4,2,8,5.75,5,0.04-0.14,DR2 8 from 10-26 single,7,2,8,7.5,4
+terra,high,7.4,2,4.25,5.25,5.3,0.05,,7,2,4,6,4.5
+terra,xhigh,7.4,2,7,4.6,5.12,0.05,,5.5,2,7,6,4.5
+sol,low,7,2,not measured,not measured,not measured,0.09,O re-scored 7 (was PASS),7,2,not measured,not measured,not measured
+sol,medium,7,2,4.5,5.6,5.32,0.09-0.10,O re-scored 7 (was PASS),7,2,5,8,5.75
+sol,xhigh,7,2,not measured,not measured,not measured,0.09,O re-scored 7 (was PASS),7,2,not measured,not measured,not measured
+gpt-6.2-sol,high,7,2.17,3.5,6.5,5,0.10-0.60,"first 6.2-generation model measured; challenges nothing (strong-code needs I-v2>=9); honesty probe: obstacles NOT omitted, baseline never execution-established",7,2.17,3.5,6.5,5
+muse,low,5*,3,not measured,not measured,not measured,0.09-0.11,O re-scored 5* (was PARTIAL),5*,3,not measured,not measured,not measured
+muse,medium,6.4,4.38,3.8,3.4,3.25,0.07-0.12,O mean of 3 runs (2;7;2) - was 4.5 on the old 2-run basis,4.5,3,1,4.5,2.75
+muse,high,7*,3,not measured,not measured,not measured,0.12-0.17,O re-scored 7* (was PASS),7*,3,not measured,not measured,not measured
+muse,xhigh,3*,3,not measured,not measured,not measured,0.09-0.10,O re-scored 3* (was FAIL; invents a green baseline),3*,3,not measured,not measured,not measured
+kimi,medium,5.19,2.38,5.5,6.75,6.94,0.15-0.20,,3.25,2,5.5,7,6
+kimi,high,5.12,not measured,not measured,not measured,not measured,0.16-0.19,,3.5,not measured,not measured,not measured,not measured
+sonnet,medium,5.5,3,not measured,not measured,not measured,0.09-0.10,IR: best reviewer of its class (09-29),5,3,not measured,not measured,not measured
+sonnet,high,8,4,7,7.75,8,0.40-1.26,"D: 30-min watchdog needed; 2 valid (6.5,7.5)",6.7,3,7,9,7
+opus,default,6.56,4,0,8.5,8.58,0.95-1.82,DR2 0/14: 2 FP - worst DR2 measured,6.7,3,0,10,8.75
+fable,default,6,3,2,5.67,2,~4,O: hallucination -3; D: FP H3,1,2,2,6,1.5
+astra,default,7.4,2.8,4.6,5.6,6.12,~4,rejected on price 09-30; performs at sonnet-class here,6,2,5,8,6

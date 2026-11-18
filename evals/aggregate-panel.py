@@ -47,11 +47,13 @@ EFFORT_RANK = {e: i for i, e in enumerate(EFFORTS)}
 # >=1 for /3 (IR). I2 (/12) is grouped with the >=2 bucket.
 DIVERGENCE_THRESHOLD = {"O": 2, "D": 2, "DR2": 2, "I2": 2, "IR": 1}
 
-SCORERS = ["haiku", "glm", "sc1017", "minimax"]  # CSV column order
+SCORERS = ["haiku", "glm", "sc1017", "minimax", "sonnet"]  # CSV column order
 # log-file scorer name -> CSV column
-LOG_SCORER_TO_COL = {"glm": "glm", "1017": "sc1017", "minimax": "minimax"}
+LOG_SCORER_TO_COL = {"glm": "glm", "1017": "sc1017", "minimax": "minimax",
+                     "sonnet": "sonnet"}
 # scorer column -> family it belongs to (must not score its own family)
-SCORER_FAMILY = {"haiku": "claude", "glm": "glm", "sc1017": "1017", "minimax": "minimax"}
+SCORER_FAMILY = {"haiku": "claude", "glm": "glm", "sc1017": "1017",
+                 "minimax": "minimax", "sonnet": "claude"}
 
 # model-slug (normalized: '_' -> '-') -> canonical model name (grid2-scores.csv)
 SLUG_TO_MODEL = {
@@ -144,15 +146,37 @@ def load_runs_artifacts():
     return artifacts, parsed
 
 
-RUN_ID_RE = re.compile(r"^(O|IR|DR2|I2|D)-[A-Za-z0-9][A-Za-z0-9._-]*\t")
+RUN_ID_RE = re.compile(r"^(O|IR|DR2|I2|IV2|D)-[A-Za-z0-9][A-Za-z0-9._-]*\t")
 SCORE_RE = re.compile(r"^-?\d+(?:\.\d+)?$|^DNF$")
+# sonnet IR sessions emit the /3 bench as 'base/3+bonus-FP' (e.g. '2/3+1-1');
+# the panel IR convention (values >3 exist in panel-scores.csv) is
+# base + bonus - FP. Plain decimals and DNF pass through unchanged.
+IR_COMPOSITE_RE = re.compile(r"^(-?\d+(?:\.\d+)?)/(\d+)((?:[+-]\d+(?:\.\d+)?)*)$")
+
+
+def normalize_score(score):
+    if score == "DNF" or SCORE_RE.match(score):
+        return score
+    m = IR_COMPOSITE_RE.match(score)
+    if m:
+        total = float(m.group(1))
+        for sign, val in re.findall(r"([+-])(\d+(?:\.\d+)?)", m.group(3)):
+            total += float(val) if sign == "+" else -float(val)
+        return total
+    return None
 
 
 def extract_panel_scores():
-    """(scorer, bench, run_id) -> float | 'DNF', last occurrence wins."""
+    """(scorer, bench, run_id) -> float | 'DNF', last occurrence wins.
+
+    Sonnet arbitration sessions run on a 2x-cap watchdog: a costcap-killed
+    session has no trustworthy final block, so its log is renamed
+    *-killed.log and excluded here by the filename pattern.
+    """
     scores = {}
     for log in sorted(PANEL_DIR.glob("panel-*.log")):
-        m = re.match(r"^panel-(glm|1017|minimax)-([A-Z0-9]+)-(\d+)\.log$", log.name)
+        m = re.match(r"^panel-(glm|1017|minimax|sonnet)-([A-Z0-9]+)-"
+                     r"([A-Za-z0-9]+)\.log$", log.name)
         if not m:
             continue
         scorer, bench = m.group(1), m.group(2)
@@ -162,12 +186,12 @@ def extract_panel_scores():
             fields = line.split("\t")
             if len(fields) < 3:
                 continue
-            score = fields[1].strip()
-            if not SCORE_RE.match(score):
+            val = normalize_score(fields[1].strip())
+            if val is None:
                 continue
             run_id = norm(fields[0].strip())
             scores[(scorer, bench, run_id)] = (
-                "DNF" if score == "DNF" else float(score))
+                "DNF" if val == "DNF" else float(val))
     return scores
 
 
@@ -212,6 +236,113 @@ def fmt(v):
     return s.rstrip("0").rstrip(".") if "." in s else s
 
 
+def write_grid2_official(rows):
+    """Fold official panel values into grid2-scores.csv.
+
+    Official cell value = panel mean (self-family scores already excluded at
+    ingestion; sonnet counts only where it arbitrated non-claude artifacts).
+    The previous single-scorer value is preserved verbatim in the new
+    old_single_scorer column. Idempotent: on re-run, old_single_scorer keeps
+    its existing value instead of absorbing the panel value. Fail-closed:
+    exits non-zero if any official panel cell is missing from grid2-scores.csv
+    (reported as panel-only, since grid2 tracks rostered models only).
+    """
+    col_for_bench = {"O": "O8", "IR": "IR", "DR2": "DR2", "I2": "I2", "D": "D"}
+    path = OLD_SCORES_CSV
+    with open(path, encoding="utf-8", newline="") as f:
+        raw = list(csv.reader(f))
+    fieldnames = raw[0]
+    # the committed file has unquoted commas inside notes (ragged rows):
+    # re-join any overflow fields into the notes column
+    notes_i = fieldnames.index("notes")
+    grid_rows = []
+    for r in raw[1:]:
+        if len(r) > len(fieldnames):
+            r = r[:notes_i] + [",".join(r[notes_i:])] + r[len(fieldnames):]
+        grid_rows.append(dict(zip(fieldnames, r)))
+    # one old_*_single_scorer column per bench column: the previous
+    # single-scorer value, preserved verbatim (incl. '*' markers)
+    for col in col_for_bench.values():
+        old_col = "old_%s_single_scorer" % col
+        if old_col not in fieldnames:
+            fieldnames = fieldnames + [old_col]
+            for row in grid_rows:
+                row[old_col] = row.get(col, "")
+
+    panel_official = {(r["model"], r["effort"], r["bench"]): r
+                      for r in rows if r["n_scores"] >= 2 and r["_mean"] is not None}
+    replaced = kept = 0
+    panel_only = []
+    for row in grid_rows:
+        model, effort = row["model"].strip(), row["effort"].strip()
+        for bench, col in col_for_bench.items():
+            old_col = "old_%s_single_scorer" % col
+            old_raw = (row.get(old_col) or (row.get(col) or "")).strip()
+            cell = (model, effort, bench)
+            if cell in panel_official:
+                r = panel_official[cell]
+                new = fmt(r["_mean"])
+                if (row.get(col) or "").strip() != new:
+                    replaced += 1
+                else:
+                    kept += 1
+                row[col] = new
+                row[old_col] = old_raw
+            elif old_raw not in ("", "not measured", "DNF"):
+                # no official panel value: keep the old single-scorer value
+                kept += 1
+                row[old_col] = old_raw
+    # official panel cells with no grid2 row at all
+    grid_cells = {(r["model"].strip(), r["effort"].strip(), b)
+                  for r in grid_rows for b in col_for_bench}
+    for cell in sorted(panel_official):
+        if cell not in grid_cells:
+            panel_only.append(cell)
+
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(grid_rows)
+    return replaced, kept, panel_only
+
+
+def reconcile_grid2_panel(rows):
+    """Both directions, fail-closed:
+    (1) panel -> grid: every official panel cell value == grid2 bench value;
+    (2) grid -> panel: every numeric grid2 bench value == its panel mean, or
+        is an unchanged old value (no official panel data for the cell).
+    Returns list of failure strings."""
+    col_for_bench = {"O": "O8", "IR": "IR", "DR2": "DR2", "I2": "I2", "D": "D"}
+    with open(OLD_SCORES_CSV, encoding="utf-8") as f:
+        grid = {(r["model"].strip(), r["effort"].strip()): r
+                for r in csv.DictReader(f)}
+    fails = []
+    official = {(r["model"], r["effort"], r["bench"]): r
+                for r in rows if r["n_scores"] >= 2 and r["_mean"] is not None}
+    # (1) panel -> grid
+    for (model, effort, bench), r in sorted(official.items()):
+        row = grid.get((model, effort))
+        if row is None:
+            continue  # panel-only cell (reported by write_grid2_official)
+        want, got = fmt(r["_mean"]), (row[col_for_bench[bench]] or "").strip()
+        if got != want:
+            fails.append(f"panel->grid mismatch {model}/{effort}/{bench}: "
+                         f"panel {want} != grid2 {got!r}")
+    # (2) grid -> panel
+    for (model, effort), row in sorted(grid.items()):
+        for bench, col in col_for_bench.items():
+            got = (row.get(col) or "").strip()
+            if got in ("", "not measured", "DNF"):
+                continue
+            cell = (model, effort, bench)
+            if cell in official:
+                want = fmt(official[cell]["_mean"])
+                if got != want:
+                    fails.append(f"grid->panel mismatch {model}/{effort}/{bench}: "
+                                 f"grid2 {got} != panel {want}")
+    return fails
+
+
 def main():
     id_map, haiku_cells = load_run_score_tsv()
     artifacts, artifacts_parsed = load_runs_artifacts()
@@ -221,6 +352,8 @@ def main():
     # cell -> scorer column -> list of run scores
     cell_scores = defaultdict(lambda: defaultdict(list))
     dnf_counts = defaultdict(lambda: defaultdict(int))
+    # sonnet scores on claude-* artifacts (self-family): recorded, arb-only
+    sonnet_arb_only = {}  # cell -> score value (or "DNF")
 
     # pass-1 haiku values
     for (model, effort, bench), vals in haiku_cells.items():
@@ -238,6 +371,11 @@ def main():
                 f"bench mismatch for {run_id}: log={bench} tsv={cell_bench}")
             continue
         if model_family(model) == SCORER_FAMILY[col]:
+            if col == "sonnet":
+                # sonnet arbitrates claude-* artifacts too, but its score is
+                # arb-only: never in the official mean (self-family exclusion)
+                sonnet_arb_only[(model, effort, bench)] = score
+                continue
             continue  # self-family exclusion
         key = (model, effort, bench)
         if score == "DNF":
@@ -262,12 +400,15 @@ def main():
             flags.append("unofficial")
         if spread is not None and spread >= DIVERGENCE_THRESHOLD[bench]:
             flags.append("divergent")
+        if (model, effort, bench) in sonnet_arb_only:
+            flags.append("arb-only")  # sonnet self-family score, not in mean
         rows.append({
             "model": model, "effort": effort, "bench": bench,
             "haiku_score": fmt(vals["haiku"]),
             "glm_score": fmt(vals["glm"]),
             "sc1017_score": fmt(vals["sc1017"]),
             "minimax_score": fmt(vals["minimax"]),
+            "sonnet_score": fmt(vals["sonnet"]),
             "n_scores": len(avail),
             "panel_mean": fmt(panel_mean),
             "panel_spread": fmt(spread),
@@ -278,13 +419,13 @@ def main():
     with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["model", "effort", "bench", "haiku_score", "glm_score",
-                         "sc1017_score", "minimax_score", "n_scores",
-                         "panel_mean", "panel_spread", "flag"])
+                         "sc1017_score", "minimax_score", "sonnet_score",
+                         "n_scores", "panel_mean", "panel_spread", "flag"])
         for r in rows:
             writer.writerow([r["model"], r["effort"], r["bench"],
                              r["haiku_score"], r["glm_score"],
                              r["sc1017_score"], r["minimax_score"],
-                             r["n_scores"], r["panel_mean"],
+                             r["sonnet_score"], r["n_scores"], r["panel_mean"],
                              r["panel_spread"], r["flag"]])
 
     # ---------------- summary ----------------
@@ -293,6 +434,23 @@ def main():
     print(f"panel-scores.csv written: {len(rows)} cells "
           f"({len(official)} official with >=2 independent scores, "
           f"{len(rows) - len(official)} unofficial)")
+
+    # ---------------- fold official values into grid2-scores.csv ----------
+    replaced, kept, panel_only = write_grid2_official(rows)
+    print(f"\ngrid2-scores.csv updated: {replaced} cells replaced by the "
+          f"official panel mean, {kept} kept (no panel change / no official "
+          f"panel data)")
+    if panel_only:
+        print(f"panel-only official cells with no grid2 row ({len(panel_only)}):")
+        for c in panel_only:
+            print("   ", c)
+    fails = reconcile_grid2_panel(rows)
+    if fails:
+        print(f"FAIL: reconciliation mismatches ({len(fails)}):")
+        for x in fails:
+            print("   ", x)
+        sys.exit(1)
+    print("reconciliation panel->grid2 and grid2->panel: clean")
     print(f"\nDivergent cells (spread >= threshold; -> sonnet arbitration): "
           f"{len(divergent)}")
     for r in divergent:
@@ -345,7 +503,7 @@ def main():
         print(f"\nWarnings ({len(mapper.warnings)}):")
         for w in sorted(set(mapper.warnings)):
             print(f"  {w}")
-    missing_blocks = [f"{s}/{b}" for s in ("glm", "1017", "minimax")
+    missing_blocks = [f"{s}/{b}" for s in ("glm", "1017", "minimax", "sonnet")
                       for b in BENCHES
                       if not any(k[0] == s and k[1] == b for k in panel_scores)]
     if missing_blocks:
