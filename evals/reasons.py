@@ -50,7 +50,7 @@ REASONS = {
     "Implementation": {
         "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
         "opus": "Holds strong-code-alternative2 + deep (terminal rung). 8.5 official (was 10 single-scorer) at ~$1.39/task; haiku-high beats it at 5% of the price - watch item.",
-        "sonnet-high": "Holds strong-code. 4-run mean 8.0 (7;9;6;10 - the two c8 confirmation runs, c81=6 vs c82=10: variance 4 pts flagged) at $0.40-1.26/task.",
+        "sonnet-high": "Holds strong-code. Panel mean 7.75 (4 raw runs 7;9;6;10 - c81=6 vs c82=10: variance 4 pts flagged) at $0.40-1.26/task.",
         "hydrogen-high": "7.15 official at $0.08-0.65/task - review stays refuted; implementation only.",
         "haiku-high": "8.83 official - the top I2 measured on the panel; no seat (default effort holds cheap-code, cheaper still).",
         "1017-low": "6.5 official (was 8) at $0.07/task.",

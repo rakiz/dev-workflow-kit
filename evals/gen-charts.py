@@ -227,7 +227,7 @@ blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-chea
 <tr><td>strong-design</td><td>opus (8.58 at ~$1.39)</td><td>Held by 1017 high (9.44 at $0.12), ahead of opus at about 12x less cost. opus holds strong-design-alternative2, the parking rung for good models we hesitate to drop.</td></tr>
 <tr><td>strong-design-review-alt</td><td>carbon (10 at $0.15-0.23) and qwen (10 at ~$1.07)</td><td>argon holds the rung on a two-run 9.5. carbon's 10 is one valid run; qwen's 10 is a single run at ~$1/task with 0-7.5 variance elsewhere.</td></tr>
 <tr><td>cheap-design</td><td>1017 (7.06 at $0.10; high posts 9.44)</td><td>haiku medium holds the rung: 8.08 at $0.02/task — higher and 5x cheaper than 1017 medium. 1017 high holds strong-design; minimax cannot write designs (collapsing runs, false claim).</td></tr>
-<tr><td>cheap-code</td><td>haiku-high (9 at $0.05)</td><td>The seat is haiku default (8.33 official I-v2 mean at $0.02-0.03): the cheap tier needs cheap, not best, and briefs &gt;90k tokens already pay a 5&times; cliff at default.</td></tr>
+<tr><td>cheap-code</td><td>haiku-high (8.83 at $0.05)</td><td>The seat is haiku default (8.33 official I-v2 mean at $0.02-0.03): the cheap tier needs cheap, not best, and briefs &gt;90k tokens already pay a 5&times; cliff at default.</td></tr>
 </tbody></table>''')
 blocks.append('''<div id="tooltip" style="position:fixed;pointer-events:none;background:#1f2937;color:#fff;padding:8px 10px;border-radius:6px;font:12px system-ui;max-width:340px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none"></div>
 <script>
