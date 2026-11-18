@@ -1,4 +1,4 @@
-import csv, html, math
+import csv, html, math, re
 from reasons import REASONS
 
 PATH = "/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/LEADERBOARD.html"
@@ -94,7 +94,6 @@ def load_dots(column):
     pts = []
     for r in csv.DictReader(open(CSVPATH)):
         v = r[column].strip()
-        single = v.endswith("*")
         try:
             s = float(v.rstrip("*"))
         except ValueError:
@@ -104,8 +103,10 @@ def load_dots(column):
             continue
         model, eff = r["model"].strip(), r["effort"].strip()
         name = model if eff == "default" else f"{model}-{eff}"
-        pts.append((name, s, cost, SEATS.get((model, eff), []), single,
-                    r["notes"].strip().lstrip("-").strip()))
+        note = r["notes"].strip().lstrip("-").strip()
+        # hollow = under-measured: CSV star OR the row's notes say single / 1 valid
+        single = v.endswith("*") or bool(re.search(r"\bsingle\b|1 valid|\b1v\b", note, re.I))
+        pts.append((name, s, cost, SEATS.get((model, eff), []), single, note))
     return pts
 
 
@@ -168,11 +169,9 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
     for entry in sorted(pts, key=lambda p: (p[2], -p[1])):
         name, s_, c, seats, single, note = entry
         x, y = xpos(c), ypos(s_, ymax)
-        # three seat states on this bench: here / elsewhere / none
+        # color = seat on THIS bench; fill = measurement investment (single -> hollow)
         here = [f"{n} ({b})" for n, b in seats if b == bench]
-        elsewhere = [f"{n} ({b})" for n, b in seats if b != bench]
-        col_fill = "#1d4ed8" if here else "#9ca3af"          # blue fill = seat on THIS bench
-        col_ring = "#1d4ed8" if seats else "#9ca3af"          # blue ring = seated (here or elsewhere)
+        col = "#1d4ed8" if here else "#9ca3af"
         # full model id (provider/model) + effort for the tooltip
         base, eff = name, "default"
         for e in ("default", "low", "medium", "high", "xhigh"):
@@ -181,25 +180,18 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
                 break
         full = FULLIDS[base]
         why = REASONS[key].get(name, "")
-        if here:
-            seat_line = f'<span style="color:#1d4ed8">seat on this bench: {html.escape(", ".join(here))}</span>'
-        else:
-            seat_line = '<span style="color:#9ca3af">no seat on this bench</span>'
-        if elsewhere:
-            seat_line += f'<br><span style="color:#1d4ed8">seated elsewhere: {html.escape(", ".join(elsewhere))}</span>'
+        seat_line = (f'seats: {html.escape(", ".join(f"{n} ({b})" for n, b in seats))}' if seats else '')
         TIPHTML = (f'<b>{html.escape(full)}</b> <i>{html.escape(eff)}</i><br>'
                    f'score {s_:g} · ${c:g}/task'
                    + (' · single valid run' if single else '')
-                   + f'<br>{seat_line}'
+                   + (f'<br>{seat_line}' if seat_line else '')
                    + (f'<br><small>{html.escape(why)}</small>' if why else '')
                    + (f'<br><small>note: {html.escape(note)}</small>' if note else ''))
         data_tip = html.escape(TIPHTML, quote=True)
         if single:
-            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#fff" stroke="{col_ring}" stroke-width="2"/>')
-        elif elsewhere and not here:
-            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#9ca3af" stroke="{col_ring}" stroke-width="2"/>')
+            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#fff" stroke="{col}" stroke-width="2"/>')
         else:
-            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col_fill}"/>')
+            o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col}"/>')
         label = name  # model name (with effort qualifier) only; tooltip carries score/cost/seat/why
         w = len(label) * CH
         cands = [(x+9, y-4, "start"), (x+9, y+14, "start"), (x-9, y-4, "end"), (x-9, y+14, "end"),
@@ -227,7 +219,7 @@ for key, title, ymax, column, ylabel, ref, bench in BENCHES:
     pts = load_dots(column)
     blocks.append(f'<h3>{html.escape(title)}</h3>')
     blocks.append(svg(title, ymax, pts, bench, ylabel, ref))
-    blocks.append('<p class="note">blue = seat on this bench · grey/blue-ring = seated on another bench (hover: which) · plain grey = no seat · hollow = single valid run · dashed = frontier · hover = provider/model id, effort, score, cost, seats (all benches), why, CSV note</p>')
+    blocks.append('<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · dashed = frontier · hover = provider/model id, effort, score, cost, seats, why, CSV note</p>')
 blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
 blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>
 <tr><td>cheap-design-review</td><td>qwen-xhigh (10 at ~$1.07; old 11-01 run)</td><td>minimax holds it twice over: medium effort holds this rung (8.0 at $0.04, on price - qwen-medium posts 8.6 at 8x the cost), xhigh holds strong-design-review (11.25 with 4 executed proofs) — a same-family effort escalation the owner accepted. Minimax is critique-only: its design-writing score fell from 8 to 2 across runs (two DNFs).</td></tr>
