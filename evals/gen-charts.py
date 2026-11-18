@@ -72,6 +72,15 @@ BENCHES = [
 ]
 
 
+# Per-bench cost overrides: cost_per_task_est in the CSV is bench-agnostic
+# (it names the bench where the seat was decided). Where a bench's measured
+# actual differs materially, override here; source: 2026-11-16/grid2-costs.tsv
+# (haiku-high I2 runs: $0.15/task vs the CSV's $0.05 D-bench figure).
+COST_OVERRIDES = {
+    ("haiku", "high", "I2"): 0.15,
+}
+
+
 def parse_cost(c):
     c = c.strip().lstrip("~").strip()
     if not c:
@@ -102,6 +111,7 @@ def load_dots(column):
         if cost is None:
             continue
         model, eff = r["model"].strip(), r["effort"].strip()
+        cost = COST_OVERRIDES.get((model, eff, column), cost)
         name = model if eff == "default" else f"{model}-{eff}"
         note = r["notes"].strip().lstrip("-").strip()
         # hollow = under-measured: CSV star OR the row's notes say single / 1 valid
