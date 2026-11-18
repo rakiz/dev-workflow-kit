@@ -492,6 +492,17 @@ def write_artifacts(run, rundir):
 
 
 # -------------------------------------------------------------- extraction --
+# Round-2 (bench-v3 pilot, 2026-11-12/13) claude-family arm names carried a
+# legacy IV2-<shortslug> prefix. The committed artifacts were normalized to
+# I2-claude-<model>-<effort>-pN on 2026-11-18 (P1 naming fix); this mapping
+# keeps a re-run reproducing exactly the normalized names.
+ROUND2_RENAME = re.compile(r"^IV2-(sonnet|opus)-")
+
+def norm_round2(name):
+    """Legacy round-2 claude arm name -> normalized I2 run id (identity otherwise)."""
+    return ROUND2_RENAME.sub("I2-claude-\\1-", name)
+
+
 def collect_runs():
     """One record per run (log or run dir), with artifacts written."""
     os.makedirs(RUNS, exist_ok=True)
@@ -647,18 +658,20 @@ def collect_runs():
     # committed runs/ artifacts for the same *-p3/p4 run ids.
     round2_names = set()
     if os.path.isdir(ROUND2):
-        round2_names = {d for d in os.listdir(ROUND2)
+        round2_names = {norm_round2(d) for d in os.listdir(ROUND2)
                         if os.path.isdir(os.path.join(ROUND2, d))
                         and re.search(r"-p[34]", d)}
     else:
         # retired raw tree: reconstruct the run list from the committed
         # runs/ artifacts plus the scorer-session arm keys (DNF arms have
-        # no artifact of their own)
-        round2_names = {re.sub(r"\.(diff|design\.md|report\.md)$", "", f)
+        # no artifact of their own); legacy IV2-claude arm names are
+        # normalized to their I2-claude-* run ids (2026-11-18 naming fix),
+        # so a re-run reproduces the normalized runs/ artifact names.
+        round2_names = {norm_round2(re.sub(r"\.(diff|design\.md|report\.md)$", "", f))
                         for f in os.listdir(RUNS)
-                        if re.match(r"^(?:IV2|D)-.*-p[34]", f)}
-        round2_names |= {k for k in scorer_by_key
-                         if re.match(r"^(?:IV2|D)-.*-p[34]", k)}
+                        if re.match(r"^(?:IV2|I2|D)-.*-p[34]", f)}
+        round2_names |= {norm_round2(k) for k in scorer_by_key
+                         if re.match(r"^(?:IV2|I2|D)-.*-p[34]", k)}
         # recorded DNF arms: dirs deleted at cleanup, never scored (their
         # DNF rows are in the committed TSV / RESULTS history)
         round2_names |= {"D-opus-default-p3-DNF", "D-opus-default-p3r2-DNF",
@@ -676,7 +689,12 @@ def collect_runs():
                 bench = "I2" if os.path.exists(
                     os.path.join(RUNS, d + ".diff")) else "D"
             run_id = d
-            score, dnf = resolve_score(d, d, bench, "", "", "")
+            # model/effort/tag from the run id so a normalized name still
+            # resolves its score via the (bench, model, effort, tag) tuple
+            # when the legacy scorer key (pre-rename name) is not literal
+            _, csv_model_r2, eff_r2, tag_r2 = run_id_parts(d)
+            score, dnf = resolve_score(d, d, bench, csv_model_r2, eff_r2,
+                                       tag_r2)
             if "-DNF" in d and not score:
                 status, reason = "DNF", (dnf or "no-deliverable")
             elif sess and "IV2-RG2" in sess["title"]:

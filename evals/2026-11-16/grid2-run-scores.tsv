@@ -55,6 +55,8 @@ D-gpt-6_1-sol-medium-g22	D	sol	medium	g22	DNF	0	no-deliverable	2026-11-16/logs/g
 D-gpt-6_1-terra-high-f41	D	terra	high	f41	scored	4.5	none	2026-11-16/logs/grid2/D-gpt-6_1-terra-high-f41.log.gz	
 D-gpt-6_1-terra-low-f41	D	terra	low	f41	scored	4.5	none	2026-11-16/logs/grid2/D-gpt-6_1-terra-low-f41.log.gz	
 D-gpt-6_1-terra-xhigh-f41	D	terra	xhigh	f41	scored	4.5	none	2026-11-16/logs/grid2/D-gpt-6_1-terra-xhigh-f41.log.gz	
+D-gpt-6_2-sol-high-s621	D	sol	high	s621	scored	5	none	2026-11-16/logs/grid2/D-gpt-6_2-sol-high-s621.log	
+D-gpt-6_2-sol-high-s622	D	sol	high	s622	scored	5	none	2026-11-16/logs/grid2/D-gpt-6_2-sol-high-s622.log	
 D-haiku-default-p3	D	haiku	default	p3	scored	5	none	2026-11-16/runs/D-haiku-default-p3.design.md	
 D-hydrogen-high-p3	D	hydrogen	high	p3	scored	7	none	2026-11-16/runs/D-hydrogen-high-p3.design.md	
 D-hydrogen-medium-p3	D	hydrogen	medium	p3	scored	7	none	2026-11-16/runs/D-hydrogen-medium-p3.design.md	
@@ -123,6 +125,8 @@ DR2-gpt-6_1-sol-medium-g22	DR2	sol	medium	g22	scored	5	none	2026-11-16/logs/grid
 DR2-gpt-6_1-terra-high-f41	DR2	terra	high	f41	scored	4	none	2026-11-16/logs/grid2/DR2-gpt-6_1-terra-high-f41.log.gz	
 DR2-gpt-6_1-terra-low-f41	DR2	terra	low	f41	scored	8	none	2026-11-16/logs/grid2/DR2-gpt-6_1-terra-low-f41.log.gz	
 DR2-gpt-6_1-terra-xhigh-f41	DR2	terra	xhigh	f41	scored	7	none	2026-11-16/logs/grid2/DR2-gpt-6_1-terra-xhigh-f41.log.gz	
+DR2-gpt-6_2-sol-high-s621	DR2	sol	high	s621	scored	3	none	2026-11-16/logs/grid2/DR2-gpt-6_2-sol-high-s621.log	
+DR2-gpt-6_2-sol-high-s622	DR2	sol	high	s622	scored	4	none	2026-11-16/logs/grid2/DR2-gpt-6_2-sol-high-s622.log	
 DR2-haiku-default-g1	DR2	haiku	default	g1	scored	5	none	2026-11-16/logs/grid/DR2-haiku-default-g1.log.gz	
 DR2-haiku-default-g2	DR2	haiku	default	g2	scored	5	none	2026-11-16/logs/grid/DR2-haiku-default-g2.log.gz	
 DR2-kimi-k3p1-pro-medium-g21	DR2	kimi	medium	g21	scored	6	none	2026-11-16/logs/grid2/DR2-kimi-k3p1-pro-medium-g21.log.gz	
@@ -150,6 +154,10 @@ I2-claude-haiku-5_5-low-g22	I2	haiku	low	g22	scored	6	none	2026-11-16/logs/grid2
 I2-claude-haiku-5_5-medium-g21	I2	haiku	medium	g21	scored	8	none	2026-11-16/logs/grid2/I2-claude-haiku-5_5-medium-g21.log.gz	
 I2-claude-haiku-5_5-medium-g22	I2	haiku	medium	g22	scored	6	none	2026-11-16/logs/grid2/I2-claude-haiku-5_5-medium-g22.log.gz	
 I2-claude-haiku-5_5-xhigh-f41	I2	haiku	xhigh	f41	scored	7	none	2026-11-16/logs/grid2/I2-claude-haiku-5_5-xhigh-f41.log.gz	
+I2-claude-opus-default-p3	I2	opus	default	p3	scored	10	none	2026-11-16/runs/I2-claude-opus-default-p3.diff	
+I2-claude-opus-default-p4	I2	opus	default	p4	scored	10	none	2026-11-16/runs/I2-claude-opus-default-p4.diff	
+I2-claude-sonnet-high-p3	I2	sonnet	high	p3	scored	8	none	2026-11-16/runs/I2-claude-sonnet-high-p3.diff	
+I2-claude-sonnet-high-p4	I2	sonnet	high	p4	scored	10	none	2026-11-16/runs/I2-claude-sonnet-high-p4.diff	
 I2-deepseek-v4p1-flash-1017-high-g21	I2	1017	high	g21	scored	8	none	2026-11-16/logs/grid2/I2-deepseek-v4p1-flash-1017-high-g21.log.gz	
 I2-deepseek-v4p1-flash-1017-high-g22	I2	1017	high	g22	scored	8	none	2026-11-16/logs/grid2/I2-deepseek-v4p1-flash-1017-high-g22.log.gz	
 I2-deepseek-v4p1-flash-1017-low-g21	I2	1017	low	g21	scored	8	none	2026-11-16/logs/grid2/I2-deepseek-v4p1-flash-1017-low-g21.log.gz	
@@ -185,6 +193,8 @@ I2-gpt-6_1-sol-medium-g22	I2	sol	medium	g22	scored	8	none	2026-11-16/logs/grid2/
 I2-gpt-6_1-terra-high-f41	I2	terra	high	f41	scored	6	none	2026-11-16/logs/grid2/I2-gpt-6_1-terra-high-f41.log.gz	
 I2-gpt-6_1-terra-low-f41	I2	terra	low	f41	scored	6	none	2026-11-16/logs/grid2/I2-gpt-6_1-terra-low-f41.log.gz	
 I2-gpt-6_1-terra-xhigh-f41	I2	terra	xhigh	f41	scored	6	none	2026-11-16/logs/grid2/I2-gpt-6_1-terra-xhigh-f41.log.gz	
+I2-gpt-6_2-sol-high-s621	I2	sol	high	s621	scored	6	none	2026-11-16/logs/grid2/I2-gpt-6_2-sol-high-s621.log	
+I2-gpt-6_2-sol-high-s622	I2	sol	high	s622	scored	7	none	2026-11-16/logs/grid2/I2-gpt-6_2-sol-high-s622.log	
 I2-haiku-default-g1	I2	haiku	default	g1	scored	7	none	2026-11-16/logs/grid/I2-haiku-default-g1.log.gz	
 I2-haiku-default-g2	I2	haiku	default	g2	scored	8	none	2026-11-16/logs/grid/I2-haiku-default-g2.log.gz	
 I2-kimi-k3p1-pro-medium-g21	I2	kimi	medium	g21	scored	6	none	2026-11-16/logs/grid2/I2-kimi-k3p1-pro-medium-g21.log.gz	
@@ -227,6 +237,8 @@ IR-gemini-4-hydrogen-high-p7r2	IR	hydrogen	high	p7r2	scored	2	none	2026-11-16/lo
 IR-gemini-4-hydrogen-medium-p7	IR	hydrogen	medium	p7	scored	3	none	2026-11-16/logs/T3-github-copilot-gemini-4-hydrogen-medium-p7.log.gz	
 IR-gemini-4-hydrogen-medium-p7r2	IR	hydrogen	medium	p7r2	scored	3	none	2026-11-16/logs/T3-github-copilot-gemini-4-hydrogen-medium-p7r2.log.gz	
 IR-gpt-6-astra-default-g21	IR	astra	default	g21	scored	2	none	2026-11-16/logs/grid2/IR-gpt-6-astra-default-g21.log.gz	
+IR-gpt-6_2-sol-high-s621	IR	sol	high	s621	scored	1.67	none	2026-11-16/logs/grid2/IR-gpt-6_2-sol-high-s621.log	
+IR-gpt-6_2-sol-high-s622	IR	sol	high	s622	scored	2.67	none	2026-11-16/logs/grid2/IR-gpt-6_2-sol-high-s622.log	
 IR-haiku-default-g1	IR	haiku	default	g1	scored	4	none	2026-11-16/logs/grid/IR-haiku-default-g1.log.gz	
 IR-haiku-default-g2	IR	haiku	default	g2	scored	5	none	2026-11-16/logs/grid/IR-haiku-default-g2.log.gz	
 IR-kimi-k3p1-pro-medium-g21	IR	kimi	medium	g21	scored	2	none	2026-11-16/logs/grid2/IR-kimi-k3p1-pro-medium-g21.log.gz	
@@ -249,10 +261,6 @@ IV2-haiku-default-p3	I2	haiku	default	p3	scored	6	none	2026-11-16/runs/IV2-haiku
 IV2-hydrogen-high-p3	I2	hydrogen	high	p3	scored	7	none	2026-11-16/runs/IV2-hydrogen-high-p3.diff	
 IV2-hydrogen-medium-p3	I2	hydrogen	medium	p3	scored	5	none	2026-11-16/runs/IV2-hydrogen-medium-p3.diff	
 IV2-minimax-medium-p3	I2	minimax	medium	p3	scored	2	none	2026-11-16/runs/IV2-minimax-medium-p3.diff	
-IV2-opus-default-p3	I2	opus	default	p3	scored	10	none	2026-11-16/runs/IV2-opus-default-p3.diff	
-IV2-opus-default-p4	I2	opus	default	p4	scored	10	none	2026-11-16/runs/IV2-opus-default-p4.diff	
-IV2-sonnet-high-p3	I2	sonnet	high	p3	scored	8	none	2026-11-16/runs/IV2-sonnet-high-p3.diff	
-IV2-sonnet-high-p4	I2	sonnet	high	p4	scored	10	none	2026-11-16/runs/IV2-sonnet-high-p4.diff	
 IV2-terra-medium-p3	I2	terra	medium	p3	scored	8	none	2026-11-16/runs/IV2-terra-medium-p3.diff	
 IV2-terra-medium-p4	I2	terra	medium	p4	scored	7	none	2026-11-16/runs/IV2-terra-medium-p4.diff	
 O-claude-fable-5-default-g21	O	fable	default	g21	scored	1	none	2026-11-16/logs/grid2/O-claude-fable-5-default-g21.log.gz	
@@ -314,6 +322,8 @@ O-gpt-6_1-terra-medium-o21	O	terra	medium	o21	scored	5	none	2026-11-16/logs/grid
 O-gpt-6_1-terra-medium-o22	O	terra	medium	o22	scored	5	none	2026-11-16/logs/grid2/O-gpt-6_1-terra-medium-o22.log.gz	
 O-gpt-6_1-terra-xhigh-o21	O	terra	xhigh	o21	scored	5	none	2026-11-16/logs/grid2/O-gpt-6_1-terra-xhigh-o21.log.gz	
 O-gpt-6_1-terra-xhigh-o22	O	terra	xhigh	o22	scored	5	none	2026-11-16/logs/grid2/O-gpt-6_1-terra-xhigh-o22.log.gz	
+O-gpt-6_2-sol-high-s621	O	sol	high	s621	scored	7	none	2026-11-16/logs/grid2/O-gpt-6_2-sol-high-s621.log	
+O-gpt-6_2-sol-high-s622	O	sol	high	s622	scored	7	none	2026-11-16/logs/grid2/O-gpt-6_2-sol-high-s622.log	
 O-haiku-default-g1	O	haiku	default	g1	superseded		none	2026-11-16/logs/grid/O-haiku-default-g1.log.gz	
 O-haiku-default-g2	O	haiku	default	g2	superseded		none	2026-11-16/logs/grid/O-haiku-default-g2.log.gz	
 O-haiku-low-g1	O	haiku	low	g1	superseded		none	2026-11-16/logs/grid/O-haiku-low-g1.log.gz	
