@@ -69,7 +69,7 @@ dev-workflow-kit/
 ├── models.json              # default model (+ reasoning variant) per agent — single source of truth
 ├── MODELS.md                # why each default model was chosen + replacement guide
 ├── EVALS.md                 # eval summary — all models ever tested, one table
-├── LEADERBOARD.md → see evals/LEADERBOARD.html  # the rendered roster + charts: https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html
+├── evals/LEADERBOARD.html   # the roster + charts, rendered: https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html
 ├── VERSION                  # kit version (single line)
 ├── evals/                   # model-eval protocol, results and raw outputs — see evals/README.md
 │   ├── README.md            #   protocol, the 4 tasks, scoring checklist
