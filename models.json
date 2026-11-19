@@ -1,13 +1,13 @@
 {
   "impl": {
-    "model": "ai-gateway-misc/fw-glm-5.3-flash",
-    "family_hint": "glm",
-    "variant": "high"
-  },
-  "review": {
     "model": "github-copilot/claude-haiku-5.5",
     "family_hint": "claude",
     "variant": "default"
+  },
+  "review": {
+    "model": "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash",
+    "family_hint": "minimax",
+    "variant": "medium"
   },
   "explore": {
     "model": "ai-gateway-misc/fw-deepseek-v4.1-flash",
