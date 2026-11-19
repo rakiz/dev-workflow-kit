@@ -34,7 +34,7 @@ The SAME model may run several passes — different briefs carry different lense
 
 ## Chosen flow
 
-**A new skill (`skill/pr-review/SKILL.md`) + two small scripts (`fetch-pr.sh` read-only, `post-approved.sh` the only poster), reusing the global-roster review agents.** Orchestration happens in the primary session — the orchestrator must enforce cost accounting and the user gates, and sub-agents cannot ask the user questions.
+**A new skill (`workflow/skill/pr-review/SKILL.md`) + two small scripts (`fetch-pr.sh` read-only, `post-approved.sh` the only poster), reusing the global-roster review agents.** Orchestration happens in the primary session — the orchestrator must enforce cost accounting and the user gates, and sub-agents cannot ask the user questions.
 
 ```
 user: "review PR 123" (skill triggers on: pr-review / review PR <n>)
@@ -111,7 +111,7 @@ Findings come back in the existing one-line format (`severity — file:line — 
 
 ## File layout
 
-`skill/pr-review/` holds three files: `SKILL.md` (triggers "review PR `<n>`", the battery config — the 6 objectives and their bindings, thresholds, gate rules), `fetch-pr.sh` (read-only: `gh pr view`/`diff` → staging dir; diff-size cap) and `post-approved.sh` (the mechanical gate: `[x] approve` blocks → `gh pr review`). Installed to `.opencode/skill/pr-review/` by `init.sh` (copy-if-absent, `--update` syncs it). Runtime artifacts per PR, in the staging dir (temp dir by default): `PR-<n>/` (fetched context), `PR-<n>-comments.md` (the gate input), `PR-<n>-report.md` (the audit output). No change to `dev-workflow.json` schema.
+`workflow/skill/pr-review/` holds three files: `SKILL.md` (triggers "review PR `<n>`", the battery config — the 6 objectives and their bindings, thresholds, gate rules), `fetch-pr.sh` (read-only: `gh pr view`/`diff` → staging dir; diff-size cap) and `post-approved.sh` (the mechanical gate: `[x] approve` blocks → `gh pr review`). Installed to `.opencode/skill/pr-review/` by `init.sh` (copy-if-absent, `--update` syncs it). Runtime artifacts per PR, in the staging dir (temp dir by default): `PR-<n>/` (fetched context), `PR-<n>-comments.md` (the gate input), `PR-<n>-report.md` (the audit output). No change to `dev-workflow.json` schema.
 
 ## Cost accounting
 

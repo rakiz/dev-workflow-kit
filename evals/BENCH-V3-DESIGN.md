@@ -8,7 +8,7 @@ supersedes §1 item 4's "rung-relevant only" re-baseline recommendation and
 supersedes §6.2's haiku "skip" row.
 
 This document only proposes. No fixture is created, no `run-eval` script is
-touched, no `EVALS.md`/`README.md`/`MODELS.md` row changes until the owner
+touched, no `EVALS.md`/`README.md`/`roster/MODELS.md` row changes until the owner
 approves the open decisions at the end.
 
 **Leakage note (v2):** this is a public repo. Sections 3–5 deliberately do
@@ -46,7 +46,7 @@ Four goals, one hard constraint:
 2. **D (design authoring)** — the pipeline has an author task for impl (I)
    and critic tasks for design (DR) but no author task for design, yet the
    global roster runs `cheap-design`, `strong-design`,
-   `strong-design-alternative` rungs (`MODELS.md` grid). D measures a model
+   `strong-design-alternative` rungs (`roster/MODELS.md` grid). D measures a model
    asked to *write* a design for a fully specified brief (§4) over an
    existing codebase, graded against a defect taxonomy + honesty bonus.
 3. **Naming** — rename the bench taxonomy to the work pipeline: design →
@@ -136,7 +136,7 @@ decided on.
   `run-eval-v4.sh` when RG3 replaced RG2).
 - DB queries in future `RESULTS.md`s: new title pattern (§2.1).
 - `LEADERBOARD.html`: panel labels only (5 panels keep their constructs).
-- `MODELS.md`: nothing (it references rungs, not task codes).
+- `roster/MODELS.md`: nothing (it references rungs, not task codes).
 - Estimated effort: ~1 session, no data migration. The v1 claim that this
   was a one-table change was wrong; it is a half-day of mechanical edits.
 
