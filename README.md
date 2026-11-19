@@ -1,9 +1,14 @@
 # dev-workflow-kit
 
-**TL;DR — this repo ships two things:**
+**TL;DR — this repo ships three things:**
 
-1. **An optimized model roster** (`models.json` + the `global/agent/` roster): every seat — orchestration, cheap/strong code, design, and their review gates — is held by the best model **for its price** on our own benches (5 decision tasks, scored by a 4-family panel to cancel single-scorer bias). Quality per dollar is the design rule; the full reasoning seat-by-seat is rendered in **[the leaderboard](https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html)** (`evals/LEADERBOARD.html`).
-2. **A dev workflow with file-based memory** (`skill/` + `agent/` + `init.sh`): tasks live in plain files (`TODO.md` → `INPROGRESS.md` → `CHANGELOG.md`), every implementation pass is reviewed (commit-time review, mandatory), designs are written before code, and a pre-commit hook + conventions templates ship with. Installed per-project by `init.sh` (everything is copied, never symlinked), or session-wide with `--global`.
+1. **A dev workflow with file-based memory** (`skill/` + `agent/` + `init.sh`) — tasks live in plain files (TODO.md → INPROGRESS.md → CHANGELOG.md), every implementation pass is reviewed (commit-time, mandatory), designs are written before code; pre-commit hook + conventions templates ship with. Installed per-project by `init.sh` (everything copied, never symlinked), or session-wide with `--global`. See `skill/dev-workflow/SKILL.md`.
+2. **An optimized model roster** (`models.json` + `MODELS.md`) — every seat (orchestration, cheap/strong code, design, and their review gates) held by the best model for its price on our own benches, with the routing rules (who reviews whom: always cross-family) and documented fallbacks. See `MODELS.md` for the seat-by-seat why.
+3. **The model-evaluation machinery** (`evals/`) — 5 decision benches (orchestration /8, code review /3+bonus, design review /14, implementation /14, design writing /11), scored by a multi-family panel (no family scores its own runs), with the honest limits: they measure verification discipline on small fixtures, not long-horizon generative ability (that slice is too expensive to bench — see the "What these benches measure" section in the HTML).
+
+- **Rendered leaderboard (roster + charts + rationale):** https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html
+- **Bench methodology:** `evals/PROTOCOL.md` (the contract) + `evals/BENCH-V3-DESIGN.md` (the bench specs)
+- **The numbers:** `evals/2026-11-16/grid2-scores.csv` (per-cell official panel means) → `grid2-run-scores.tsv` (per-run) → `runs/` (deliverables)
 
 Reusable development workflow kit for [opencode](https://opencode.ai) projects (AI agents + CLI): generic agents (impl / review / explore / design-review / deep), a task-management skill (TODO → INPROGRESS → CHANGELOG), a configurable pre-commit hook and starter files. A `--global` mode additionally installs a session-level agent roster (see [Global roster](#global-roster)). The economics: cheap models do the bulk of the work, expensive ones only escalate, and quality is recovered by cross-lineage review.
 
