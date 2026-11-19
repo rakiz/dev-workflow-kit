@@ -1,8 +1,9 @@
-import csv, html, math, re
+import csv, html, math, os, re
 from reasons import REASONS
 
-PATH = "/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/LEADERBOARD.html"
-CSVPATH = "/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/2026-11-16/grid2-scores.csv"
+_HERE = os.path.dirname(os.path.abspath(__file__))
+PATH = os.path.join(_HERE, "LEADERBOARD.html")
+CSVPATH = os.path.join(_HERE, "2026-11-16", "grid2-scores.csv")
 
 W, H = 1200, 540
 L, R, T, B = 80, 60, 30, 60

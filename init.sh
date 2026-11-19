@@ -146,6 +146,11 @@ FLAGS
                       one is never touched). Without it: auto-detected.
   --update            Sync an already-initialized target (see below).
   --global            Global mode (see above).
+  --self-check        Read-only kit integrity audit, runs alone (no install):
+                      every kit-side source path this script references
+                      exists, and every lock REL key stays within the
+                      project-side namespace ^(agent|skill|CONVENTIONS|RULES).
+                      Lists the failures and exits non-zero on any.
   --only=COMP[,...]   Restrict the run to components:
                       workflow  : project core — pipeline agents, dev-workflow
                                   skill, hook, templates, dev-workflow.json
@@ -189,6 +194,87 @@ MORE: README.md (usage, global roster) and MODELS.md (roster rationale, 4-tier m
 EOF
 }
 
+# self_check : read-only integrity audit of the kit's own sources (--self-check
+# flag). No install, no target, no writes, no jq/shasum requirement. Asserts:
+#   1. every kit-side source path this script references exists — the pipeline
+#      agents, the session roster, the dev-workflow skill, every template the
+#      install/update paths name, the pre-commit hook, models.json, VERSION;
+#   2. every REL key init.sh writes into a lock file stays within the lock's
+#      project-side namespace ^(agent|skill|CONVENTIONS|RULES). REL-shaped
+#      literals are extracted from this script's own text (quoted,
+#      variable-free, .md/.json-suffixed, plus the bareword `for rel in`
+#      lists); a literal that is a label rather than a lock key is allowlisted
+#      explicitly. ANY unlisted literal outside the namespace fails the check:
+#      a new lock key outside the namespace must consciously extend this
+#      check, never silently corrupt the lock schema.
+# Lists every failure and exits 1; prints OK and exits 0 otherwise.
+self_check() {
+  local p tok errors=0
+  local -a missing=() bad_keys=()
+
+  # 1. kit-side source paths
+  local -a required=(
+    "$KIT_DIR/skill/dev-workflow"
+    "$KIT_DIR/skill/dev-workflow/SKILL.md"
+    "$KIT_DIR/agent"
+    "$KIT_DIR/global/agent"
+    "$KIT_DIR/templates/dev-workflow.json"
+    "$KIT_DIR/templates/TODO.md"
+    "$KIT_DIR/templates/SPEC.md"
+    "$KIT_DIR/templates/INPROGRESS.md"
+    "$KIT_DIR/templates/CHANGELOG.md"
+    "$KIT_DIR/templates/DESIGNS.md"
+    "$KIT_DIR/templates/CONVENTIONS.md"
+    "$KIT_DIR/templates/RULES.md"
+    "$KIT_DIR/templates/CONVENTIONS.cpp.md"
+    "$KIT_DIR/templates/CONVENTIONS.cpp23.md"
+    "$KIT_DIR/templates/CONVENTIONS.python.md"
+    "$KIT_DIR/templates/CONVENTIONS.go.md"
+    "$KIT_DIR/hooks/pre-commit.sh"
+    "$KIT_DIR/models.json"
+    "$KIT_DIR/VERSION"
+  )
+  for p in "${required[@]}"; do
+    [[ -e "$p" ]] || missing+=("$p (missing)")
+  done
+  # the agent copy loops glob the .md files: an empty directory would
+  # silently install nothing
+  local -a _mds
+  _mds=("$KIT_DIR/agent/"*.md)
+  [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/agent/*.md (no .md file)")
+  _mds=("$KIT_DIR/global/agent/"*.md)
+  [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/global/agent/*.md (no .md file)")
+
+  # 2. REL lock-key namespace check (see function header)
+  local -a allow=("dev-workflow.json")   # copy_if_absent label, not a lock key
+  while IFS= read -r tok; do
+    [[ -n "$tok" ]] || continue
+    for p in "${allow[@]}"; do
+      [[ "$tok" == "$p" ]] && continue 2
+    done
+    [[ "$tok" =~ ^(agent|skill|CONVENTIONS|RULES) ]] || bad_keys+=("$tok")
+  done < <(awk -F'"' '{for(i=2;i<=NF;i+=2) print $i}' "$KIT_DIR/init.sh" \
+           | grep -E '^([A-Za-z0-9_./-]+\.(md|json)|[A-Za-z0-9_./-]*[A-Za-z0-9_./][A-Za-z0-9])$' \
+           | grep -E '(\.(md|json)$|/)' | sort -u)
+  # the bareword `for rel in` lists feed the same lock keys
+  while IFS= read -r tok; do
+    [[ -n "$tok" ]] || continue
+    [[ "$tok" =~ ^(agent|skill|CONVENTIONS|RULES) ]] || bad_keys+=("$tok (for-rel list)")
+  done < <(sed -n 's/^.*for rel in //p' "$KIT_DIR/init.sh" \
+           | tr ' ;' '\n\n' | grep -E '^[A-Za-z0-9_./-]+\.(md|json)$' | sort -u)
+
+  if [[ ${#missing[@]} -gt 0 || ${#bad_keys[@]} -gt 0 ]]; then
+    echo "init --self-check: FAILED" >&2
+    for p in "${missing[@]}"; do echo "  missing kit source: $p" >&2; done
+    for tok in "${bad_keys[@]}"; do
+      echo "  lock REL key outside ^(agent|skill|CONVENTIONS|RULES): $tok" >&2
+    done
+    return 1
+  fi
+  echo "init --self-check: OK — every kit source path present, every lock REL key within ^(agent|skill|CONVENTIONS|RULES)"
+  return 0
+}
+
 KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # No arguments: print the full help document (stdout) and exit 0 — never run
@@ -201,6 +287,7 @@ fi
 WITH_RULES=0
 UPDATE=0
 GLOBAL_MODE=0
+SELF_CHECK=0
 COMPANIONS_FLAG=""
 ONLY_GIVEN=0
 ONLY_COMPONENTS=()
@@ -210,6 +297,7 @@ for arg in "$@"; do
     --with-rules) WITH_RULES=1 ;;
     --update) UPDATE=1 ;;
     --global) GLOBAL_MODE=1 ;;
+    --self-check) SELF_CHECK=1 ;;
     --companions=on) COMPANIONS_FLAG=on ;;
     --companions=off) COMPANIONS_FLAG=off ;;
     --companions=*)
@@ -232,15 +320,27 @@ for arg in "$@"; do
       [[ ${#ONLY_COMPONENTS[@]} -gt 0 ]] || { echo "init: --only needs at least one component (workflow, roster, pr-review)." >&2; exit 1; }
       ;;
     -*)
-      echo "Usage: $0 [--with-rules] [--companions=on|off] [--update] [--global] [--only=workflow,roster,pr-review] [/path/to/target-project]" >&2
+      echo "Usage: $0 [--with-rules] [--companions=on|off] [--update] [--global] [--self-check] [--only=workflow,roster,pr-review] [/path/to/target-project]" >&2
       exit 1
       ;;
     *) positionals+=("$arg") ;;
   esac
 done
 if [[ ${#positionals[@]} -gt 1 ]]; then
-  echo "Usage: $0 [--with-rules] [--companions=on|off] [--update] [--global] [/path/to/target-project]" >&2
+  echo "Usage: $0 [--with-rules] [--companions=on|off] [--update] [--global] [--only=workflow,roster,pr-review] [/path/to/target-project]" >&2
   exit 1
+fi
+
+# --self-check: read-only kit integrity audit, runs ALONE (no install, no
+# target, no other flags) — see self_check above.
+if [[ $SELF_CHECK -eq 1 ]]; then
+  if [[ ${#positionals[@]} -gt 0 || $WITH_RULES -ne 0 || $UPDATE -ne 0 \
+        || $GLOBAL_MODE -ne 0 || $ONLY_GIVEN -ne 0 || -n "$COMPANIONS_FLAG" ]]; then
+    echo "init: --self-check runs alone — no other flags, no target." >&2
+    exit 1
+  fi
+  self_check
+  exit $?
 fi
 
 # --global is exclusive with the project mode in a single run: it takes no
