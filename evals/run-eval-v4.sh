@@ -218,6 +218,7 @@ if [ -n "$REPORT_SESSION" ]; then
     "SELECT m.id FROM message m \
 WHERE m.session_id = '$REPORT_SESSION' \
   AND json_extract(m.data,'\$.role') = 'assistant' \
+  AND json_extract(m.data,'\$.finish') = 'stop' \
   AND EXISTS (SELECT 1 FROM part p WHERE p.message_id = m.id \
       AND json_extract(p.data,'\$.type') = 'text') \
 ORDER BY m.time_created DESC, m.id DESC LIMIT 1;")"
