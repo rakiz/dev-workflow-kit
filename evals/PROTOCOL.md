@@ -51,6 +51,14 @@ leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
    argon `high` reviews) is likewise documented and accepted. The HARD rule
    stands unchanged: **impl and review are never the same family.**
 8. Scoring is executed-evidence: paraphrase = 0; probes re-run by the scorer.
+9. **Final-report capture (Étape 0, 2026-11-19):** every run dir carries
+   `final-report.md` (the run's final assistant message, captured by the
+   runner from the opencode DB, keyed on the session title) **or** a
+   `no-report` marker. A run without one of the two is incomplete by
+   construction. **A scoring session that finds no `final-report.md` (and no
+   `no-report` marker) treats the run as DNF — re-run it; report-dependent
+   rubric points are never scored 0-by-default for a missing report** (the
+   capture limitation, not a model failure — the 11-16 p5 batch bug).
 
 ## 3. Campaign mechanics
 
