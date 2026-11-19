@@ -9,8 +9,8 @@
 #
 # Default (install) behavior:
 #   - agent/*.md and skill/: copied if absent; if present and identical to
-#     the kit, no-op; if different (local customization), NEVER overwritten
-#     — warning and skip.
+#     the kit (workflow/agent/, workflow/skill/), no-op; if different
+#     (local customization), NEVER overwritten — warning and skip.
 #   - Model defaults: the kit's models.json is the single source of truth.
 #     For each freshly copied agent, init.sh writes its `model:` frontmatter
 #     line from models.json (plus a `variant:` reasoning-effort line when
@@ -26,7 +26,7 @@
 #     DESIGNS.md, CONVENTIONS.md: copied ONLY if they do not exist yet (never overwritten).
 #     RULES.md: OPT-IN — copied with --with-rules, or via an interactive y/N
 #     prompt when a TTY is available; otherwise skipped (copy
-#     templates/RULES.md manually to opt in). CONVENTIONS.cpp.md,
+#     workflow/templates/RULES.md manually to opt in). CONVENTIONS.cpp.md,
 #     CONVENTIONS.cpp23.md and CONVENTIONS.python.md stay opt-in by
 #     manual copy only (no flag).
 #     CONVENTIONS.md and RULES.md get
@@ -157,7 +157,7 @@ FLAGS
                                   (project mode default).
                       roster    : session agents, global/agent/*.md
                                   (global mode default).
-                      pr-review : PR-review skill (skill/pr-review/), project
+                      pr-review : PR-review skill (workflow/skill/pr-review/), project
                                   mode; skipped with a warning when this kit
                                   does not ship it yet.
                       Without --only: workflow (project) / roster (global).
@@ -214,23 +214,23 @@ self_check() {
 
   # 1. kit-side source paths
   local -a required=(
-    "$KIT_DIR/skill/dev-workflow"
-    "$KIT_DIR/skill/dev-workflow/SKILL.md"
-    "$KIT_DIR/agent"
+    "$KIT_DIR/workflow/skill/dev-workflow"
+    "$KIT_DIR/workflow/skill/dev-workflow/SKILL.md"
+    "$KIT_DIR/workflow/agent"
     "$KIT_DIR/global/agent"
-    "$KIT_DIR/templates/dev-workflow.json"
-    "$KIT_DIR/templates/TODO.md"
-    "$KIT_DIR/templates/SPEC.md"
-    "$KIT_DIR/templates/INPROGRESS.md"
-    "$KIT_DIR/templates/CHANGELOG.md"
-    "$KIT_DIR/templates/DESIGNS.md"
-    "$KIT_DIR/templates/CONVENTIONS.md"
-    "$KIT_DIR/templates/RULES.md"
-    "$KIT_DIR/templates/CONVENTIONS.cpp.md"
-    "$KIT_DIR/templates/CONVENTIONS.cpp23.md"
-    "$KIT_DIR/templates/CONVENTIONS.python.md"
-    "$KIT_DIR/templates/CONVENTIONS.go.md"
-    "$KIT_DIR/hooks/pre-commit.sh"
+    "$KIT_DIR/workflow/templates/dev-workflow.json"
+    "$KIT_DIR/workflow/templates/TODO.md"
+    "$KIT_DIR/workflow/templates/SPEC.md"
+    "$KIT_DIR/workflow/templates/INPROGRESS.md"
+    "$KIT_DIR/workflow/templates/CHANGELOG.md"
+    "$KIT_DIR/workflow/templates/DESIGNS.md"
+    "$KIT_DIR/workflow/templates/CONVENTIONS.md"
+    "$KIT_DIR/workflow/templates/RULES.md"
+    "$KIT_DIR/workflow/templates/CONVENTIONS.cpp.md"
+    "$KIT_DIR/workflow/templates/CONVENTIONS.cpp23.md"
+    "$KIT_DIR/workflow/templates/CONVENTIONS.python.md"
+    "$KIT_DIR/workflow/templates/CONVENTIONS.go.md"
+    "$KIT_DIR/workflow/hooks/pre-commit.sh"
     "$KIT_DIR/models.json"
     "$KIT_DIR/VERSION"
   )
@@ -240,8 +240,8 @@ self_check() {
   # the agent copy loops glob the .md files: an empty directory would
   # silently install nothing
   local -a _mds
-  _mds=("$KIT_DIR/agent/"*.md)
-  [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/agent/*.md (no .md file)")
+  _mds=("$KIT_DIR/workflow/agent/"*.md)
+  [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/workflow/agent/*.md (no .md file)")
   _mds=("$KIT_DIR/global/agent/"*.md)
   [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/global/agent/*.md (no .md file)")
 
@@ -276,6 +276,10 @@ self_check() {
 }
 
 KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# The kit's model-binding source of truth (roster "who runs what"). One
+# variable so the layout moves stay single-site.
+MODELS_JSON="$KIT_DIR/models.json"
 
 # No arguments: print the full help document (stdout) and exit 0 — never run
 # an implicit install on the current directory by accident.
@@ -386,11 +390,11 @@ for _c in "${ONLY_COMPONENTS[@]}"; do
 done
 
 # Effective selection: pr-review is only recordable in the lock when this
-# kit version actually ships skill/pr-review/ — recording a component the
+# kit version actually ships workflow/skill/pr-review/ — recording a component the
 # kit cannot install would make every later --update warn about it forever.
 EFFECTIVE_COMPONENTS=()
 for _c in "${ONLY_COMPONENTS[@]}"; do
-  [[ "$_c" == "pr-review" && ! -d "$KIT_DIR/skill/pr-review" ]] && continue
+  [[ "$_c" == "pr-review" && ! -d "$KIT_DIR/workflow/skill/pr-review" ]] && continue
   EFFECTIVE_COMPONENTS+=("$_c")
 done
 
@@ -446,7 +450,7 @@ if [[ $GLOBAL_MODE -eq 1 ]]; then
   AGENT_DST_DIR="$TARGET/agent"
   LOCK_FILE="$TARGET/.dev-workflow-kit-lock.json"
 else
-  AGENT_SRC_DIR="$KIT_DIR/agent"
+  AGENT_SRC_DIR="$KIT_DIR/workflow/agent"
   AGENT_DST_DIR="$TARGET/.opencode/agent"
   LOCK_FILE="$TARGET/.opencode/.dev-workflow-kit-lock.json"
 fi
@@ -684,7 +688,7 @@ _rules_prefix_hash() {
 models_json() {
   local section="."
   [[ $GLOBAL_MODE -eq 1 ]] && section=".global"
-  jq -r --arg a "$1" --arg f "$2" "${section}[\$a][\$f] // \"\"" "$KIT_DIR/models.json" 2>/dev/null || true
+  jq -r --arg a "$1" --arg f "$2" "${section}[\$a][\$f] // \"\"" "$MODELS_JSON" 2>/dev/null || true
 }
 
 # _family_for_model MODEL : the family_hint of the models.json entry whose
@@ -700,7 +704,7 @@ _family_for_model() {
   jq -r --arg m "$1" '
     ([to_entries[] | select(.key != "global") | .value] + [.global[]?])
     | map(select(.model == $m))[0].family_hint // ""' \
-    "$KIT_DIR/models.json" 2>/dev/null || true
+    "$MODELS_JSON" 2>/dev/null || true
 }
 
 # _remove_fm_line FILE KEY : delete the `KEY:`-prefixed line, if present.
@@ -1000,7 +1004,7 @@ lock_record_if_synced() {
 # the target's own unit matches the kit's (freshly copied above, or still
 # identical). A diverged target gets no entry: nothing was synced.
 lock_record_rules_if_synced() {
-  local rel="$1" src="$KIT_DIR/templates/$1" dst="$TARGET/$1" kit_hash
+  local rel="$1" src="$KIT_DIR/workflow/templates/$1" dst="$TARGET/$1" kit_hash
   [[ -f "$src" && -f "$dst" ]] || return 0
   if grep -q -E "$_RULES_MARKER" "$src" && grep -q -E "$_RULES_MARKER" "$dst"; then
     kit_hash="$(_rules_prefix_hash "$src")"
@@ -1019,7 +1023,7 @@ sync_hook() {
   HOOKS_DIR="$(git -C "$TARGET" rev-parse --git-path hooks)"
   [[ "$HOOKS_DIR" = /* ]] || HOOKS_DIR="$TARGET/$HOOKS_DIR"
   HOOK_DST="$HOOKS_DIR/pre-commit"
-  HOOK_SRC="$KIT_DIR/hooks/pre-commit.sh"
+  HOOK_SRC="$KIT_DIR/workflow/hooks/pre-commit.sh"
 
   if [[ ! -e "$HOOK_DST" ]]; then
     mkdir -p "$HOOKS_DIR"
@@ -1369,7 +1373,7 @@ update_convention_whole() {
 update_rules_conventions() {
   local rel src dst
   for rel in CONVENTIONS.md RULES.md CONVENTIONS.cpp.md CONVENTIONS.cpp23.md CONVENTIONS.python.md CONVENTIONS.go.md; do
-    src="$KIT_DIR/templates/$rel"
+    src="$KIT_DIR/workflow/templates/$rel"
     dst="$TARGET/$rel"
     [[ -f "$dst" && -f "$src" ]] || continue
     if grep -q -E "$_RULES_MARKER" "$src" && grep -q -E "$_RULES_MARKER" "$dst"; then
@@ -1384,19 +1388,20 @@ update_rules_conventions() {
 
 # update_pr_review : the --update step for the pr-review component — same
 # lock-driven sync as the other skill files, for everything under
-# skill/pr-review/. The skill does not exist in every kit version: absent
+# workflow/skill/pr-review/ (installed as .opencode/skill/pr-review/). The
+# skill does not exist in every kit version: absent
 # from the kit, the component is a clean skip with a warning (the installer
 # is ready for when the skill lands).
 update_pr_review() {
-  if [[ ! -d "$KIT_DIR/skill/pr-review" ]]; then
-    warnings+=("component 'pr-review': this kit version does not ship skill/pr-review/ yet — nothing installed or synced, and 'pr-review' is NOT recorded in the lock's components array (run --update --only=pr-review again once the kit ships the skill)")
+  if [[ ! -d "$KIT_DIR/workflow/skill/pr-review" ]]; then
+    warnings+=("component 'pr-review': this kit version does not ship workflow/skill/pr-review/ yet — nothing installed or synced, and 'pr-review' is NOT recorded in the lock's components array (run --update --only=pr-review again once the kit ships the skill)")
     return 0
   fi
   local f rel
   while IFS= read -r -d '' f; do
-    rel="skill/pr-review/${f#"$KIT_DIR/skill/pr-review/"}"
+    rel="skill/pr-review/${f#"$KIT_DIR/workflow/skill/pr-review/"}"
     update_sync_managed "$f" "$TARGET/.opencode/$rel" "$rel" 0 ""
-  done < <(find "$KIT_DIR/skill/pr-review" -type f -print0 2>/dev/null)
+  done < <(find "$KIT_DIR/workflow/skill/pr-review" -type f -print0 2>/dev/null)
 }
 
 if [[ $UPDATE -eq 1 ]]; then
@@ -1460,7 +1465,7 @@ if [[ $UPDATE -eq 1 ]]; then
   fi
   lock_init || true
   MODELS_OK=1
-  [[ -f "$KIT_DIR/models.json" ]] || { MODELS_OK=0; warnings+=("kit models.json not found — model/variant defaults not refreshed"); }
+  [[ -f "$MODELS_JSON" ]] || { MODELS_OK=0; warnings+=("kit models.json not found — model/variant defaults not refreshed"); }
 
   # --only with --update: union the requested components into the lock's
   # "components" array (adding a component later must not drop the ones
@@ -1482,7 +1487,7 @@ if [[ $UPDATE -eq 1 ]]; then
     warn_shadowed_agents
   else
     if [[ $U_WF -eq 1 ]]; then
-      update_sync_managed "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0 ""
+      update_sync_managed "$KIT_DIR/workflow/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0 ""
       sync_hook
 
       # Kit-authored rule/convention files — same "ours vs theirs" sync as the
@@ -1564,7 +1569,7 @@ if [[ $HAS_WF -eq 1 || $HAS_ROSTER -eq 1 ]]; then
 fi
 if [[ $GLOBAL_MODE -eq 0 ]]; then
   if [[ $HAS_WF -eq 1 ]]; then
-    copy_sync "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md"
+    copy_sync "$KIT_DIR/workflow/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md"
   
     # Hook pre-commit (shared with --update; see sync_hook)
     sync_hook
@@ -1584,9 +1589,9 @@ if [[ $GLOBAL_MODE -eq 0 ]]; then
       companions_scan "$TARGET"
       companions_decide
     fi
-    copy_if_absent "$KIT_DIR/templates/dev-workflow.json" "$TARGET/dev-workflow.json" "dev-workflow.json"
+    copy_if_absent "$KIT_DIR/workflow/templates/dev-workflow.json" "$TARGET/dev-workflow.json" "dev-workflow.json"
     for t in TODO.md SPEC.md INPROGRESS.md CHANGELOG.md DESIGNS.md CONVENTIONS.md; do
-      copy_if_absent "$KIT_DIR/templates/$t" "$TARGET/$t" "$t"
+      copy_if_absent "$KIT_DIR/workflow/templates/$t" "$TARGET/$t" "$t"
     done
     # Apply a disable decision to the FRESH copy only (dw_fresh guards it — an
     # existing dev-workflow.json is never touched, in any mode). Every outcome
@@ -1617,36 +1622,36 @@ if [[ $GLOBAL_MODE -eq 0 ]]; then
     # skipped with a warning. Same copy_if_absent semantics as the other
     # templates: never overwrite.
     if [[ $WITH_RULES -eq 1 ]]; then
-      copy_if_absent "$KIT_DIR/templates/RULES.md" "$TARGET/RULES.md" "RULES.md"
+      copy_if_absent "$KIT_DIR/workflow/templates/RULES.md" "$TARGET/RULES.md" "RULES.md"
     elif [[ -t 0 ]]; then
       read -r -p "Include RULES.md — Power-of-10-inspired safety rules with a justified-deviation protocol? [y/N] " ans
       case "$ans" in
-        y|Y|yes|Yes|YES) copy_if_absent "$KIT_DIR/templates/RULES.md" "$TARGET/RULES.md" "RULES.md" ;;
+        y|Y|yes|Yes|YES) copy_if_absent "$KIT_DIR/workflow/templates/RULES.md" "$TARGET/RULES.md" "RULES.md" ;;
       esac
     else
-      warnings+=("RULES.md not installed (no TTY to ask, --with-rules not passed) — pass --with-rules or copy templates/RULES.md manually to opt in")
+      warnings+=("RULES.md not installed (no TTY to ask, --with-rules not passed) — pass --with-rules or copy workflow/templates/RULES.md manually to opt in")
     fi
   fi # HAS_WF — the skill, hook, templates and dev-workflow.json all belong
      # to the workflow component: --only=pr-review skips this whole block.
 
   # pr-review component (install): copy the skill's files when this kit
-  # version ships it; a kit without skill/pr-review/ is a clean skip with a
+  # version ships it; a kit without workflow/skill/pr-review/ is a clean skip with a
   # warning (the installer is ready for when the skill lands).
   if [[ $HAS_PR -eq 1 ]]; then
-    if [[ ! -d "$KIT_DIR/skill/pr-review" ]]; then
-      warnings+=("component 'pr-review': this kit version does not ship skill/pr-review/ yet — nothing installed, and 'pr-review' is NOT recorded in the lock's components array (run the install again once the kit ships the skill)")
+    if [[ ! -d "$KIT_DIR/workflow/skill/pr-review" ]]; then
+      warnings+=("component 'pr-review': this kit version does not ship workflow/skill/pr-review/ yet — nothing installed, and 'pr-review' is NOT recorded in the lock's components array (run the install again once the kit ships the skill)")
     else
       while IFS= read -r -d '' f; do
-        rel="skill/pr-review/${f#"$KIT_DIR/skill/pr-review/"}"
+        rel="skill/pr-review/${f#"$KIT_DIR/workflow/skill/pr-review/"}"
         copy_sync "$f" "$TARGET/.opencode/$rel" "$rel"
-      done < <(find "$KIT_DIR/skill/pr-review" -type f -print0 2>/dev/null)
+      done < <(find "$KIT_DIR/workflow/skill/pr-review" -type f -print0 2>/dev/null)
     fi
   fi
 fi
 
 # Model injection (step A) + availability check (step B) — see file header.
 if [[ ${#fresh_agents[@]} -gt 0 ]]; then
-  if ! command -v jq >/dev/null 2>&1 || [[ ! -f "$KIT_DIR/models.json" ]]; then
+  if ! command -v jq >/dev/null 2>&1 || [[ ! -f "$MODELS_JSON" ]]; then
     warnings+=("jq or kit models.json unavailable, skipping model injection and availability check for: ${fresh_agents[*]}")
   else
     if ! command -v opencode >/dev/null 2>&1; then
@@ -1755,7 +1760,7 @@ if command -v jq >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
     # (additive lock field — the schema version is unchanged). A selective
     # re-install must never shrink the recorded selection: a later plain
     # --update reads this array and only syncs these components. A component
-    # the kit cannot ship (pr-review without skill/pr-review/) is not
+    # the kit cannot ship (pr-review without workflow/skill/pr-review/) is not
     # recorded — see EFFECTIVE_COMPONENTS. --update --only=X uses the same
     # union to add X without dropping the others.
     lock_union_components "${EFFECTIVE_COMPONENTS[@]}"
@@ -1768,7 +1773,7 @@ if command -v jq >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
     fi
     if [[ $GLOBAL_MODE -eq 0 ]]; then
       if [[ $HAS_WF -eq 1 ]]; then
-        lock_record_if_synced "$KIT_DIR/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0
+        lock_record_if_synced "$KIT_DIR/workflow/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0
         # CONVENTIONS.md and RULES.md: baseline the kit-managed prefix (the
         # `## Project rules` split) when the freshly copied (or still identical)
         # file matches the kit. CONVENTIONS.cpp.md, CONVENTIONS.cpp23.md
@@ -1780,11 +1785,11 @@ if command -v jq >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
       # pr-review component: baseline each file whose target matches the kit
       # (freshly copied or still identical) — same contract as the other
       # skill files.
-      if [[ $HAS_PR -eq 1 && -d "$KIT_DIR/skill/pr-review" ]]; then
+      if [[ $HAS_PR -eq 1 && -d "$KIT_DIR/workflow/skill/pr-review" ]]; then
         while IFS= read -r -d '' f; do
-          prel="skill/pr-review/${f#"$KIT_DIR/skill/pr-review/"}"
+          prel="skill/pr-review/${f#"$KIT_DIR/workflow/skill/pr-review/"}"
           lock_record_if_synced "$f" "$TARGET/.opencode/$prel" "$prel" 0
-        done < <(find "$KIT_DIR/skill/pr-review" -type f -print0 2>/dev/null)
+        done < <(find "$KIT_DIR/workflow/skill/pr-review" -type f -print0 2>/dev/null)
       fi
     fi
   fi
