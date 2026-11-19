@@ -10,20 +10,20 @@ D-claude-haiku-5-5-xhigh-p12	D	haiku	xhigh	p12	scored	7	none	2026-11-16/logs/D1-
 D-claude-haiku-5-5-xhigh-p12r2	D	haiku	xhigh	p12r2	DNF	0	no-deliverable	2026-11-16/logs/D1-github-copilot-claude-haiku-5-5-xhigh-p12r2.log.gz	
 D-claude-haiku-5_5-high-g21	D	haiku	high	g21	scored	7	none	2026-11-16/logs/grid2/D-claude-haiku-5_5-high-g21.log.gz	
 D-claude-haiku-5_5-high-g22	D	haiku	high	g22	scored	7.5	none	2026-11-16/logs/grid2/D-claude-haiku-5_5-high-g22.log.gz	
-D-claude-haiku-5_5-low-g21	D	haiku	low	g21	scored	5.5	none	2026-11-16/logs/grid2/D-claude-haiku-5_5-low-g21.log.gz	
-D-claude-haiku-5_5-low-g22	D	haiku	low	g22	scored	6	none	2026-11-16/logs/grid2/D-claude-haiku-5_5-low-g22.log.gz	
+D-claude-haiku-5_5-low-g21	D	haiku	low	g21	scored	6.5	none	2026-11-16/logs/grid2/D-claude-haiku-5_5-low-g21.log.gz	Étape 0 p5 re-score (D re-scorer)
+D-claude-haiku-5_5-low-g22	D	haiku	low	g22	scored	7	none	2026-11-16/logs/grid2/D-claude-haiku-5_5-low-g22.log.gz	Étape 0 p5 re-score (D re-scorer)
 D-claude-haiku-5_5-medium-g21	D	haiku	medium	g21	scored	7	none	2026-11-16/logs/grid2/D-claude-haiku-5_5-medium-g21.log.gz	
 D-claude-haiku-5_5-medium-g22	D	haiku	medium	g22	scored	7	none	2026-11-16/logs/grid2/D-claude-haiku-5_5-medium-g22.log.gz	
 D-claude-sonnet-5-5-high-p5	D	sonnet	high	p5	superseded		none	2026-11-16/logs/D1-ai-gateway-anthropic-claude-sonnet-5-5-high-p5.log.gz	
-D-claude-sonnet-5-5-high-p5r2	D	sonnet	high	p5r2	retry	7.5	none	2026-11-16/logs/D1-github-copilot-claude-sonnet-5-5-high-p5r2.log.gz	
+D-claude-sonnet-5-5-high-p5r2	D	sonnet	high	p5r2	retry	8.5	none	2026-11-16/logs/D1-github-copilot-claude-sonnet-5-5-high-p5r2.log.gz	Étape 0 p5 re-score (D re-scorer)
 D-deepseek-flash-p3	D		default	p3	DNF		provider-error		
-D-deepseek-v4p1-flash-1017-high-g21	D	1017	high	g21	scored	8	none	2026-11-16/logs/grid2/D-deepseek-v4p1-flash-1017-high-g21.log.gz	
+D-deepseek-v4p1-flash-1017-high-g21	D	1017	high	g21	scored	9	none	2026-11-16/logs/grid2/D-deepseek-v4p1-flash-1017-high-g21.log.gz	Étape 0 p5 re-score (D re-scorer)
 D-deepseek-v4p1-flash-1017-high-g22	D	1017	high	g22	scored	8.5	none	2026-11-16/logs/grid2/D-deepseek-v4p1-flash-1017-high-g22.log.gz	
-D-deepseek-v4p1-flash-1017-low-g21	D	1017	low	g21	scored	7.5	none	2026-11-16/logs/grid2/D-deepseek-v4p1-flash-1017-low-g21.log.gz	
+D-deepseek-v4p1-flash-1017-low-g21	D	1017	low	g21	scored	8.5	none	2026-11-16/logs/grid2/D-deepseek-v4p1-flash-1017-low-g21.log.gz	Étape 0 p5 re-score (D re-scorer)
 D-deepseek-v4p1-flash-1017-low-g22	D	1017	low	g22	scored	6	none	2026-11-16/logs/grid2/D-deepseek-v4p1-flash-1017-low-g22.log.gz	
-D-deepseek-v4p1-flash-1017-medium-p5	D	1017	medium	p5	scored	7	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-medium-p5.log.gz	
-D-deepseek-v4p1-flash-1017-medium-p7	D	1017	medium	p7	scored	0	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-medium-p7.log.gz	
-D-fw-deepseek-v4-1-flash-default-p5	D	dsflash	default	p5	scored	5	none	2026-11-16/logs/D1-ai-gateway-misc-fw-deepseek-v4-1-flash-p5.log.gz	
+D-deepseek-v4p1-flash-1017-medium-p5	D	1017	medium	p5	scored	8	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-medium-p5.log.gz	Étape 0 p5 re-score (D re-scorer)
+D-deepseek-v4p1-flash-1017-medium-p7	D	1017	medium	p7	scored	6	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-medium-p7.log.gz	Étape 0 stale-row fix: pass-1 rescoring had scored it 6
+D-fw-deepseek-v4-1-flash-default-p5	D	dsflash	default	p5	scored	0	none	2026-11-16/logs/D1-ai-gateway-misc-fw-deepseek-v4-1-flash-p5.log.gz	Étape 0 p5 re-score (D re-scorer): FP -6 (false claim; B1 strict ruling)
 D-fw-deepseek-v4-pro-high-p5	D		high	p5	DNF		provider-error	2026-11-16/logs/D1-ai-gateway-misc-fw-deepseek-v4-pro-high-p5.log.gz	
 D-fw-deepseek-v4-pro-high-p5r2	D		high	p5r2	DNF		provider-error	2026-11-16/logs/D1-ai-gateway-misc-fw-deepseek-v4-pro-high-p5r2.log.gz	
 D-fw-glm-5_3-flash-high-g21	D	glm	high	g21	scored	1.5	none	2026-11-16/logs/grid2/D-fw-glm-5_3-flash-high-g21.log.gz	
@@ -35,11 +35,11 @@ D-gemini-4-argon-high-g21	D	argon	high	g21	DNF	0	no-deliverable	2026-11-16/logs/
 D-gemini-4-argon-high-g22	D	argon	high	g22	DNF	0	no-deliverable	2026-11-16/logs/grid2/D-gemini-4-argon-high-g22.log.gz	
 D-gemini-4-argon-high-p5	D	argon	high	p5	DNF	0	provider-error	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
 D-gemini-4-argon-high-p5r2	D	argon	high	p5r2	DNF	0	timeout	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p5r2.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
-D-gemini-4-argon-high-p6	D	argon	high	p6	scored	5	none	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p6.log.gz	
+D-gemini-4-argon-high-p6	D	argon	high	p6	scored	6	none	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p6.log.gz	Étape 0 p5 re-score (D re-scorer)
 D-gemini-4-carbon-high-g21	D	carbon	high	g21	DNF	0	costcap	2026-11-16/logs/grid2/D-gemini-4-carbon-high-g21.log.gz	
 D-gemini-4-carbon-high-g22	D	carbon	high	g22	scored	6.5	none	2026-11-16/logs/grid2/D-gemini-4-carbon-high-g22.log.gz	
 D-gemini-4-carbon-high-g51	D	carbon	high	g51	DNF	0	no-deliverable	2026-11-16/logs/grid2/D-gemini-4-carbon-high-g51.log.gz	
-D-gemini-4-hydrogen-high-p5	D	hydrogen	high	p5	scored	5	none	2026-11-16/logs/D1-github-copilot-gemini-4-hydrogen-high-p5.log.gz	
+D-gemini-4-hydrogen-high-p5	D	hydrogen	high	p5	scored	6	none	2026-11-16/logs/D1-github-copilot-gemini-4-hydrogen-high-p5.log.gz	Étape 0 p5 re-score (D re-scorer)
 D-gemini-4-hydrogen-medium-f41	D	hydrogen	medium	f41	scored	5.5	none	2026-11-16/logs/grid2/D-gemini-4-hydrogen-medium-f41.log.gz	
 D-gemini-4-hydrogen-medium-p5	D	hydrogen	medium	p5	DNF	0	provider-error	2026-11-16/logs/D1-github-copilot-gemini-4-hydrogen-medium-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
 D-gemini-4-hydrogen-xhigh-g51	D	hydrogen	xhigh	g51	scored	6.5	none	2026-11-16/logs/grid2/D-gemini-4-hydrogen-xhigh-g51.log.gz	
@@ -79,12 +79,12 @@ D-opus-default-p3-DNF	D	opus	default	DNF	DNF		no-deliverable
 D-opus-default-p3r2-DNF	D	opus	default	DNF	DNF		no-deliverable		
 D-opus-default-p3r2b	D	opus	default	p3r2b	retry	9.5	none	2026-11-16/runs/D-opus-default-p3r2b.design.md	
 D-opus-default-p4	D	opus	default	p4	scored	8	none	2026-11-16/runs/D-opus-default-p4.design.md	
-D-qwen3p8-2p4t-a95b-medium-g21	D	qwen	medium	g21	scored	3	none	2026-11-16/logs/grid2/D-qwen3p8-2p4t-a95b-medium-g21.log.gz	
-D-qwen3p8-2p4t-a95b-medium-g22	D	qwen	medium	g22	scored	2	none	2026-11-16/logs/grid2/D-qwen3p8-2p4t-a95b-medium-g22.log.gz	
-D-qwen3p8-2p4t-a95b-xhigh-p5	D	qwen	xhigh	p5	scored	6	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p5.log.gz	
+D-qwen3p8-2p4t-a95b-medium-g21	D	qwen	medium	g21	scored	0	none	2026-11-16/logs/grid2/D-qwen3p8-2p4t-a95b-medium-g21.log.gz	Étape 0 p5 re-score (D re-scorer)
+D-qwen3p8-2p4t-a95b-medium-g22	D	qwen	medium	g22	scored	0	none	2026-11-16/logs/grid2/D-qwen3p8-2p4t-a95b-medium-g22.log.gz	Étape 0 p5 re-score (D re-scorer): FP -6 (false claim; B1 strict ruling)
+D-qwen3p8-2p4t-a95b-xhigh-p5	D	qwen	xhigh	p5	scored	7	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p5.log.gz	Étape 0 p5 re-score (D re-scorer)
 D-qwen3p8-2p4t-a95b-xhigh-p5r2	D	qwen	xhigh	p5r2	scored	7.5	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p5r2.log.gz	
-D-qwen3p8-2p4t-a95b-xhigh-p6	D	qwen	xhigh	p6	scored	5	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6.log.gz	
-D-qwen3p8-2p4t-a95b-xhigh-p6r2	D	qwen	xhigh	p6r2	scored	0	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6r2.log.gz	
+D-qwen3p8-2p4t-a95b-xhigh-p6	D	qwen	xhigh	p6	scored	7	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6.log.gz	Étape 0 p5 re-score (D re-scorer)
+D-qwen3p8-2p4t-a95b-xhigh-p6r2	D	qwen	xhigh	p6r2	scored	0	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6r2.log.gz	Étape 0 p5 re-score (D re-scorer): FP -6 (false claim; B1 strict ruling)
 D-sonnet-high-p3	D	sonnet	high	p3	scored	7.5	none	2026-11-16/runs/D-sonnet-high-p3.design.md	
 D-sonnet-high-p4-DNF	D	sonnet	default	DNF	DNF		no-deliverable		
 D-sonnet-high-p4r2-DNF	D	sonnet	default	DNF	DNF		no-deliverable		
@@ -144,7 +144,7 @@ DR2-muse-spark-open-medium-g22	DR2	muse	medium	g22	scored	0	none	2026-11-16/logs
 DR2-qwen3p8-2p4t-a95b-medium-g21	DR2	qwen	medium	g21	scored	6	none	2026-11-16/logs/grid2/DR2-qwen3p8-2p4t-a95b-medium-g21.log.gz	
 DR2-qwen3p8-2p4t-a95b-medium-g22	DR2	qwen	medium	g22	scored	10	none	2026-11-16/logs/grid2/DR2-qwen3p8-2p4t-a95b-medium-g22.log.gz	
 I2-claude-fable-5-default-g21	I2	fable	default	g21	scored	6	none	2026-11-16/logs/grid2/I2-claude-fable-5-default-g21.log.gz	
-I2-claude-haiku-5-5-default-p5	I2	haiku	default	p5	scored	6	none	2026-11-16/logs/IV2-github-copilot-claude-haiku-5-5-default-p5.log.gz	
+I2-claude-haiku-5-5-default-p5	I2	haiku	default	p5	scored	7	none	2026-11-16/logs/IV2-github-copilot-claude-haiku-5-5-default-p5.log.gz	Étape 0 p5 re-score: amb=0 base=1 c'counts=0 FP=0
 I2-claude-haiku-5-5-xhigh-p10	I2	haiku	xhigh	p10	DNF	2	no-deliverable	2026-11-16/logs/IV2-github-copilot-claude-haiku-5-5-xhigh-p10.log.gz	
 I2-claude-haiku-5-5-xhigh-p10r2	I2	haiku	xhigh	p10r2	DNF	2	no-deliverable	2026-11-16/logs/IV2-github-copilot-claude-haiku-5-5-xhigh-p10r2.log.gz	
 I2-claude-haiku-5_5-high-g21	I2	haiku	high	g21	scored	8	none	2026-11-16/logs/grid2/I2-claude-haiku-5_5-high-g21.log.gz	
@@ -162,8 +162,8 @@ I2-deepseek-v4p1-flash-1017-high-g21	I2	1017	high	g21	scored	8	none	2026-11-16/l
 I2-deepseek-v4p1-flash-1017-high-g22	I2	1017	high	g22	scored	8	none	2026-11-16/logs/grid2/I2-deepseek-v4p1-flash-1017-high-g22.log.gz	
 I2-deepseek-v4p1-flash-1017-low-g21	I2	1017	low	g21	scored	8	none	2026-11-16/logs/grid2/I2-deepseek-v4p1-flash-1017-low-g21.log.gz	
 I2-deepseek-v4p1-flash-1017-low-g22	I2	1017	low	g22	scored	8	none	2026-11-16/logs/grid2/I2-deepseek-v4p1-flash-1017-low-g22.log.gz	
-I2-deepseek-v4p1-flash-1017-medium-p5	I2	1017	medium	p5	scored	7	none	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-medium-p5.log.gz	
-I2-fw-deepseek-v4-1-flash-default-p5	I2	dsflash	default	p5	scored	7	none	2026-11-16/logs/IV2-ai-gateway-misc-fw-deepseek-v4-1-flash-p5.log.gz	
+I2-deepseek-v4p1-flash-1017-medium-p5	I2	1017	medium	p5	scored	8	none	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-medium-p5.log.gz	Étape 0 p5 re-score: amb=0 base=1 c'counts=0 FP=0
+I2-fw-deepseek-v4-1-flash-default-p5	I2	dsflash	default	p5	scored	8	none	2026-11-16/logs/IV2-ai-gateway-misc-fw-deepseek-v4-1-flash-p5.log.gz	Étape 0 p5 re-score: amb=0 base=1 c'counts=0 FP=0
 I2-fw-deepseek-v4-pro-high-p5	I2		high	p5	DNF		provider-error	2026-11-16/logs/IV2-ai-gateway-misc-fw-deepseek-v4-pro-high-p5.log.gz	
 I2-fw-deepseek-v4-pro-high-p5r2	I2		high	p5r2	DNF		provider-error	2026-11-16/logs/IV2-ai-gateway-misc-fw-deepseek-v4-pro-high-p5r2.log.gz	
 I2-fw-glm-5_3-flash-low-g21	I2	glm	low	g21	scored	6	none	2026-11-16/logs/grid2/I2-fw-glm-5_3-flash-low-g21.log.gz	
@@ -184,7 +184,7 @@ I2-gemini-4-carbon-high-g52	I2	carbon	high	g52	DNF	0	costcap	2026-11-16/logs/gri
 I2-gemini-4-hydrogen-high-g21	I2	hydrogen	high	g21	scored	10	none	2026-11-16/logs/grid2/I2-gemini-4-hydrogen-high-g21.log.gz	
 I2-gemini-4-hydrogen-high-g22	I2	hydrogen	high	g22	scored	10	none	2026-11-16/logs/grid2/I2-gemini-4-hydrogen-high-g22.log.gz	
 I2-gemini-4-hydrogen-high-p5	I2	hydrogen	high	p5	DNF	2	provider-error	2026-11-16/logs/IV2-github-copilot-gemini-4-hydrogen-high-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
-I2-gemini-4-hydrogen-medium-p5	I2	hydrogen	medium	p5	scored	5	none	2026-11-16/logs/IV2-github-copilot-gemini-4-hydrogen-medium-p5.log.gz	
+I2-gemini-4-hydrogen-medium-p5	I2	hydrogen	medium	p5	scored	6	none	2026-11-16/logs/IV2-github-copilot-gemini-4-hydrogen-medium-p5.log.gz	Étape 0 p5 re-score: amb=0 base=1 c'counts=0 FP=0; hydrogen/medium base=1 arbitration (see RESULTS.md)
 I2-gemini-4-hydrogen-xhigh-g51	I2	hydrogen	xhigh	g51	scored	2	none	2026-11-16/logs/grid2/I2-gemini-4-hydrogen-xhigh-g51.log.gz	
 I2-gemini-4-hydrogen-xhigh-g52	I2	hydrogen	xhigh	g52	scored	2	none	2026-11-16/logs/grid2/I2-gemini-4-hydrogen-xhigh-g52.log.gz	
 I2-gpt-6-astra-default-g21	I2	astra	default	g21	scored	8	none	2026-11-16/logs/grid2/I2-gpt-6-astra-default-g21.log.gz	
@@ -203,7 +203,7 @@ I2-minimax-m3p1-flash-high-g21	I2	minimax	high	g21	scored	8	none	2026-11-16/logs
 I2-minimax-m3p1-flash-high-g22	I2	minimax	high	g22	scored	7	none	2026-11-16/logs/grid2/I2-minimax-m3p1-flash-high-g22.log.gz	
 I2-minimax-m3p1-flash-low-g21	I2	minimax	low	g21	scored	10	none	2026-11-16/logs/grid2/I2-minimax-m3p1-flash-low-g21.log.gz	
 I2-minimax-m3p1-flash-low-g22	I2	minimax	low	g22	scored	6	none	2026-11-16/logs/grid2/I2-minimax-m3p1-flash-low-g22.log.gz	
-I2-minimax-m3p1-flash-medium-p5	I2	minimax	medium	p5	scored	8	none	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-p5.log.gz	
+I2-minimax-m3p1-flash-medium-p5	I2	minimax	medium	p5	scored	9	none	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-p5.log.gz	Étape 0 p5 re-score: amb=0 base=1 c'counts=0 FP=0
 I2-minimax-m3p1-flash-xhigh-f41	I2	minimax	xhigh	f41	scored	8	none	2026-11-16/logs/grid2/I2-minimax-m3p1-flash-xhigh-f41.log.gz	
 I2-minimax-m3p1-flash-xhigh-g21	I2	minimax	xhigh	g21	DNF	0	no-deliverable	2026-11-16/logs/grid2/I2-minimax-m3p1-flash-xhigh-g21.log.gz	
 I2-minimax-m3p1-flash-xhigh-g22	I2	minimax	xhigh	g22	DNF	0	provider-error	2026-11-16/logs/grid2/I2-minimax-m3p1-flash-xhigh-g22.log.gz	

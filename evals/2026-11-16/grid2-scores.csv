@@ -6,23 +6,23 @@ haiku,high,7,3,7,8.83,8.5,0.05,c8 confirmations lost to TMPDIR purge - unscored,
 haiku,xhigh,8,3,7,3.89,7,0.03-0.42,I2 xhigh: 2 DNF then 7 (single valid); D xhigh 1 DNF then 7,8*,3,7,7,7
 glm,low,5,2.5,4.88,5.33,2.38,0.01,"O stable 5.0 x3 (baseline discipline 0, zero hallucination)",5*,2.7,5.5,6,1
 glm,high,7,4.13,5.17,4.5,1.5,0.03,O panel mean 7 (4 scorer scores over the 3 runs 7;5;6); D: FP H3 both runs; IR 4.13 (4 runs: 4.5;2;5;5),6,3,5,5.5,0.75
-dsflash,default,5.67,2.2,8.5,7.75,2.2,0.03,,5,1.5,9,4.5,5
-1017,low,6.62,3.25,6.83,6.5,6.25,0.07,,6.75,2,7,8,6.75
-1017,medium,7.38,3.38,4.75,6.25,7.06,0.10,,7.25,2.5,5.5,4.5,6.5
-1017,high,7.5,3.62,7,5.75,9.44,0.12,best D outside opus,7.5,2.5,7,8,8.25
+dsflash,default,5.67,2.2,8.5,8,1.2,0.03,,5,1.5,9,4.5,5
+1017,low,6.62,3.25,6.83,6.5,5.92,0.07,,6.75,2,7,8,6.75
+1017,medium,7.38,3.38,4.75,6.38,8.06,0.10,,7.25,2.5,5.5,4.5,6.5
+1017,high,7.5,3.62,7,5.75,9.56,0.12,best D outside opus,7.5,2.5,7,8,8.25
 minimax,low,5.5,2.75,6.75,8,2.08,0.03,D: FP H3 both runs,4.5,2.5,6,8,1.75
-minimax,medium,6,3.38,8,7.5,5.78,0.04,D mean incl. the 2/11 FP run,6,3,8.5,5,5
+minimax,medium,6,3.38,8,7.62,5.78,0.04,D mean incl. the 2/11 FP run,6,3,8.5,5,5
 minimax,high,6.56,3.5,8.25,6.12,7.38,0.05,D: 2 DNF then 5.5 (single valid),6.25,3,7.5,7.5,5.5
 minimax,xhigh,6,4.33,11.25,7.67,6.81,0.03,"I2 arbitrated 7.67 (sonnet arb; runs f41=8, g51=5, m81=10) from 3 divergent readings (panel 5.19 / original 8 / fresh 10); DR2 4 executed proofs (runs 9;14)",6.25,3,11.5,8,6.75
-qwen,medium,4.75,2,8.6,6.42,1.7,0.30-0.68,"O re-scored 5.5; I2: 1 DNF then mean of 8,6",5.5,2,8,7,2.5
-qwen,xhigh,6.75,4.0,10,4.38,6.25,0.95-1.19,IR 4.0 (2 runs: 4;4) - misses seeded-3 both runs; single-run DR2; most expensive per task,6,3,10,5.3,4.7
+qwen,medium,4.75,2,8.6,6.42,1.2,0.30-0.68,"O re-scored 5.5; I2: 1 DNF then mean of 8,6",5.5,2,8,7,2.5
+qwen,xhigh,6.75,4.0,10,4.38,6.4,0.95-1.19,IR 4.0 (2 runs: 4;4) - misses seeded-3 both runs; single-run DR2; most expensive per task,6,3,10,5.3,4.7
 hydrogen,low,not measured,not measured,not measured,not measured,not measured,,-skipped (effort policy),not measured,not measured,not measured,not measured,not measured
-hydrogen,medium,6,4,5,5.25,5.75,0.09-0.29,O verdicts PARTIAL x2 (p8) + 5 (f41),5,3,4.5,5,6.25
-hydrogen,high,7.75,3,3.3,9.5,5.5,0.08-0.65,O: PARTIAL/PASS (p8) + 7 (f41); DR2 refuted,7,2,0.5,9,6
+hydrogen,medium,6,4,5,5.88,5.75,0.09-0.29,O verdicts PARTIAL x2 (p8) + 5 (f41),5,3,4.5,5,6.25
+hydrogen,high,7.75,3,3.3,9.5,5.62,0.08-0.65,O: PARTIAL/PASS (p8) + 7 (f41); DR2 refuted,7,2,0.5,9,6
 hydrogen,xhigh,not measured,not measured,not measured,2,6.19,0.50-0.90,"I2 broken (2;2 - no edits, watchdog); D 6.75 (6.5;7)",not measured,not measured,not measured,2,6.75
 argon,low,5*,3*,not measured,not measured,not measured,0.09-0.12,O single valid run,5*,3*,not measured,not measured,not measured
 argon,medium,6*,2*,not measured,not measured,not measured,0.08-0.09,O single valid run,6*,2*,not measured,not measured,not measured
-argon,high,7.5,3,9.5,7.75,5.15,0.13-0.96,O single valid run; I2/D single valid (provider retries killed the siblings),6,2,9.5,7,5.25
+argon,high,7.5,3,9.5,7.75,5.25,0.13-0.96,O single valid run; I2/D single valid (provider retries killed the siblings),6,2,9.5,7,5.25
 carbon,low,7.12,2,4*,not measured,not measured,0.10-0.13,,6,2,4*,not measured,not measured
 carbon,medium,7.5,2,not measured,not measured,not measured,0.15-0.21,,6.5,2,not measured,not measured,not measured
 carbon,high,7.5,2,10,DNF,5.69,0.15-0.23,I2 unmeasurable: 4 costcap DNFs at the $0.60 cap; D single valid run (re-run produced no deliverable); 7 DNFs total (watchdog+costcap) at caps up to $3.00 — unmeasurable at reasonable cost; strong-design-alt challenge abandoned,7,2,10,DNF,6.5

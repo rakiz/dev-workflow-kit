@@ -229,4 +229,15 @@ Chart/CSV integrity after the fold: `evals/verify-charts.py` re-derives every
 dot in LEADERBOARD.html from `grid2-scores.csv` (same math as gen-charts) —
 197/197 dots match; regeneration is byte-deterministic.
 
-Étape 0 executed (2026-11-19): harness capture fixed (completed-run criterion finish=stop); keys purged (history rewritten, backup in private repo); p5 batch: 9 killed arms reclassified DNF — report-dependent re-score of the 11 completed p5 arms still PENDING (needs scorer sessions).
+**Étape 0 complete (2026-11-19):** harness capture fixed (completed-run criterion finish=stop); keys purged (history rewritten, backup in private repo); p5 batch: 9 killed arms reclassified DNF; report-dependent p5 re-score folded (I2 ×5 and D ×14 run-score rows; D p6r2 note-only; cells in `grid2-scores.csv` / `panel-scores.csv`; charts regenerated, verify-charts 197/197, byte-deterministic). Two owner rulings applied: B1 strict = house precedent; FP −6 for two distinct false claims. The hydrogen/medium base=1 arbitration is recorded in its run note.
+
+**Pending owner ruling: clean re-fold candidates** (from the D re-scorer's pipeline-drift list; NOT folded — outside this re-score's scope):
+
+- carbon I2: DNF → 2
+- minimax-xhigh I2: 7.67 → 7.04
+- muse IR: 3.75 → 4.56
+- haiku-xhigh I2: 3.89 → 7.67
+- qwen-medium I2: 6.42 → 6.62
+- sol-medium D: 5.32 → 6.7
+- sonnet-high D: 8.17 → 8
+- carbon D: 5.69 → 5.5
