@@ -228,3 +228,5 @@ Closing the three open challenges from the confirmation phase:
 Chart/CSV integrity after the fold: `evals/verify-charts.py` re-derives every
 dot in LEADERBOARD.html from `grid2-scores.csv` (same math as gen-charts) —
 197/197 dots match; regeneration is byte-deterministic.
+
+Étape 0 executed (2026-11-19): harness capture fixed (completed-run criterion finish=stop); keys purged (history rewritten, backup in private repo); p5 batch: 9 killed arms reclassified DNF — report-dependent re-score of the 11 completed p5 arms still PENDING (needs scorer sessions).

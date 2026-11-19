@@ -52,8 +52,10 @@ leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
    stands unchanged: **impl and review are never the same family.**
 8. Scoring is executed-evidence: paraphrase = 0; probes re-run by the scorer.
 9. **Final-report capture (Étape 0, 2026-11-19):** every run dir carries
-   `final-report.md` (the run's final assistant message, captured by the
-   runner from the opencode DB, keyed on the session title) **or** a
+   `final-report.md` (the run's final assistant message — the last assistant
+   message with `finish = stop`, captured by the runner from the opencode DB,
+   keyed on the session title; a killed run's last text is intermediate
+   narration, never a report) **or** a
    `no-report` marker. A run without one of the two is incomplete by
    construction. **A scoring session that finds no `final-report.md` (and no
    `no-report` marker) treats the run as DNF — re-run it; report-dependent
@@ -103,3 +105,33 @@ leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
 - Every bench score shown must trace through the chain: **grid2-scores.csv
   (cell) → grid2-run-scores.tsv (per-run rows) → runs.tar.gz + campaign logs
   (evidence) → RESULTS.md (narrative)**.
+
+## 5. Étape 0 rules (2026-11-19) — harness, stats, seats, finding→remedy map
+
+**(a) Harness capture (see §2 rule 9).** Every run dir carries `final-report.md`
+or `no-report`. A scoring without one of the two is a DNF (re-run). Report-
+dependent points are never scored 0-by-default.
+
+**(b) Stats rule.**
+- Each bench pre-registers its minimum detectable effect (MDE) before the
+  campaign that decides on it.
+- Every cell is annotated with its n (valid runs).
+- A gap smaller than the noise floor (the MDE for that bench) is a **tie**,
+  not a ranking. A seat decision on a gap < 1.5 pt is not made without a
+  pre-registered rule (see the roadmap, Étape 3).
+
+**(c) Seats ≠ capability.** A seat is a deployment choice (price, family,
+exceptions, policy). The leaderboard score orders capability only; it does not
+order seats.
+
+**(d) Finding → remedy map** (plan méthodo v2, external review findings):
+
+| Finding | Remedy |
+|---|---|
+| F1 — patterns, not fine rankings (1-2 runs/cell, 0.33 pt gaps) | Étape 5 — pre-registered MDE, n per cell, gap < noise = tie |
+| F2 — brief/probe mismatch on failure policy (I2) | Étape 1 — table of final states before touching prose |
+| F3 — I2 is not a feature-acceptance score | Étape 1 — acceptance tests per feature; c′ made winnable or re-weighted ≤1 |
+| F4 — DR2 mixes proposal review and conformance audit | Étape 1 — DR-v3 asks both explicitly; true/FP reported separately |
+| F5 — D key contains two factual errors | Étape 1 — key credits correct alternative diagnoses |
+| F6 — capture chain (report never captured; costs) | Étape 0 — harness capture (§2 rule 9), p5 re-scored, purge |
+| F7 — delivery/independence/policy distinct from capability | Étape 3 (real blinding) + Étape 5 (n, margin, CI) + docs (seats ≠ capability, §5(c)) |
