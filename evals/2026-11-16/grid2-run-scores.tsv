@@ -33,15 +33,15 @@ D-gemini-3_8-flash-medium-g22	D	gem38	medium	g22	scored	1	none	2026-11-16/logs/g
 D-gemini-4-argon-high-f41	D	argon	high	f41	scored	5.5	none	2026-11-16/logs/grid2/D-gemini-4-argon-high-f41.log.gz	
 D-gemini-4-argon-high-g21	D	argon	high	g21	DNF	0	no-deliverable	2026-11-16/logs/grid2/D-gemini-4-argon-high-g21.log.gz	
 D-gemini-4-argon-high-g22	D	argon	high	g22	DNF	0	no-deliverable	2026-11-16/logs/grid2/D-gemini-4-argon-high-g22.log.gz	
-D-gemini-4-argon-high-p5	D	argon	high	p5	scored	0	none	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p5.log.gz	
-D-gemini-4-argon-high-p5r2	D	argon	high	p5r2	scored	0	none	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p5r2.log.gz	
+D-gemini-4-argon-high-p5	D	argon	high	p5	DNF	0	provider-error	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
+D-gemini-4-argon-high-p5r2	D	argon	high	p5r2	DNF	0	timeout	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p5r2.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
 D-gemini-4-argon-high-p6	D	argon	high	p6	scored	5	none	2026-11-16/logs/D1-github-copilot-gemini-4-argon-high-p6.log.gz	
 D-gemini-4-carbon-high-g21	D	carbon	high	g21	DNF	0	costcap	2026-11-16/logs/grid2/D-gemini-4-carbon-high-g21.log.gz	
 D-gemini-4-carbon-high-g22	D	carbon	high	g22	scored	6.5	none	2026-11-16/logs/grid2/D-gemini-4-carbon-high-g22.log.gz	
 D-gemini-4-carbon-high-g51	D	carbon	high	g51	DNF	0	no-deliverable	2026-11-16/logs/grid2/D-gemini-4-carbon-high-g51.log.gz	
 D-gemini-4-hydrogen-high-p5	D	hydrogen	high	p5	scored	5	none	2026-11-16/logs/D1-github-copilot-gemini-4-hydrogen-high-p5.log.gz	
 D-gemini-4-hydrogen-medium-f41	D	hydrogen	medium	f41	scored	5.5	none	2026-11-16/logs/grid2/D-gemini-4-hydrogen-medium-f41.log.gz	
-D-gemini-4-hydrogen-medium-p5	D	hydrogen	medium	p5	scored	0	none	2026-11-16/logs/D1-github-copilot-gemini-4-hydrogen-medium-p5.log.gz	
+D-gemini-4-hydrogen-medium-p5	D	hydrogen	medium	p5	DNF	0	provider-error	2026-11-16/logs/D1-github-copilot-gemini-4-hydrogen-medium-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
 D-gemini-4-hydrogen-xhigh-g51	D	hydrogen	xhigh	g51	scored	6.5	none	2026-11-16/logs/grid2/D-gemini-4-hydrogen-xhigh-g51.log.gz	
 D-gemini-4-hydrogen-xhigh-g52	D	hydrogen	xhigh	g52	scored	7	none	2026-11-16/logs/grid2/D-gemini-4-hydrogen-xhigh-g52.log.gz	
 D-glm-high-p3	D	glm	high	p3	scored	0	none	2026-11-16/runs/D-glm-high-p3.design.md	
@@ -67,7 +67,7 @@ D-minimax-m3p1-flash-high-g21	D	minimax	high	g21	DNF	0	timeout	2026-11-16/logs/g
 D-minimax-m3p1-flash-high-g22	D	minimax	high	g22	DNF	0	no-deliverable	2026-11-16/logs/grid2/D-minimax-m3p1-flash-high-g22.log.gz	
 D-minimax-m3p1-flash-low-g21	D	minimax	low	g21	scored	1.5	none	2026-11-16/logs/grid2/D-minimax-m3p1-flash-low-g21.log.gz	
 D-minimax-m3p1-flash-low-g22	D	minimax	low	g22	scored	2	none	2026-11-16/logs/grid2/D-minimax-m3p1-flash-low-g22.log.gz	
-D-minimax-m3p1-flash-medium-p5	D	minimax	medium	p5	scored	0	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-p5.log.gz	
+D-minimax-m3p1-flash-medium-p5	D	minimax	medium	p5	DNF	0	timeout	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
 D-minimax-m3p1-flash-medium-p9	D	minimax	medium	p9	DNF		costcap	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-p9.log.gz	
 D-minimax-m3p1-flash-medium-p9r2	D	minimax	medium	p9r2	scored	2	none	2026-11-16/logs/D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-p9r2.log.gz	
 D-minimax-m3p1-flash-xhigh-g21	D	minimax	xhigh	g21	scored	7	none	2026-11-16/logs/grid2/D-minimax-m3p1-flash-xhigh-g21.log.gz	
@@ -173,8 +173,8 @@ I2-gemini-3_8-flash-medium-g22	I2	gem38	medium	g22	scored	7	none	2026-11-16/logs
 I2-gemini-4-argon-high-f41	I2	argon	high	f41	DNF	0	no-deliverable	2026-11-16/logs/grid2/I2-gemini-4-argon-high-f41.log.gz	
 I2-gemini-4-argon-high-g21	I2	argon	high	g21	DNF	0	timeout	2026-11-16/logs/grid2/I2-gemini-4-argon-high-g21.log.gz	
 I2-gemini-4-argon-high-g22	I2	argon	high	g22	DNF	0	provider-error	2026-11-16/logs/grid2/I2-gemini-4-argon-high-g22.log.gz	
-I2-gemini-4-argon-high-p5	I2	argon	high	p5	scored	2	none	2026-11-16/logs/IV2-github-copilot-gemini-4-argon-high-p5.log.gz	
-I2-gemini-4-argon-high-p5r2	I2	argon	high	p5r2	scored	2	none	2026-11-16/logs/IV2-github-copilot-gemini-4-argon-high-p5r2.log.gz	
+I2-gemini-4-argon-high-p5	I2	argon	high	p5	DNF	2	timeout	2026-11-16/logs/IV2-github-copilot-gemini-4-argon-high-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
+I2-gemini-4-argon-high-p5r2	I2	argon	high	p5r2	DNF	2	provider-error	2026-11-16/logs/IV2-github-copilot-gemini-4-argon-high-p5r2.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
 I2-gemini-4-argon-high-p6	I2	argon	high	p6	scored	7	none	2026-11-16/logs/IV2-github-copilot-gemini-4-argon-high-p6.log.gz	
 I2-gemini-4-carbon-high-f41	I2	carbon	high	f41	DNF	0	costcap	2026-11-16/logs/grid2/I2-gemini-4-carbon-high-f41.log.gz	
 I2-gemini-4-carbon-high-g21	I2	carbon	high	g21	scored	2	none	2026-11-16/logs/grid2/I2-gemini-4-carbon-high-g21.log.gz	
@@ -183,7 +183,7 @@ I2-gemini-4-carbon-high-g51	I2	carbon	high	g51	DNF	0	costcap	2026-11-16/logs/gri
 I2-gemini-4-carbon-high-g52	I2	carbon	high	g52	DNF	0	costcap	2026-11-16/logs/grid2/I2-gemini-4-carbon-high-g52.log.gz	
 I2-gemini-4-hydrogen-high-g21	I2	hydrogen	high	g21	scored	10	none	2026-11-16/logs/grid2/I2-gemini-4-hydrogen-high-g21.log.gz	
 I2-gemini-4-hydrogen-high-g22	I2	hydrogen	high	g22	scored	10	none	2026-11-16/logs/grid2/I2-gemini-4-hydrogen-high-g22.log.gz	
-I2-gemini-4-hydrogen-high-p5	I2	hydrogen	high	p5	scored	2	none	2026-11-16/logs/IV2-github-copilot-gemini-4-hydrogen-high-p5.log.gz	
+I2-gemini-4-hydrogen-high-p5	I2	hydrogen	high	p5	DNF	2	provider-error	2026-11-16/logs/IV2-github-copilot-gemini-4-hydrogen-high-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
 I2-gemini-4-hydrogen-medium-p5	I2	hydrogen	medium	p5	scored	5	none	2026-11-16/logs/IV2-github-copilot-gemini-4-hydrogen-medium-p5.log.gz	
 I2-gemini-4-hydrogen-xhigh-g51	I2	hydrogen	xhigh	g51	scored	2	none	2026-11-16/logs/grid2/I2-gemini-4-hydrogen-xhigh-g51.log.gz	
 I2-gemini-4-hydrogen-xhigh-g52	I2	hydrogen	xhigh	g52	scored	2	none	2026-11-16/logs/grid2/I2-gemini-4-hydrogen-xhigh-g52.log.gz	
@@ -213,8 +213,8 @@ I2-muse-spark-open-medium-g22	I2	muse	medium	g22	scored	5	none	2026-11-16/logs/g
 I2-qwen3p8-2p4t-a95b-medium-f41	I2	qwen	medium	f41	scored	6	none	2026-11-16/logs/grid2/I2-qwen3p8-2p4t-a95b-medium-f41.log.gz	
 I2-qwen3p8-2p4t-a95b-medium-g21	I2	qwen	medium	g21	DNF	0	costcap	2026-11-16/logs/grid2/I2-qwen3p8-2p4t-a95b-medium-g21.log.gz	
 I2-qwen3p8-2p4t-a95b-medium-g22	I2	qwen	medium	g22	scored	8	none	2026-11-16/logs/grid2/I2-qwen3p8-2p4t-a95b-medium-g22.log.gz	
-I2-qwen3p8-2p4t-a95b-xhigh-p5	I2	qwen	xhigh	p5	scored	6	none	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p5.log.gz	
-I2-qwen3p8-2p4t-a95b-xhigh-p5r2	I2	qwen	xhigh	p5r2	scored	7	none	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p5r2.log.gz	
+I2-qwen3p8-2p4t-a95b-xhigh-p5	I2	qwen	xhigh	p5	DNF	6	costcap	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p5.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
+I2-qwen3p8-2p4t-a95b-xhigh-p5r2	I2	qwen	xhigh	p5r2	DNF	7	costcap	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p5r2.log.gz	Étape 0: killed run mis-recorded as scored (0-by-default on report-dependent points); no final report was ever emitted (session truncated by the kill) — re-run pending owner decision
 I2-qwen3p8-2p4t-a95b-xhigh-p6	I2	qwen	xhigh	p6	scored	2	none	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6.log.gz	
 I2-qwen3p8-2p4t-a95b-xhigh-p6r2	I2	qwen	xhigh	p6r2	scored	6	none	2026-11-16/logs/IV2-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-p6r2.log.gz	
 IR-claude-fable-5-default-g21	IR	fable	default	g21	scored	2	none	2026-11-16/logs/grid2/IR-claude-fable-5-default-g21.log.gz	
@@ -311,7 +311,7 @@ O-gemini-4-hydrogen-high-p8r2	O	hydrogen	high	p8r2	superseded		none	2026-11-16/l
 O-gemini-4-hydrogen-medium-f41	O	hydrogen	medium	f41	scored	5	none	2026-11-16/logs/grid2/O-gemini-4-hydrogen-medium-f41.log.gz	
 O-gemini-4-hydrogen-medium-p8	O	hydrogen	medium	p8	superseded		none	2026-11-16/logs/T1-github-copilot-gemini-4-hydrogen-medium-p8.log.gz	
 O-gemini-4-hydrogen-medium-p8r2	O	hydrogen	medium	p8r2	superseded		none	2026-11-16/logs/T1-github-copilot-gemini-4-hydrogen-medium-p8r2.log.gz	
-O-glm-high-g31	O	glm	high	g31	scored	5	none	2026-11-16/logs/grid2/O-glm-high-g31.log.gz	base=2 ground=1 agents=1 crit=1; FLAG: unexecuted verification claim "grep shows no callers"
+O-glm-high-g31	O	glm	high	g31	scored	5	none	2026-11-16/logs/grid2/O-glm-high-g31.log.gz	"base=2 ground=1 agents=1 crit=1; FLAG: unexecuted verification claim ""grep shows no callers"""
 O-glm-high-g32	O	glm	high	g32	scored	6	none	2026-11-16/logs/grid2/O-glm-high-g32.log.gz	base=1 ground=2 agents=2 crit=1
 O-gpt-6-astra-default-g21	O	astra	default	g21	scored	6	none	2026-11-16/logs/grid2/O-gpt-6-astra-default-g21.log.gz	
 O-gpt-6_1-terra-high-o21	O	terra	high	o21	scored	5	none	2026-11-16/logs/grid2/O-gpt-6_1-terra-high-o21.log.gz	

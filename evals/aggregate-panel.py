@@ -102,8 +102,11 @@ def model_family(model):
 
 def load_run_score_tsv():
     """run_id -> (bench, model, effort) for every row with a model;
-    plus pass-1 (haiku) scores per cell from status=scored rows."""
+    plus pass-1 (haiku) scores per cell from status=scored rows;
+    plus run_id -> status (Étape 0: DNF runs feed NO cell mean —
+    PROTOCOL null = DNF re-run, never 0)."""
     id_map = {}
+    run_status = {}
     haiku_cells = defaultdict(list)
     with open(RUN_SCORES_TSV, encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")
@@ -117,6 +120,7 @@ def load_run_score_tsv():
             if not run_id or not model:
                 continue
             id_map[norm(run_id)] = (bench, model, effort)
+            run_status[norm(run_id)] = status
             if status == "scored" and bench in BENCHES:
                 if model_family(model) == "claude":
                     continue  # haiku pass never scores claude-* artifacts
@@ -124,7 +128,7 @@ def load_run_score_tsv():
                     haiku_cells[(model, effort, bench)].append(float(score))
                 except ValueError:
                     pass
-    return id_map, haiku_cells
+    return id_map, haiku_cells, run_status
 
 
 def load_runs_artifacts():
@@ -344,7 +348,7 @@ def reconcile_grid2_panel(rows):
 
 
 def main():
-    id_map, haiku_cells = load_run_score_tsv()
+    id_map, haiku_cells, run_status = load_run_score_tsv()
     artifacts, artifacts_parsed = load_runs_artifacts()
     mapper = Mapper(id_map, artifacts, artifacts_parsed)
     panel_scores = extract_panel_scores()
@@ -352,6 +356,7 @@ def main():
     # cell -> scorer column -> list of run scores
     cell_scores = defaultdict(lambda: defaultdict(list))
     dnf_counts = defaultdict(lambda: defaultdict(int))
+    dnf_skipped = set()  # run_ids skipped at ingestion: TSV status != scored
     # sonnet scores on claude-* artifacts (self-family): recorded, arb-only
     sonnet_arb_only = {}  # cell -> score value (or "DNF")
 
@@ -362,6 +367,13 @@ def main():
     # panel scorer values
     for (scorer, bench, run_id), score in sorted(panel_scores.items()):
         col = LOG_SCORER_TO_COL[scorer]
+        # Étape 0 (F6 fix): a run whose TSV status is DNF is a re-run
+        # signal — its score feeds no cell mean, for any scorer
+        # (PROTOCOL: null = DNF re-run, never 0). retry/superseded/unscored
+        # keep the pre-Étape-0 behavior (owner-reviewed, out of scope here).
+        if run_status.get(norm(run_id)) == "DNF":
+            dnf_skipped.add(run_id)
+            continue
         cell = mapper.resolve(run_id, f"panel-{scorer}-{bench}")
         if cell is None:
             continue
@@ -434,6 +446,9 @@ def main():
     print(f"panel-scores.csv written: {len(rows)} cells "
           f"({len(official)} official with >=2 independent scores, "
           f"{len(rows) - len(official)} unofficial)")
+    if dnf_skipped:
+        print(f"Étape 0: {len(dnf_skipped)} DNF run_ids skipped at ingestion "
+              f"(no cell mean): {', '.join(sorted(dnf_skipped))}")
 
     # ---------------- fold official values into grid2-scores.csv ----------
     replaced, kept, panel_only = write_grid2_official(rows)
