@@ -1,5 +1,10 @@
 # dev-workflow-kit
 
+**TL;DR — this repo ships two things:**
+
+1. **An optimized model roster** (`models.json` + the `global/agent/` roster): every seat — orchestration, cheap/strong code, design, and their review gates — is held by the best model **for its price** on our own benches (5 decision tasks, scored by a 4-family panel to cancel single-scorer bias). Quality per dollar is the design rule; the full reasoning seat-by-seat is rendered in **[the leaderboard](https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html)** (`evals/LEADERBOARD.html`).
+2. **A dev workflow with file-based memory** (`skill/` + `agent/` + `init.sh`): tasks live in plain files (`TODO.md` → `INPROGRESS.md` → `CHANGELOG.md`), every implementation pass is reviewed (commit-time review, mandatory), designs are written before code, and a pre-commit hook + conventions templates ship with. Installed per-project by `init.sh` (everything is copied, never symlinked), or session-wide with `--global`.
+
 Reusable development workflow kit for [opencode](https://opencode.ai) projects (AI agents + CLI): generic agents (impl / review / explore / design-review / deep), a task-management skill (TODO → INPROGRESS → CHANGELOG), a configurable pre-commit hook and starter files. A `--global` mode additionally installs a session-level agent roster (see [Global roster](#global-roster)). The economics: cheap models do the bulk of the work, expensive ones only escalate, and quality is recovered by cross-lineage review.
 
 A project adopts the kit via `git clone` + `init.sh`. Each project keeps its own config (`dev-workflow.json`) and diverges freely: everything is **copied**, never symlinked.
