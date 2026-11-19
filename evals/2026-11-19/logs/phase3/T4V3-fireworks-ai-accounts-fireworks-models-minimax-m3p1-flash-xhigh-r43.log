@@ -1,0 +1,319 @@
+[0m
+> build · accounts/fireworks/models/minimax-m3p1-flash
+[0m
+I'll start by reading the design doc and the prototype files.
+[0m$ [0mls -la
+total 40
+drwxr-xr-x@    7 sebastien.mendez  staff     224 Nov 19 22:17 .
+drwx------@ 3644 sebastien.mendez  staff  116608 Nov 19 22:17 ..
+-rw-r--r--@    1 sebastien.mendez  staff    4000 Nov 19 22:17 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff     772 Nov 19 22:17 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff     259 Nov 19 22:17 README.md
+-rw-r--r--@    1 sebastien.mendez  staff    2019 Nov 19 22:17 state.py
+-rw-r--r--@    1 sebastien.mendez  staff    2620 Nov 19 22:17 syncd.py
+[0m
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m→ [0mRead syncd.py
+[0m→ [0mRead state.py
+Now let me verify my reading of the prototype's behavior empirically before drawing conclusions.
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp1.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp1.py 2>&1
+--- 1. replay_journal referenced in syncd.py?
+False
+
+--- 1b. imports from state
+['from state import (', '    journal_append,', '        self.pending = {}      # rel -> state waiting for its quiet period', '        self.observed = {}     # rel -> state seen at the last scan', '        self.synced = {}       # rel -> state of the last completed copy', '        for rel, state in new.items():', '            if prev is None or prev != state:', '                self.pending[rel] = state', '                if self.observed.get(rel) != state:', '                    self.observed[rel] = state', '        state = self.pending[rel]', '        if (check.st_size, int(check.st_mtime)) != (state["size"], state["mtime"]):', '        self.synced[rel] = state', '        journal_append(self.dst_root, rel, state)']
+
+2. CRASH on vanished source: FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/syncd-exp-kq7t430x/src/a.txt'
+3. second instance refused: RuntimeError: syncd already running
+3b. stale lock persists after 'crash': True
+4. snapshot before={'a.txt': {'size': 4, 'mtime': 1000}} after={'a.txt': {'size': 4, 'mtime': 1795124279}} -> change detected? True
+5. dst has a.txt=True manifest={}
+5b. after src deletion: dst has a.txt=True manifest={}
+6. pending after requeue={'a.txt': {'size': 999, 'mtime': 2000}} synced after requeue={'a.txt': {'size': 5, 'mtime': 1795124279}}
+6b. journal contents: {"rel": "a.txt", "state": {"size": 5, "mtime": 1795124279}}
+7. corrupt manifest: JSONDecodeError: Expecting ':' delimiter: line 1 column 30 (char 29)
+8. journal lines after 5 cycles: 9
+9. missing dst dir: FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/syncd-exp-1wz9drb9/nodir/syncd.lock'
+10. snapshot of nonexistent src: {}
+11. POLL=0.5 DEBOUNCE=0.2
+[0m
+Test 4 had a flawed setup (rewriting the file bumped mtime to "now"). Let me redo the mtime test properly and build a cycle harness that mirrors `run()`.
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp2.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp2.py 2>&1
+4b. same second + same size -> change detected? False  ({'a.txt': {'size': 4, 'mtime': 1000}} vs {'a.txt': {'size': 4, 'mtime': 1000}})
+5b. after sync: manifest={} dst_a=False
+5c. after src deletion: manifest={} dst_a=False
+5d. manifest={}
+Traceback (most recent call last):
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp2.py", line 58, in <module>
+    print(f"5e. dst content={open(os.path.join(dst,'a.txt')).read()!r}  manifest={state.load_manifest(dst)}")
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/syncd-exp2-g8c92jkn/dst/a.txt'
+[0m
+The harness needed real elapsed time for the debounce. Let me fix it.
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode && python3 - <<'EOF'
+import re
+p = "exp2.py"
+s = open(p).read()
+s = s.replace('def cycle(d, sleep=0.0):', 'def cycle(d, sleep=0.0):')
+# make the debounce fire in the harness by zeroing it
+s = s.replace('import syncd, state\n', 'import syncd, state\nsyncd.DEBOUNCE_SECONDS = 0.0\n')
+open(p,"w").write(s)
+EOF
+python3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp2.py 2>&1
+4b. same second + same size -> change detected? False  ({'a.txt': {'size': 4, 'mtime': 1000}} vs {'a.txt': {'size': 4, 'mtime': 1000}})
+5b. after sync: manifest={'a.txt': {'size': 5, 'mtime': 1795124298}} dst_a=True
+5c. after src deletion: manifest={'a.txt': {'size': 5, 'mtime': 1795124298}} dst_a=True
+5d. manifest={'a.txt': {'size': 4, 'mtime': 1000}}
+5e. dst content='OLDC'  manifest={'a.txt': {'size': 4, 'mtime': 1000}}
+12. lock file exists between cycles? False
+12b. SECOND INSTANCE ACQUIRED THE LOCK -> two daemons can write into dst
+13. both racers acquired? 2/2  results=['/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/syncd-exp2-p5ewc261/dst/syncd.lock', '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/syncd-exp2-p5ewc261/dst/syncd.lock']
+14. manifest still parses (race may not interleave this run)
+15. DEBOUNCE_SECONDS=0.2 with POLL_SECONDS=0.5 ->
+    DEBOUNCE=0.2: copied at t=0.5s after detection
+    DEBOUNCE=0.3: copied at t=0.5s after detection
+    DEBOUNCE=0.49: copied at t=0.5s after detection
+    DEBOUNCE=0.5: copied at t=0.5s after detection
+    DEBOUNCE=0.51: copied at t=1.0s after detection
+    DEBOUNCE=0.9: copied at t=1.0s after detection
+16. snapshot() entry shape: {'size': 5, 'mtime': 1795124298}
+17. snapshot: ['.gitignore']
+[0m
+Let me try harder to reproduce the concurrent-commit corruption and measure the real cost of the 50k-file scenario the design makes performance claims about.
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp3.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp3.py 2>&1
+14b. manifest size on disk: 16.1 MB
+14b. attempt 0: manifest CORRUPTED -> JSONDecodeError
+14b. attempt 1: manifest CORRUPTED -> JSONDecodeError
+14b. attempt 2: manifest CORRUPTED -> JSONDecodeError
+14b. attempt 3: manifest CORRUPTED -> JSONDecodeError
+14b. attempt 4: manifest CORRUPTED -> JSONDecodeError
+14b. corrupted in 5/5 attempts
+18. built 50000 files
+18. snapshot()      =   117.3 ms   (design claims 'well under 100 ms')
+18. load_manifest() =     1.6 ms   (design: not counted in the poll budget)
+18. commit_manifest()=    8.9 ms   (design: not counted in the poll budget)
+18. poll() total    =   137.5 ms   (budget: 500 ms)
+18. cycle cost scan+load+dump =   127.8 ms  -> duty cycle 26% of a 500 ms period
+Traceback (most recent call last):
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp3.py", line 51, in <module>
+    print(f"18. journal bytes after 1 copy cycle: {os.path.getsize(os.path.join(dst, state.JOURNAL_NAME))}")
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/genericpath.py", line 50, in getsize
+    return os.stat(filename).st_size
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/syncd-perf-cpulwc8o/dst/.syncd_journal.log'
+[0m
+The corruption reproduced 5/5. Let me sanity-check the manifest I/O timings with file sizes and repeats.
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp4.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp4.py 2>&1
+files=5000  snapshot()=163.2 ms
+  rep0: commit=   7.5 ms  load=   1.3 ms  manifest=0.25 MB  entries=5000
+  rep1: commit=   7.3 ms  load=   1.5 ms  manifest=0.25 MB  entries=5000
+  rep2: commit=   7.4 ms  load=   1.4 ms  manifest=0.25 MB  entries=5000
+  -> per-cycle manifest I/O = 8.7 ms on top of a 163 ms scan
+  -> total cycle work 172 ms of a 500 ms period = 34% duty
+300 journal_append calls (open+write+close each) = 16.4 ms
+journal size after 600 appends = 0.04 MB
+[0m
+My file-tree construction was wrong (same filenames reused → only 5,000 files). Let me build a real 50,000-file tree and measure warm-cache.
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp5.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp5.py 2>&1
+built 50000 files in 100 dirs
+  snapshot() rep0 =  1238.1 ms  (50000 entries, 24.8 us/file)
+  snapshot() rep1 =  1232.0 ms  (50000 entries, 24.6 us/file)
+  snapshot() rep2 =  1219.5 ms  (50000 entries, 24.4 us/file)
+  snapshot() rep3 =  1212.7 ms  (50000 entries, 24.3 us/file)
+  manifest: commit=  74.0 ms  load=  14.7 ms  size=2.85 MB
+  manifest: commit=  72.5 ms  load=  14.8 ms  size=2.85 MB
+  manifest: commit=  72.7 ms  load=  14.5 ms  size=2.85 MB
+  poll() = 1245 ms
+Traceback (most recent call last):
+  File "/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp5.py", line 33, in <module>
+    print(f"  journal after 1 cycle: {os.path.getsize(os.path.join(dst, state.JOURNAL_NAME))} bytes")
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/genericpath.py", line 50, in getsize
+    return os.stat(filename).st_size
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/syncd-perf3-c44jf4r9/dst/.syncd_journal.log'
+[0m
+1.2 s for a 50k-file scan vs the design's "well under 100 ms". Let me decompose that cost to make the finding precise and fair.
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp6.py
+Wrote file successfully.
+[0m
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp6.py 2>&1
+50000 files
+  os.walk only (no stat)                     =    31.3 ms
+  os.walk + os.stat (no dict)                =   884.5 ms
+  os.walk + stat + dict{size,mtime}          =  1969.1 ms
+  os.walk + 1 stat + dict{size,mtime} (as impl) =  1132.4 ms
+  os.scandir (stat via DirEntry)             =    31.0 ms
+[0m
+[0m← [0mWrite /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp7.py
+Wrote file successfully.
+[0m
+A few last checks: dangling symlinks, permission fidelity, and stdout behavior.
+[0m$ [0mpython3 /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/exp7.py 2>&1
+A. CRASH scanning dangling symlink: FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/syncd-exp7-o50isxjx/src/link'
+B. snapshot treats symlink as: {'link': {'size': 238, 'mtime': 1782138133}}
+B2. dst 'link' is regular file? True  content='##\n# Host Database\n#'
+C. src mode = 0o755
+C2. dst mode = 0o644  -> executable bit LOST
+C3. manifest records only [] -> mode difference is invisible to the diff
+D. bytes written to stdout during a cycle: 0  (DESIGN.md promises a per-cycle status line)
+E. snapshot of a nonexistent src = {}  (indistinguishable from 'everything deleted')
+[0m
+I read all five files, then ran targeted experiments against the prototype to separate verified behavior from code-reading inference. Findings below; [✓] marks what I reproduced by execution, [?] marks a labeled claim I could not confirm.
+
+---
+
+# Part A — Flaws in the design itself
+
+### A1. "Single instance" and "lock scope" contradict each other — the guarantee is void by construction
+- `DESIGN.md:41-43` promises "exactly one daemon ever writes into `dst`."
+- `DESIGN.md:44-48` releases the lock at the end of every copy window, before the commit.
+These cannot both hold: the lock file is absent for the sleep + commit window, so a second instance starts and runs concurrently. [✓ verified: with the lock released between cycles, `acquire_lock` succeeded on a second instance.]
+
+The design's supporting argument — "a second instance starting in that window simply produces entries that merge cleanly on its own first commit" — is wrong twice over:
+- A whole-file JSON rewrite **cannot merge**; it is last-writer-wins over the entire file (`state.py:31-35`).
+- Concurrent writers to the same path interleave and produce invalid JSON. [✓ verified: 5/5 attempts corrupted the manifest → `JSONDecodeError` on load.]
+And `load_manifest` (`state.py:23-29`) has no error handling, so a corrupted manifest is unrecoverable.
+
+### A2. The latency guarantee is arithmetically impossible
+`DESIGN.md:17-20`: the quiet period "adds at most 200 ms of latency… so end-to-end latency stays under one poll plus 200 ms" (700 ms).
+
+The quiet clock starts at **detection**, and pending files are only examined during a poll. So the copy lands at `detection + ceil(200 ms / 500 ms) polls` = detection + 500 ms. Worst case: change lands just after a poll → detected at +0.5 s, copied at +1.0 s ≈ **two poll periods**, ~43% over budget. [✓ verified with a fake clock: every `DEBOUNCE ∈ (0, 0.5]` copied at detection + 0.5 s.]
+
+Corollary: `DEBOUNCE_SECONDS` is quantized to the poll period. Any value in `(0, POLL_SECONDS]` is behaviorally identical ("wait one poll"); the documented 200 ms quiet period does not exist as written. The debounce also cannot coalesce a burst as described — the re-stat, not the debounce, is what prevents torn copies.
+
+### A3. "mtime is guaranteed to change on every edit" is false at whole-second resolution → silent, permanent divergence
+`DESIGN.md:57-58` rejects content hashing on this basis. But the manifest stores `int(st.st_mtime)` (`state.py:19`). An edit landing in the same second and preserving file size yields an identical `(size, mtime)` pair.
+
+[✓ verified: `snapshot()` output was byte-identical before and after a same-size, same-second content change → the daemon never notices.]
+
+Compounded by the missing deletion handling (B3): delete + recreate with the same size and mtime (`cp -p`, `tar -x`, an atomic-rename deploy of a same-size artifact) leaves a surviving manifest entry that matches, so the file is never re-copied. [✓ verified: `dst` kept `'OLDC'` while `src` held `'NEW!'`, manifest claiming both were synced.]
+
+The same weakness sits in the integrity re-stat (`syncd.py:52`), so a same-second same-size edit during a copy is **not** detected and the torn copy is journaled as good.
+
+### A4. The crash-safety story is incoherent — and its repair path is unimplemented
+- `DESIGN.md:33-34`: "a partially written manifest is repaired by journal replay on the next start." The repair path does not exist (B1), and even as specified it cannot work: `replay_journal(dst_root, manifest)` (`state.py:57`) takes an *already-loaded* manifest, so repairing a corrupt manifest requires loading the journal first and treating the manifest as empty — never stated.
+- The journal's claimed value is weak anyway: "a crash between a copy and the next manifest commit loses nothing" — but the next scan already sees `src != manifest` and re-copies. The journal only avoids a redundant copy; it is not needed for correctness.
+- `DESIGN.md:59-61` rejects fsync, so the journal itself can vanish on power loss — taking the "repair path" with it.
+
+### A5. The deletion semantics as specified are a data-loss hazard with unstated preconditions
+`DESIGN.md:38-40` deletes from `dst` any file missing from `src`. The design never distinguishes "deleted" from "src is temporarily unavailable" — unmounted volume, stale NFS handle, typo'd path, source not yet booted. [✓ verified: `snapshot()` of a nonexistent root returns `{}` — indistinguishable from "everything deleted".] Once the reconcile step lands, that distinction is the difference between "dst is stale" and "dst is wiped."
+
+Also unstated: `src` must exist; `dst` must exist (the prototype dies with `FileNotFoundError` on a nonexistent dst ✓ verified); `dst` must not be inside `src` (the manifest/journal/lock live in `dst_root` and would be walked by `snapshot()`).
+
+### A6. The cost model omits the manifest I/O, and the headline number is ~12× off on this machine
+`DESIGN.md:12-15`: "a measured full scan of a 50 000-file tree costs well under 100 ms (one `stat` syscall per file)."
+
+Measured here on a real 50,000-file tree (warm cache): `os.walk` alone **31 ms**; `+ one stat/file` **885 ms**; `snapshot()` as implemented **1.21–1.24 s** (24.8 µs/file). The stat syscalls dominate — not the walk. The design doesn't count the per-cycle manifest I/O either: load **14.7 ms** + full rewrite **72.6 ms** (2.85 MB) ≈ 87 ms.
+
+Total cycle work ≈ **1.3 s against a 500 ms period** → the daemon polls at ~0.75 Hz, and the "ample headroom" argument fails on this filesystem. [? See C1 — the absolute figure is machine-specific; the *structural* point (per-file stat ≈ 28× the walk cost) is what transfers.]
+
+Related, `DESIGN.md:59-61` rejects tmp-file+rename for the manifest because it "would double the write amplification on every cycle." That reasoning is off: tmp+rename writes the same bytes once and adds an O(1) rename plus one fsync — it doesn't double write amplification. The 2.85 MB rewrite every 500 ms *is* the write amplification; the rejected alternative is the cheaper one. The real objection to tmp+rename is fsync latency, not bytes.
+
+### A7. "Memory stays flat" holds for one of three dicts
+`DESIGN.md:21-24`. True for `pending`. But `observed` and `synced` (`syncd.py:24-25`) are never pruned and grow to O(total files) — 2 × 50,000 entries — plus a freshly loaded manifest per cycle. The invariant as worded overstates the real one.
+
+### A8. "Backpressure" bounds memory, not I/O
+`DESIGN.md:21-24`. The flush loop drains *every* elapsed file in one pass (`syncd.py:38-40`), so a 500-file burst becomes a 500-file copy storm with no rate limit, no batching, and no yielding — competing with the build that caused it, while holding the lock. The design's backpressure section addresses only the dict.
+
+### A9. The "never a truncated copy" invariant doesn't follow from the mechanism
+`DESIGN.md:25-28` asserts `dst` never holds a truncated copy, but the re-stat detects *source* mutation only. `open(dst,"wb")` truncates in place, so a crash, full disk, or I/O error mid-write leaves a truncated file in `dst` — exactly what the invariant forbids. Atomic payload writes (temp + rename — the technique the design rejects for the manifest) are what actually deliver it. The design demands atomicity of the manifest and settles for a non-atomic write of the payload, which is where corruption matters.
+
+### A10. "Errors" guarantees a mechanism the architecture never contains
+`DESIGN.md:49-51` promises retries and daemon survival, but no stage in the architecture handles errors: no retry count, no backoff, no policy for a permanently unreadable file (retried forever), no handling of destination write failure, and no specified behavior for a missing `src`. The vanished-file race is called "normal" but no mechanism is specified.
+
+### A11. The ordering guarantee is weaker than stated
+`DESIGN.md:35-37`: "the manifest after a restart reflects exactly the last copy of each file." The journal records the *intended* state at scan time, not the state actually written (`syncd.py:61` appends `state`). For a file that changed mid-copy, the journal records a state `dst` never held.
+
+### A12. The design is silent on symlinks, and mode preservation
+Neither symlinks nor file modes appear anywhere. This is a gap the prototype resolves badly (B8, B9): a dev-workstation mirror that strips `+x` from build scripts is broken, and symlinks silently become file copies.
+
+---
+
+# Part B — Where the prototype fails to implement the design's guarantees
+
+### B1. Journal replay is never performed — the crash-safety mechanism is absent
+`replay_journal` is defined at `state.py:57` and never called. [✓ verified: the string `replay_journal` does not appear in `syncd.py`.] Consequence: a manifest truncated by a crash mid-write → `JSONDecodeError` at startup → the daemon dies before it can do anything [✓ verified], and with no replay there is no repair.
+
+### B2. The requeue path marks the file synced with the **stale** state
+`DESIGN.md:26-27`: "a file that changed during the copy is requeued with its new state and is **never marked synced until a clean pass completes**."
+
+`syncd.py:52-61`: on detecting the change, `pending` is updated to the new state — then control falls through to `self.synced[rel] = state` and `journal_append(..., state)`, both carrying the **pre-copy** state. [✓ verified: `pending = {size 999, mtime 2000}` but `synced = {size 5, mtime <old>}`, and the journal line recorded the old state.]
+
+Three consequences: the manifest records a state `dst` never held; the journal records a superseded copy (replay would overwrite the manifest with it); and the design's explicit "never marked synced" invariant is violated in exactly the code path it names. *Mitigating:* the next poll diffs `src` against the manifest and re-copies, so the daemon converges while running — the damage is a wrong manifest/journal and a wasted copy, not permanent divergence.
+
+### B3. No reconcile step: deletions are never propagated
+`DESIGN.md:38-40` promises the source's disappearance drops the manifest entry and deletes the file in `dst`. The prototype has no such path — `poll()` only iterates files present in the current snapshot, nothing prunes `self.synced` or the manifest, and nothing unlinks in `dst`. [✓ verified: after deleting the source, `dst` still had the file and the manifest still listed it.] This is the enabler of the permanent-divergence case in A3.
+
+### B4. The single-instance lock is broken three ways
+1. Released every cycle (`syncd.py:65-67`) → absent most of the time → second instance starts [✓ verified].
+2. `acquire_lock` is check-then-act with no `O_EXCL` (`state.py:40-44`) → two racers both acquire [✓ verified: 2/2].
+3. `release_lock` is reached only on the happy path (no `try/finally`) → the lock file survives a crash → every later start raises `RuntimeError("syncd already running")` → **the daemon cannot be restarted** without manual intervention [✓ verified]. The PID written into the file is never read back for a liveness check.
+
+### B5. No error handling at all — a transient source error kills the daemon
+`DESIGN.md:50-51`: "a transient source error never takes the daemon down." There is no `try/except` anywhere in `syncd.py`.
+
+- `open(src,"rb")` (`syncd.py:46`) raises `FileNotFoundError` for a file that vanished between scan and copy — the exact "normal race" the design calls out — and the exception propagates out of `poll()` → `run()` → process exit [✓ verified].
+- Same for the re-stat (`syncd.py:51`), `os.stat` inside `snapshot()` (`state.py:18`) for a file vanishing mid-walk, `os.makedirs`, and the destination write.
+- A dangling symlink in `src` crashes the scan [✓ verified].
+- Compounded with B4(3): the crash also leaves the lock behind, so the daemon cannot restart. **One benign race kills the daemon permanently** — the most damaging combination in the prototype.
+
+### B6. The per-cycle status line is not implemented
+`DESIGN.md:63-68` promises "each cycle logs the number of pending files and the last commit duration to stdout." [✓ verified: zero bytes written to stdout during a cycle; the only `print` in the file is the usage message.] `GOAL.md` item 4 asks for the same — the prototype predates both.
+
+### B7. The polling period is not 500 ms
+`time.sleep(POLL_SECONDS)` runs *after* the work (`syncd.py:71`) → real period = work + 500 ms. With the measured ~1.3 s of cycle work, the effective period is ~1.8 s. Minor alone; it compounds A2 and A6.
+
+### B8. The copy is neither atomic nor metadata-preserving
+`syncd.py:47-50`: `open(dst,"wb")` truncates the destination in place → an interrupted write leaves a partial file in `dst` (contra A9). `data = f.read()` buffers the whole file in RAM → a 500 MB artifact costs 500 MB RSS, and under burst load the buffering scales with the burst (contra A7). The mode is not preserved: a 0755 source lands as 0644 [✓ verified] — the exec bit is lost, and since the manifest records only size+mtime, the difference is invisible to the diff and therefore permanent.
+
+### B9. Symlinks become regular files; dangling symlinks crash the scan
+`os.stat` follows symlinks (`state.py:18`) and `open(src)` follows them (`syncd.py:46`) → a symlink to `/etc/hosts` is copied as a regular file *containing the hosts content* [✓ verified]. A dangling symlink raises `FileNotFoundError` during the scan [✓ verified].
+
+### B10. The scan is not the "full os.walk" the design describes
+`state.py:14` prunes dot-directories but keeps dot-files → `.gitignore` is synced, `.git/` is not [✓ verified]. `DESIGN.md:12` says "a full `os.walk` of `src`." Neither document states the exclusion is intended.
+
+### B11. The journal grows without bound and is never read
+`journal_append` is called per copy (`syncd.py:61`), the file is never truncated, and — with B1 — never replayed. It is write-only overhead today, and each append also costs an open/write/close (`state.py:53`). `GOAL.md` item 3 (compaction) is unimplemented.
+
+### B12. `GOAL.md`'s audit mode does not exist
+No `--verify` flag, no single audit pass, no `{"checked": N, "recopied": N, "missing_in_src": N}` summary. Note the scope conflict: `DESIGN.md` (marked v2) never mentions an audit mode at all, so the two documents disagree about the product.
+
+### B13. The manifest is rewritten in full every cycle, even when idle
+`syncd.py:68-70`: 2.85 MB dumped every 500 ms with no dirty check, and `manifest.update(self.synced)` carries forward entries for files that no longer exist (a consequence of B3).
+
+### B14. Minor: the debounce clock uses wall time
+`syncd.py:28,53` use `time.time()` for interval measurement → an NTP step backwards stalls every pending file until the clock catches up. `time.monotonic()` is the correct clock here.
+
+---
+
+# Part C — Labeled: lower confidence / conditional
+
+- **[?] C1 — the 1.2 s scan is not a universal number.** It is filesystem- and machine-specific; a fast NVMe box with a warm cache could be ~10× quicker, which is presumably where `DESIGN.md`'s 100 ms came from. The design's number is *unverified and load-bearing*, not falsified. The transferable part is the decomposition: the per-file `stat` is ~28× the cost of the walk itself, so "one stat per file" is the assumption that breaks the budget.
+- **[?] C2 — I assume `dst` is a plain local directory on the same host as `src`, and that "the design's guarantees" means the semantics as literally written.**
+- **[?] C3 — the mtime divergence (A3) requires the edit to land in the same wall-clock second *and* preserve file size.** Common enough for build tools rewriting an identical-size artifact, but it is a window, not a certainty.
+- **[?] C4 — synccli's actual manifest format is not in this repo.** `DESIGN.md:72-73` and `state.py:19` agree on whole-second mtimes, but I could not verify compatibility against the real synccli.
+- **[?] C5 — `DESIGN.md:64-66` justifies keeping the constants module-level "because configurations where the quiet period exceeds the poll budget" are risky.** With `DEBOUNCE=200 ms` and `POLL=500 ms` the effective debounce already *is* one poll, so the stated rationale doesn't describe the configured values.
+- **[?] C6 — `DESIGN.md:57-58` describes content hashing as "an extra full read of every changed file per poll."** That's roughly the right cost, and hashing only the already-identified changed files is the natural fix for A3 — the rejection reason ("mtime is guaranteed to change on every edit") is the part that is false.
+
+---
+
+**If you want the shortest list to act on first:** A1 (the lock does not provide single-instance), B1+B5 (replay missing + zero error handling = one race kills the daemon permanently), B2 (stale state marked synced), A3+B3 (silent divergence), A6 (the polling cost model).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 39693 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 37188 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37174/final-report.md (session eval-2026-11-19-T4V3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r43)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37174 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-19-T4V3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r43)

@@ -1,0 +1,14 @@
+# RG4 fixture reportgen-eval-repo-i4 (tree be19bfc8409e04a391068d0c3588bc0f7d23e196798d78116a539fd19cbc2a6e). RUBRIC-IV2-RG4 v1, max 14.
+# SEPARATE from grid2-scores.csv (RG3 and RG4 never compare). Executed probe + suite results ONLY (phase 3).
+# Judgment points (ambiguity, baseline quote, defect-to-test mapping, FPs) are NOT scored here: panel pending (phase 4a).
+# probe_c pristine = 4 reads; probe_d pristine = exit=0 CHANGED; probe_a pristine = 99; probe_b pristine = DIFFER gen=2.
+run_dir,arm,effort,tag,status,suite_green,probe_a_distinct,probe_b,probe_c_rules_opens,probe_d,own_tests_fail_on_pristine,notes
+IV4-github-copilot-claude-haiku-5-5-r41,github-copilot/claude-haiku-5.5,default,r41,scored,1,3,REPORTS-DIFFER gen=2,1,exit=1 INTACT,8/21 test_reportgen.py,b NOT fixed (cold/warm divergence)
+IV4-github-copilot-claude-haiku-5-5-r42,github-copilot/claude-haiku-5.5,default,r42,scored,1,3,REPORTS-IDENTICAL gen=1,1,exit=1 INTACT,8/21 test_reportgen.py,
+IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r41,fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash,xhigh,r41,DNF,,,,,,,no-report (no assistant text); re-run as r41b (PROTOCOL 2.2); not scored
+IV4-fireworks-minimax-xhigh-r41b,fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash,xhigh,r41b,scored,1,3,REPORTS-IDENTICAL gen=1,1,exit=1 INTACT,12/25 test_reportgen.py,re-run of r41 DNF
+IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r42,fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash,xhigh,r42,scored,1,3,REPORTS-IDENTICAL gen=1,1,exit=1 INTACT,14/28 test_reportgen.py,
+IV4-github-copilot-claude-haiku-5-5-high-r41,github-copilot/claude-haiku-5.5,high,r41,scored,1,3,REPORTS-IDENTICAL gen=1,1,exit=1 INTACT,15/29 test_reportgen.py,
+IV4-github-copilot-claude-haiku-5-5-high-r42,github-copilot/claude-haiku-5.5,high,r42,scored,1,3,REPORTS-IDENTICAL gen=1,1,exit=1 INTACT,12/26 test_reportgen.py,
+IV4-github-copilot-claude-opus-5-5-r41,github-copilot/claude-opus-5.5,default,r41,scored,1,3,REPORTS-IDENTICAL gen=1,1,exit=1 INTACT,10/10 test_regressions.py,test_reportgen.py untouched
+IV4-github-copilot-claude-opus-5-5-r42,github-copilot/claude-opus-5.5,default,r42,scored,1,3,REPORTS-IDENTICAL gen=1,1,exit=1 INTACT,9/9 test_regressions.py,test_reportgen.py untouched

@@ -1,0 +1,25 @@
+[21:46:27] LAUNCH IV4-github-copilot-claude-haiku-5-5-r41 (phase-3 spend before=$0)
+[21:48:12] EXIT IV4-github-copilot-claude-haiku-5-5-r41 status=0 spend-after=$0.0273
+[21:48:12] LAUNCH IV4-github-copilot-claude-haiku-5-5-r42 (phase-3 spend before=$0.0273)
+[21:49:52] EXIT IV4-github-copilot-claude-haiku-5-5-r42 status=0 spend-after=$0.0534
+[21:49:52] LAUNCH IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r41 (phase-3 spend before=$0.0534)
+[21:53:48] EXIT IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r41 status=0 spend-after=$0.0835
+[21:53:48] LAUNCH IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r42 (phase-3 spend before=$0.0835)
+[22:01:23] EXIT IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r42 status=0 spend-after=$0.1792
+[22:01:23] LAUNCH IV4-github-copilot-claude-haiku-5-5-high-r41 (phase-3 spend before=$0.1792)
+[22:06:16] EXIT IV4-github-copilot-claude-haiku-5-5-high-r41 status=0 spend-after=$0.3828
+[22:06:16] LAUNCH IV4-github-copilot-claude-haiku-5-5-high-r42 (phase-3 spend before=$0.3828)
+[22:17:16] EXIT IV4-github-copilot-claude-haiku-5-5-high-r42 status=0 spend-after=$0.4714
+[22:17:16] LAUNCH T4V3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r43 (phase-3 spend before=$0.4714)
+[22:42:52] EXIT T4V3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r43 status=0 spend-after=$0.5145
+[22:42:52] LAUNCH T4V3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r43b (phase-3 spend before=$0.5145)
+[22:46:30] EXIT T4V3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-xhigh-r43b status=0 spend-after=$0.5521
+[22:46:30] LAUNCH T4V3-github-copilot-claude-sonnet-5-5-high-r43 (phase-3 spend before=$0.5521)
+[22:49:19] EXIT T4V3-github-copilot-claude-sonnet-5-5-high-r43 status=0 spend-after=$0.8873
+[22:49:19] LAUNCH T4V3-github-copilot-claude-sonnet-5-5-high-r43b (phase-3 spend before=$0.8873)
+[22:50:42] EXIT T4V3-github-copilot-claude-sonnet-5-5-high-r43b status=0 spend-after=$1.124
+[22:50:43] LAUNCH IV4-github-copilot-claude-opus-5-5-r41 (phase-3 spend before=$1.124)
+[22:51:56] EXIT IV4-github-copilot-claude-opus-5-5-r41 status=0 spend-after=$1.6204
+[22:51:56] LAUNCH IV4-github-copilot-claude-opus-5-5-r42 (phase-3 spend before=$1.6204)
+[22:53:14] EXIT IV4-github-copilot-claude-opus-5-5-r42 status=0 spend-after=$2.1416
+[22:53:14] DRIVER DONE phase-3 spend=$2.1416

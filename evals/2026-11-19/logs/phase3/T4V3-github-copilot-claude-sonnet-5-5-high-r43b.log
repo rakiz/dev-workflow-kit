@@ -1,0 +1,166 @@
+[0m
+> build · claude-sonnet-5.5
+[0m
+[0m✱ [0mGlob "**/*"[90m in . · 5 matches[0m
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead syncd.py
+[0m→ [0mRead state.py
+[0m→ [0mRead README.md
+[0m→ [0mRead GOAL.md
+I've read all five files. Before I report, I'll check the key claims by running the prototype, so I don't rely on reading alone.
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-legacy-40952 && grep -n "replay_journal" *.py; T=$(mktemp -d) && cat > $T/t.py <<'EOF'
+import os, sys, time, json, tempfile, shutil
+sys.path.insert(0, os.getcwd())
+import syncd, state
+from syncd import SyncDaemon
+
+def mk():
+    r = tempfile.mkdtemp(); s=os.path.join(r,'s'); d=os.path.join(r,'d'); os.makedirs(s); os.makedirs(d); return s,d
+
+# 1. same-second same-size edit missed
+s,d = mk(); p=os.path.join(s,'a'); open(p,'w').write('AAAA'); os.utime(p,(1000,1000))
+D=SyncDaemon(s,d); syncd.DEBOUNCE_SECONDS=0
+D.poll(); D.poll(); m=state.load_manifest(d) if False else None
+state.commit_manifest(d, dict(D.synced))
+open(p,'w').write('BBBB'); os.utime(p,(1000,1000))   # same size, same second
+D.poll(); D.poll()
+print("1 dst content after same-size/same-sec edit:", open(os.path.join(d,'a')).read())
+
+# 2. deletion
+s,d = mk(); p=os.path.join(s,'a'); open(p,'w').write('x')
+D=SyncDaemon(s,d); D.poll(); D.poll(); state.commit_manifest(d, dict(D.synced))
+os.remove(p); D.poll(); D.poll()
+print("2 dst 'a' still exists after src delete:", os.path.exists(os.path.join(d,'a')), "manifest has a:", 'a' in state.load_manifest(d))
+
+# 3. vanished file -> crash + stale lock
+s,d = mk(); p=os.path.join(s,'a'); open(p,'w').write('x')
+D=SyncDaemon(s,d); D.pending['a']={'size':1,'mtime':1}; D.quiet_since['a']=0
+lock=state.acquire_lock(d)
+os.remove(p)
+try: D.poll()
+except Exception as e: print("3 poll raised:", type(e).__name__)
+print("3 lock file left behind:", os.path.exists(lock))
+try: state.acquire_lock(d)
+except Exception as e: print("3 restart:", e)
+
+# 4. continuous writer starvation
+s,d = mk(); p=os.path.join(s,'a'); open(p,'w').write('x')
+syncd.DEBOUNCE_SECONDS=0.2; D=SyncDaemon(s,d)
+for i in range(6):
+    open(p,'a').write('y'); os.utime(p,(2000+i,2000+i)); D.poll(); time.sleep(0.5)
+print("4 file copied while continuously written:", os.path.exists(os.path.join(d,'a')))
+
+# 5. changed-during-copy marked synced
+s,d = mk(); p=os.path.join(s,'a'); open(p,'w').write('x'); os.utime(p,(3000,3000))
+D=SyncDaemon(s,d); st=state.snapshot(s)['a']; D.pending['a']=st
+orig=os.stat
+import builtins
+open(p,'w').write('xxxxxx'); os.utime(p,(3005,3005))
+D.flush_one('a'); print("5 synced after mismatch:", D.synced.get('a'), "pending:", D.pending.get('a'))
+print("5 journal:", open(os.path.join(d,'.syncd_journal.log')).read().strip())
+
+# 6. torn manifest
+s,d = mk(); open(os.path.join(d,'.syncd_manifest.json'),'w').write('{"a": {"si')
+try: state.load_manifest(d)
+except Exception as e: print("6 torn manifest:", type(e).__name__)
+open(os.path.join(d,'.syncd_journal.log'),'w').write('{"rel":"a","state":{}}\n{"rel":"b","st')
+try: state.replay_journal(d,{})
+except Exception as e: print("6 torn journal:", type(e).__name__)
+
+# 7. scan timing 50k
+r=tempfile.mkdtemp()
+for i in range(50):
+    os.makedirs(f"{r}/d{i}")
+    for j in range(1000): open(f"{r}/d{i}/f{j}","w").close()
+t=time.time(); snap=state.snapshot(r); a=time.time()-t
+t=time.time(); j=json.dumps(snap); b=time.time()-t
+t=time.time(); json.loads(j); c=time.time()-t
+print(f"7 scan50k={a*1000:.0f}ms dumps={b*1000:.0f}ms loads={c*1000:.0f}ms size={len(j)/1e6:.1f}MB")
+EOF
+python3 $T/t.py
+state.py:57:def replay_journal(dst_root, manifest):
+1 dst content after same-size/same-sec edit: AAAA
+2 dst 'a' still exists after src delete: True manifest has a: True
+3 poll raised: FileNotFoundError
+3 lock file left behind: True
+3 restart: syncd already running
+4 file copied while continuously written: False
+5 synced after mismatch: {'size': 1, 'mtime': 3000} pending: {'size': 6, 'mtime': 3005}
+5 journal: {"rel": "a", "state": {"size": 1, "mtime": 3000}}
+6 torn manifest: JSONDecodeError
+6 torn journal: JSONDecodeError
+7 scan50k=1233ms dumps=18ms loads=16ms size=2.3MB
+[0m
+I found problems in both the design and the prototype, and I confirmed most of them by running the code. Anything I didn't run is marked "speculative" or "reasoned".
+
+## A. Prototype fails to implement the design's guarantees
+
+All of these were run unless noted.
+
+1. **Journal replay is never called.** `replay_journal` is defined in `state.py:57` and nothing calls it. The "on restart the journal is replayed before the first scan" guarantee, which crash safety depends on, does not exist. The journal is write-only.
+2. **Deletions are not implemented.** After deleting a source file, `dst/a` still exists and the manifest still lists it. There is no reconcile step.
+3. **Errors are not handled.**
+   - A file vanishing before `flush_one` raises an uncaught `FileNotFoundError` and kills the daemon. The design calls this "a normal race" that is retried.
+   - `snapshot()` has the same problem with `os.stat` on a file that vanishes mid-walk, and on broken symlinks (reasoned, not run).
+4. **A crash leaves a lock that blocks restarts.**
+   - `run()` has no `try/finally`, so after the crash in item 3 `syncd.lock` stays behind and the next start fails with "syncd already running".
+   - `acquire_lock` never checks whether the PID is alive, so any kill or crash causes a permanent lockout. This conflicts directly with the crash-safety story.
+5. **"Never marked synced until a clean pass" is violated.** When the post-copy re-stat shows a change, `flush_one` still sets `synced[rel] = state` (`syncd.py:60`) and appends a journal entry. The run showed `synced = {size:1, mtime:3000}` for a file that had changed to 6 bytes. It self-heals only because the manifest holds the old state. `dst` also holds a mixed or newer copy under an old-state record.
+6. **The lock does not give single-instance behaviour.**
+   - It is taken and released inside every cycle (`syncd.py:65-67`), so the whole sleep and commit window is unlocked. A second daemon can start then.
+   - The check is a TOCTOU (`os.path.exists`, then `open("w")`). It should use `O_EXCL`.
+7. **The debounce doesn't match the design.**
+   - The design says a file adds at most 200 ms of latency even while written continuously. A file changed between every pair of polls never flushes; test 4 confirmed it was never copied.
+   - Because `DEBOUNCE (0.2) < POLL (0.5)`, the debounce only means "unchanged across two consecutive polls". Latency is therefore 0.5–1 s, not "one poll + 200 ms".
+8. **Backpressure claim is false.**
+   - `pending` is not drained every pass. Only quiet files are flushed.
+   - Entries for files reverted to their manifest state are never removed.
+   - `observed` and `quiet_since` are never pruned (small leak, reasoned).
+9. **`self.synced` grows forever and is re-merged on every commit.** A stale instance re-asserts old states over newer ones. Entries are never evicted, so the manifest is rewritten wholesale each cycle.
+10. **Smaller issues.**
+    - Hidden directories are silently skipped (`state.py:14`) and the design doesn't document this.
+    - Hidden *files* are not skipped, so a source file named `.syncd_manifest.json` would clobber state.
+    - No file modes, symlink handling or empty directories are handled (reasoned).
+
+## B. Flaws in the design itself
+
+1. **"mtime is guaranteed to change on every edit" is false.**
+   - `snapshot` truncates mtime to whole seconds. Test 1 showed a same-size edit within the same second was silently never copied (`dst` kept `AAAA`).
+   - mtime can also be restored by `cp -p`, `rsync -t`, `git checkout` or `touch -r`.
+   - This is a silent divergence bug. The "matching synccli's format" rationale is a compatibility choice that costs correctness.
+   - The integrity re-stat uses the same coarse key, so it misses the same races.
+2. **The scan-cost claim didn't reproduce.**
+   - My run of `snapshot()` on 50,000 empty files took about 1.2 s on this macOS machine. The design says "well under 100 ms".
+   - That is one machine, warm cache and empty files, so treat it as a counterexample to the measurement and not as proof for yours.
+   - If scan time exceeds the 500 ms period, the effective cycle is scan + commit + 0.5 s sleep, and the stated latency bounds fail.
+   - JSON load and dump of the 50k-entry manifest were small (about 17 ms each, 2.3 MB).
+3. **Journal plus in-place manifest rewrite does not give crash safety.**
+   - A torn manifest makes `load_manifest` raise `JSONDecodeError`, which I confirmed. Replay folds into a manifest you can't load, so it can't "repair" one without a separate fallback.
+   - A torn last journal line also raises `JSONDecodeError` in replay (confirmed). A crash mid-append is exactly the case the journal exists for.
+   - There is no `fsync` of `dst` data before the journal entry, and none of the journal itself. Power loss can leave a journal entry for data that isn't on disk (reasoned, standard filesystem semantics).
+   - The rationale for rejecting tmp+rename is weak. The design rewrites the whole manifest every cycle, which is already more write amplification than one rename.
+4. **`dst` can hold a truncated copy.**
+   - The write is in place (`open(dst, "wb")`) with no temp file and rename. A crash or a reader mid-copy sees a partial file.
+   - The design claim "`dst` never holds a truncated copy" is false.
+   - Re-copying on the next poll repairs the file only if the manifest differs, which is not guaranteed after a crash.
+5. **The journal doesn't record deletions**, so replay can resurrect entries for removed files. It also never gets truncated in the design, so it grows without bound.
+6. **The lock-scope reasoning is wrong.**
+   - Manifest commits are read-modify-write, so two writers lose updates and don't "merge cleanly".
+   - A reader can load a half-written manifest.
+   - A stale instance can overwrite a newer entry with an older state. If source state later returns to that older value, `dst` silently diverges (reasoned scenario, not run).
+7. **The ordering claim is vacuous.** Append order only reflects the last copy under a single writer, which item 6 shows isn't enforced. The journal also records the scan-time state, not what was actually copied.
+8. **Observability is thin.** "Pending count and last commit duration" can't tell you latency, copy errors, skipped files or lag. Making poll and debounce constants removes the knobs needed to tune the 1.2 s scan case above.
+9. **Rejecting watchers is partly circular.** The design says watcher overflow "needs a full rescan anyway", yet it pays a full rescan every cycle. This is an argument about tradeoffs, not a bug.
+
+## C. Problems in GOAL.md that follow from the above
+
+- **Journal truncation "after a clean manifest commit" is unsafe.** The commit is a non-atomic, unfsynced overwrite, so truncating the journal can destroy the only recovery copy. Fix commit atomicity (temp file, fsync, rename) first.
+- **`--verify` depends on a trustworthy comparison.** With whole-second mtime and size it inherits flaw B1.
+- **The "missing_in_src" decision is undefined today.** The prototype has no deletion logic to reuse, and the "keep manifest format compatible with synccli" constraint limits where to store tombstones.
+
+I did not modify any files.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 40965 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 40966 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-40952/final-report.md (session eval-2026-11-19-T4V3-github-copilot-claude-sonnet-5-5-high-r43b)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-40952 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-19-T4V3-github-copilot-claude-sonnet-5-5-high-r43b)
