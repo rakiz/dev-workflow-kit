@@ -1,6 +1,6 @@
 ---
 # Model and model family are injected at install time by init.sh from the kit's models.json.
-# Checklist kept in sync with global/agent/cheap-review.md — edit both.
+# Checklist kept in sync with roster/global-agent/cheap-review.md — edit both.
 mode: subagent
 description: "Mandatory review of the work produced by impl — read-only, sorts findings into minor (back to impl) / major (escalate to deep)."
 permission:

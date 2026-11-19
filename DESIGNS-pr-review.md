@@ -13,7 +13,7 @@ Verifiable end state: given a PR number, the flow produces (a) an auditable repo
 
 - **No auto-posting, ever.** The only `gh` write is `post-approved.sh`, which posts exclusively blocks the user ticked.
 - **No CI mode** (interactive skill; CI replay can come later). **No fixing** (reviewers propose, never patch). **GitHub only, for v1** (the scripts speak `gh`; other forges are v2).
-- **No new agent definitions.** Passes run on the existing global-roster agents; agent prompts are unchanged — the objective brief carries everything. Models named in this doc are bindings from `models.json` (table below), not agents.
+- **No new agent definitions.** Passes run on the existing global-roster agents; agent prompts are unchanged — the objective brief carries everything. Models named in this doc are bindings from `roster/models.json` (table below), not agents.
 - **The battery is a config of the skill, not code.** The 6 objectives below are the v1 list; adding/removing an objective is a SKILL.md list edit, not a script change.
 
 ## Rungs, passes and model bindings
@@ -115,7 +115,7 @@ Findings come back in the existing one-line format (`severity — file:line — 
 
 ## Cost accounting
 
-The battery is ~N×cheap (N = number of objectives, 6 for v1; passes with the default binding run the v2 `cheap-review` glm 5.3-flash `low`, ~$0.005/task), so the always-on cost stays at the cheap tier — which is the point. Escalations are per-objective add-ons priced at the rung ladder: strong-review ~$0.008/task (only reachable when the battery is not glm-family), strong-review-alternative (sonnet 5.5 `medium`, the first rung for the v2 glm battery) ~$0.119/task, -alternative2 ~$0.151/task (per-task labels, from `MODELS.md`/`EVALS.md`), with a context-size qualifier: a pass routed to the large-context binding (deepseek-v4p1-flash-1017 `medium`, through cheap-review's slot) costs more and is priced as such. Actual costs come from the opencode sessions DB per pass, child sessions extracted by `session.parent_id` (not by title), applying the delegation rule (parent + all named children). Escalation beyond the first rung is behind the user gate.
+The battery is ~N×cheap (N = number of objectives, 6 for v1; passes with the default binding run the v2 `cheap-review` glm 5.3-flash `low`, ~$0.005/task), so the always-on cost stays at the cheap tier — which is the point. Escalations are per-objective add-ons priced at the rung ladder: strong-review ~$0.008/task (only reachable when the battery is not glm-family), strong-review-alternative (sonnet 5.5 `medium`, the first rung for the v2 glm battery) ~$0.119/task, -alternative2 ~$0.151/task (per-task labels, from `roster/MODELS.md`/`EVALS.md`), with a context-size qualifier: a pass routed to the large-context binding (deepseek-v4p1-flash-1017 `medium`, through cheap-review's slot) costs more and is priced as such. Actual costs come from the opencode sessions DB per pass, child sessions extracted by `session.parent_id` (not by title), applying the delegation rule (parent + all named children). Escalation beyond the first rung is behind the user gate.
 
 ## Rollout
 

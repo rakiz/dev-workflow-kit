@@ -1,8 +1,11 @@
 # Model evals — dev-workflow-kit
 
 Real comparisons (opencode runs, metrics extracted from the sessions DB)
-between the roster's models, meant to arbitrate `models.json` at every model
+between the roster's models, meant to arbitrate `roster/models.json` at every model
 release.
+
+> Campaigns and older docs reference the pre-v0.7.1 layout (evals/ at root,
+> global/agent/) — their paths are historical, not live.
 
 ## Contents
 
@@ -96,7 +99,7 @@ bench it was decided on.
 
 ## To evaluate a new model (checklist)
 
-1. `models.json`: note the current models and their role.
+1. `roster/models.json`: note the current models and their role.
 2. Run the matrix: the 4 tasks for the new model at **every effort level it
    exposes** (not just the classic `low`/`medium`/`high` — newer models expose
    `xhigh`/`max`; effort drives the appetite for tools, `low` skips reading
@@ -114,7 +117,7 @@ bench it was decided on.
     name** — a model that delegates inside an eval is scored on the
     combined labor, never on its own tokens alone (same caveat as the
     muse-spark Cheap-Mech delegation, 10-16).
-5. Decision rules (MODELS.md): comparable cost per MTok for bulk roles,
+5. Decision rules (roster/MODELS.md): comparable cost per MTok for bulk roles,
    reviewer of a lineage ≠ impl, `strong-*` judged on tasks that are up to it
    (these tasks are too easy to discriminate Opus/Fable). **The adoption
    decision is made on the FULL effort×task grid** — never on a single
@@ -129,7 +132,7 @@ bench it was decided on.
     `RESULTS.md` lands — the synthetic view is only worth sharing if it is
     never stale. Re-read the campaign's `RESULTS.md` + new `EVALS.md` rows
     and regenerate the affected points/panels (self-contained HTML, no JS,
-    family colors per `models.json` `family_hint`; list non-plotted cells).
+    family colors per `roster/models.json` `family_hint`; list non-plotted cells).
  8. **Bench v2 (live since 2026-11-01 — policy decided 2026-10-23)**: T4
     (and T3 depth)
     are saturating — 1017 swept T4 10/10 at all efforts, M3.1 averages
