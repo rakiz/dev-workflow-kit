@@ -126,5 +126,33 @@ wait "$WATCHDOG_PID" 2>/dev/null || true
 [ -f "$WORK/arm-killed-costcap" ] && { echo "arm-killed-costcap: $TITLE (cap \$$EVAL_ARM_CAP); run dir: $WORK" >&2; exit 125; }
 [ -f "$WORK/arm-killed-timeout" ] && { echo "arm-killed-timeout: $TITLE; run dir: $WORK" >&2; exit 124; }
 
+# Capture the run's final assistant message into the run dir (PROTOCOL: every
+# run dir carries final-report.md, or a no-report marker = DNF re-run signal —
+# a missing report is NEVER scored as report-dependent 0). Keyed queries only:
+# lookup by exact session title, never a table scan of the large DB.
+REPORT_SESSION="$(sqlite3 -readonly "$OC_DB" \
+  "SELECT id FROM session WHERE title = '$TITLE' ORDER BY time_created DESC LIMIT 1;")"
+REPORT_MSG=""
+if [ -n "$REPORT_SESSION" ]; then
+  REPORT_MSG="$(sqlite3 -readonly "$OC_DB" \
+    "SELECT m.id FROM message m \
+WHERE m.session_id = '$REPORT_SESSION' \
+  AND json_extract(m.data,'\$.role') = 'assistant' \
+  AND EXISTS (SELECT 1 FROM part p WHERE p.message_id = m.id \
+      AND json_extract(p.data,'\$.type') = 'text') \
+ORDER BY m.time_created DESC, m.id DESC LIMIT 1;")"
+fi
+if [ -n "$REPORT_MSG" ]; then
+  sqlite3 -readonly "$OC_DB" \
+    "SELECT json_extract(p.data,'\$.text') FROM part p \
+WHERE p.message_id = '$REPORT_MSG' \
+  AND json_extract(p.data,'\$.type') = 'text' ORDER BY p.id;" \
+    > "$WORK/final-report.md"
+  echo "final report captured: $WORK/final-report.md (session $TITLE)"
+else
+  touch "$WORK/no-report"
+  echo "warn: no assistant text found for session $TITLE — no-report marker written (DNF re-run signal)" >&2
+fi
+
 echo "run dir: $WORK (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title $TITLE)"
 exit "$RUN_STATUS"
