@@ -93,8 +93,8 @@
 #     fails (target not a git repo, never initialized, ...).
 #
 # --global behavior (session roster into the opencode config directory):
-#   - Installs the kit's global roster (global/agent/*.md — the 17 session
-#     agents, see MODELS.md for the full 4-tier grid) into
+#   - Installs the kit's global roster (roster/global-agent/*.md — the 17 session
+#     agents, see roster/MODELS.md for the full 4-tier grid) into
 #     ${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/agent/ — the opencode
 #     user-level agent directory. NOTE: no `.opencode/` level here, unlike
 #     project mode — the config directory's `agent/` subdirectory IS the
@@ -134,7 +134,7 @@ TWO MODES
    From the kit:      ./init.sh [--flags] /path/to/target-project
    From the project:  /path/to/dev-workflow-kit/init.sh [--flags]
    (no target argument: the current directory is the target)
-2. Global mode — the session roster (global/agent/*.md) into
+2. Global mode — the session roster (roster/global-agent/*.md) into
    ${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/agent/. No git repo,
    no target argument.   ./init.sh [--update] --global
 
@@ -155,7 +155,7 @@ FLAGS
                       workflow  : project core — pipeline agents, dev-workflow
                                   skill, hook, templates, dev-workflow.json
                                   (project mode default).
-                      roster    : session agents, global/agent/*.md
+                      roster    : session agents, roster/global-agent/*.md
                                   (global mode default).
                       pr-review : PR-review skill (workflow/skill/pr-review/), project
                                   mode; skipped with a warning when this kit
@@ -190,7 +190,7 @@ EXAMPLES
   ./init.sh --update /path/to/project         # sync kit-managed files
   ./init.sh --update --only=pr-review         # add a component later
 
-MORE: README.md (usage, global roster) and MODELS.md (roster rationale, 4-tier model grid).
+MORE: README.md (usage, global roster) and roster/MODELS.md (roster rationale, 4-tier model grid).
 EOF
 }
 
@@ -217,7 +217,7 @@ self_check() {
     "$KIT_DIR/workflow/skill/dev-workflow"
     "$KIT_DIR/workflow/skill/dev-workflow/SKILL.md"
     "$KIT_DIR/workflow/agent"
-    "$KIT_DIR/global/agent"
+    "$KIT_DIR/roster/global-agent"
     "$KIT_DIR/workflow/templates/dev-workflow.json"
     "$KIT_DIR/workflow/templates/TODO.md"
     "$KIT_DIR/workflow/templates/SPEC.md"
@@ -231,7 +231,7 @@ self_check() {
     "$KIT_DIR/workflow/templates/CONVENTIONS.python.md"
     "$KIT_DIR/workflow/templates/CONVENTIONS.go.md"
     "$KIT_DIR/workflow/hooks/pre-commit.sh"
-    "$KIT_DIR/models.json"
+    "$KIT_DIR/roster/models.json"
     "$KIT_DIR/VERSION"
   )
   for p in "${required[@]}"; do
@@ -242,8 +242,8 @@ self_check() {
   local -a _mds
   _mds=("$KIT_DIR/workflow/agent/"*.md)
   [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/workflow/agent/*.md (no .md file)")
-  _mds=("$KIT_DIR/global/agent/"*.md)
-  [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/global/agent/*.md (no .md file)")
+  _mds=("$KIT_DIR/roster/global-agent/"*.md)
+  [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/roster/global-agent/*.md (no .md file)")
 
   # 2. REL lock-key namespace check (see function header)
   local -a allow=("dev-workflow.json")   # copy_if_absent label, not a lock key
@@ -279,7 +279,7 @@ KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # The kit's model-binding source of truth (roster "who runs what"). One
 # variable so the layout moves stay single-site.
-MODELS_JSON="$KIT_DIR/models.json"
+MODELS_JSON="$KIT_DIR/roster/models.json"
 
 # No arguments: print the full help document (stdout) and exit 0 — never run
 # an implicit install on the current directory by accident.
@@ -446,7 +446,7 @@ fi
 # $TARGET/agent/, no .opencode/ level) and the lock file sits at its root;
 # project mode keeps .opencode/agent/ and .opencode/.dev-workflow-kit-lock.json.
 if [[ $GLOBAL_MODE -eq 1 ]]; then
-  AGENT_SRC_DIR="$KIT_DIR/global/agent"
+  AGENT_SRC_DIR="$KIT_DIR/roster/global-agent"
   AGENT_DST_DIR="$TARGET/agent"
   LOCK_FILE="$TARGET/.dev-workflow-kit-lock.json"
 else
@@ -1683,7 +1683,7 @@ if [[ ${#fresh_agents[@]} -gt 0 ]]; then
       fi
       provider="${model%%/*}"
       if ! list="$(opencode models "$provider" 2>/dev/null)"; then
-        warnings+=("could not list models for provider '$provider' (agent '$agent') — model '$model' left as configured; see MODELS.md for the role to preserve when picking a replacement")
+        warnings+=("could not list models for provider '$provider' (agent '$agent') — model '$model' left as configured; see roster/MODELS.md for the role to preserve when picking a replacement")
         continue
       fi
       if grep -qxF "$model" <<<"$list"; then
@@ -1695,11 +1695,11 @@ if [[ ${#fresh_agents[@]} -gt 0 ]]; then
         [[ -n "$c" ]] && candidates+=("$c")
       done < <(grep -i -- "$hint" <<<"$list" 2>/dev/null)
       if [[ ${#candidates[@]} -eq 0 ]]; then
-        warnings+=("model '$model' for agent '$agent' is not available and no '$hint' alternative found at provider '$provider' — left as configured, fix it manually; see MODELS.md to pick a consistent replacement")
+        warnings+=("model '$model' for agent '$agent' is not available and no '$hint' alternative found at provider '$provider' — left as configured, fix it manually; see roster/MODELS.md to pick a consistent replacement")
         continue
       fi
       if [[ ! -t 0 ]]; then
-        warnings+=("agent '$agent': default model may not be available and no interactive TTY to choose a replacement — check MODELS.md and adjust manually if needed")
+        warnings+=("agent '$agent': default model may not be available and no interactive TTY to choose a replacement — check roster/MODELS.md and adjust manually if needed")
         continue
       fi
       echo "Model '$model' configured for agent '$agent' is not available. Choose a replacement:"
