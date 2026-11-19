@@ -326,8 +326,19 @@ RG3 (current I2 fixture, `evals/reportgen-eval-repo-i3/`) and D1
 hashes above were computed over the whole tree including any `__pycache__`
 content, which is why they are not directly comparable):
 
-- RG3 `reportgen-eval-repo-i3`:
+- RG3 `reportgen-eval-repo-i3` — **calibration-retired (Étape 1, 2026-11-19):
+  its failure policy was unspecified (F2), so it cannot decide a seat; kept
+  as history, not run again:**
   `3d2c1a301730cdf3c54a8f98e61121d9a4e789dc6b10737758fbc38f351743ac`
+- **RG4 `reportgen-eval-repo-i4` (current I2 fixture, Étape 1, 2026-11-19).**
+  Delta vs RG3: GOAL.md only — (1) explicit failure policy A (preservation):
+  a failed transform exits 1, emits nothing new, leaves the previous good
+  report.json/report.html and cache byte-intact; (2) c′ made earnable: the
+  rules file is read at most once per run, count reported. Same code, same
+  defects, same inputs. Tree hash (same method, `__pycache__/` excluded):
+  `be19bfc8409e04a391068d0c3588bc0f7d23e196798d78116a539fd19cbc2a6e`
+  Rubric: private `evals-keys/RUBRIC-IV2-RG4.md`. RG3 and RG4 scores are
+  NEVER compared (incompatible scales/prompts).
 - D1 `syncfeat-brief-d1`:
   `904d10f45979019947a484eddcdf3919518a6d7c3904f1121189a19e1fe5d73a`
 

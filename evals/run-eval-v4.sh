@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Runs one bench-v3-redesign eval: run-eval-v4.sh <IV2|D1> <model> [variant] [run_tag]
+# Runs one bench-v3-redesign eval: run-eval-v4.sh <IV2|IV4|D1> <model> [variant] [run_tag]
 # Redesign-generation tasks (BENCH-V3-DESIGN §3/§4 + proposal v2; uncommitted night session):
-#   IV2 = I-v2 impl task          — fixture reportgen-eval-repo-i3 (code RG3)
+#   IV2 = I-v2 impl task          — fixture reportgen-eval-repo-i3 (code RG3, archived protocol)
+#   IV4 = I-v2 impl task, RG4     — fixture reportgen-eval-repo-i4 (code RG4, Étape 1: failure
+#         policy A explicit in GOAL.md; c′ read-count acceptance). Separate task code, so RG3 and
+#         RG4 never share a title token (their scores are never compared).
 #   D1  = D design authoring task — fixture syncfeat-brief-d1 + snaputil.py (code D1)
 # Both fixtures ship as plain files (no .git); the script copies one to a
 # fresh temp work dir. The historical runners run-eval.sh / run-eval-v2.sh
@@ -26,7 +29,7 @@
 set -euo pipefail
 
 if [ $# -lt 2 ]; then
-  echo "usage: run-eval-v3.sh <IV2|D1> <model> [variant] [run_tag]" >&2
+  echo "usage: run-eval-v4.sh <IV2|IV4|D1> <model> [variant] [run_tag]" >&2
   echo "  run_tag            optional token appended to the session title" >&2
   echo "                     (e.g. r2) so §5.4 re-run arms never collide with" >&2
   echo "                     run 1 in cost queries; default: none" >&2
@@ -67,11 +70,15 @@ case $TASK in
     FIXTURE=reportgen-eval-repo-i3; CODE=IV2; FIXCODE=RG3
     PROMPT="Work in this repo copy alone — no subagents, no delegation. Read GOAL.md and do what it asks: implement the requested feature in this repo copy, fix any defects you find with the smallest change that keeps the suite green and the stated invariants holding, add a regression test per fixed defect, and state in your final report any trade-off the brief leaves open, with the choice you made and the cost it accepts. Do not refactor; do not touch unrelated tests."
     ;;
+  IV4)
+    FIXTURE=reportgen-eval-repo-i4; CODE=IV2; FIXCODE=RG4
+    PROMPT="Work in this repo copy alone — no subagents, no delegation. Read GOAL.md and do what it asks: implement the requested feature in this repo copy, fix any defects you find with the smallest change that keeps the suite green and the stated invariants holding, add a regression test per fixed defect, and state in your final report any trade-off the brief leaves open, with the choice you made and the cost it accepts. Do not refactor; do not touch unrelated tests."
+    ;;
   D1)
     FIXTURE=syncfeat-brief-d1; CODE=D; FIXCODE=D1
     PROMPT="Work in this repo copy alone — no subagents, no delegation. Read BRIEF.md and write the design it asks for to DESIGN-d1.md in this repo copy."
     ;;
-  *) echo "unknown task: $TASK (expected IV2 or D1)" >&2; exit 1 ;;
+  *) echo "unknown task: $TASK (expected IV2, IV4 or D1)" >&2; exit 1 ;;
 esac
 
 TAG="$(echo "$MODEL" | tr '/. ' '---')${VARIANT:+-$VARIANT}${RUN_TAG:+-$RUN_TAG}"

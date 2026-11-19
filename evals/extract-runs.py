@@ -43,13 +43,14 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.join(ROOT, "2026-11-16")
 RUNS = os.path.join(BASE, "runs")
 ROUND2 = os.path.join(ROOT, "2026-11-12", "raw-round2")
-PRISTINE_I2 = os.path.join(ROOT, "reportgen-eval-repo-i3")
+PRISTINE_I2 = os.path.join(ROOT, "reportgen-eval-repo-i3")   # RG3 (archived protocol)
+PRISTINE_I4 = os.path.join(ROOT, "reportgen-eval-repo-i4")   # RG4 (Étape 1, policy A)
 OC_DB = os.path.expanduser("~/.local/share/opencode/opencode.db")
 
 # runner code / session-title bench -> decision bench code
 BENCH_CODE = {"T1": "O", "T3": "IR", "T4V2": "DR2", "IV2": "I2", "D1": "D",
               "D": "D", "O": "O", "IR": "IR", "DR2": "DR2", "I2": "I2",
-              "IV2-RG3": "I2", "IV2-RG2": "I2", "D-D1": "D",
+              "IV2-RG3": "I2", "IV2-RG4": "I2", "IV2-RG2": "I2", "D-D1": "D",
               "T2": "I-v1", "T4": "DR-v1"}
 LEGACY_BENCHES = {"O", "IR", "DR2"}
 EFFORTS = {"default", "low", "medium", "high", "xhigh"}
@@ -119,7 +120,7 @@ def title_parts(title):
         return None
     rest = m.group(1)
     bench = None
-    for code in ("IV2-RG3", "IV2-RG2", "D-D1", "T1", "T2", "T3", "T4V2", "T4"):
+    for code in ("IV2-RG4", "IV2-RG3", "IV2-RG2", "D-D1", "T1", "T2", "T3", "T4V2", "T4"):
         if rest.startswith(code + "-"):
             bench = code
             rest = rest[len(code) + 1:]
@@ -443,9 +444,21 @@ def load_scorer_scores():
 
 
 # -------------------------------------------------------------- artifacts ---
+def pristine_for(rundir):
+    """RG4 runs carry the policy-A GOAL.md; everything else diffs against RG3."""
+    goal = os.path.join(rundir, "GOAL.md")
+    try:
+        with open(goal, encoding="utf-8") as fh:
+            if "Failure policy (explicit" in fh.read():
+                return PRISTINE_I4
+    except OSError:
+        pass
+    return PRISTINE_I2
+
+
 def diff_dir(rundir):
     r = subprocess.run(["diff", "-ru", "--exclude=__pycache__",
-                        PRISTINE_I2, rundir], capture_output=True, text=True)
+                        pristine_for(rundir), rundir], capture_output=True, text=True)
     return r.stdout
 
 
