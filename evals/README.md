@@ -91,6 +91,19 @@ Pipeline stages: **D** design authoring, **DR** design-review, **I** impl,
 the distinctive-string leakage check may not assume eventual publication of
 past benches.
 
+**Key-purge record (Étape 0, 2026-11-19):** the 2026-11-16 scoring-panel
+transcripts (89 files quoting the I2/D rubric keys verbatim) were moved to the
+PRIVATE repo (`evals-keys@score-logs/2026-11-16/panel/`) and purged from this
+repo's history (`git filter-repo`, all commits + tags rewritten; fresh-clone
+full-history grep of the rubric-only distinctive strings: zero hits). The
+pre-rewrite history — including commit `bab0034` cited by the external method
+review — lives in the private repo branch `backup-kit-pre-purge` (and
+`backup-kit-pre-purge-c2` for the move commit); the review's snapshot SHA
+`bab0034` maps to the rewritten `09edb41`. GitHub-side cached views/PR refs
+cannot be purged from the CLI: **the exposed I2/D rubrics are considered
+BURNED for held-out reuse** (the key-rotation rule already covers this —
+fresh keys ship with the held-out fixtures, Étape 2).
+
 **Version policy:** an unqualified stage code always means the current
 version of that stage's fixture ("D" = the latest D fixture; "DR-v2" pins
 one), so a future DR-v3 or O-v2 needs no taxonomy rename. Scores are never
