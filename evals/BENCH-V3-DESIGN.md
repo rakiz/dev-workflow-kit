@@ -339,6 +339,22 @@ content, which is why they are not directly comparable):
   `be19bfc8409e04a391068d0c3588bc0f7d23e196798d78116a539fd19cbc2a6e`
   Rubric: private `evals-keys/RUBRIC-IV2-RG4.md`. RG3 and RG4 scores are
   NEVER compared (incompatible scales/prompts).
+
+**DR-v3 prompt (Étape 1 phase 2, F4 — separate proposal review and conformance audit).**
+Task code `T4V3` in `run-eval-v5.sh` (fixture unchanged: `synccli-eval-repo-v2`). The
+archived `T4V2` prompt is kept unchanged (DR2 is a closed bench; a prompt change is a new
+bench version, §2 rule 3). DR-v3 prompt:
+"Read DESIGN.md and the accompanying prototype (syncd.py, state.py). Identify BOTH: flaws in
+the proposed approach itself, AND places where the prototype fails to implement the design's
+guarantees. State true findings and keep speculative claims clearly labeled." The scorer
+reports the proposal findings and the conformance findings SEPARATELY (true / FP each).
+No DR-v3 answer key exists yet; scoring requires one (open item, see RESULTS.md Étape 1).
+
+**D key v3 (Étape 1 phase 2, F5).** `evals-keys/RUBRIC-D1-v3.md` (private) supersedes v2:
+H4 also credits the `<=`-contradicts-docstring diagnosis of `is_stale` (`snaputil.py:73`,
+full point; float-vs-ns stays the full-credit mechanism); H2 is stated as "linear in total
+files visited", not "quadratic in snapshots". v2 stays as the record of past scores; D
+cells scored under v2 are re-scored under v3 (RESULTS.md Étape 1).
 - D1 `syncfeat-brief-d1`:
   `904d10f45979019947a484eddcdf3919518a6d7c3904f1121189a19e1fe5d73a`
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Runs one legacy-bench eval with bench-v3 cost discipline: run-eval-v5.sh <T3|T4V2> <model> [variant] [run_tag]
+# Runs one legacy-bench eval with bench-v3 cost discipline: run-eval-v5.sh <T3|T4V2|T4V3> <model> [variant] [run_tag]
 # T3 = impl-review (fixture synccli-eval-repo, v1 bench — its 2-commit history recreated)
-# T4V2 = design-review (fixture synccli-eval-repo-v2, v2 bench)
+# T4V2 = design-review (fixture synccli-eval-repo-v2, v2 bench — archived prompt, unchanged)
+# T4V3 = design-review DR-v3 (same fixture; proposal + prototype conformance, Étape 1)
 # Same fail-closed cap machinery as run-eval-v4.sh (EVAL_TIER/EVAL_ARM_CAP required,
 # poller kills at 2x cap, wall-clock watchdog). The historical runners
 # run-eval.sh / run-eval-v2.sh stay frozen — this script exists so the
@@ -9,7 +10,7 @@
 set -euo pipefail
 
 if [ $# -lt 2 ]; then
-  echo "usage: run-eval-v5.sh <T3|T4V2> <model> [variant] [run_tag]" >&2
+  echo "usage: run-eval-v5.sh <T3|T4V2|T4V3> <model> [variant] [run_tag]" >&2
   echo "  EVAL_TIER or EVAL_ARM_CAP required (same semantics as run-eval-v4.sh)" >&2
   exit 1
 fi
@@ -44,7 +45,13 @@ case $TASK in
     FIXTURE=synccli-eval-repo-v2
     PROMPT="Read DESIGN.md. Critique this approach BEFORE code is written: major risks, wrong assumptions, what will break under real load, decisions to change first. Concrete and brief."
     ;;
-  *) echo "unknown task: $TASK (expected T1, T3 or T4V2)" >&2; exit 1 ;;
+  T4V3)
+    # DR-v3 (Étape 1, F4): asks for BOTH proposal review and prototype conformance,
+    # reported separately by the scorer. Fixture = DR2 fixture (unchanged).
+    FIXTURE=synccli-eval-repo-v2
+    PROMPT="Read DESIGN.md and the accompanying prototype (syncd.py, state.py). Identify BOTH: flaws in the proposed approach itself, AND places where the prototype fails to implement the design's guarantees. State true findings and keep speculative claims clearly labeled."
+    ;;
+  *) echo "unknown task: $TASK (expected T1, T3, T4V2 or T4V3)" >&2; exit 1 ;;
 esac
 
 TAG="$(echo "$MODEL" | tr '/. ' '---')${VARIANT:+-$VARIANT}${RUN_TAG:+-$RUN_TAG}"
