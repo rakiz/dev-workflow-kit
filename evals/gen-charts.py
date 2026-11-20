@@ -172,6 +172,121 @@ def parse_fp(note, bench):
     return int(m.group(1)) if m else None
 
 
+FF_PATH = os.path.join(_HERE, "2026-11-16", "fp-findings.tsv")     # extract-fp-findings.py output
+RUNSCORES = os.path.join(_HERE, "2026-11-16", "grid2-run-scores.tsv")
+
+# The project's divergence thresholds (aggregate-panel.py:26-27,413): a reader
+# spread of at least 1 point on IR, 2 on DR2, is scorer disagreement.
+DIVERGENCE_THRESHOLD = {"IR": 1, "DR2": 2}
+# The scale the findings are counted on, per bench.
+FINDINGS_DENOM = {"IR": "of 3 seeded + bonus", "DR2": "of 10 categories"}
+
+
+def _load_findings():
+    """Cell-level findings and FP for IR/DR2: the mean over the cell's scored runs
+    of each run's panel mean (fp-findings.tsv mean rows). `disagree` counts the
+    runs whose readers spread beyond the bench's divergence threshold (kept
+    visible, never hidden).
+
+    The TSV is a generated file: when it is absent the charts fall back to the
+    note-derived FP alone (no crash). Mean rows the extractor withheld (a
+    reading that contradicts the official record) are never published."""
+    run_cell = {}
+    for r in csv.DictReader(open(RUNSCORES), delimiter="\t"):
+        if r["status"] == "scored" and r["bench"] in ("IR", "DR2"):
+            run_cell[r["run_id"]] = (r["bench"], r["model"], r["effort"])
+    try:
+        fh = open(FF_PATH, encoding="utf-8", newline="")
+    except FileNotFoundError:
+        return {}
+    acc = {}
+    with fh:
+        for r in csv.DictReader(fh, delimiter="\t"):
+            if r["row_kind"] != "mean" or r["run_id"] not in run_cell:
+                continue
+            if r.get("qual") in ("contradicts", "none"):
+                continue          # withheld by the extractor: not published
+            cell = run_cell[r["run_id"]]
+            c = acc.setdefault(cell, {"f": [], "p": [], "runs": 0, "disagree": 0,
+                                      "readers": 0, "fp_readers": 0, "qual": ""})
+            c["runs"] += 1
+            c["readers"] += int(r.get("n_readers") or 0)
+            c["fp_readers"] += int(r.get("n_fp") or 0)
+            c["qual"] = r.get("qual") or c["qual"]
+            if r["findings"]:
+                c["f"].append(float(r["findings"]))
+            if r["fp"]:
+                c["p"].append(float(r["fp"]))
+            # the readers' score spread, compared with the bench's own
+            # divergence threshold (the project's measure, aggregate-panel.py)
+            if float(r.get("score_spread") or 0) >= DIVERGENCE_THRESHOLD[cell[0]]:
+                c["disagree"] += 1
+    out = {}
+    for k, c in acc.items():
+        out[k] = {"findings": sum(c["f"]) / len(c["f"]) if c["f"] else None,
+                  "fp": sum(c["p"]) / len(c["p"]) if c["p"] else None,
+                  "runs": c["runs"], "disagree": c["disagree"],
+                  "readers": c["readers"], "fp_readers": c["fp_readers"],
+                  "qual": c["qual"]}
+    return out
+
+
+def fp_txt(fp, fp_src):
+    """An FP count as published: the official record states a whole number, the
+    panel mean is a mean of counts (one decimal)."""
+    return f"{fp}" if fp_src else f"{fp:.1f}"
+
+
+def ff_line(meta, bench):
+    """The IR/DR2 tooltip line: findings and false positives, each with its
+    denominator and its reader count.
+
+    The official record (the FP the CSV note states) always wins over the panel
+    FP: a panel FP lower than the official one is never published. The panel
+    FP is only shown when the official record states none."""
+    ff = meta.get("ff")
+    official_fp = meta.get("fp")          # note-derived: the established record
+    panel_fp = ff["fp"] if ff else None
+    bench = meta.get("bench", bench)      # the data bench (IR/DR2), not the seat code
+    denom = FINDINGS_DENOM.get(bench, "")
+    findings = ff["findings"] if ff else None
+    if official_fp is not None:
+        fp, fp_readers, readers = official_fp, "", ""
+        fp_src = "official record"
+    elif panel_fp is not None:
+        fp, fp_readers, readers = panel_fp, ff["fp_readers"], ff["readers"]
+        fp_src = ""
+    else:
+        fp, fp_readers, readers, fp_src = None, "", "", ""
+    if findings is not None and fp is not None:
+        line = f'findings {findings:.1f} ({denom}) · FP {fp_txt(fp, fp_src)}'
+        if fp_src:
+            line += f' ({fp_src})'
+        elif readers:
+            line += f' ({fp_readers}/{readers} readers)'
+        if ff and ff["qual"] == "unofficial":
+            line += " · unofficial panel (1 scorer)"
+        if ff and ff["disagree"]:
+            line += f' · scorers disagree on {ff["disagree"]} run(s)'
+    elif findings is not None:
+        line = f'findings {findings:.1f} ({denom}) · FP not readable per run'
+    elif fp is not None:
+        line = f'FP {fp_txt(fp, fp_src)}'
+        if fp_src:
+            line += f' ({fp_src})'
+        elif readers:
+            line += f' ({fp_readers}/{readers} readers)'
+        line += " · findings not recorded per run"
+    elif bench in ("IR", "DR2"):
+        line = "net score (FP not recorded per run)"
+    else:
+        line = ""
+    return line
+
+
+CELL_FF = _load_findings()
+
+
 def parse_cost(c):
     c = c.strip().lstrip("~").strip()
     if not c:
@@ -218,7 +333,10 @@ def load_dots(column):
         one_fam = v.endswith("~")
         meta = {"bench": bench, "cost_src": cost_src, "info": info,
                 "dur": cell_dur(bench, model, eff),
-                "ops": ops_for(model, eff), "fp": parse_fp(note, bench)}
+                "ops": ops_for(model, eff), "fp": parse_fp(note, bench),
+                "ff": CELL_FF.get((bench, model, eff))}
+        # meta["fp"] stays the OFFICIAL record (the FP the CSV note states);
+        # the panel FP never overrides it (see ff_line).
         pts.append((name, s, cost, SEATS.get((model, eff), []), single, note, one_fam, meta))
     return pts
 
@@ -315,12 +433,7 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
             ops_line = f'delivered {ops["d"]}/{ops["n"]} (all benches)'
         else:
             ops_line = 'delivered: no run data'
-        if meta["fp"] is not None:
-            fp_line = f'FP {meta["fp"]} (findings not recorded per run)'
-        elif meta["bench"] in ("IR", "DR2"):
-            fp_line = 'net score (FP not recorded per run)'
-        else:
-            fp_line = ''
+        fp_line = ff_line(meta, bench)
         TIPHTML = (f'<b>{html.escape(full)}</b> <i>{html.escape(eff)}</i><br>'
                    f'score {s_:g} · ${c:g}/task · {latency_text(meta["dur"])}'
                    + (' · single valid run' if single else '')
@@ -585,7 +698,7 @@ def build_and_write():
         pts = load_dots(column)
         blocks.append(f'<h3>{html.escape(title)}</h3>')
         blocks.append(svg(title, ymax, pts, bench, ylabel, ref))
-        blocks.append(f'<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · ~ = one scorer family · dashed = frontier · X = cost per delivered run on this bench (generic CSV estimate where no run data) · IR/DR2 show findings and false positives separately where the run record states them; otherwise the net is marked “net” — a net score never hides real findings · hover = provider/model id, effort, score, cost, delivery and latency, seats, why, CSV note</p>')
+        blocks.append(f'<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · ~ = one scorer family · dashed = frontier · X = cost per delivered run on this bench (generic CSV estimate where no run data) · IR/DR2 show findings and false positives separately where the run record states them; otherwise the net is marked “net” — a net score never hides real findings · findings = categories credited (DR2, of 10; the score also carries the proof bonus) or seeded hits + bonus (IR, of 3 + bonus) · FP = mean over the readers that stated a false-positive count (reader counts shown); the official record (the FP the CSV note states) always wins · hover = provider/model id, effort, score, cost, delivery and latency, seats, why, CSV note</p>')
     blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
     blocks.append('<p class="note"><strong>Tie rule (ratified 2026-11-20).</strong> Eligibility = two scorer families + &ge;2 valid runs; the cheapest arm inside the MDE band wins the seat.</p>')
     blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>

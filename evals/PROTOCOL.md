@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for the eval machinery. Every new
 > session MUST read it before touching `LEADERBOARD.html`, the runners, or
-> launching runs. Last amended: 2026-11-19 (Étape 1: RG4 gates re-frozen, §5(e)).
+> launching runs. Last amended: 2026-11-20 (findings-vs-FP chain step, §3/§6).
 
 ## 1. The five decision benches
 
@@ -74,7 +74,8 @@ leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
   logs gzipped in place. **No `raw/` trees, ever** — run dirs are extracted
   into `runs/` at extraction time and never committed as raw trees; retired
   raw trees (`2026-11-16/raw/`, `2026-11-12/raw*`) are git history only.
-- Ops layer is part of the standard regeneration: `build-ops.py` -> `2026-11-16/run-ops.tsv` (cost, delivery, latency and tokens per run, keyed DB reads), then `gen-charts.py` (score charts, `#ops`, roster ops column) and `build-matrix.py`; `verify-charts.py` must pass.
+- Ops layer is part of the standard regeneration: `build-ops.py` -> `2026-11-16/run-ops.tsv` (cost, delivery, latency and tokens per run, keyed DB reads), then `extract-fp-findings.py` -> `<DAY>/fp-findings.tsv` (per-run findings and false-positive counts of the IR/DR2 scorer panel; numeric counts + log:line evidence only, never rubric text), then `gen-charts.py` (score charts, `#ops`, roster ops column) and `build-matrix.py`; `verify-charts.py` must pass.
+- `extract-fp-findings.py` reads the PRIVATE repo (`../../evals-keys/score-logs/<date>/panel/`), so it only runs where that repo is present; the TSV it writes is the public artifact (numbers + `file:line` evidence) and is regenerated from the private logs, never copied from them. A missing TSV degrades the charts to the note-derived FP only (no crash).
 - Costs via session titles `eval-<date>-*` (parent + children roll-up,
   `grid2-costs.tsv`). Status per run: `<date>/logs/grid*/_status.txt`.
 - After the grid: score everything (fresh scorer per run, rubric-strict),
@@ -186,11 +187,16 @@ Run the steps in order. A step that fails stops the campaign; do not skip ahead.
    runs (self-family excluded). Blinded per-candidate dirs once Étape 3 lands;
    until then, the unblinding limits of §5 apply and are recorded.
 5. **`aggregate-panel.py`** -> panel scores (divergence rules per bench).
-6. **`build-matrix.py` + `gen-charts.py` + `verify-charts.py`** (must print OK).
-7. **`RESULTS.md` + the ledger fold** (`extract-runs.py` / runs ledger).
-8. **Close the campaign when superseded** (manual, no tool yet): append a closing
+6. **`extract-fp-findings.py`** -> `<DAY>/fp-findings.tsv` (per-run findings
+   and FP counts of the IR/DR2 panel, numeric only; reads the PRIVATE score
+   logs, so it needs `../evals-keys/`; a reading that contradicts the official
+   record is withheld, never published). DAY = argv[1], else `$EVAL_DAY`, else
+   `2026-11-16`.
+7. **`build-matrix.py` + `gen-charts.py` + `verify-charts.py`** (must print OK).
+8. **`RESULTS.md` + the ledger fold** (`extract-runs.py` / runs ledger).
+9. **Close the campaign when superseded** (manual, no tool yet): append a closing
    line to the status file and keep the campaign file as the record.
-9. **No commit or push without the owner's explicit go on the shown diff.**
+10. **No commit or push without the owner's explicit go on the shown diff.**
    Briefs never carry a commit or push instruction. The agent permission rails
    enforce it: push = deny, commit = ask.
 

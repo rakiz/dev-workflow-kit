@@ -1,0 +1,369 @@
+run_id	bench	row_kind	scorer	findings	fp	score	counted	qual	n_readers	n_findings	n_fp	score_spread	findings_spread	fp_spread	evidence
+DR2-claude-fable-5-default-g21	DR2	reading	glm	9	0	10.00	yes	unofficial							panel-glm-DR2-1.log:140
+DR2-claude-fable-5-default-g21	DR2	reading	sonnet	9	0	11.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:843
+DR2-claude-haiku-5_5-high-g21	DR2	reading	glm	5	0	5.00	yes	unofficial							panel-glm-DR2-1.log:141
+DR2-claude-haiku-5_5-high-g21	DR2	reading	sonnet	4	0	4.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:848
+DR2-claude-haiku-5_5-high-g22	DR2	reading	glm	9	0	9.00	yes	unofficial							panel-glm-DR2-1.log:142
+DR2-claude-haiku-5_5-high-g22	DR2	reading	sonnet	8	0	8.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:849
+DR2-claude-haiku-5_5-low-g21	DR2	reading	glm	6	0	6.00	yes	unofficial							panel-glm-DR2-1.log:143
+DR2-claude-haiku-5_5-low-g21	DR2	reading	sonnet	5	0	5.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:850
+DR2-claude-haiku-5_5-low-g22	DR2	reading	glm	5	0	5.00	yes	unofficial							panel-glm-DR2-1.log:144
+DR2-claude-haiku-5_5-low-g22	DR2	reading	sonnet	4	0	4.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:851
+DR2-claude-haiku-5_5-medium-g21	DR2	reading	glm	6	0	6.00	yes	unofficial							panel-glm-DR2-1.log:145
+DR2-claude-haiku-5_5-medium-g21	DR2	reading	sonnet	5	0	5.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:852
+DR2-claude-haiku-5_5-medium-g22	DR2	reading	glm	5	0	5.00	yes	unofficial							panel-glm-DR2-1.log:146
+DR2-claude-haiku-5_5-medium-g22	DR2	reading	sonnet	5	0	5.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:853
+DR2-claude-haiku-5_5-xhigh-g21	DR2	reading	glm	8	0	8.00	yes	unofficial							panel-glm-DR2-1.log:147
+DR2-claude-haiku-5_5-xhigh-g21	DR2	reading	sonnet	7	0	7.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:854
+DR2-claude-haiku-5_5-xhigh-g22	DR2	reading	glm	6	0	6.00	yes	unofficial							panel-glm-DR2-1.log:148
+DR2-claude-haiku-5_5-xhigh-g22	DR2	reading	sonnet	6	0	6.00	no	self,unofficial							panel-sonnet-DR2-arb1.log:855
+DR2-claude-opus-5_5-default-g21	DR2	reading	glm	6	0	6.00	yes	unofficial							panel-glm-DR2-1.log:149
+DR2-claude-opus-5_5-default-g21	DR2	reading	sonnet		0	6.00	no	self,unofficial							panel-sonnet-DR2-arb2.log:760
+DR2-claude-sonnet-5_5-high-g21	DR2	reading	glm	10	0	10.00	yes	unofficial							panel-glm-DR2-1.log:150
+DR2-claude-sonnet-5_5-high-g21	DR2	reading	sonnet		0	10.00	no	self,unofficial							panel-sonnet-DR2-arb2.log:765
+DR2-deepseek-v4p1-flash-1017-high-g21	DR2	reading	glm	8	0	8.00	yes								panel-glm-DR2-1.log:151
+DR2-deepseek-v4p1-flash-1017-high-g22	DR2	reading	glm	6	0	6.00	yes								panel-glm-DR2-1.log:152
+DR2-deepseek-v4p1-flash-1017-low-g21	DR2	reading	glm	9	0	9.00	yes								panel-glm-DR2-1.log:153
+DR2-deepseek-v4p1-flash-1017-low-g22	DR2	reading	glm	9	1	6.00	yes								panel-glm-DR2-2.log:117
+DR2-deepseek-v4p1-flash-1017-low-g22	DR2	reading	minimax	9	1	6.00	yes								panel-minimax-DR2-2.log:613
+DR2-deepseek-v4p1-flash-1017-medium-g21	DR2	reading	glm	6	1	3.00	yes								panel-glm-DR2-2.log:118
+DR2-deepseek-v4p1-flash-1017-medium-g21	DR2	reading	minimax	8	2	2.00	yes								panel-minimax-DR2-2.log:614
+DR2-deepseek-v4p1-flash-1017-medium-g21	DR2	reading	sonnet	7	0	7.00	yes								panel-sonnet-DR2-arb1.log:840
+DR2-deepseek-v4p1-flash-1017-medium-g22	DR2	reading	glm	7	1	4.00	yes								panel-glm-DR2-2.log:119
+DR2-deepseek-v4p1-flash-1017-medium-g22	DR2	reading	minimax	7	1	4.00	yes								panel-minimax-DR2-2.log:615
+DR2-deepseek-v4p1-flash-1017-medium-g22	DR2	reading	sonnet	7	0	7.00	yes								panel-sonnet-DR2-arb1.log:841
+DR2-fw-deepseek-v4_1-flash-default-g21	DR2	reading	glm	7	0	7.00	yes								panel-glm-DR2-2.log:120
+DR2-fw-deepseek-v4_1-flash-default-g21	DR2	reading	minimax	9	0	9.00	yes								panel-minimax-DR2-2.log:616
+DR2-fw-deepseek-v4_1-flash-default-g22	DR2	reading	glm	8	0	8.00	yes								panel-glm-DR2-2.log:121
+DR2-fw-deepseek-v4_1-flash-default-g22	DR2	reading	minimax	9	0	9.00	yes								panel-minimax-DR2-2.log:617
+DR2-fw-glm-5_3-flash-high-g21	DR2	reading	minimax	7	1	4.00	yes								panel-minimax-DR2-2.log:618
+DR2-fw-glm-5_3-flash-high-g22	DR2	reading	1017	6	0	6.00	yes								panel-1017-DR2-2.log:723
+DR2-fw-glm-5_3-flash-high-g22	DR2	reading	minimax	8	1	5.00	yes								panel-minimax-DR2-2.log:619
+DR2-fw-glm-5_3-flash-low-g21	DR2	reading	1017	5	0	5.00	yes								panel-1017-DR2-2.log:724
+DR2-fw-glm-5_3-flash-low-g21	DR2	reading	minimax	6	1	3.00	yes								panel-minimax-DR2-2.log:620
+DR2-fw-glm-5_3-flash-low-g21	DR2	reading	sonnet	5	0	5.00	yes								panel-sonnet-DR2-arb1.log:846
+DR2-fw-glm-5_3-flash-low-g22	DR2	reading	1017	6	0	6.00	yes								panel-1017-DR2-2.log:725
+DR2-fw-glm-5_3-flash-low-g22	DR2	reading	minimax	6	1	3.00	yes								panel-minimax-DR2-2.log:621
+DR2-fw-glm-5_3-flash-low-g22	DR2	reading	sonnet	6	0	6.00	yes								panel-sonnet-DR2-arb1.log:847
+DR2-gemini-3_8-flash-medium-g21	DR2	reading	1017	7	0	7.00	yes								panel-1017-DR2-2.log:726
+DR2-gemini-3_8-flash-medium-g21	DR2	reading	glm	6	0	7.00	yes								panel-glm-DR2-2.log:122
+DR2-gemini-3_8-flash-medium-g21	DR2	reading	minimax	9	0	10.00	yes								panel-minimax-DR2-2.log:622
+DR2-gemini-3_8-flash-medium-g21	DR2	reading	sonnet	7	0	8.00	yes								panel-sonnet-DR2-arb1.log:844
+DR2-gemini-3_8-flash-medium-g22	DR2	reading	1017	6	0	6.00	yes								panel-1017-DR2-2.log:727
+DR2-gemini-3_8-flash-medium-g22	DR2	reading	glm	6	1	4.00	yes								panel-glm-DR2-2.log:123
+DR2-gemini-3_8-flash-medium-g22	DR2	reading	minimax	8	0	9.00	yes								panel-minimax-DR2-2.log:623
+DR2-gemini-3_8-flash-medium-g22	DR2	reading	sonnet	6	0	7.00	yes								panel-sonnet-DR2-arb1.log:845
+DR2-gemini-4-hydrogen-high-p7	DR2	reading	1017	5	2	-1.00	yes								panel-1017-DR2-2.log:728
+DR2-gemini-4-hydrogen-high-p7	DR2	reading	glm	5	1	2.00	yes								panel-glm-DR2-2.log:124
+DR2-gemini-4-hydrogen-high-p7	DR2	reading	minimax	8	1	5.00	yes								panel-minimax-DR2-2.log:624
+DR2-gemini-4-hydrogen-high-p7	DR2	reading	sonnet		0	5.00	yes								panel-sonnet-DR2-arb2.log:754
+DR2-gemini-4-hydrogen-high-p7r2	DR2	reading	1017	5	1	2.00	yes								panel-1017-DR2-2.log:729
+DR2-gemini-4-hydrogen-high-p7r2	DR2	reading	glm	6	0	6.00	yes								panel-glm-DR2-2.log:125
+DR2-gemini-4-hydrogen-high-p7r2	DR2	reading	minimax	8	0	8.00	yes								panel-minimax-DR2-2.log:625
+DR2-gemini-4-hydrogen-high-p7r2	DR2	reading	sonnet		0	5.00	yes								panel-sonnet-DR2-arb2.log:755
+DR2-gemini-4-hydrogen-medium-p7	DR2	reading	1017	4	0	4.00	yes								panel-1017-DR2-2.log:730
+DR2-gemini-4-hydrogen-medium-p7	DR2	reading	glm	4	0	4.00	yes								panel-glm-DR2-2.log:126
+DR2-gemini-4-hydrogen-medium-p7	DR2	reading	minimax	7	0	7.00	yes								panel-minimax-DR2-2.log:626
+DR2-gemini-4-hydrogen-medium-p7	DR2	reading	sonnet		0	4.00	yes								panel-sonnet-DR2-arb2.log:756
+DR2-gemini-4-hydrogen-medium-p7r2	DR2	reading	1017	5	0	5.00	yes								panel-1017-DR2-2.log:731
+DR2-gemini-4-hydrogen-medium-p7r2	DR2	reading	glm	6	0	6.00	yes								panel-glm-DR2-2.log:127
+DR2-gemini-4-hydrogen-medium-p7r2	DR2	reading	minimax	6	0	6.00	yes								panel-minimax-DR2-3.log:879
+DR2-gemini-4-hydrogen-medium-p7r2	DR2	reading	sonnet		0	5.00	yes								panel-sonnet-DR2-arb2.log:757
+DR2-gpt-6-astra-default-g21	DR2	reading	1017	5	0	5.00	yes								panel-1017-DR2-2.log:732
+DR2-gpt-6-astra-default-g21	DR2	reading	glm	6	1	3.00	yes								panel-glm-DR2-2.log:128
+DR2-gpt-6-astra-default-g21	DR2	reading	minimax	5	0	5.00	yes								panel-minimax-DR2-3.log:880
+DR2-gpt-6-astra-default-g21	DR2	reading	sonnet	5	0	5.00	yes								panel-sonnet-DR2-arb1.log:842
+DR2-gpt-6_1-sol-medium-g21	DR2	reading	1017	5	0	5.00	yes								panel-1017-DR2-2.log:733
+DR2-gpt-6_1-sol-medium-g21	DR2	reading	glm	6	1	3.00	yes								panel-glm-DR2-2.log:129
+DR2-gpt-6_1-sol-medium-g21	DR2	reading	minimax	5	0	5.00	yes								panel-minimax-DR2-3.log:881
+DR2-gpt-6_1-sol-medium-g21	DR2	reading	sonnet		0	4.00	yes								panel-sonnet-DR2-arb2.log:763
+DR2-gpt-6_1-sol-medium-g22	DR2	reading	1017	5	0	5.00	yes								panel-1017-DR2-2.log:734
+DR2-gpt-6_1-sol-medium-g22	DR2	reading	glm	6	1	3.00	yes								panel-glm-DR2-2.log:130
+DR2-gpt-6_1-sol-medium-g22	DR2	reading	minimax	5	0	5.00	yes								panel-minimax-DR2-3.log:882
+DR2-gpt-6_1-sol-medium-g22	DR2	reading	sonnet		0	5.00	yes								panel-sonnet-DR2-arb2.log:764
+DR2-gpt-6_1-terra-high-f41	DR2	reading	1017	4	0	4.00	yes								panel-1017-DR2-2.log:735
+DR2-gpt-6_1-terra-high-f41	DR2	reading	glm	4	0	4.00	yes								panel-glm-DR2-3.log:126
+DR2-gpt-6_1-terra-high-f41	DR2	reading	minimax	5	0	5.00	yes								panel-minimax-DR2-3.log:883
+DR2-gpt-6_1-terra-low-f41	DR2	reading	1017	8	0	8.00	yes								panel-1017-DR2-2.log:736
+DR2-gpt-6_1-terra-low-f41	DR2	reading	glm	6	0	6.00	yes								panel-glm-DR2-3.log:127
+DR2-gpt-6_1-terra-low-f41	DR2	reading	minimax	8	0	8.00	yes								panel-minimax-DR2-3.log:884
+DR2-gpt-6_1-terra-low-f41	DR2	reading	sonnet		0	8.00	yes								panel-sonnet-DR2-arb2.log:766
+DR2-gpt-6_1-terra-xhigh-f41	DR2	reading	glm	7	0	7.00	yes								panel-glm-DR2-3.log:128
+DR2-gpt-6_1-terra-xhigh-f41	DR2	reading	minimax	7	0	7.00	yes								panel-minimax-DR2-3.log:885
+DR2-haiku-default-g1	DR2	reading	glm	6	0	6.00	yes								panel-glm-DR2-3.log:129
+DR2-haiku-default-g1	DR2	reading	minimax	6	0	6.00	yes								panel-minimax-DR2-3.log:886
+DR2-haiku-default-g2	DR2	reading	glm	5	0	5.00	yes								panel-glm-DR2-3.log:130
+DR2-haiku-default-g2	DR2	reading	minimax	6	0	6.00	yes								panel-minimax-DR2-3.log:887
+DR2-kimi-k3p1-pro-medium-g21	DR2	reading	glm	6	0	6.00	yes								panel-glm-DR2-3.log:131
+DR2-kimi-k3p1-pro-medium-g21	DR2	reading	minimax	6	0	6.00	yes								panel-minimax-DR2-3.log:888
+DR2-kimi-k3p1-pro-medium-g22	DR2	reading	glm	5	0	5.00	yes								panel-glm-DR2-3.log:132
+DR2-kimi-k3p1-pro-medium-g22	DR2	reading	minimax	5	0	5.00	yes								panel-minimax-DR2-3.log:889
+DR2-minimax-m3p1-flash-high-g21	DR2	reading	glm	8	0	9.00	yes								panel-glm-DR2-3.log:133
+DR2-minimax-m3p1-flash-high-g22	DR2	reading	glm	9	0	9.00	yes								panel-glm-DR2-3.log:134
+DR2-minimax-m3p1-flash-low-g21	DR2	reading	glm	8	0	8.00	yes								panel-glm-DR2-3.log:135
+DR2-minimax-m3p1-flash-low-g22	DR2	reading	glm	7	0	7.00	yes								panel-glm-DR2-3.log:136
+DR2-minimax-m3p1-flash-medium-g21	DR2	reading	glm	8	1	5.00	yes								panel-glm-DR2-3.log:137
+DR2-minimax-m3p1-flash-medium-g22	DR2	reading	glm	10	0	10.00	yes								panel-glm-DR2-3.log:138
+DR2-minimax-m3p1-flash-xhigh-g21	DR2	reading	glm	8	0	8.00	yes								panel-glm-DR2-3.log:139
+DR2-minimax-m3p1-flash-xhigh-g22	DR2	reading	glm	10	0	14.00	yes								panel-glm-DR2-4.log:443
+DR2-muse-spark-open-medium-g21	DR2	reading	glm	9	1	6.00	yes								panel-glm-DR2-4.log:444
+DR2-muse-spark-open-medium-g21	DR2	reading	minimax	10	3	2.00	yes								panel-minimax-DR2-3.log:890
+DR2-muse-spark-open-medium-g21	DR2	reading	sonnet	9	2	3.00	yes								panel-sonnet-DR2-arb2.log:758
+DR2-muse-spark-open-medium-g22	DR2	reading	1017	6	0	6.00	yes								panel-1017-DR2-4.log:259
+DR2-muse-spark-open-medium-g22	DR2	reading	glm	7	0	7.00	yes								panel-glm-DR2-4.log:445
+DR2-muse-spark-open-medium-g22	DR2	reading	minimax	6	2	0.00	yes								panel-minimax-DR2-3.log:891
+DR2-muse-spark-open-medium-g22	DR2	reading	sonnet		0	6.00	yes								panel-sonnet-DR2-arb2.log:759
+DR2-qwen3p8-2p4t-a95b-medium-g21	DR2	reading	1017	6	0	6.00	yes								panel-1017-DR2-4.log:260
+DR2-qwen3p8-2p4t-a95b-medium-g21	DR2	reading	glm	6	1	3.00	yes								panel-glm-DR2-4.log:446
+DR2-qwen3p8-2p4t-a95b-medium-g21	DR2	reading	minimax	9	0	9.00	yes								panel-minimax-DR2-3.log:892
+DR2-qwen3p8-2p4t-a95b-medium-g21	DR2	reading	sonnet		0	6.00	yes								panel-sonnet-DR2-arb2.log:761
+DR2-qwen3p8-2p4t-a95b-medium-g22	DR2	reading	1017	10	0	11.00	yes								panel-1017-DR2-4.log:261
+DR2-qwen3p8-2p4t-a95b-medium-g22	DR2	reading	glm	10	0	11.00	yes								panel-glm-DR2-4.log:447
+DR2-qwen3p8-2p4t-a95b-medium-g22	DR2	reading	minimax	10	0	12.00	yes								panel-minimax-DR2-4.log:142
+DR2-qwen3p8-2p4t-a95b-medium-g22	DR2	reading	sonnet		0	12.00	yes								panel-sonnet-DR2-arb2.log:762
+IR-claude-fable-5-default-g21	IR	reading	1017	3	0	3.00	yes								panel-1017-IR-1.log:1985
+IR-claude-fable-5-default-g21	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-1.log:458
+IR-claude-fable-5-default-g21	IR	reading	minimax	3	0	3.00	yes								panel-minimax-IR-2.log:1450
+IR-claude-opus-5_5-default-g21	IR	reading	1017	4	0	4.00	yes								panel-1017-IR-1.log:1986
+IR-claude-opus-5_5-default-g21	IR	reading	glm	4	0	4.00	yes								panel-glm-IR-1.log:459
+IR-claude-opus-5_5-default-g21	IR	reading	minimax	4	0	4.00	yes								panel-minimax-IR-2.log:1451
+IR-claude-sonnet-5_5-high-g21	IR	reading	1017	4	0	4.00	yes								panel-1017-IR-1.log:1987
+IR-claude-sonnet-5_5-high-g21	IR	reading	glm	4	0	4.00	yes								panel-glm-IR-1.log:460
+IR-claude-sonnet-5_5-high-g21	IR	reading	minimax	4	0	4.00	yes								panel-minimax-IR-2.log:1452
+IR-deepseek-v4p1-flash-1017-high-g21	IR	reading	1017	3	0	3.00	no	self							panel-1017-IR-1.log:1898
+IR-deepseek-v4p1-flash-1017-high-g21	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-1.log:461
+IR-deepseek-v4p1-flash-1017-high-g21	IR	reading	minimax	3	0	3.00	yes								panel-minimax-IR-2.log:1430
+IR-deepseek-v4p1-flash-1017-high-g21	IR	reading	sonnet	3		3.00	yes								panel-sonnet-IR-arb1.log:868
+IR-deepseek-v4p1-flash-1017-high-g22	IR	reading	1017	5	0	5.00	no	self							panel-1017-IR-1.log:1899
+IR-deepseek-v4p1-flash-1017-high-g22	IR	reading	glm	5	0	5.00	yes								panel-glm-IR-1.log:462
+IR-deepseek-v4p1-flash-1017-high-g22	IR	reading	minimax	5	0	5.00	yes								panel-minimax-IR-2.log:1431
+IR-deepseek-v4p1-flash-1017-high-g22	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:869
+IR-deepseek-v4p1-flash-1017-low-g21	IR	reading	1017	4	0	4.00	no	self							panel-1017-IR-1.log:1900
+IR-deepseek-v4p1-flash-1017-low-g21	IR	reading	glm	4	0	4.00	yes								panel-glm-IR-1.log:463
+IR-deepseek-v4p1-flash-1017-low-g21	IR	reading	minimax	4	0	4.00	yes								panel-minimax-IR-2.log:1432
+IR-deepseek-v4p1-flash-1017-low-g21	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:870
+IR-deepseek-v4p1-flash-1017-low-g22	IR	reading	1017	3	0	3.00	no	self							panel-1017-IR-1.log:1901
+IR-deepseek-v4p1-flash-1017-low-g22	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-1.log:464
+IR-deepseek-v4p1-flash-1017-low-g22	IR	reading	minimax	3	0	3.00	yes								panel-minimax-IR-2.log:1433
+IR-deepseek-v4p1-flash-1017-low-g22	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:871
+IR-deepseek-v4p1-flash-1017-medium-g21	IR	reading	1017	5	0	5.00	no	self							panel-1017-IR-1.log:1902
+IR-deepseek-v4p1-flash-1017-medium-g21	IR	reading	glm	5	0	5.00	yes								panel-glm-IR-1.log:465
+IR-deepseek-v4p1-flash-1017-medium-g21	IR	reading	minimax	5	0	5.00	yes								panel-minimax-IR-2.log:1434
+IR-deepseek-v4p1-flash-1017-medium-g21	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:872
+IR-deepseek-v4p1-flash-1017-medium-g22	IR	reading	1017	3	1	2.00	no	self							panel-1017-IR-1.log:1903
+IR-deepseek-v4p1-flash-1017-medium-g22	IR	reading	glm	3	1	2.00	yes								panel-glm-IR-1.log:466
+IR-deepseek-v4p1-flash-1017-medium-g22	IR	reading	minimax	3	1	2.00	yes								panel-minimax-IR-2.log:1435
+IR-deepseek-v4p1-flash-1017-medium-g22	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:873
+IR-fw-deepseek-v4_1-flash-default-g21	IR	reading	1017	2	0	2.00	yes								panel-1017-IR-1.log:1988
+IR-fw-deepseek-v4_1-flash-default-g21	IR	reading	glm	2	0	2.00	yes								panel-glm-IR-1.log:467
+IR-fw-deepseek-v4_1-flash-default-g21	IR	reading	minimax	2	0	2.00	yes								panel-minimax-IR-2.log:1453
+IR-fw-deepseek-v4_1-flash-default-g21	IR	reading	sonnet	2	1	1.00	yes								panel-sonnet-IR-arb1.log:877
+IR-fw-deepseek-v4_1-flash-default-g22	IR	reading	1017	3	0	3.00	yes								panel-1017-IR-1.log:1989
+IR-fw-deepseek-v4_1-flash-default-g22	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-1.log:468
+IR-fw-deepseek-v4_1-flash-default-g22	IR	reading	minimax	3	0	3.00	yes								panel-minimax-IR-2.log:1454
+IR-fw-deepseek-v4_1-flash-default-g22	IR	reading	sonnet	3		3.00	yes								panel-sonnet-IR-arb1.log:878
+IR-fw-glm-5_3-flash-low-g21	IR	reading	1017	3	0	3.00	yes								panel-1017-IR-1.log:1990
+IR-fw-glm-5_3-flash-low-g21	IR	reading	minimax	3	0	3.00	yes								panel-minimax-IR-2.log:1534
+IR-fw-glm-5_3-flash-low-g22	IR	reading	1017	2	0	2.00	yes								panel-1017-IR-1.log:1991
+IR-fw-glm-5_3-flash-low-g22	IR	reading	minimax	2	0	2.00	yes								panel-minimax-IR-2.log:1535
+IR-gemini-4-argon-high-g21	IR	reading	1017	3	0	3.00	yes								panel-1017-IR-1.log:1992
+IR-gemini-4-argon-high-g21	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-1.log:469
+IR-gemini-4-argon-high-g21	IR	reading	minimax	3	0	3.00	yes								panel-minimax-IR-2.log:1457
+IR-gemini-4-argon-high-g21	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:874
+IR-gemini-4-argon-high-g22	IR	reading	1017	3	0	3.00	yes								panel-1017-IR-1.log:1993
+IR-gemini-4-argon-high-g22	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-1.log:470
+IR-gemini-4-argon-high-g22	IR	reading	minimax	4	1	3.00	yes								panel-minimax-IR-2.log:1544
+IR-gemini-4-argon-high-g22	IR	reading	minimax	3	0	3.00	no	superseded							panel-minimax-IR-2.log:1458
+IR-gemini-4-argon-high-g22	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:875
+IR-gemini-4-hydrogen-high-p7	IR	reading	1017	3	0	3.00	yes								panel-1017-IR-1.log:1994
+IR-gemini-4-hydrogen-high-p7	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-1.log:471
+IR-gemini-4-hydrogen-high-p7	IR	reading	minimax	4	1	3.00	yes								panel-minimax-IR-2.log:1545
+IR-gemini-4-hydrogen-high-p7	IR	reading	minimax	3	0	3.00	no	superseded							panel-minimax-IR-2.log:1459
+IR-gemini-4-hydrogen-high-p7	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:881
+IR-gemini-4-hydrogen-high-p7r2	IR	reading	1017	3	0	3.00	yes								panel-1017-IR-1.log:1995
+IR-gemini-4-hydrogen-high-p7r2	IR	reading	1017	4	1	3.00	no	superseded							panel-1017-IR-1.log:1919
+IR-gemini-4-hydrogen-high-p7r2	IR	reading	glm	4	1	3.00	yes								panel-glm-IR-2.log:844
+IR-gemini-4-hydrogen-high-p7r2	IR	reading	minimax	4	1	3.00	yes								panel-minimax-IR-2.log:1546
+IR-gemini-4-hydrogen-high-p7r2	IR	reading	minimax	3	0	3.00	no	superseded							panel-minimax-IR-2.log:1460
+IR-gemini-4-hydrogen-high-p7r2	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:882
+IR-gemini-4-hydrogen-medium-p7	IR	reading	1017	4	0	4.00	yes								panel-1017-IR-1.log:1996
+IR-gemini-4-hydrogen-medium-p7	IR	reading	1017	5	1	4.00	no	superseded							panel-1017-IR-1.log:1920
+IR-gemini-4-hydrogen-medium-p7	IR	reading	glm	5	1	4.00	yes								panel-glm-IR-2.log:845
+IR-gemini-4-hydrogen-medium-p7	IR	reading	minimax	5	1	4.00	yes								panel-minimax-IR-2.log:1547
+IR-gemini-4-hydrogen-medium-p7	IR	reading	minimax	4	0	4.00	no	superseded							panel-minimax-IR-2.log:1461
+IR-gemini-4-hydrogen-medium-p7	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:883
+IR-gemini-4-hydrogen-medium-p7r2	IR	reading	1017	4	0	4.00	yes								panel-1017-IR-1.log:1997
+IR-gemini-4-hydrogen-medium-p7r2	IR	reading	1017	5	1	4.00	no	superseded							panel-1017-IR-1.log:1921
+IR-gemini-4-hydrogen-medium-p7r2	IR	reading	glm	5	1	4.00	yes								panel-glm-IR-2.log:846
+IR-gemini-4-hydrogen-medium-p7r2	IR	reading	minimax	5	1	4.00	yes								panel-minimax-IR-2.log:1548
+IR-gemini-4-hydrogen-medium-p7r2	IR	reading	minimax	4	0	4.00	no	superseded							panel-minimax-IR-2.log:1462
+IR-gemini-4-hydrogen-medium-p7r2	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:884
+IR-gpt-6-astra-default-g21	IR	reading	1017	3	0	3.00	yes								panel-1017-IR-1.log:1998
+IR-gpt-6-astra-default-g21	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-2.log:847
+IR-gpt-6-astra-default-g21	IR	reading	minimax	3	0	3.00	yes								panel-minimax-IR-2.log:1549
+IR-gpt-6-astra-default-g21	IR	reading	sonnet	3		3.00	yes								panel-sonnet-IR-arb1.log:876
+IR-haiku-default-g1	IR	reading	1017	4		4.00	yes								panel-1017-IR-2.log:530
+IR-haiku-default-g1	IR	reading	1017	4	1	3.00	no	superseded							panel-1017-IR-1.log:1923
+IR-haiku-default-g1	IR	reading	glm	4	1	3.00	yes								panel-glm-IR-2.log:848
+IR-haiku-default-g1	IR	reading	minimax	4	1	3.00	yes								panel-minimax-IR-2.log:1550
+IR-haiku-default-g1	IR	reading	minimax	4		4.00	no	superseded							panel-minimax-IR-2.log:1465
+IR-haiku-default-g1	IR	reading	sonnet	1		1.00	no	self							panel-sonnet-IR-arb1.log:879
+IR-haiku-default-g2	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:531
+IR-haiku-default-g2	IR	reading	1017	5	1	4.00	no	superseded							panel-1017-IR-1.log:1924
+IR-haiku-default-g2	IR	reading	glm	5	1	4.00	yes								panel-glm-IR-2.log:849
+IR-haiku-default-g2	IR	reading	minimax	5	1	4.00	yes								panel-minimax-IR-2.log:1551
+IR-haiku-default-g2	IR	reading	minimax	5		5.00	no	superseded							panel-minimax-IR-2.log:1466
+IR-haiku-default-g2	IR	reading	sonnet	3		3.00	no	self							panel-sonnet-IR-arb1.log:880
+IR-kimi-k3p1-pro-medium-g21	IR	reading	1017	3		3.00	yes								panel-1017-IR-2.log:532
+IR-kimi-k3p1-pro-medium-g21	IR	reading	1017	3	0	3.00	no	superseded							panel-1017-IR-1.log:1925
+IR-kimi-k3p1-pro-medium-g21	IR	reading	glm	3	0	3.00	yes								panel-glm-IR-2.log:850
+IR-kimi-k3p1-pro-medium-g21	IR	reading	minimax	3	0	3.00	yes								panel-minimax-IR-2.log:1552
+IR-kimi-k3p1-pro-medium-g21	IR	reading	minimax	3		3.00	no	superseded							panel-minimax-IR-2.log:1467
+IR-kimi-k3p1-pro-medium-g22	IR	reading	1017	2		2.00	yes								panel-1017-IR-2.log:533
+IR-kimi-k3p1-pro-medium-g22	IR	reading	1017	2	0	2.00	no	superseded							panel-1017-IR-1.log:1926
+IR-kimi-k3p1-pro-medium-g22	IR	reading	glm	2	0	2.00	yes								panel-glm-IR-2.log:851
+IR-kimi-k3p1-pro-medium-g22	IR	reading	minimax	2	0	2.00	yes								panel-minimax-IR-2.log:1553
+IR-kimi-k3p1-pro-medium-g22	IR	reading	minimax	2		2.00	no	superseded							panel-minimax-IR-2.log:1468
+IR-minimax-m3p1-flash-high-g21	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:534
+IR-minimax-m3p1-flash-high-g21	IR	reading	1017	5	4	1.00	no	superseded							panel-1017-IR-1.log:1927
+IR-minimax-m3p1-flash-high-g21	IR	reading	glm	5	4	1.00	yes								panel-glm-IR-2.log:852
+IR-minimax-m3p1-flash-high-g21	IR	reading	minimax	5		5.00	no	self,superseded							panel-minimax-IR-2.log:1469
+IR-minimax-m3p1-flash-high-g21	IR	reading	minimax	5	4	1.00	no	self							panel-minimax-IR-2.log:1494
+IR-minimax-m3p1-flash-high-g21	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:885
+IR-minimax-m3p1-flash-high-g22	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:535
+IR-minimax-m3p1-flash-high-g22	IR	reading	1017	4	3	1.00	no	superseded							panel-1017-IR-1.log:1928
+IR-minimax-m3p1-flash-high-g22	IR	reading	glm	4	3	1.00	yes								panel-glm-IR-2.log:853
+IR-minimax-m3p1-flash-high-g22	IR	reading	minimax	5		5.00	no	self,superseded							panel-minimax-IR-2.log:1470
+IR-minimax-m3p1-flash-high-g22	IR	reading	minimax	4	3	1.00	no	self							panel-minimax-IR-2.log:1495
+IR-minimax-m3p1-flash-high-g22	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:886
+IR-minimax-m3p1-flash-low-g21	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:536
+IR-minimax-m3p1-flash-low-g21	IR	reading	1017	4	5	-1.00	no	superseded							panel-1017-IR-1.log:1929
+IR-minimax-m3p1-flash-low-g21	IR	reading	glm	4	5	-1.00	yes								panel-glm-IR-2.log:854
+IR-minimax-m3p1-flash-low-g21	IR	reading	minimax	5		5.00	no	self,superseded							panel-minimax-IR-2.log:1471
+IR-minimax-m3p1-flash-low-g21	IR	reading	minimax	4	5	-1.00	no	self							panel-minimax-IR-2.log:1496
+IR-minimax-m3p1-flash-low-g21	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:887
+IR-minimax-m3p1-flash-low-g22	IR	reading	1017	4	1	3.00	yes								panel-1017-IR-2.log:537
+IR-minimax-m3p1-flash-low-g22	IR	reading	1017	4	3	1.00	no	superseded							panel-1017-IR-1.log:1930
+IR-minimax-m3p1-flash-low-g22	IR	reading	glm	4	3	1.00	yes								panel-glm-IR-2.log:855
+IR-minimax-m3p1-flash-low-g22	IR	reading	minimax	4	1	3.00	no	self,superseded							panel-minimax-IR-2.log:1472
+IR-minimax-m3p1-flash-low-g22	IR	reading	minimax	4	3	1.00	no	self							panel-minimax-IR-2.log:1497
+IR-minimax-m3p1-flash-low-g22	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:888
+IR-minimax-m3p1-flash-medium-g21	IR	reading	1017	5	1	4.00	yes								panel-1017-IR-2.log:538
+IR-minimax-m3p1-flash-medium-g21	IR	reading	glm	5	4	1.00	yes								panel-glm-IR-2.log:856
+IR-minimax-m3p1-flash-medium-g21	IR	reading	minimax	5	1	4.00	no	self,superseded							panel-minimax-IR-2.log:1473
+IR-minimax-m3p1-flash-medium-g21	IR	reading	minimax	5	4	1.00	no	self							panel-minimax-IR-2.log:1498
+IR-minimax-m3p1-flash-medium-g21	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:889
+IR-minimax-m3p1-flash-medium-g22	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:539
+IR-minimax-m3p1-flash-medium-g22	IR	reading	glm	4	3	1.00	yes								panel-glm-IR-2.log:857
+IR-minimax-m3p1-flash-medium-g22	IR	reading	minimax	5		5.00	no	self,superseded							panel-minimax-IR-2.log:1474
+IR-minimax-m3p1-flash-medium-g22	IR	reading	minimax	4	3	1.00	no	self							panel-minimax-IR-2.log:1499
+IR-minimax-m3p1-flash-medium-g22	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:890
+IR-minimax-m3p1-flash-xhigh-g21	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:540
+IR-minimax-m3p1-flash-xhigh-g21	IR	reading	1017	5	0	5.00	no	superseded							panel-1017-IR-1.log:1475
+IR-minimax-m3p1-flash-xhigh-g21	IR	reading	glm	5	0	5.00	yes								panel-glm-IR-3.log:545
+IR-minimax-m3p1-flash-xhigh-g21	IR	reading	minimax	5		5.00	no	self,superseded							panel-minimax-IR-2.log:1475
+IR-minimax-m3p1-flash-xhigh-g21	IR	reading	minimax	5	0	5.00	no	self							panel-minimax-IR-2.log:1517
+IR-minimax-m3p1-flash-xhigh-g21	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:891
+IR-minimax-m3p1-flash-xhigh-g22	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:541
+IR-minimax-m3p1-flash-xhigh-g22	IR	reading	1017	5	0	5.00	no	superseded							panel-1017-IR-1.log:1476
+IR-minimax-m3p1-flash-xhigh-g22	IR	reading	glm	5	0	5.00	yes								panel-glm-IR-3.log:546
+IR-minimax-m3p1-flash-xhigh-g22	IR	reading	minimax	5		5.00	no	self,superseded							panel-minimax-IR-2.log:1476
+IR-minimax-m3p1-flash-xhigh-g22	IR	reading	minimax	5	0	5.00	no	self							panel-minimax-IR-2.log:1518
+IR-minimax-m3p1-flash-xhigh-g22	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:892
+IR-muse-spark-open-medium-g21	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:542
+IR-muse-spark-open-medium-g21	IR	reading	1017	5	0	5.00	no	superseded							panel-1017-IR-1.log:1477
+IR-muse-spark-open-medium-g21	IR	reading	glm	5	0	5.00	yes								panel-glm-IR-3.log:547
+IR-muse-spark-open-medium-g21	IR	reading	minimax	5	0	5.00	yes								panel-minimax-IR-2.log:1554
+IR-muse-spark-open-medium-g21	IR	reading	minimax	5		5.00	no	superseded							panel-minimax-IR-2.log:1477
+IR-muse-spark-open-medium-g21	IR	reading	sonnet	5		5.00	yes								panel-sonnet-IR-arb1.log:893
+IR-muse-spark-open-medium-g22	IR	reading	1017	5		5.00	yes								panel-1017-IR-2.log:543
+IR-muse-spark-open-medium-g22	IR	reading	1017	5	0	5.00	no	superseded							panel-1017-IR-1.log:1478
+IR-muse-spark-open-medium-g22	IR	reading	glm	5	0	5.00	yes								panel-glm-IR-3.log:548
+IR-muse-spark-open-medium-g22	IR	reading	minimax	5	0	5.00	yes								panel-minimax-IR-2.log:1555
+IR-muse-spark-open-medium-g22	IR	reading	minimax	5		5.00	no	superseded							panel-minimax-IR-2.log:1478
+IR-muse-spark-open-medium-g22	IR	reading	sonnet	4		4.00	yes								panel-sonnet-IR-arb1.log:894
+DR2-claude-fable-5-default-g21	DR2	mean	glm					contradicts	1	1	1				
+DR2-claude-haiku-5_5-high-g21	DR2	mean	glm	5.00	0.00	5.00		unofficial	1	1	1	0.0	0	0	
+DR2-claude-haiku-5_5-high-g22	DR2	mean	glm	9.00	0.00	9.00		unofficial	1	1	1	0.0	0	0	
+DR2-claude-haiku-5_5-low-g21	DR2	mean	glm	6.00	0.00	6.00		unofficial	1	1	1	0.0	0	0	
+DR2-claude-haiku-5_5-low-g22	DR2	mean	glm	5.00	0.00	5.00		unofficial	1	1	1	0.0	0	0	
+DR2-claude-haiku-5_5-medium-g21	DR2	mean	glm	6.00	0.00	6.00		unofficial	1	1	1	0.0	0	0	
+DR2-claude-haiku-5_5-medium-g22	DR2	mean	glm	5.00	0.00	5.00		unofficial	1	1	1	0.0	0	0	
+DR2-claude-haiku-5_5-xhigh-g21	DR2	mean	glm	8.00	0.00	8.00		unofficial	1	1	1	0.0	0	0	
+DR2-claude-haiku-5_5-xhigh-g22	DR2	mean	glm	6.00	0.00	6.00		unofficial	1	1	1	0.0	0	0	
+DR2-claude-opus-5_5-default-g21	DR2	mean	glm					contradicts	1	1	1				
+DR2-claude-sonnet-5_5-high-g21	DR2	mean	glm					contradicts	1	1	1				
+DR2-deepseek-v4p1-flash-1017-high-g21	DR2	mean	glm	8.00	0.00	8.00		official	1	1	1	0.0	0	0	
+DR2-deepseek-v4p1-flash-1017-high-g22	DR2	mean	glm	6.00	0.00	6.00		official	1	1	1	0.0	0	0	
+DR2-deepseek-v4p1-flash-1017-low-g21	DR2	mean	glm	9.00	0.00	9.00		official	1	1	1	0.0	0	0	
+DR2-deepseek-v4p1-flash-1017-low-g22	DR2	mean	glm+minimax	9.00	1.00	6.00		official	2	2	2	0.0	0	0	
+DR2-deepseek-v4p1-flash-1017-medium-g21	DR2	mean	glm+minimax+sonnet	7.00	1.00	4.00		official	3	3	3	5.0	2	2	
+DR2-deepseek-v4p1-flash-1017-medium-g22	DR2	mean	glm+minimax+sonnet	7.00	0.67	5.00		official	3	3	3	3.0	0	1	
+DR2-fw-deepseek-v4_1-flash-default-g21	DR2	mean	glm+minimax	8.00	0.00	8.00		official	2	2	2	2.0	2	0	
+DR2-fw-deepseek-v4_1-flash-default-g22	DR2	mean	glm+minimax	8.50	0.00	8.50		official	2	2	2	1.0	1	0	
+DR2-fw-glm-5_3-flash-high-g21	DR2	mean	minimax	7.00	1.00	4.00		official	1	1	1	0.0	0	0	
+DR2-fw-glm-5_3-flash-high-g22	DR2	mean	1017+minimax	7.00	0.50	5.50		official	2	2	2	1.0	2	1	
+DR2-fw-glm-5_3-flash-low-g21	DR2	mean	1017+minimax+sonnet	5.33	0.33	4.33		official	3	3	3	2.0	1	1	
+DR2-fw-glm-5_3-flash-low-g22	DR2	mean	1017+minimax+sonnet	6.00	0.33	5.00		official	3	3	3	3.0	0	1	
+DR2-gemini-3_8-flash-medium-g21	DR2	mean	1017+glm+minimax+sonnet	7.25	0.00	8.00		official	4	4	4	3.0	3	0	
+DR2-gemini-3_8-flash-medium-g22	DR2	mean	1017+glm+minimax+sonnet	6.50	0.25	6.50		official	4	4	4	5.0	2	1	
+DR2-gemini-4-hydrogen-high-p7	DR2	mean	1017+glm+minimax+sonnet	6.00	1.00	2.75		official	4	3	4	6.0	3	2	
+DR2-gemini-4-hydrogen-high-p7r2	DR2	mean	1017+glm+minimax+sonnet	6.33	0.25	5.25		official	4	3	4	6.0	3	1	
+DR2-gemini-4-hydrogen-medium-p7	DR2	mean	1017+glm+minimax+sonnet	5.00	0.00	4.75		official	4	3	4	3.0	3	0	
+DR2-gemini-4-hydrogen-medium-p7r2	DR2	mean	1017+glm+minimax+sonnet	5.67	0.00	5.50		official	4	3	4	1.0	1	0	
+DR2-gpt-6-astra-default-g21	DR2	mean	1017+glm+minimax+sonnet	5.25	0.25	4.50		official	4	4	4	2.0	1	1	
+DR2-gpt-6_1-sol-medium-g21	DR2	mean	1017+glm+minimax+sonnet	5.33	0.25	4.25		official	4	3	4	2.0	1	1	
+DR2-gpt-6_1-sol-medium-g22	DR2	mean	1017+glm+minimax+sonnet	5.33	0.25	4.50		official	4	3	4	2.0	1	1	
+DR2-gpt-6_1-terra-high-f41	DR2	mean	1017+glm+minimax	4.33	0.00	4.33		official	3	3	3	1.0	1	0	
+DR2-gpt-6_1-terra-low-f41	DR2	mean	1017+glm+minimax+sonnet	7.33	0.00	7.50		official	4	3	4	2.0	2	0	
+DR2-gpt-6_1-terra-xhigh-f41	DR2	mean	glm+minimax	7.00	0.00	7.00		official	2	2	2	0.0	0	0	
+DR2-haiku-default-g1	DR2	mean	glm+minimax	6.00	0.00	6.00		official	2	2	2	0.0	0	0	
+DR2-haiku-default-g2	DR2	mean	glm+minimax	5.50	0.00	5.50		official	2	2	2	1.0	1	0	
+DR2-kimi-k3p1-pro-medium-g21	DR2	mean	glm+minimax	6.00	0.00	6.00		official	2	2	2	0.0	0	0	
+DR2-kimi-k3p1-pro-medium-g22	DR2	mean	glm+minimax	5.00	0.00	5.00		official	2	2	2	0.0	0	0	
+DR2-minimax-m3p1-flash-high-g21	DR2	mean	glm	8.00	0.00	9.00		official	1	1	1	0.0	0	0	
+DR2-minimax-m3p1-flash-high-g22	DR2	mean	glm	9.00	0.00	9.00		official	1	1	1	0.0	0	0	
+DR2-minimax-m3p1-flash-low-g21	DR2	mean	glm	8.00	0.00	8.00		official	1	1	1	0.0	0	0	
+DR2-minimax-m3p1-flash-low-g22	DR2	mean	glm	7.00	0.00	7.00		official	1	1	1	0.0	0	0	
+DR2-minimax-m3p1-flash-medium-g21	DR2	mean	glm	8.00	1.00	5.00		official	1	1	1	0.0	0	0	
+DR2-minimax-m3p1-flash-medium-g22	DR2	mean	glm	10.00	0.00	10.00		official	1	1	1	0.0	0	0	
+DR2-minimax-m3p1-flash-xhigh-g21	DR2	mean	glm	8.00	0.00	8.00		official	1	1	1	0.0	0	0	
+DR2-minimax-m3p1-flash-xhigh-g22	DR2	mean	glm	10.00	0.00	14.00		official	1	1	1	0.0	0	0	
+DR2-muse-spark-open-medium-g21	DR2	mean	glm+minimax+sonnet	9.33	2.00	3.67		official	3	3	3	4.0	1	2	
+DR2-muse-spark-open-medium-g22	DR2	mean	1017+glm+minimax+sonnet	6.33	0.50	4.75		official	4	3	4	7.0	1	2	
+DR2-qwen3p8-2p4t-a95b-medium-g21	DR2	mean	1017+glm+minimax+sonnet	7.00	0.25	6.00		official	4	3	4	6.0	3	1	
+DR2-qwen3p8-2p4t-a95b-medium-g22	DR2	mean	1017+glm+minimax+sonnet	10.00	0.00	11.50		official	4	3	4	1.0	0	0	
+IR-claude-fable-5-default-g21	IR	mean	1017+glm+minimax	3.00	0.00	3.00		official	3	3	3	0.0	0	0	
+IR-claude-opus-5_5-default-g21	IR	mean	1017+glm+minimax	4.00	0.00	4.00		official	3	3	3	0.0	0	0	
+IR-claude-sonnet-5_5-high-g21	IR	mean	1017+glm+minimax	4.00	0.00	4.00		official	3	3	3	0.0	0	0	
+IR-deepseek-v4p1-flash-1017-high-g21	IR	mean	glm+minimax+sonnet	3.00	0.00	3.00		official	3	3	2	0.0	0	0	
+IR-deepseek-v4p1-flash-1017-high-g22	IR	mean	glm+minimax+sonnet	5.00	0.00	5.00		official	3	3	2	0.0	0	0	
+IR-deepseek-v4p1-flash-1017-low-g21	IR	mean	glm+minimax+sonnet	4.00	0.00	4.00		official	3	3	2	0.0	0	0	
+IR-deepseek-v4p1-flash-1017-low-g22	IR	mean	glm+minimax+sonnet	3.33	0.00	3.33		official	3	3	2	1.0	1	0	
+IR-deepseek-v4p1-flash-1017-medium-g21	IR	mean	glm+minimax+sonnet	4.67	0.00	4.67		official	3	3	2	1.0	1	0	
+IR-deepseek-v4p1-flash-1017-medium-g22	IR	mean	glm+minimax+sonnet	3.33	1.00	2.67		official	3	3	2	2.0	1	0	
+IR-fw-deepseek-v4_1-flash-default-g21	IR	mean	1017+glm+minimax+sonnet	2.00	0.25	1.75		official	4	4	4	1.0	0	1	
+IR-fw-deepseek-v4_1-flash-default-g22	IR	mean	1017+glm+minimax+sonnet	3.00	0.00	3.00		official	4	4	3	0.0	0	0	
+IR-fw-glm-5_3-flash-low-g21	IR	mean	1017+minimax	3.00	0.00	3.00		official	2	2	2	0.0	0	0	
+IR-fw-glm-5_3-flash-low-g22	IR	mean	1017+minimax	2.00	0.00	2.00		official	2	2	2	0.0	0	0	
+IR-gemini-4-argon-high-g21	IR	mean	1017+glm+minimax+sonnet	3.25	0.00	3.25		official	4	4	3	1.0	1	0	
+IR-gemini-4-argon-high-g22	IR	mean	1017+glm+minimax+sonnet	3.50	0.33	3.25		official	4	4	3	1.0	1	1	
+IR-gemini-4-hydrogen-high-p7	IR	mean	1017+glm+minimax+sonnet	3.50	0.33	3.25		official	4	4	3	1.0	1	1	
+IR-gemini-4-hydrogen-high-p7r2	IR	mean	1017+glm+minimax+sonnet	3.75	0.67	3.25		official	4	4	3	1.0	1	1	
+IR-gemini-4-hydrogen-medium-p7	IR	mean	1017+glm+minimax+sonnet	4.75	0.67	4.25		official	4	4	3	1.0	1	1	
+IR-gemini-4-hydrogen-medium-p7r2	IR	mean	1017+glm+minimax+sonnet	4.75	0.67	4.25		official	4	4	3	1.0	1	1	
+IR-gpt-6-astra-default-g21	IR	mean	1017+glm+minimax+sonnet	3.00	0.00	3.00		official	4	4	3	0.0	0	0	
+IR-haiku-default-g1	IR	mean	1017+glm+minimax	4.00	1.00	3.33		official	3	3	2	1.0	0	0	
+IR-haiku-default-g2	IR	mean	1017+glm+minimax	5.00	1.00	4.33		official	3	3	2	1.0	0	0	
+IR-kimi-k3p1-pro-medium-g21	IR	mean	1017+glm+minimax	3.00	0.00	3.00		official	3	3	2	0.0	0	0	
+IR-kimi-k3p1-pro-medium-g22	IR	mean	1017+glm+minimax	2.00	0.00	2.00		official	3	3	2	0.0	0	0	
+IR-minimax-m3p1-flash-high-g21	IR	mean	1017+glm+sonnet	5.00	4.00	3.67		official	3	3	1	4.0	0	0	
+IR-minimax-m3p1-flash-high-g22	IR	mean	1017+glm+sonnet	4.67	3.00	3.67		official	3	3	1	4.0	1	0	
+IR-minimax-m3p1-flash-low-g21	IR	mean	1017+glm+sonnet	4.67	5.00	3.00		official	3	3	1	6.0	1	0	
+IR-minimax-m3p1-flash-low-g22	IR	mean	1017+glm+sonnet	4.00	2.00	2.67		official	3	3	2	3.0	0	2	
+IR-minimax-m3p1-flash-medium-g21	IR	mean	1017+glm+sonnet	5.00	2.50	3.33		official	3	3	2	4.0	0	3	
+IR-minimax-m3p1-flash-medium-g22	IR	mean	1017+glm+sonnet	4.67	3.00	3.67		official	3	3	1	4.0	1	0	
+IR-minimax-m3p1-flash-xhigh-g21	IR	mean	1017+glm+sonnet	5.00	0.00	5.00		official	3	3	1	0.0	0	0	
+IR-minimax-m3p1-flash-xhigh-g22	IR	mean	1017+glm+sonnet	5.00	0.00	5.00		official	3	3	1	0.0	0	0	
+IR-muse-spark-open-medium-g21	IR	mean	1017+glm+minimax+sonnet	5.00	0.00	5.00		official	4	4	2	0.0	0	0	
+IR-muse-spark-open-medium-g22	IR	mean	1017+glm+minimax+sonnet	4.75	0.00	4.75		official	4	4	2	1.0	1	0	
