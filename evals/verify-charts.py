@@ -53,7 +53,7 @@ def expected_dots(pts, bench, ymax):
 def main():
     html = open(PATH).read()
     start = html.index('<section id="charts">')
-    end = html.index('<section id="codes">')
+    end = html.index('<section id="ops">')   # score scatters only; #ops has its own two SVGs
     section = html[start:end]
     svgs = re.findall(r'<svg.*?</svg>', section, re.S)
     if len(svgs) != len(BENCHES):

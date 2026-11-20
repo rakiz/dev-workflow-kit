@@ -88,7 +88,7 @@ def _load_ops():
         deliv = r["delivered"] == "1"
         cost = float(r["cost_usd"])
         dur = float(r["duration_s"]) if r["duration_s"] else None
-        c = cells.setdefault((bench, model, eff), {"n": 0, "d": 0, "tot": 0.0, "valid": [], "dur": []})
+        c = cells.setdefault((bench, model, eff), {"n": 0, "d": 0, "tot": 0.0, "valid": [], "dur": [], "tok": []})
         c["n"] += 1; c["tot"] += cost
         m = model_ops.setdefault((model, eff), {"n": 0, "d": 0, "dur": [], "tot": 0.0})
         m["n"] += 1; m["tot"] += cost
@@ -96,6 +96,8 @@ def _load_ops():
             c["d"] += 1; c["valid"].append(cost)
             if dur is not None:
                 c["dur"].append(dur)
+            if r.get("tok_total"):
+                c["tok"].append({k: float(r["tok_" + k]) for k in ("input", "cache_read", "output", "reasoning", "total")})
             m["d"] += 1
             if dur is not None:
                 m["dur"].append(dur)
@@ -122,6 +124,17 @@ def cell_dur(bench, model, eff):
     d = sorted(c["dur"])
     med = d[len(d) // 2] if len(d) % 2 else (d[len(d) // 2 - 1] + d[len(d) // 2]) / 2
     return {"med": med, "lo": d[0], "hi": d[-1], "n": len(d)}
+
+
+def cell_tokens(bench, model, eff):
+    """Mean tokens per delivered run (runs with token data), or None."""
+    c = CELLS.get((bench, model, eff))
+    if not c or not c["tok"]:
+        return None
+    n = len(c["tok"])
+    out = {k: sum(t[k] for t in c["tok"]) / n for k in ("input", "cache_read", "output", "reasoning", "total")}
+    out["n"] = n
+    return out
 
 
 def fmt_lat(sec):
@@ -253,6 +266,14 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
         o.append(f'<line x1="{L}" x2="{W-R}" y1="{y:.1f}" y2="{y:.1f}" stroke="#6b7280" stroke-dasharray="5 4" stroke-width="1.3"/>')
         ref_box = (L + 4, ypos(v, ymax) - 11, L + 4 + len(lab) * 6.9, ypos(v, ymax) + 3)
         o.append(f'<text x="{L+4}" y="{ypos(v, ymax):.1f}" text-anchor="start" fill="#6b7280">{lab}</text>')
+    # most attractive quadrant: score >= 70% of max, cost <= 2x the cheapest seated arm
+    seated_costs = [c for (_n, _s, c, sd, _sg, _nt, _of, _m) in pts if any(b == bench for _x, b in sd)]
+    if seated_costs:
+        cheap = min(seated_costs)
+        qx1 = min(max(xpos(cheap * 2), L), W - R)
+        qy1 = ypos(0.7 * ymax, ymax)
+        o.append(f'<rect x="{L}" y="{T}" width="{qx1 - L:.1f}" height="{qy1 - T:.1f}" fill="#ecfdf5" stroke="#86efac" stroke-dasharray="3 3" stroke-width="1"/>')
+        o.append(f'<text x="{L + 6}" y="{T + 14}" fill="#166534" font-size="11">most attractive quadrant</text>')
     # frontier
     fr = frontier(pts)
     if len(fr) > 1:
@@ -404,6 +425,156 @@ def patch_roster_ops(src):
     return src[:a] + sec + src[b:]
 
 
+
+# ---- Artificial-Analysis-style ops charts (time per task, tokens per task) ----
+ARM_CHALLENGERS = [("qwen", "medium"), ("carbon", "high"), ("gpt-6.2-sol", "high")]
+OPS_BENCHES = [("O", "O (orchestration)"), ("IR", "IR (impl review)"), ("DR2", "DR-v2 (design review)"),
+               ("I2-RG4", "I-v2 RG4 (implementation)"), ("D", "D (design authoring)")]
+FAM_COLOR = {"glm": "#1a7f37", "haiku": "#b3261e", "sonnet": "#b3261e", "opus": "#b3261e", "fable": "#b3261e",
+             "dsflash": "#0b57d0", "1017": "#0b57d0", "minimax": "#6d28d9", "qwen": "#d97706",
+             "terra": "#a16207", "sol": "#a16207", "gpt-6.2-sol": "#a16207", "astra": "#a16207",
+             "argon": "#0891b2", "carbon": "#0891b2", "hydrogen": "#0891b2", "gem38": "#0891b2",
+             "muse": "#c2185b", "kimi": "#52525b"}
+TOKEN_PARTS = [("input", "input", "#1d4ed8"), ("cache_read", "cache read", "#93c5fd"),
+               ("output", "output", "#f59e0b"), ("reasoning", "reasoning", "#a855f7")]
+
+
+def arm_list():
+    return list(dict.fromkeys(list(SEATS.keys()) + ARM_CHALLENGERS))
+
+
+def arm_name(m, e):
+    return m if e == "default" else f"{m} {e}"
+
+
+def fmt_time(sec):
+    return f"~{sec:.0f}s" if sec < 120 else f"~{sec / 60:.0f} min"
+
+
+OPS_SCORE_COL = {"O": "O8", "IR": "IR", "DR2": "DR2", "I2-RG4": "I2-RG4", "D": "D"}
+OPS_SCORE_DENOM = {"O": "/8", "IR": "/3+", "DR2": "/14", "I2-RG4": "/14", "D": "/11"}
+
+
+def bench_score(bench, model, eff):
+    """Score label for a bar: the CSV cell of this bench (IR: bonus-inclusive), compact."""
+    col = OPS_SCORE_COL.get(bench)
+    for r in csv.DictReader(open(CSVPATH)):
+        if r["model"].strip() == model and r["effort"].strip() == eff:
+            v = r.get(col, "").strip().rstrip("*~")
+            try:
+                return f"{float(v):g}{OPS_SCORE_DENOM[bench]}"
+            except ValueError:
+                return ""
+    return ""
+
+
+def ops_section_html():
+    W_, LW, RM, TOP, GH, RH = 1200, 230, 120, 36, 24, 18
+    # --- (a) time per task: median per arm and bench, log scale
+    tg = []
+    for bcode, blabel in OPS_BENCHES:
+        items = []
+        for m, e in arm_list():
+            d = cell_dur(bcode, m, e)
+            if d:
+                items.append((m, e, d))
+        items.sort(key=lambda it: it[2]["med"])
+        if items:
+            tg.append((blabel, bcode, items))
+    lo_t, hi_t = 10.0, 3600.0
+    def xt(t):
+        return LW + (math.log10(max(t, lo_t)) - math.log10(lo_t)) / (math.log10(hi_t) - math.log10(lo_t)) * (W_ - LW - RM)
+    h = TOP + sum(GH + RH * len(items) for _, _, items in tg) + 46
+    o = [f'<svg width="{W_}" height="{h}" viewBox="0 0 {W_} {h}" role="img" aria-label="Time per task (median, delivered runs, log scale)" font-family="system-ui" font-size="12" style="max-width:100%;height:auto">']
+    for tick, lab in [(10, "10s"), (60, "1 min"), (600, "10 min"), (3600, "1 h")]:
+        x = xt(tick)
+        o.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{TOP - 6}" y2="{h - 40}" stroke="#e5e7eb"/>')
+        o.append(f'<text x="{x:.1f}" y="{h - 24}" text-anchor="middle" fill="#555">{lab}</text>')
+    y = TOP
+    for blabel, bcode, items in tg:
+        o.append(f'<text x="8" y="{y + 16}" font-weight="700" fill="#333">{html.escape(blabel)} — {len(items)} arms</text>')
+        y += GH
+        for m, e, d in items:
+            fam = FAM_COLOR.get(m, "#555")
+            x1 = xt(d["med"])
+            tip = html.escape(f'{m} {e} · {bcode}: median {fmt_time(d["med"])} (range {fmt_time(d["lo"])}–{fmt_time(d["hi"])}, {d["n"]} delivered run(s))', quote=True)
+            o.append(f'<text x="{LW - 8}" y="{y + 12}" text-anchor="end" fill="{fam}" font-weight="600">{html.escape(arm_name(m, e))}</text>')
+            o.append(f'<rect class="pt" data-tip="{tip}" x="{LW}" y="{y + 3}" width="{x1 - LW:.1f}" height="12" fill="{fam}" fill-opacity="0.85"/>')
+            sc = bench_score(bcode, m, e)
+            lab = fmt_time(d["med"]) + (f" · {sc}" if sc else "")
+            o.append(f'<text x="{x1 + 6:.1f}" y="{y + 12}" fill="#374151">{html.escape(lab)}</text>')
+            y += RH
+    o.append('</svg>')
+    time_svg = "\n".join(o)
+    fastest = min(((m, e, b, d) for _, b, its in tg for m, e, d in its), key=lambda t: t[3]["med"], default=None)
+    slowest = max(((m, e, b, d) for _, b, its in tg for m, e, d in its), key=lambda t: t[3]["med"], default=None)
+    # --- (b) tokens per task: stacked, linear
+    kg = []
+    missing = 0
+    for bcode, blabel in OPS_BENCHES:
+        items = []
+        for m, e in arm_list():
+            if not cell_dur(bcode, m, e):
+                continue
+            t = cell_tokens(bcode, m, e)
+            if t:
+                items.append((m, e, t))
+            else:
+                missing += 1
+        items.sort(key=lambda it: it[2]["total"])
+        if items:
+            kg.append((blabel, bcode, items))
+    allt = [t["total"] for _, _, its in kg for _, _, t in its]
+    maxT = math.ceil(max(allt) / 250_000) * 250_000 if allt else 1
+    def xk(v):
+        return LW + v / maxT * (W_ - LW - RM)
+    hk = TOP + sum(GH + RH * len(items) for _, _, items in kg) + 46
+    ok = [f'<svg width="{W_}" height="{hk}" viewBox="0 0 {W_} {hk}" role="img" aria-label="Tokens per task (mean per delivered run, stacked)" font-family="system-ui" font-size="12" style="max-width:100%;height:auto">']
+    for k in range(0, int(maxT) + 1, 250_000):
+        x = xk(k)
+        ok.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{TOP - 6}" y2="{hk - 40}" stroke="#e5e7eb"/>')
+        ok.append(f'<text x="{x:.1f}" y="{hk - 24}" text-anchor="middle" fill="#555">{k / 1000:.0f}k</text>')
+    y = TOP
+    for blabel, bcode, items in kg:
+        ok.append(f'<text x="8" y="{y + 16}" font-weight="700" fill="#333">{html.escape(blabel)} — {len(items)} arms</text>')
+        y += GH
+        for m, e, t in items:
+            fam = FAM_COLOR.get(m, "#555")
+            ok.append(f'<text x="{LW - 8}" y="{y + 12}" text-anchor="end" fill="{fam}" font-weight="600">{html.escape(arm_name(m, e))}</text>')
+            acc = 0.0
+            for key, lab, colr in TOKEN_PARTS:
+                v = t[key]
+                x0, x1 = xk(acc), xk(acc + v)
+                tip = html.escape(f'{m} {e} · {bcode}: {lab} {v / 1000:.0f}k of {t["total"] / 1000:.0f}k tokens per run (mean of {t["n"]} run(s))', quote=True)
+                ok.append(f'<rect class="pt" data-tip="{tip}" x="{x0:.1f}" y="{y + 3}" width="{max(x1 - x0, 0):.1f}" height="12" fill="{colr}"/>')
+                acc += v
+            ok.append(f'<text x="{xk(acc) + 6:.1f}" y="{y + 12}" fill="#374151">{t["total"] / 1000:.0f}k</text>')
+            y += RH
+    ok.append('</svg>')
+    tok_svg = "\n".join(ok)
+    # shares for the takeaway
+    cache_share = (sum(t["cache_read"] for _, _, its in kg for _, _, t in its) /
+                   max(sum(t["total"] for _, _, its in kg for _, _, t in its), 1))
+    top_tok = max(((m, e, b, t) for _, b, its in kg for m, e, t in its), key=lambda q: q[3]["total"], default=None)
+    t1 = (f"Time per task (median per bench, log scale): fastest {arm_name(fastest[0], fastest[1])} on {fastest[2]} at {fmt_time(fastest[3]['med'])}, "
+          f"slowest {arm_name(slowest[0], slowest[1])} on {slowest[2]} at {fmt_time(slowest[3]['med'])}") if fastest and slowest else "Time per task"
+    t2 = (f"Tokens per task (mean per delivered run): {arm_name(top_tok[0], top_tok[1])} on {top_tok[2]} uses the most ({top_tok[3]['total'] / 1000:.0f}k); "
+          f"cache reads are {cache_share:.0%} of all tokens") if top_tok else "Tokens per task"
+    out = [
+        '<section id="ops">\n<h2>Ops — time and tokens per task</h2>\n'
+        '<p class="note">Artificial-Analysis-style operations view for the seated arms and the top challengers. '
+        'Delivered runs only (scored or completed); durations and tokens come from the session record (run-ops.tsv). '
+        f'Token records are present for every arm shown; {missing} arm-by-bench cell(s) carry no token record and are absent (n.v.). '
+        'Hover any bar for its exact values.</p>',
+        f'<h3>{html.escape(t1)}</h3>', time_svg,
+        '<p class="note">Bar = median wall-clock time per delivered run on that bench, log scale; label = median. Colour = model family.</p>',
+        f'<h3>{html.escape(t2)}</h3>', tok_svg,
+        '<p class="note">Stacked bar = mean tokens per delivered run: input, cache read, output, reasoning (sum over the parent session and its delegated children).</p>',
+        '</section>\n',
+    ]
+    return "\n".join(out)
+
+
 def build_and_write():
     blocks = []
     blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one measured model&times;effort cell, read directly from the score CSV (dots = measured cells; not measured / DNF / categorical cells have no dot). Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). <strong>~</strong> = one scorer family (the cell was scored by one family only). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
@@ -457,6 +628,7 @@ def build_and_write():
 })();
 </script>''')
     blocks.append('</section>\n')
+    blocks.append(ops_section_html())
     new = "\n".join(blocks)
 
     src = patch_roster_ops(open(PATH).read())

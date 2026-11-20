@@ -74,6 +74,7 @@ leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
   logs gzipped in place. **No `raw/` trees, ever** — run dirs are extracted
   into `runs/` at extraction time and never committed as raw trees; retired
   raw trees (`2026-11-16/raw/`, `2026-11-12/raw*`) are git history only.
+- Ops layer is part of the standard regeneration: `build-ops.py` -> `2026-11-16/run-ops.tsv` (cost, delivery, latency and tokens per run, keyed DB reads), then `gen-charts.py` (score charts, `#ops`, roster ops column) and `build-matrix.py`; `verify-charts.py` must pass.
 - Costs via session titles `eval-<date>-*` (parent + children roll-up,
   `grid2-costs.tsv`). Status per run: `<date>/logs/grid*/_status.txt`.
 - After the grid: score everything (fresh scorer per run, rubric-strict),
