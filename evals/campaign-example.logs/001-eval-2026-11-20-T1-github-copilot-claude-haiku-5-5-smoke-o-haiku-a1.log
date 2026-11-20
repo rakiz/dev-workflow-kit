@@ -1,0 +1,72 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m• [0mMap synccli repo layout[90m Explore Agent[0m
+[0m✓ [0mMap synccli repo layout[90m Explore Agent[0m
+The plan is below. I made no changes. I read GOAL.md and README.md and had a read-only explore agent map the code.
+
+**Findings that shape the plan**
+- The code is a single module, `synccli.py` (~103 lines), not a package. `sync(src_root, dst_root, dry_run=False)` is at `synccli.py:72`. Its only internal caller is `main()` at `synccli.py:96`.
+- `sync()` returns only the copied relative paths, or `to_copy` in dry-run. It does not return a skipped count, so `skipped` has to be computed without changing the signature.
+- `README.md` says `python3 -m synccli`, but there is no `__main__.py` or package directory. Either that invocation is already broken or the README is stale.
+- Tests live in `test_synccli.py` (`unittest`, classes `TestScanFiles`, `TestCollectStale`, `TestSync`). There are no CLI or stdout tests yet.
+- `incremental.py` is a separate module. It imports `copy_file` and is not part of the sync path, but any stray `print` in code reached from `main()` would break the JSON-only stdout rule.
+
+**Execution plan**
+
+**T0. Confirm the invocation path (explore).**
+- Objective: determine whether `python3 -m synccli` works and what entry point the README means.
+- Files: read only `README.md`, `synccli.py`.
+- Agent: `explore`.
+- Risks: the README may be wrong. Fixing it is out of scope unless you approve it (per your "ask before acting" rule).
+- Acceptance: a written answer stating the working invocation, with evidence (for example, the error from `python3 -m synccli --help`, run read-only).
+
+**T1. Design the skipped-count and the dry-run data path (design-review, optional).**
+- Objective: pick how `main()` gets `skipped` and `copied` without changing `sync()`'s signature. Options: a private helper that returns `(copied, skipped)` and `sync()` wraps it, or a module-level function that `main()` calls directly. Also confirm that dry-run `copied` equals `to_copy`.
+- Files: none modified. Output is a short design note in the reply.
+- Agent: `cheap-design-review` only if you want a second look. The change is small, so this can be skipped.
+- Risks: a helper that duplicates `sync()` logic could drift from it. Keeping `sync()`'s body as the single source of truth avoids that.
+- Acceptance: the note states the signature is unchanged and names every internal caller affected (only `main()` today).
+
+**T2. Implement `--json` and the dry-run interplay (cheap-code).**
+- Objective: add `--json` to the argparse parser in `main()`. In JSON mode, print exactly one object `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` to stdout and nothing else. With `--dry-run`, `copied` lists the would-copy set. Human mode prints one path per line, unchanged. The exit code stays `0`.
+- Files modified: `synccli.py` only. Do not touch `sync()`'s signature.
+- Agent: `cheap-code`.
+- Risks: `src` and `dst` in the output should match what the user passed (relative vs absolute); decide once and test it. Any `print` or warning on stderr is fine, but none may go to stdout. Python 3.10 stdlib only, no new dependencies.
+- Acceptance: `python3 -m unittest -v` passes. Manually, `python3 synccli.py --json SRC DST | python3 -m json.tool` succeeds and the output has exactly the four keys.
+
+**T3. Add unit tests (cheap-code).**
+- Objective: add tests to `test_synccli.py` covering:
+  - the JSON is valid and has the keys `copied`, `skipped`, `src`, `dst`;
+  - `copied` and `skipped` are correct on a first run and on a second, no-op run;
+  - dry-run with `--json` lists what would be copied and copies nothing (the destination is unchanged);
+  - human mode output is unchanged;
+  - stdout contains only the JSON object (capture with `contextlib.redirect_stdout` and parse the whole output).
+- Files modified: `test_synccli.py`.
+- Agent: `cheap-code`. This can run in the same instance as T2 only if it is the same feature and the context is still useful, which it is.
+- Risks: `main()` takes argv and calls `sync`, so tests must pass args explicitly and not depend on `sys.argv`. Use temp dirs, as the existing tests do.
+- Acceptance: `python3 -m unittest -v` runs all new tests and they pass. A deliberate break (for example, a stray `print`) makes the stdout-only test fail.
+
+**T4. Independent review (cheap-review).**
+- Objective: review the diff from T2 and T3 against GOAL.md: JSON shape, stdout-only rule, dry-run semantics, unchanged human mode, unchanged `sync()` signature, no new dependencies.
+- Files: read only.
+- Agent: `cheap-review`, a fresh instance (not the implementer). It is the mandatory review step.
+- Risks: a minor finding goes back to the same `cheap-code` instance via `task_id`. A major finding escalates to `strong-code`, with a cost notice to you first.
+- Acceptance: the reviewer returns no open major findings, and each minor finding is closed before the next step.
+
+**T5. Verification and handoff (main agent, no code edits).**
+- Objective: run the full test suite and the manual JSON pipe check. Compare human mode output before and after the change on the same fixture.
+- Files: none modified.
+- Agent: none needed. This is a read-only verification step that the orchestrator runs.
+- Risks: `README.md` invocation may still be wrong (see T0). Report it, do not fix it without your approval.
+- Acceptance: `python3 -m unittest -v` is green. Human output is byte-identical to the pre-change output on the same fixture. The JSON pipe check succeeds.
+
+**Open questions for you**
+1. Should `src` and `dst` in the JSON be the paths as given, or resolved absolute paths?
+2. Should the README `python3 -m synccli` invocation be fixed in this release? That is a separate change and needs your yes.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 20734 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 20735 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-20706/final-report.md (session eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-smoke-o-haiku-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-20706 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-smoke-o-haiku-a1)

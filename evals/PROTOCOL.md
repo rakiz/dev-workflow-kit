@@ -164,3 +164,48 @@ argued after the fact.
   point difference reads.
 - **Tie rule (ratified 2026-11-20).** Eligibility = two scorer families + ≥2
   valid runs; the cheapest arm inside the MDE band wins the seat.
+
+## 6. THE CAMPAIGN RECIPE (ordered checklist, 2026-11-20)
+
+Run the steps in order. A step that fails stops the campaign; do not skip ahead.
+
+1. **Write the campaign file** (`<stem>.json`, schema in `run-campaign.py`
+   docstring; example: `campaign-example.json`): arms, per-arm `cap`, `budget_usd`.
+   The total of caps must fit the owner's cap. Never exceed it; never raise it
+   without a new owner go.
+2. **Validate, then launch**: `python3 run-campaign.py <stem>.json --self-check`
+   (no launch, checks the file, the runners, the DB preflight), then
+   `python3 run-campaign.py <stem>.json`. Outputs: `<stem>.status.txt`
+   (one line per arm attempt: time, job, arm, status, campaign spend) and
+   `<stem>.logs/`. The runners capture each final report into the run dir
+   (A1); a missing report is a DNF re-run signal, never a scored 0.
+   The campaign date must be today (runner titles use `date +%F`).
+3. **`build-ops.py`** -> `<DAY>/run-ops.tsv` (DAY is hard-coded in the script:
+   currently `2026-11-16`; cost, delivery, latency, tokens).
+4. **Panel scoring**: a scorer of a run's family is never used on that family's
+   runs (self-family excluded). Blinded per-candidate dirs once Étape 3 lands;
+   until then, the unblinding limits of §5 apply and are recorded.
+5. **`aggregate-panel.py`** -> panel scores (divergence rules per bench).
+6. **`build-matrix.py` + `gen-charts.py` + `verify-charts.py`** (must print OK).
+7. **`RESULTS.md` + the ledger fold** (`extract-runs.py` / runs ledger).
+8. **Close the campaign when superseded** (manual, no tool yet): append a closing
+   line to the status file and keep the campaign file as the record.
+9. **No commit or push without the owner's explicit go on the shown diff.**
+   Briefs never carry a commit or push instruction. The agent permission rails
+   enforce it: push = deny, commit = ask.
+
+## 7. THE NEXT-CAMPAIGN MANDATORY REQUIREMENTS (adopted from the Sol review)
+
+These gate the next decision campaign. Source and steps: `ROADMAP-METHODO.md`.
+
+- **Held-out fixtures.** The spec is pre-registered BEFORE any arm runs. The
+  fixture author is not the results interpreter. Each held-out fixture is
+  single-use and rotated per model generation. Its answer keys stay PRIVATE
+  until the deciding campaign closes. Candidates run with network isolation.
+- **Scorer blinding.** Each candidate is scored in an isolated directory with
+  vendor strings stripped and randomized IDs. The blinding is unsealed only
+  after the scores lock.
+- **Smoke A/B before the held-out exists.** 5 tasks, 3 arms: the ROI question
+  (cheap-first plus escalation, vs sonnet alone, vs sonnet plus one review).
+  Judged by a blind adjudicator with a pre-registered checklist; defects that
+  escape, delivery rate, latency and the total human cost are all recorded.

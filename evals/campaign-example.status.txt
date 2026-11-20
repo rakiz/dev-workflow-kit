@@ -1,0 +1,3 @@
+# campaign smoke-o-haiku date=2026-11-20 budget_usd=0.10 start_ms=1795191678940 jobs=1
+17:21:48 001 O/github-copilot/claude-haiku-5.5/-/a1 ok spent=0.0104
+# done spent=0.0104 budget_usd=0.10

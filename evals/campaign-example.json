@@ -1,0 +1,18 @@
+{
+  "id": "smoke-o-haiku",
+  "date": "2026-11-20",
+  "budget_usd": 0.10,
+  "parallelism": 1,
+  "timeout_default": 900,
+  "benches": {
+    "O": {"runner": "run-eval-v5.sh", "task": "T1", "title_token": "T1"},
+    "IR": {"runner": "run-eval-v5.sh", "task": "T3", "title_token": "T3"},
+    "DR2": {"runner": "run-eval-v5.sh", "task": "T4V2", "title_token": "T4V2"},
+    "I2": {"runner": "run-eval-v4.sh", "task": "IV2", "title_token": "IV2-RG3"},
+    "I2-RG4": {"runner": "run-eval-v4.sh", "task": "IV4", "title_token": "IV2-RG4"},
+    "D": {"runner": "run-eval-v4.sh", "task": "D1", "title_token": "D-D1"}
+  },
+  "arms": [
+    {"bench": "O", "model": "github-copilot/claude-haiku-5.5", "variant": "", "cap": 0.10, "attempts": 1}
+  ]
+}
