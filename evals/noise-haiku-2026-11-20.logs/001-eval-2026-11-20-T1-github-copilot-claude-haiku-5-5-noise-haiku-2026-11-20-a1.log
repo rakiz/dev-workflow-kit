@@ -1,0 +1,82 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m• [0mRead-only survey of synccli[90m Explore Agent[0m
+[0m✓ [0mRead-only survey of synccli[90m Explore Agent[0m
+## Execution plan: `--json` output and dry-run UX (synccli)
+
+**Context from the survey (read-only):** the repo is flat, with no `synccli/` package. The code lives in `synccli.py` (103 lines) and `test_synccli.py` (55 lines), and `incremental.py` imports `synccli.copy_file`.
+- `sync(src_root, dst_root, dry_run=False)` at `synccli.py:72` returns the list of copied relpaths. It returns early on dry-run.
+- `main(argv=None)` at `synccli.py:90` already has `--dry-run`. Human mode prints one `rel` per line (`:97-98`) and returns 0.
+- Tests are `unittest.TestCase` classes that call `sync()` directly. No test exercises `main()` or JSON yet.
+- **Key gap:** `sync()` returns no skipped count. The `skipped` value has to be derived without changing `sync()`'s signature.
+
+No files were modified.
+
+---
+
+### T1. Decide how `skipped` is computed
+- **Objective:** Fix the definition of `skipped` and where it is computed, without changing the `sync()` signature or return type.
+- **Files:** none yet. Output is a short written decision.
+- **Agent:** `cheap-design` (draft), then `cheap-design-review` (critique). This is a real design question, so the review is warranted.
+- **Options to weigh:** (a) call a new internal helper from `main` that scans `src` and subtracts `copied`; (b) extract an internal `_plan()` that `sync()` and `main` both call. Option (b) touches `sync()`'s body, so it needs a careful check that behaviour is identical.
+- **Risks:** `skipped` could be read as "unchanged vs manifest" or "all src files not copied". These differ when files are excluded or the manifest is stale. Also, `scan_files` may count the manifest file itself.
+- **Acceptance:** a one-paragraph decision that states the exact definition of `skipped` and the chosen option, with a reviewer sign-off.
+
+### T2. Implement `--json` and dry-run interplay
+- **Objective:** Add a `--json` flag. In JSON mode, print exactly one JSON object to stdout: `{"copied": [...], "skipped": N, "src": ..., "dst": ...}`. With `--dry-run`, `copied` lists the would-copy set. Human mode is unchanged.
+- **Files to modify:** `synccli.py` (`main` and the argparse block at `:90-103`, plus any helper from T1). `sync()` signature stays as is.
+- **Agent:** `cheap-code`. Fresh session with a self-contained brief covering T1's decision, the file list, and the acceptance criteria below.
+- **Risks:**
+  - Any stray `print` in `sync()` or helpers would break the "nothing else on stdout" rule. Check first.
+  - `json.dumps` must be the only stdout write in JSON mode.
+  - Argparse errors go to stderr and exit 2. Keep that as is.
+  - Path values should be emitted as given or as `str`, not `Path` objects.
+  - Python 3.10 stdlib only. No new dependencies.
+- **Acceptance:**
+  - `python3 -m synccli --json SRC DST | python3 -m json.tool` succeeds.
+  - Output has exactly the four keys, with `copied` a list and `skipped` an int.
+  - With `--dry-run --json`, no files are written to DST and `copied` equals the list the non-dry-run would copy.
+  - Human-mode stdout is byte-identical to the pre-change output on the same fixture.
+  - Exit code is 0 on success, unchanged on error.
+
+### T3. Review T2
+- **Agent:** `cheap-review`, a fresh reviewer per review round. It checks the diff against the GOAL constraints.
+- **Classification:** minor findings go back to the same `cheap-code` via `task_id`. Major findings escalate to `strong-review`.
+- **Acceptance:** no unresolved major findings. Specifically confirm no stdout leakage, dry-run has no side effects, and `sync()` signature and behaviour are unchanged.
+
+### T4. Add unit tests for JSON shape and dry-run semantics
+- **Objective:** Add tests to `test_synccli.py` covering:
+  - valid JSON via `main(["--json", ...])` with stdout captured through `contextlib.redirect_stdout`;
+  - the four keys are present with the right types;
+  - `copied` and `skipped` values on a small fixture;
+  - `--dry-run --json` returns the would-copy list and writes nothing;
+  - human mode output is one path per line;
+  - return code is 0.
+- **Files to modify:** `test_synccli.py` only.
+- **Agent:** `cheap-code`, same test style as the existing `TestSync` class (`tempfile.mkdtemp`, `unittest.TestCase`).
+- **Risks:** tests must capture stdout correctly. Temp dirs must be cleaned up. Tests should call `main(argv)` and not depend on the `sys.argv` global.
+- **Acceptance:** `python3 -m unittest -v` passes on the new tests and the existing ones. Each GOAL bullet (JSON validity, keys, dry-run semantics) maps to at least one named test.
+
+### T5. Review T4
+- **Agent:** `cheap-review`, fresh session. It checks that tests assert real behaviour and not just that code runs. Also check that tests do not write outside temp dirs.
+- **Acceptance:** no major findings. Minor findings go back to `cheap-code`.
+
+### T6. Verification run
+- **Objective:** Run the full suite and the CLI smoke checks on Python 3.10.
+- **Agent:** `explore` (read-only, runs commands and reports). It must not edit code.
+- **Commands:** `python3 -m unittest -v`; `python3 -m synccli --help`; the JSON pipe check from T2; a dry-run check that DST is unchanged.
+- **Acceptance:** all tests pass, and the smoke outputs match the T2 criteria. If the local interpreter is not 3.10, state that explicitly.
+
+### Out of scope (needs your explicit yes)
+- `incremental.py` has known bugs: a mutable default in `filter_excluded`, and `collect_stale` skips `items[0]`. Not part of this goal, so I will not touch them unless you ask.
+- README update for the `--json` flag. Currently the README only documents `--help` and tests. Say the word if you want it added.
+
+### Overall ordering
+T1 → T2 → T3 → T4 → T5 → T6. T2 and T4 are sequential because the tests depend on the final output shape. Each code task goes through its paired review before the next task starts.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 37038 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 37039 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37011/final-report.md (session eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37011 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1)

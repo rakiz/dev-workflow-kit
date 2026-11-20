@@ -1,0 +1,43 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m✱ [0mGlob "**/DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+**Critique of DESIGN.md (syncd v2)**
+
+**Blocking, fix before coding**
+
+1. **Mass deletion on a bad scan (Deletions + Errors).** Reconcile deletes from `dst` anything absent from the scan. `os.walk` swallows errors by default, so an unreadable directory, an unmounted volume, or a permission change looks like "all files deleted" and wipes `dst`. Required: treat walk errors as a failed cycle, and refuse to delete when the scan is empty or drops more than N% of the manifest.
+
+2. **Two writers can run (Lock scope).** The lock is released before the manifest commit, and the doc says a second instance "merges cleanly." It does not. Two manifests each rewritten in place means last writer wins and entries are lost. This contradicts the "exactly one daemon ever writes into `dst`" guarantee in the same doc. Hold the lock through commit, or drop the claim and make commits merge-safe under a lock. Also specify stale-lock recovery (PID liveness check), since a crashed daemon otherwise blocks restart forever.
+
+3. **Change detection is not reliable (Integrity + Rollout).** `mtime` is stored at whole-second resolution, so two edits in the same second with the same size are invisible. The doc asserts "mtime is guaranteed to change on every edit"; that is false at this granularity and on some filesystems (FAT, some network mounts). Result: silently stale `dst`. Store nanosecond mtime plus inode and ctime, or hash on suspicion.
+
+4. **Latency claim is wrong for continuous writers (Debounce).** The quiet period restarts on every observed change, so a file written continuously never reaches quiet and is never copied. Latency is unbounded, not "one poll + 200 ms." Add a max-wait cap (e.g. copy anyway after 2 s).
+
+**Will break under real load**
+
+5. **Poll budget is not headroom.** A 50 000-file `os.walk` with `stat` every 500 ms is roughly 100 full scans per minute, continuously, on a dev laptop. "Under 100 ms" is a measurement on a warm cache; cold cache, Spotlight, or a network FS will exceed it. If a scan takes longer than 500 ms, cycles overlap or drift. Make the interval relative to the measured scan time, and log scan duration (currently only commit duration and pending count are logged, so "falling behind" is not visible).
+
+6. **Pending set is not bounded as claimed (Backpressure).** Files held by the debounce persist across polls, so the set is not "one poll's worth." Under continuous writes it grows without limit. Add a cap and a policy.
+
+7. **Journal and manifest lifecycle is undefined (Crash safety).** Journal append has no fsync, so a power loss drops recent copies. Nothing says when the journal is truncated or compacted, so replay time grows without bound. An in-place manifest rewrite can be torn, and "journal repairs it" only holds if the journal was never truncated past that point. Specify: fsync on append, atomic manifest replace (the doc rejects this for cost; the cost argument is weak, since one rename per cycle is cheap), and a compaction rule.
+
+**Smaller gaps**
+
+8. No ignore rules (`.git`, `node_modules`, build outputs). These are most of a 50 000-file tree and churn constantly.
+9. Symlinks, hardlinks, and case-insensitive collisions on macOS are not addressed.
+10. Rejecting FSEvents on the grounds of "platform-specific" is a poor fit for a macOS dev workstation. Polling is defensible, but state the cost honestly.
+11. Constants hard-coded "on purpose" make tests hard to write; inject them instead, and keep defaults.
+
+**Decisions to change first**
+
+- Make deletion conditional on a complete, error-free scan (item 1).
+- Choose one locking model covering the full cycle including commit (item 2).
+- Replace whole-second mtime with a change signature that catches same-second edits (item 3).
+- Add a max-wait to the debounce (item 4).
+- Write the journal/manifest lifecycle as an explicit spec before implementation (item 7).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 37366 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 37367 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37349/final-report.md (session eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37349 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1)

@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for the eval machinery. Every new
 > session MUST read it before touching `LEADERBOARD.html`, the runners, or
-> launching runs. Last amended: 2026-11-20 (findings-vs-FP chain step, §3/§6).
+> launching runs. Last amended: 2026-11-20 (Étape 5 noise fold, §5(e)/§5(b); findings-vs-FP chain step, §3/§6).
 
 ## 1. The five decision benches
 
@@ -159,12 +159,44 @@ argued after the fact.
   scorer disagreement, not run-to-run noise, and cannot stand in for the
   MDE. Étape 5 must measure the run-to-run noise and pre-register the MDE.
   Until then the 1.5 pt gate is not applied to D, DR2, O or IR, whose MDEs are
-  unmeasured.
+  unmeasured. (Étape 5 result below: the I2 gate stands; D now has a measured
+  MDE; O, IR and DR2 remain without an operative MDE.)
 - **MDE note (Étape 5).** Every cell is annotated with its n (valid runs).
   A gap below the bench's MDE is **not a ranking**: it is a tie, whatever the
   point difference reads.
 - **Tie rule (ratified 2026-11-20).** Eligibility = two scorer families + ≥2
   valid runs; the cheapest arm inside the MDE band wins the seat.
+
+**Étape 5 result (2026-11-20) — run-to-run noise and operative gates.**
+
+- *Protocol.* 4 identical runs of haiku (default) on each of the 5 decision
+  benches (campaign `noise-haiku-2026-11-20`, 20/20 delivered), scored by a
+  2-family panel (glm high + minimax m3p1; no claude-family scorer, since the
+  runs are claude-family). Evidence: `evals/2026-11-20/noise-mde.tsv`,
+  `evals/2026-11-20/noise-runs.tsv`, script `evals/noise-mde.py`, scorer logs in
+  the private repo `score-logs/2026-11-20/panel-noise/`. **This is a
+  haiku-default meter at n=4: per-model dependence is unknown until re-measured
+  on another model.**
+- *Convention.* n=4 runs, df=3. MDE values come from `noise-mde.py`, which is
+  conservative-high per its docstring.
+- *Operative gate per bench:*
+  - **D (/11):** MDE = **1.0 pt** (the only usable non-degenerate estimate;
+    measured sd 0.25, range 0.5, MDE(n=2) 1.04). Gaps < 1.0 on D are ties.
+  - **I2-RG4 (/14):** the ratified **1.5 pt gate STANDS**. Measured run-to-run
+    spread is 2 pts (11.5, 11.5, 13.5, 13.5; sd 1.16; bimodal, the defect-b
+    regression test present in 2/4 runs), so 1.5 likely underestimates the true
+    noise. Re-measure before any seat decision that hinges on a 1.5-2.0 gap.
+  - **O (/8):** **no operative gate at n=4.** Measured spread (4.5, 2.5, 8, 6;
+    sd 2.33, range 5.5) is about the /8 scale, so O cannot separate
+    haiku-class models until re-measured with more runs. Any O seat decision
+    must state its own n and margin.
+  - **IR (/5) and DR2 (/14):** MDE **unmeasured**. The 4-run sample is
+    zero-variance (degenerate: IR 1.5 x4, DR2 4.5 x4), which is NOT evidence of
+    zero noise; §5(b) "no ranking below an unmeasured MDE" still applies.
+    Recorded scorer-bias context: a constant family offset exists (IR: glm reads
+    1 pt higher than minimax; DR2: minimax reads 3 pts higher than glm). The
+    2-family combined mean is the official score; single-family readings carry
+    these offsets.
 
 ## 6. THE CAMPAIGN RECIPE (ordered checklist, 2026-11-20)
 

@@ -1,0 +1,82 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m$ [0mgit show HEAD
+commit ee8b14e4909304f5ca3c428d1f8e3bcb5f2bc65c
+Author: eval <eval@example.com>
+Date:   Fri Nov 20 18:52:58 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mls; grep -rn "def copy_file" . 2>/dev/null | head
+__pycache__
+DESIGN.md
+GOAL.md
+incremental.py
+README.md
+synccli.py
+test_synccli.py
+./synccli.py:62:def copy_file(src, dst):
+[0m
+Review of `ee8b14e` (adds `incremental.py` only). Real defects:
+
+1. **major**: `filter_excluded(paths, excluded=[])` uses a mutable default argument. The list is created once and shared across calls, so every call without an explicit `excluded` returns the accumulated results of all previous calls. This corrupts the output and misleads callers about what was excluded. Fix: default to `None` and create a new list inside the function.
+
+2. **minor**: `copy_many` catches `Exception` and silently `continue`s. Failed copies are dropped from the return value with no error, reason, or count. A sync caller cannot tell a failed copy from one that never was requested, so the return value is misleading as a success report.
+
+3. **minor**: `filter_excluded` only checks the first path component. A nested `pkg/__pycache__/x.pyc` or `sub/.git/...` is not excluded. This may be intended given the `EXCLUDE_TOP_DIRS` name, but the function's docstring ("the subset of paths that must be excluded from sync") does not say so, so the contract is unclear.
+
+4. **minor**: `merge_manifest` assumes `dst_manifest_path` holds a JSON object with the expected `{"mtime": ...}` shape. A corrupt or non-dict manifest raises an uncaught exception (or a `KeyError`/`TypeError` on `old[rel]["mtime"]`), and the function gives no indication of which file is bad.
+
+The commit diff itself does not add `copy_file`; it is imported from `synccli.py:62`, which exists, so the import is not a defect.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 40075 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 40076 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-40047/final-report.md (session eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-40047 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3)

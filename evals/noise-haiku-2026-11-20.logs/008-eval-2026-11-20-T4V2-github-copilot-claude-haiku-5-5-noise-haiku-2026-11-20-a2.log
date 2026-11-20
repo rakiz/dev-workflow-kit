@@ -1,0 +1,38 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead DESIGN.md
+## Critique of DESIGN.md (syncd v2)
+
+**Major risks**
+
+1. **Continuously written files are never synced.** The debounce restarts on every observed change, so a file written more often than every 200 ms never reaches a quiet period and is never copied. The claim that latency "stays under one poll plus 200 ms even while a file is being written continuously" is false. Fix: add a max-wait cap (e.g. force a copy after 2 s of pending), or accept the starvation explicitly.
+
+2. **Single-instance guarantee is broken by design.** The lock is held only during the copy loop and released before the manifest commit. Between cycles a second daemon can start and write into `dst`. The text then says the second instance's entries "merge cleanly", but no merge logic is specified, and a plain in-place rewrite is last-writer-wins, so one instance's entries are silently lost. Fix: hold a `flock` on a file descriptor for the daemon's lifetime. A PID file goes stale after a crash and is not a real lock.
+
+3. **Change detection rests on size + whole-second mtime.** Two edits in the same second with the same size are invisible. `cp -p`, `rsync -t`, `git checkout`, and archive extraction preserve or set mtimes, so "mtime is guaranteed to change on every edit" does not hold. The post-copy re-stat has the same blind spot, so the integrity check can pass on a torn copy. Fix: use nanosecond mtime plus ctime (or inode) and treat ctime as the change signal.
+
+4. **The 500 ms poll budget ignores copy time.** The "under 100 ms scan" figure covers only the walk. A build burst of hundreds of files is copied synchronously inside the same cycle, so the cycle overruns the poll interval and latency grows without bound during bursts. The design also assumes a warm page cache. On a cold cache, macOS with Spotlight/antivirus, or a network filesystem, a 50k-file walk can take seconds.
+
+5. **Idle cost.** A 50k-file `stat` walk twice a second is roughly 100k syscalls/s forever. On a developer laptop this is a constant battery and CPU cost, and it is not mentioned.
+
+6. **The journal is not a durable log.** There is no fsync on append, so "a crash loses nothing" fails on power loss. There is no compaction or rotation, so the journal grows without bound. Deletions are not journaled, so replay can resurrect a deleted entry until the next scan. The repair path for a torn manifest depends on the journal, which has no bounded retention.
+
+**Wrong assumptions**
+
+- "Backpressure is bounded by one poll's worth of changes." Files still inside their quiet period carry over, so under sustained writes the pending dict grows without limit.
+- Errors: only source-side errors are handled. Destination failures (disk full, permission denied, `dst` unmounted) have no path. A requeue on those can spin.
+- Ignore rules are absent. `.git`, `node_modules`, build outputs, editor swap files, and symlinks are not addressed, and they dominate the file count and churn in a 50k-file workspace.
+
+**Decisions to change first**
+
+1. Replace the per-cycle lock with a daemon-lifetime `flock`. Remove the "merge on commit" claim.
+2. Add a max-wait ceiling to the debounce, and state the bound on pending size and latency.
+3. Switch change detection to nanosecond mtime + ctime/inode, and drop the claim that mtime always changes.
+4. Make the manifest commit atomic (tmp + fsync + rename) and journal deletions. Decide the journal retention policy. The rejection of tmp+rename rests on the cost of one fsync per cycle, which is not measured.
+5. Specify an ignore list and symlink policy, and a destination-error path with backoff.
+6. Measure the scan and copy cost on a cold cache and on the real target platform before the 500 ms figure is kept. Consider an FSEvents/inotify watcher with periodic full rescan as the fallback, rather than rejecting watchers outright.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 38864 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 38865 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-38851/final-report.md (session eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-38851 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2)

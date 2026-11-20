@@ -1,0 +1,47 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m✱ [0mGlob "**/DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+## Critique of DESIGN.md (syncd v2)
+
+**Major risks**
+
+1. **Mass deletion on a transient empty or missing source.** Reconcile deletes from `dst` whatever is absent from `src`. If `src` is unmounted, renamed, or briefly unreadable, the next scan sees nothing and wipes `dst`. Add a guard: abort reconcile if the scan returns far fewer files than the manifest, or if the source root is missing.
+2. **The single-instance guarantee is broken by design.** The lock is held only during the copy loop, so for most of each cycle a second instance can start, pass the lock check, and write to `dst`. The manifest is also rewritten in place by two writers. The "entries merge cleanly" claim has no merge step specified. Hold one lock (for example `flock` on an fd) for the daemon's whole lifetime.
+3. **Debounce can starve.** Every observed change restarts the 200 ms quiet period, so a file written continuously is never copied. The claim that latency stays under "one poll + 200 ms even while being written continuously" contradicts this. Add a max-wait ceiling per file.
+4. **Change detection is too weak.** Size plus whole-second mtime misses these cases:
+   - Two edits in the same second with the same size leave `dst` stale until the next edit.
+   - `cp -p`, `rsync -t`, `git checkout`, and archive extraction preserve or set mtime, so content changes go unseen.
+   - Filesystem granularity (HFS+ is 1 s) and clock skew break "mtime is guaranteed to change on every edit".
+   
+   Use ns mtime plus ctime, size, and inode. Hash only when those are ambiguous.
+5. **Journal and manifest crash-repair is underspecified.** Replay can only repair a corrupt manifest if the journal still holds the entries since the last good manifest. The design never says when the journal is truncated or compacted, so either it grows without bound or replay can lose data. Also specify fsync on the journal append. Without it, a power loss can lose copies the design claims are safe. The in-place manifest rewrite opens a window where the file is empty or half-written; the rejection of tmp+rename is not justified against that.
+
+**Wrong or unsupported assumptions**
+
+6. **"Under 100 ms" is asserted, not measured.** A 50k-file Python `os.walk` with a `stat` per file typically costs hundreds of ms on macOS, and more when cold. At a 500 ms poll, the scan can overrun its own interval. Nothing bounds this. The scan also runs continuously on a laptop, so sustained CPU and battery cost is ignored.
+7. **The backpressure argument is circular.** The pending set is bounded by files changed within the quiet window, not by the poll interval. Under continuous writes it grows without limit. "Memory stays flat" is not demonstrated.
+8. **Polling is dismissed too quickly.** FSEvents on macOS (the stated platform) gives native coalesced events. The overflow argument applies to inotify, not FSEvents, which handles overflow with a rescan flag.
+9. **Ordering claim depends on unstated concurrency.** Replay "in append order reflects the last copy" holds only if copies are sequential, or if the same file cannot be in flight twice. Neither is specified.
+
+**Gaps that will bite in practice**
+
+10. Atomic-save editors (write temp, rename over) make a file vanish for an instant, which triggers a delete in `dst` followed by a re-create. Renames of large directories become delete-all plus recopy.
+11. Journal growth at build-burst rates makes startup replay slow. No compaction is defined.
+12. No handling for symlinks, permissions, ignore patterns (`.git`, `node_modules`, build output), or hidden files.
+13. Logging covers pending count and commit time only. Scan duration, the metric that validates claim 6, is not logged.
+
+**Decisions to change first**
+
+1. Add the mass-deletion guard (1).
+2. Replace the per-cycle lock with a lifetime lock (2).
+3. Add a max-wait ceiling to the debounce (3).
+4. Strengthen change detection to ns mtime + ctime + size + inode (4).
+5. Define journal compaction and fsync; use tmp+fsync+rename for the manifest (5).
+6. Benchmark the scan on a 50k-file tree on the target machine and set the poll interval from the result. Evaluate FSEvents against polling with that number (6, 8).
+7. Specify copy concurrency, and drop the ordering claim if copies run in parallel (9).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 41646 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 41647 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-41633/final-report.md (session eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-41633 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4)

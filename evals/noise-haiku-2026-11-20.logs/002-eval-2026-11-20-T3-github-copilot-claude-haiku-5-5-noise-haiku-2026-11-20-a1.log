@@ -1,0 +1,74 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m$ [0mgit show HEAD
+commit d032aa981db21102134e3eec0a7ce389b00cde13
+Author: eval <eval@example.com>
+Date:   Fri Nov 20 18:43:45 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+**Review of commit d032aa9 (v0.2), `incremental.py`**
+
+1. **`filter_excluded` uses a mutable default argument (`excluded=[]`). Severity: major.** The default list is created once and shared across calls. Every call without an explicit `excluded` returns the accumulated results of all previous calls, so exclusion sets leak between syncs. Fix: `excluded=None`, then create a new list inside the function.
+
+2. **`filter_excluded` only matches the top-level path component. Severity: minor.** It checks `p.split(os.sep)[0]`, so nested entries such as `pkg/__pycache__/x.pyc` or `sub/.sync_manifest.json` are not excluded, even though the docstring says "must be excluded from sync". Either match any path component or document the top-level-only behaviour.
+
+3. **`copy_many` silently swallows every exception. Severity: major.** The bare `except Exception: continue` discards the error and its cause. The caller only sees a shorter `done` list and cannot tell why a file failed or whether the failure was permanent. For a sync tool this can look like success while files are missing. Fix: return or log the failures (src, dst, exception) and let the caller decide.
+
+4. **`merge_manifest` raises on a corrupt or partial destination manifest. Severity: minor.** `json.load` is not guarded, so one bad `.sync_manifest.json` aborts the whole merge with no recovery path. Also, an entry without a `"mtime"` key causes a `KeyError`, since `old[rel]["mtime"]` is read without checking.
+
+5. **`merge_manifest` decides by mtime across machines. Severity: minor.** Ordering by `mtime` is only meaningful if the clocks agree. With clock skew between hosts, an older edit can overwrite a newer one. The docstring does not say this assumption exists.
+
+Not verified: `copy_file` is imported from `synccli`, which is not part of this commit, so I did not check its behaviour.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 37260 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 37261 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37232/final-report.md (session eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-37232 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1)

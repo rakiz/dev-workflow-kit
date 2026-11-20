@@ -1,0 +1,63 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead BRIEF.md
+Next I'll read the existing code the brief refers to.
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+Before writing the design I want to verify some claims in the existing code: the test suite, the `copy_file` error path, and the `safe_snapshot_path` traversal claim.
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-40961 && python3 -m unittest 2>&1 | tail -3; python3 -c "
+import snaputil,synccli,os,tempfile,stat
+print('safe path:', snaputil.safe_snapshot_path('/b','snap-x','../../etc/passwd'))
+d=tempfile.mkdtemp(); s=os.path.join(d,'src'); os.makedirs(s)
+p=os.path.join(s,'locked.txt'); open(p,'w').write('x'); os.chmod(p,0)
+dst=os.path.join(d,'dst'); os.makedirs(dst)
+print('copied:', synccli.sync(s,dst))
+print('manifest has locked:', 'locked.txt' in __import__('json').load(open(os.path.join(dst,'.sync_manifest.json'))), 'dst file exists:', os.path.exists(os.path.join(dst,'locked.txt')))
+"; python3 -c "
+import synccli,os,tempfile,time
+d=tempfile.mkdtemp()
+for i in range(20000):
+  sub=os.path.join(d,'d%d'%(i%200)); os.makedirs(sub,exist_ok=True)
+  open(os.path.join(sub,'f%d'%i),'wb').write(b'x'*50000)
+t=time.time(); m=synccli.build_manifest(d); print('manifest 20k files 1GB:', round(time.time()-t,2),'s', len(m))
+t=time.time(); synccli.sync(d,tempfile.mkdtemp()); print('full sync 20k files 1GB:', round(time.time()-t,2),'s')
+"
+Ran 6 tests in 0.004s
+
+OK
+safe path: /b/snap-x/../../etc/passwd
+copied: ['locked.txt']
+manifest has locked: True dst file exists: False
+manifest 20k files 1GB: 0.47 s 20000
+full sync 20k files 1GB: 8.42 s
+[0m
+I've verified the key claims: the 6 existing tests pass, `copy_file` silently drops unreadable files while `sync` still records them in the manifest, `safe_snapshot_path` does not stop `..` traversal, and a 1 GB / 20k-file sync takes about 8.4 s. Now I'll write the design.
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+I wrote the design to `DESIGN-d1.md` in this repo copy. I worked alone, with no subagents.
+
+Checks I ran against the existing code:
+- `python3 -m unittest` passes all 6 tests.
+- `snaputil.safe_snapshot_path('/b','snap-x','../../etc/passwd')` returns `/b/snap-x/../../etc/passwd`, so its "cannot climb out" claim is false. The design overrides it and does not use it for restore until it is fixed.
+- `synccli.sync` marks a file as synced even when `copy_file` silently skipped it (unreadable source). The file is never retried.
+- On 20,000 files / 1 GB, `build_manifest` takes 0.47 s and a full `synccli.sync` takes 8.42 s. These are single runs on this machine.
+
+The main decisions in the design:
+- **Commit:** each run stages into `.staging-*` and commits with one rename to `snap-*`. Readers only see committed snapshots.
+- **Concurrency:** a non-blocking `flock` makes a second run exit with "busy" (code 3). Readers take no writer lock.
+- **Recovery:** staging leftovers are discarded. A snapshot with a corrupt index is moved to `quarantine/`, not deleted, and the run reports it.
+- **Vanishing or unreadable files:** they are omitted and recorded in the index. The snapshot is committed with `partial: true`. Scheduler and person runs take the same path.
+- **Retention:** keep the newest K (default 7). Prune renames a snapshot out of the `snap-` namespace before deleting it, and skips snapshots a restore is holding.
+- **Change detection:** per file, using `(size, mtime_ns, ctime_ns)`. Unchanged files are hard-linked from the newest snapshot. The design lists what this misses: same-size edits that keep all three stamps, and coarse-timestamp filesystems.
+- **Performance budget:** 30 s for the first full backup of ~1 GB. This is about 3.5x the 8.42 s measured baseline. It is an estimate with one measurement behind it, and the design says so.
+- **Growth bounds:** given explicitly for N directories, files, bytes, changed bytes, and K.
+
+The design also lists every override of existing code, with file and line references. The main ones are `copy_file`, `sync`, `prune_snapshots`, `snapshot_disk_usage` (which overcounts hard links), and `safe_snapshot_path`.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 174: 40975 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 188: 40976 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-40961/final-report.md (session eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-40961 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3 above)

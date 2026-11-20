@@ -1,0 +1,97 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m✱ [0mGlob "**/*.py"[90m 3 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead incremental.py
+[0m→ [0mRead test_synccli.py
+No files were modified. This plan is based on GOAL.md, README.md, and a read of `synccli.py`, `incremental.py`, and `test_synccli.py`.
+
+## Findings that shape the plan
+
+- `sync()` returns only the list of copied paths. Nothing computes the `skipped` count, so it has to be derived (see Task 0).
+- `main()` is the only stdout writer, via `print(rel)`. `copy_file` prints nothing, so the JSON mode only needs to replace that loop.
+- `copy_file` swallows `OSError`, and `sync()` still writes the manifest afterward. So `copied` can list a file that was never actually copied. This directly affects the accuracy of the JSON `copied` field.
+- `sync()` already returns early in dry-run mode without writing files or the manifest, so dry-run semantics come almost for free.
+- The existing tests never exercise `main()` or stdout, so the new tests need to capture stdout.
+- Pre-existing bugs, out of scope unless you say otherwise: `collect_stale` loops from index 1 and skips the first item; `incremental.filter_excluded` has a mutable default argument; `incremental.py` is not wired into the CLI.
+
+## Ordered tasks
+
+**Task 0: Decide open questions (orchestrator, no agent)**
+- Objective: settle the definitions before code is written.
+- Questions:
+  1. `skipped` = count of source files not in `copied` (unchanged files), or something else? Proposed: `len(src_manifest) - len(copied)`.
+  2. Should `src`/`dst` be emitted as given on the command line or as absolute paths? Proposed: as given.
+  3. Should the silent-copy-failure bug be fixed in this release? Proposed: no, report it only, since you asked for no unrequested changes.
+- Acceptance: you answer the three questions in writing.
+
+**Task 1: Read-only call-site confirmation**
+- Agent: `explore`
+- Objective: confirm every caller of `sync`, `main`, and `copy_file` across the repo, including any hidden entry points such as `__main__` wrappers or scripts.
+- Files: read-only, none modified.
+- Risk: a caller outside the three indexed files that depends on `sync()` output format.
+- Acceptance: the agent returns a list of `file:line` call sites; the set matches what is already known (synccli.py, incremental.py, test_synccli.py). Any extra caller blocks Task 2 until reviewed.
+
+**Task 2: Design the split (optional, only if Task 0 is contested)**
+- Agent: `cheap-design` then `cheap-design-review`
+- Objective: keep `sync(src_root, dst_root, dry_run=False)` signature and its list return value stable, while exposing the plan (`to_copy`, `skipped`) to `main()`. Option A: an internal `_plan_sync()` that `sync()` wraps. Option B: `main()` recomputes the manifest. Option B duplicates I/O, so it is less favored.
+- Files: design doc only.
+- Risk: an extra helper creates a second code path that drifts from `sync()`.
+- Acceptance: the review approves one option, and the design states that `sync()` behavior is byte-identical.
+
+**Task 3: Refactor to expose the plan (impl)**
+- Agent: `cheap-code`, then `cheap-review` (mandatory, different family)
+- Objective: extract the planning step so `main()` can get `copied` and `skipped`, with no behavior change in `sync()`.
+- Files modified: `synccli.py` only.
+- Risk: subtle change to dry-run or manifest writing.
+- Acceptance: `python3 -m unittest -v` passes all 9 existing tests unmodified. `inspect.signature(synccli.sync)` is unchanged.
+
+**Task 4: Add `--json` and dry-run interplay (impl)**
+- Agent: `cheap-code`, then `cheap-review`
+- Objective: when `--json` is set, print exactly one JSON object `{"copied": [...], "skipped": N, "src": ..., "dst": ...}` to stdout. With `--dry-run`, `copied` lists what would be copied. Human mode prints one path per line as before. Exit code unchanged (0).
+- Files modified: `synccli.py` (`main()`, argparse addition).
+- Risk: any stray print breaks JSON; `--json` with a human-only code path; argparse error output going to stdout (argparse writes errors to stderr, so this should be fine, but verify).
+- Acceptance:
+  - `python3 -m synccli SRC DST --json | python3 -m json.tool` succeeds.
+  - Captured stdout in JSON mode equals exactly one `json.dumps` line.
+  - Human-mode output is identical to a baseline captured before the change (diff empty).
+
+**Task 5: Unit tests (impl)**
+- Agent: `cheap-code`, then `cheap-review`
+- Objective: add to `test_synccli.py`:
+  - valid JSON parses, and keys `copied`, `skipped`, `src`, `dst` are present with correct types;
+  - dry-run with `--json`: `copied` is non-empty, and the destination has no copied files and no `.sync_manifest.json`;
+  - stdout contains only the JSON object (captured with `contextlib.redirect_stdout`);
+  - human mode prints one path per line.
+- Files modified: `test_synccli.py` only.
+- Risk: tests that call `main()` leave temp dirs behind; tests that depend on ordering of `copied`.
+- Acceptance: new tests fail before Task 4 is applied and pass after (verify red, then green). Full suite `python3 -m unittest -v` passes.
+
+**Task 6: Constraint verification (review)**
+- Agent: `cheap-review` (fresh reviewer, different family from the producer)
+- Objective: check Python 3.10 compatibility (no 3.11+ syntax or stdlib), no new imports beyond stdlib, `sync()` signature stable, no stdout writes outside `main()`'s JSON branch.
+- Files: read-only.
+- Acceptance: written checklist with each item marked pass or fail, with evidence. Any MAJOR finding escalates to `strong-code`, after notifying you.
+
+**Task 7: Final suite run (verification)**
+- Agent: `explore` (read-only run of commands) or the orchestrator runs the commands directly.
+- Commands: `python3 -m unittest -v`; `python3 -m synccli --help`; the JSON and dry-run smoke commands from Task 4.
+- Acceptance: all green, and smoke output matches the spec.
+
+## Explicit non-tasks (need your yes first)
+- Fixing `copy_file` silent failures so `copied` is accurate.
+- Fixing `collect_stale` off-by-one and the `filter_excluded` mutable default.
+- Updating README.md to document `--json`.
+- Wiring `incremental.py` into the CLI.
+
+## Overall risks
+- The `copied` field can overstate reality because of silent copy failures (see above). The release notes must say so, or the bug must be fixed, which needs your approval.
+- `skipped` semantics are ambiguous until Task 0 is answered.
+- Repeated reads of the manifest in dry-run and normal modes could diverge if the source changes mid-run; this is not addressed by the spec.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 38558 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 38559 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-38530/final-report.md (session eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-38530 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2)

@@ -1,0 +1,44 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m✱ [0mGlob "**/DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+**Critique of `DESIGN.md` (syncd v2), before any code.** I read only the design doc, not the existing `state.py` or `synccli`.
+
+**Major risks**
+
+1. **Mass deletion on a partial scan.** `os.walk` swallows errors by default. If `src` is briefly unmounted, a directory is unreadable, or a tool is mid-rename, the walk returns a partial tree, reconcile treats the rest as deleted, and `dst` is wiped. Deletion needs an explicit `onerror`, a sanity guard (e.g. refuse to delete more than N% of the manifest in one cycle), and ideally a trash/quarantine instead of `unlink`.
+
+2. **Lock released before manifest commit.** The doc says a second instance "simply produces entries that merge cleanly." Nothing defines a merge. The commit is an in-place rewrite, so the last writer wins and can clobber the other instance's entries. Either hold the lock through commit or drop the claim that two writers are safe. Also add PID-liveness checks, or a crash leaves a stale lock that blocks restart.
+
+3. **Starvation under continuous writes.** The 200 ms debounce restarts on every observed change, with no maximum wait. A file written every 100 ms is never copied, so the claim that latency stays "under one poll plus 200 ms even while being written continuously" is false. Add a max-age cap that forces a copy.
+
+4. **Mtime at whole-second resolution.** Size+mtime at 1 s granularity misses two edits within the same second when the size is unchanged. The claim that "mtime is guaranteed to change on every edit" is also false: `cp -p`, `rsync -t`, `git checkout`, and archive extraction all preserve or set mtime. Store nanosecond mtime, or content-hash when the stat is ambiguous (mtime within the last few seconds of a scan).
+
+5. **Non-atomic writes into `dst`.** Build tools will read truncated files because the copy writes straight into the destination. Write to a temp file in `dst`, then `os.replace`. The integrity bullet only re-stats the source after writing, which does not prevent readers from seeing partial output.
+
+**Contradictions and wrong assumptions**
+
+6. **Journal says "synced" before integrity is verified.** Journal entries are appended when a copy "completes," but the integrity section says a file is never marked synced until a clean pass. Replay will mark a racing, truncated copy as synced. Journal only after the re-stat check passes.
+
+7. **Journal growth and manifest repair.** The doc never says when the journal is compacted, so replay on every start gets slower forever. "A partial manifest is repaired by journal replay" holds only if the journal was not compacted, so compaction and manifest-write ordering must be specified. Fsync is also unspecified for both.
+
+8. **The "bounded pending set" claim is wrong.** Debounce holds files back across polls, so pending grows with the number of files changing within any 200 ms window, not with one poll's changes. Under a build burst of hundreds of files, the bound is not "one poll's worth" in any useful sense.
+
+9. **Scan cost.** "Well under 100 ms" is a single stat-per-file measurement, unspecified platform or cache state. Two full walks per second on a laptop is a sustained CPU and battery cost, and it competes with Spotlight and antivirus. Measure it on a cold cache and on macOS before relying on it.
+
+10. **Ownership of `dst` is undefined.** If anyone edits `dst` by hand, the daemon silently overwrites or deletes the change. Decide and document this, e.g. detect dst drift against the manifest and refuse, or treat `dst` as read-only.
+
+11. **Shared `state.py` in the rollout.** Changing `snapshot()` to nanosecond precision alters synccli's manifest format. The rollout reuses the whole-second format, which is the cause of risk 4. Version the manifest or fork the snapshot code.
+
+**Decisions to change first**
+
+- Specify the deletion guard and `onerror` handling (risk 1). This is the only item that can destroy user data.
+- Pick one writer model: lock held through commit, or a single owner of the manifest (risks 2, 6).
+- Switch to nanosecond mtime plus an ambiguity-triggered content hash, and add a max-wait cap on debounce (risks 3, 4).
+- Make `dst` writes atomic and journal only after verification (risks 5, 6).
+- Decide `dst` ownership and version the manifest format before touching `state.py` (risks 10, 11).
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 40194 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 40195 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-40181/final-report.md (session eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-40181 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3)

@@ -1,0 +1,94 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m• [0mMap synccli code structure[90m Explore Agent[0m
+[0m✓ [0mMap synccli code structure[90m Explore Agent[0m
+## Execution plan: `--json` output and dry-run UX for synccli
+
+No files were modified. I read GOAL.md and README.md and ran one read-only explore pass on the code.
+
+**Code facts that shape the plan**
+- The package is a single module, `synccli.py` (103 lines). Tests are in `test_synccli.py` (55 lines, `unittest`).
+- `sync(src_root, dst_root, dry_run=False)` at `synccli.py:72` returns the list of copied relative paths. In dry-run it returns what would be copied. It computes no skipped count today.
+- `main(argv=None)` at `synccli.py:90-99` builds the argparse parser, has `--dry-run`, and prints each copied path with `print(rel)`.
+- Existing tests call module functions directly. None exercise `main()`.
+
+**Open design point:** `skipped` is not computed anywhere. Two options:
+- (A) `main` calls `scan_files(src)` and computes `skipped = total - len(copied)`. This is simple but duplicates the scan.
+- (B) Extract a private helper, e.g. `_sync_detail(...) -> (copied, skipped)`, and have `sync()` return only `copied`. This keeps the `sync()` signature stable and gives one source of truth.
+
+Recommendation: (B).
+
+---
+
+### Task 1: Decide the skipped-count design
+- **Objective:** Choose option A or B and fix the exact definition of `skipped` (files in src that were not copied, including unchanged files; dry-run uses the same definition).
+- **Files:** none (decision recorded in the task brief).
+- **Agent:** `cheap-design` (short doc), then `cheap-design-review`. This is a small decision, so the review is optional, but it is cheap to run here.
+- **Risks:** an ambiguous `skipped` definition makes the JSON contract unstable. Choosing (A) duplicates work; choosing (B) touches the internal structure of `sync()`.
+- **Acceptance:** a one-paragraph decision naming the chosen option, the `skipped` definition, and confirming `sync(src_root, dst_root, dry_run=False)` is unchanged.
+
+### Task 2: Refactor sync internals (only if option B)
+- **Objective:** Move the body of `sync()` into a helper that returns `(copied, skipped)`. `sync()` returns `copied` as before.
+- **Files:** modify `synccli.py` (around lines 72-87).
+- **Agent:** `cheap-code`, then `cheap-review` (mandatory).
+- **Risks:** changing manifest-writing behaviour; writing the manifest in dry-run mode by accident; altering the return value that internal callers depend on.
+- **Acceptance:** `python3 -m unittest -v` passes unchanged (existing `TestSync` tests). `sync()`'s signature and return type are identical.
+
+### Task 3: Add `--json` to the CLI and the JSON output branch
+- **Objective:** Add `--json` to argparse. When set, `main` prints exactly one JSON object to stdout: `{"copied": [...], "skipped": N, "src": ..., "dst": ...}`. Human mode still prints one path per line. Exit code stays `0`.
+- **Files:** modify `synccli.py` (`main`, lines 90-99).
+- **Agent:** `cheap-code`, then `cheap-review` (mandatory).
+- **Risks:**
+  - Any stray `print` or debug output in `sync()` or helpers breaks "nothing else on stdout". Check the whole call path.
+  - `src`/`dst` must be serialized as the strings the user passed, not resolved paths, unless the decision says otherwise.
+  - Using `json.dumps` is fine (stdlib). Do not add dependencies.
+  - Errors in JSON mode should go to stderr and leave stdout empty.
+- **Acceptance:** `python3 -m synccli --json SRC DST | python3 -m json.tool` succeeds, and stdout contains only that object. Human mode output is byte-identical to before for the same input.
+
+### Task 4: Dry-run plus JSON semantics
+- **Objective:** With `--json --dry-run`, `copied` lists what would be copied, the manifest is not written, and a second run gives the same output.
+- **Files:** modify `synccli.py` only if Task 3 left a gap; otherwise no change.
+- **Agent:** `cheap-code` if changes are needed, then `cheap-review`.
+- **Risks:** dry-run writing `.sync_manifest.json` (a silent state change); `copied` in dry-run being empty instead of the would-copy list.
+- **Acceptance:** on a fresh dst, `--json --dry-run` returns N entries in `copied`, the dst contains no manifest, and a repeat call returns the same `copied` list.
+
+### Task 5: Unit tests for the JSON shape
+- **Objective:** Add tests to `test_synccli.py` that call `synccli.main([...])` with stdout captured (`contextlib.redirect_stdout`) and assert:
+  - stdout parses as JSON with exactly one object;
+  - keys `copied`, `skipped`, `src`, `dst` are present with correct types;
+  - `skipped` is an int and matches the chosen definition;
+  - `--json --dry-run`: `copied` is the would-copy list, no manifest is written;
+  - human mode still prints one path per line.
+- **Files:** modify `test_synccli.py`. Keep the same `unittest` style (new `TestMainJson` class).
+- **Agent:** `cheap-code`, then `cheap-review` (mandatory). Do not give the reviewer the implementer's history; use a fresh reviewer.
+- **Risks:** tests that depend on temp-dir ordering (sort the `copied` list before comparing); leaking temp dirs; tests passing vacuously because `redirect_stdout` captured nothing.
+- **Acceptance:** `python3 -m unittest -v` passes with the new tests. At least one test fails if the JSON branch is removed (quick manual mutation check, run by `cheap-mech`).
+
+### Task 6: Full verification
+- **Objective:** Confirm all acceptance criteria and the constraints (stdlib only, Python 3.10 compatible).
+- **Files:** none.
+- **Agent:** `cheap-mech` (mechanical run and report).
+- **Commands:** `python3 -m unittest -v`; `python3 -m synccli --help`; a manual `--json`, `--json --dry-run`, and human-mode run on a temp tree; `python3.10 -m unittest` if available; `grep` for new imports to confirm stdlib only.
+- **Risks:** the environment may not have Python 3.10; report it as not verified rather than passing it.
+- **Acceptance:** all commands exit 0, JSON is valid, human output is unchanged, and the import list contains only stdlib modules.
+
+### Task 7 (optional, needs your yes): README update
+- **Objective:** Document `--json` and the dry-run interplay in README.md.
+- **Files:** modify `README.md`.
+- **Agent:** `cheap-mech` then `cheap-review`.
+- **Acceptance:** the README usage section shows both flags. Not in GOAL.md, so I will not do it without your approval.
+
+---
+
+**Sequencing:** 1 → 2 (if B) → 3 → 4 → 5 → 6. Tasks 3 and 5 can overlap only if 3 is settled first. Each implementation task is followed by its review before the next starts.
+
+**Cross-cutting risks**
+- The `sync()` signature must stay stable; any change there is a regression for internal callers.
+- The "nothing else on stdout" rule is the easiest to break silently. Task 5 should include a test that asserts it.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 41198 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 41199 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-41168/final-report.md (session eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-41168 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4)

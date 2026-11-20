@@ -1,0 +1,464 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m$ [0mcat BRIEF.md; echo ---; ls -la
+# BRIEF — design `backupctl` (fixture D1)
+
+## Context
+
+This repository's `evals/` workflow accumulates result directories that must
+be backed up. Today nothing backs them up. You are designing `backupctl`,
+a command-line backup tool for exactly this job.
+
+This directory is your starting point. It already contains working code for
+a neighboring problem: `synccli.py` synchronizes a source directory into a
+destination using a manifest file (`.sync_manifest.json`), and
+`test_synccli.py` is its test suite (run it with `python3 -m unittest`).
+A small helper module, `snaputil.py`, also lives here — snapshot
+listing/pruning/size/path helpers a previous experiment left behind;
+reuse it rather than re-implementing what it covers. `backupctl` will
+live alongside this code and ship in the same repo.
+
+## What `backupctl` must do
+
+`backupctl` covers a configured set of directories (N directories — a
+handful today, a few dozen over time) and produces snapshots:
+point-in-time copies of those directories, kept under a backup root.
+
+The evals workflow makes demands a naive "copy everything, every time" loop
+does not meet:
+
+- **The scheduler and a person both trigger runs, and the timings can
+  collide.** Two runs may execute at the same time, and a restore —
+  separate tooling that reads a snapshot and copies it back — may be
+  reading a snapshot while a run is writing a new one. No combination of
+  these may corrupt a snapshot or each other's work.
+- **A reader never asks whether the run that produced a snapshot is
+  finished.** Anything that reads a snapshot later — a restore, a human,
+  the next run — must see a complete, self-consistent image: never a mix
+  of "some files from this run, some from the previous one", and never a
+  snapshot index that promises files the snapshot does not contain.
+- **The process can die at any point.** Ctrl-C, laptop sleep, a killed
+  process — a run may stop mid-flight. An interrupted run must leave
+  nothing behind that a later reader could mistake for a complete
+  snapshot, and the next run must make progress without manual cleanup.
+  This includes the index itself: when a run finds a corrupt or
+  half-written index left behind by a dead run, the design must define
+  the recovery — what is discarded, what is re-derived from the tree,
+  and what the run reports.
+- **A source file can disappear without warning.** It can vanish between
+  listing and copying, or be unreadable when the copy reaches it. The
+  design must say what a snapshot then contains and what the run reports —
+  the same behavior whether the run was started by the scheduler or by a
+  person.
+- **The backup root only ever grows.** Snapshots accumulate; a retention
+  policy the design defines decides which old ones are deleted. Deletion
+  must never leave the user without a usable snapshot, and must be safe
+  while something else may be reading the snapshot being deleted.
+- **Most files do not change between one run and the next.** After the
+  first full backup of a directory, later runs must recognize the files
+  that have not changed since the last snapshot instead of copying them
+  again. The design must state at what granularity "unchanged" is decided
+  and what edits that granularity can miss.
+- **The first full backup has a clock on it.** The design must state its
+  performance budget for the initial full backup of a ~1 GB tree (on the
+  order of tens of thousands of files) and show where the number comes
+  from — a measurement or an explicit derivation, not a guess. The
+  existing code and tests in this directory may be run to check claims.
+- **Three directories today, a few dozen over time.** Say what grows with
+  what (per-run work, memory, disk) and what stays flat — every such
+  claim stated as an explicit bound: a number, a formula over N
+  (directories) and the tree's files and bytes, or a measured constant.
+  "Stays bounded" or "stays flat" without the bound itself is not an
+  answer.
+
+## Grounding
+
+`backupctl` must build on the code in this directory rather than
+re-implement it: wherever your design touches scanning, manifests, change
+detection, or copying, name the exact existing file and function it builds
+on. Grounding is verified, not taken on faith: a reference counts only
+when the artifact it names actually exists in this directory and does
+what you claim it does — cite the file and the function (with line
+numbers when you have them). Where your design must behave differently
+from what the existing code does today, say so explicitly: name the
+exact function or behavior you override, where it lives, and the reason —
+an override of unnamed "current behavior" grounds nothing. A design that
+could have been written without reading `synccli.py` is not grounded in
+this codebase.
+
+## Deliverable and working mode
+
+- Write your design to `DESIGN-d1.md` at the top of this directory.
+- Work alone: no subagents, no delegation. Every part of the design is
+  yours.
+---
+total 40
+drwxr-xr-x@    5 sebastien.mendez  staff     160 Nov 20 18:59 __pycache__
+drwxr-xr-x@    7 sebastien.mendez  staff     224 Nov 20 18:59 .
+drwx------@ 4465 sebastien.mendez  staff  142880 Nov 20 18:59 ..
+-rw-r--r--@    1 sebastien.mendez  staff    4974 Nov 20 18:59 BRIEF.md
+-rw-r--r--@    1 sebastien.mendez  staff    3072 Nov 20 18:59 snaputil.py
+-rw-r--r--@    1 sebastien.mendez  staff    3169 Nov 20 18:59 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff    1834 Nov 20 18:59 test_synccli.py
+[0m
+[0m$ [0mcat -n synccli.py; echo ---; cat -n snaputil.py; echo ---; cat -n test_synccli.py
+1	"""synccli: synchronize a source directory into a destination using a manifest."""
+     2	import argparse
+     3	import json
+     4	import os
+     5	import sys
+     6	
+     7	MANIFEST_NAME = ".sync_manifest.json"
+     8	
+     9	
+    10	def scan_files(root):
+    11	    """Return sorted list of relative file paths under root."""
+    12	    result = []
+    13	    for dirpath, dirnames, filenames in os.walk(root):
+    14	        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+    15	        for name in filenames:
+    16	            full = os.path.join(dirpath, name)
+    17	            rel = os.path.relpath(full, root)
+    18	            result.append(rel)
+    19	    return sorted(result)
+    20	
+    21	
+    22	def file_state(path):
+    23	    """Return (size, mtime) for a file."""
+    24	    st = os.stat(path)
+    25	    return {"size": st.st_size, "mtime": st.st_mtime}
+    26	
+    27	
+    28	def build_manifest(root):
+    29	    """Build a manifest {relpath: state} for all files under root."""
+    30	    manifest = {}
+    31	    for rel in scan_files(root):
+    32	        manifest[rel] = file_state(os.path.join(root, rel))
+    33	    return manifest
+    34	
+    35	
+    36	def changed_files(old_manifest, new_manifest):
+    37	    """Return files whose state changed or that are new in new_manifest."""
+    38	    changed = []
+    39	    for rel, state in new_manifest.items():
+    40	        if rel not in old_manifest or old_manifest[rel] != state:
+    41	            changed.append(rel)
+    42	    return changed
+    43	
+    44	
+    45	def collect_stale(items, seen=None):
+    46	    """Collect stale entries: items not yet marked fresh.
+    47	
+    48	    Args:
+    49	        items: iterable of (path, fresh) tuples.
+    50	        seen: set of paths already marked fresh; defaults to a fresh set.
+    51	    """
+    52	    if seen is None:
+    53	        seen = set()
+    54	    stale = []
+    55	    for i in range(len(items)):
+    56	        path, fresh = items[i]
+    57	        if path not in seen and not fresh:
+    58	            stale.append(path)
+    59	    return stale
+    60	
+    61	
+    62	def copy_file(src, dst):
+    63	    """Copy src to dst, creating parent directories as needed."""
+    64	    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    65	    try:
+    66	        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+    67	            fdst.write(fsrc.read())
+    68	    except OSError:
+    69	        pass  # unreadable source: skip it, next pass will retry
+    70	
+    71	
+    72	def sync(src_root, dst_root, dry_run=False):
+    73	    """Sync src_root into dst_root; return list of copied relative paths."""
+    74	    src_manifest = build_manifest(src_root)
+    75	    dst_manifest_path = os.path.join(dst_root, MANIFEST_NAME)
+    76	    old_manifest = {}
+    77	    if os.path.exists(dst_manifest_path):
+    78	        with open(dst_manifest_path, "r", encoding="utf-8") as f:
+    79	            old_manifest = json.load(f)
+    80	    to_copy = changed_files(old_manifest, src_manifest)
+    81	    if dry_run:
+    82	        return to_copy
+    83	    for rel in to_copy:
+    84	        copy_file(os.path.join(src_root, rel), os.path.join(dst_root, rel))
+    85	    with open(dst_manifest_path, "w", encoding="utf-8") as f:
+    86	        json.dump(src_manifest, f, indent=2)
+    87	    return to_copy
+    88	
+    89	
+    90	def main(argv=None):
+    91	    parser = argparse.ArgumentParser(prog="synccli")
+    92	    parser.add_argument("src")
+    93	    parser.add_argument("dst")
+    94	    parser.add_argument("--dry-run", action="store_true")
+    95	    args = parser.parse_args(argv)
+    96	    copied = sync(args.src, args.dst, dry_run=args.dry_run)
+    97	    for rel in copied:
+    98	        print(rel)
+    99	    return 0
+   100	
+   101	
+   102	if __name__ == "__main__":
+   103	    sys.exit(main())
+---
+     1	"""snaputil: snapshot helpers for backup roots (listing, pruning, sizes)."""
+     2	import argparse
+     3	import os
+     4	import shutil
+     5	import sys
+     6	
+     7	
+     8	def list_snapshots(backup_root):
+     9	    """Return the snapshot directory names under backup_root, oldest first.
+    10	
+    11	    Snapshot directories live directly under backup_root and are named
+    12	    like snap-20261112-150000-07: a date, a time, and a run sequence
+    13	    number, separated by dashes. Entries that are not such directories
+    14	    are ignored.
+    15	    """
+    16	    names = []
+    17	    for entry in os.scandir(backup_root):
+    18	        if entry.name.startswith("snap-") and entry.is_dir():
+    19	            names.append(entry.name)
+    20	    return sorted(names)
+    21	
+    22	
+    23	def prune_snapshots(backup_root, keep):
+    24	    """Delete all but the newest keep snapshots under backup_root.
+    25	
+    26	    Snapshots are ordered oldest first and only the oldest ones are
+    27	    removed, so the newest snapshot is never deleted. Returns the list
+    28	    of deleted snapshot names, oldest first.
+    29	    """
+    30	    names = list_snapshots(backup_root)
+    31	    if len(names) <= keep:
+    32	        return []
+    33	    doomed = names[:len(names) - keep]
+    34	    for name in doomed:
+    35	        shutil.rmtree(os.path.join(backup_root, name))
+    36	    return doomed
+    37	
+    38	
+    39	def snapshot_disk_usage(backup_root, snapshot_name):
+    40	    """Return the total size in bytes of all regular files in one snapshot.
+    41	
+    42	    Files are counted recursively; an empty or missing snapshot counts
+    43	    as zero bytes.
+    44	    """
+    45	    total = 0
+    46	    for dirpath, dirnames, filenames in os.walk(
+    47	        os.path.join(backup_root, snapshot_name)
+    48	    ):
+    49	        for name in filenames:
+    50	            total += os.stat(os.path.join(dirpath, name)).st_size
+    51	    return total
+    52	
+    53	
+    54	def safe_snapshot_path(backup_root, snapshot_name, rel_path):
+    55	    """Map a relative path stored in a snapshot manifest back under the
+    56	    snapshot directory.
+    57	
+    58	    The returned path never points outside backup_root/<snapshot_name>:
+    59	    any ".." segments in rel_path are normalized away before the join,
+    60	    so a stored path cannot climb out of its snapshot.
+    61	    """
+    62	    rel = os.path.normpath(rel_path)
+    63	    return os.path.join(backup_root, snapshot_name, rel)
+    64	
+    65	
+    66	def is_stale(snapshot_dir, ref_epoch):
+    67	    """Return True when the snapshot directory is older than ref_epoch.
+    68	
+    69	    ref_epoch is a reference time in seconds since the epoch, as captured
+    70	    earlier by the caller (e.g. from a previous stat). A snapshot whose
+    71	    directory was modified at exactly ref_epoch is not stale.
+    72	    """
+    73	    return os.stat(snapshot_dir).st_mtime <= ref_epoch
+    74	
+    75	
+    76	def main(argv=None):
+    77	    parser = argparse.ArgumentParser(prog="snaputil")
+    78	    parser.add_argument("backup_root")
+    79	    parser.add_argument("--prune", type=int, metavar="KEEP", default=None)
+    80	    args = parser.parse_args(argv)
+    81	    if args.prune is not None:
+    82	        deleted = prune_snapshots(args.backup_root, args.prune)
+    83	        for name in deleted:
+    84	            print("deleted", name)
+    85	    for name in list_snapshots(args.backup_root):
+    86	        size = snapshot_disk_usage(args.backup_root, name)
+    87	        print(name, size)
+    88	    return 0
+    89	
+    90	
+    91	if __name__ == "__main__":
+    92	    sys.exit(main())
+---
+     1	import os
+     2	import tempfile
+     3	import unittest
+     4	
+     5	import synccli
+     6	
+     7	
+     8	class TestScanFiles(unittest.TestCase):
+     9	    def setUp(self):
+    10	        self.tmp = tempfile.mkdtemp()
+    11	        os.makedirs(os.path.join(self.tmp, "sub"))
+    12	        with open(os.path.join(self.tmp, "a.txt"), "w") as f:
+    13	            f.write("a")
+    14	        with open(os.path.join(self.tmp, "sub", "b.txt"), "w") as f:
+    15	            f.write("b")
+    16	
+    17	    def test_scan_sorted_relative(self):
+    18	        self.assertEqual(synccli.scan_files(self.tmp), ["a.txt", os.path.join("sub", "b.txt")])
+    19	
+    20	
+    21	class TestCollectStale(unittest.TestCase):
+    22	    def test_first_item_stale_is_included(self):
+    23	        items = [("x.txt", False), ("y.txt", False)]
+    24	        self.assertEqual(synccli.collect_stale(items), ["x.txt", "y.txt"])
+    25	
+    26	    def test_fresh_items_skipped(self):
+    27	        items = [("x.txt", True), ("y.txt", False)]
+    28	        self.assertEqual(synccli.collect_stale(items), ["y.txt"])
+    29	
+    30	    def test_seen_is_respected(self):
+    31	        items = [("x.txt", False), ("y.txt", False)]
+    32	        self.assertEqual(synccli.collect_stale(items, seen={"x.txt"}), ["y.txt"])
+    33	
+    34	
+    35	class TestSync(unittest.TestCase):
+    36	    def setUp(self):
+    37	        self.src = tempfile.mkdtemp()
+    38	        self.dst = tempfile.mkdtemp()
+    39	        with open(os.path.join(self.src, "a.txt"), "w") as f:
+    40	            f.write("hello")
+    41	
+    42	    def test_sync_copies_and_writes_manifest(self):
+    43	        copied = synccli.sync(self.src, self.dst)
+    44	        self.assertEqual(copied, ["a.txt"])
+    45	        self.assertTrue(os.path.exists(os.path.join(self.dst, "a.txt")))
+    46	        self.assertTrue(os.path.exists(os.path.join(self.dst, ".sync_manifest.json")))
+    47	
+    48	    def test_second_sync_is_noop(self):
+    49	        synccli.sync(self.src, self.dst)
+    50	        copied = synccli.sync(self.src, self.dst)
+    51	        self.assertEqual(copied, [])
+    52	
+    53	
+    54	if __name__ == "__main__":
+    55	    unittest.main()
+[0m
+I've read the brief and the three existing files. Before writing the design, I'll check the claims I plan to make about `snaputil.safe_snapshot_path`, `copy_file`, and the timing budget.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-42021 2>/dev/null || pwd
+python3 -m unittest -q 2>&1 | tail -3
+python3 -c "
+import snaputil,os
+print(snaputil.safe_snapshot_path('/b','snap-x','../../etc/passwd'))
+print(snaputil.safe_snapshot_path('/b','snap-x','/etc/passwd'))
+"
+# copy_file on unreadable source
+T=$(mktemp -d); echo hi > $T/s; chmod 000 $T/s; python3 -c "
+import synccli; synccli.copy_file('$T/s','$T/d'); import os; print('dst exists:', os.path.exists('$T/d'), os.path.getsize('$T/d') if os.path.exists('$T/d') else '')"; whoami
+# bulk benchmark: ~1 GB, 30k files (32 KiB each)
+B=$(mktemp -d); python3 -c "
+import os
+for i in range(30000):
+    d='$B/src/d%03d'%(i%300); os.makedirs(d,exist_ok=True)
+    with open(f'{d}/f{i}.bin','wb') as f: f.write(os.urandom(32*1024))
+"
+du -sh $B/src
+python3 -c "
+import time,synccli,shutil
+t=time.time(); m=synccli.build_manifest('$B/src'); t1=time.time()-t
+t=time.time(); c=synccli.sync('$B/src','$B/dst'); t2=time.time()-t
+print('scan+stat s=%.2f files=%d'%(t1,len(m)))
+print('full sync s=%.2f copied=%d'%(t2,len(c)))
+"
+rm -rf $B
+Ran 6 tests in 0.004s
+
+OK
+/b/snap-x/../../etc/passwd
+/etc/passwd
+dst exists: False 
+sebastien.mendez
+938M	/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp.FgiV3BAhen/src
+scan+stat s=0.68 files=30000
+full sync s=12.64 copied=30000
+[0m
+The unreadable-source case doesn't leave a partial destination, since the source opens first. I still need to check whether the manifest records that file, which would stop the next run from retrying it.
+[0m$ [0mT=$(mktemp -d); mkdir $T/src $T/dst; echo hi > $T/src/s; chmod 000 $T/src/s; python3 -c "
+import synccli
+print('run1 copied:', synccli.sync('$T/src','$T/dst'))
+print('run2 copied:', synccli.sync('$T/src','$T/dst'))
+import json; print(json.load(open('$T/dst/.sync_manifest.json')).keys())"; rm -rf $T
+run1 copied: ['s']
+run2 copied: []
+dict_keys(['s'])
+[0m
+Confirmed: a file that fails to read is recorded in the manifest as synced, so later runs never retry it. Next I'll measure the remaining budget inputs: the second-run cost, per-entry index memory, and hashing throughput.
+[0m$ [0mB=$(mktemp -d); python3 -c "
+import os
+for i in range(30000):
+    d='$B/src/d%03d'%(i%300); os.makedirs(d,exist_ok=True)
+    with open(f'{d}/f{i}.bin','wb') as f: f.write(os.urandom(32*1024))
+"
+python3 -c "
+import time,synccli,hashlib,tracemalloc
+t=time.time(); synccli.sync('$B/src','$B/dst'); print('first sync s=%.2f'%(time.time()-t))
+t=time.time(); c=synccli.sync('$B/src','$B/dst'); print('unchanged rerun s=%.2f copied=%d'%(time.time()-t,len(c)))
+tracemalloc.start(); m=synccli.build_manifest('$B/src'); cur,peak=tracemalloc.get_traced_memory(); print('index bytes/entry=%.0f'%(cur/len(m)))
+tracemalloc.stop()
+t=time.time()
+h=hashlib.sha256()
+with open('$B/src/d000/f0.bin','rb') as f: pass
+import glob
+tot=0
+t=time.time()
+for p in glob.glob('$B/src/*/*.bin'):
+    with open(p,'rb') as f:
+        while True:
+            b=f.read(1<<20)
+            if not b: break
+            h.update(b); tot+=len(b)
+dt=time.time()-t; print('sha256 MB/s=%.0f over %d MB'%(tot/dt/1e6, tot/1e6))
+"
+rm -rf $B
+first sync s=11.79
+unchanged rerun s=0.88 copied=0
+index bytes/entry=391
+sha256 MB/s=179 over 983 MB
+[0m
+I have the measurements I need. Writing the design now.
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+I wrote the design to `DESIGN-d1.md` in the repo copy. I did all the work myself, with no subagents.
+
+Key points from the design:
+
+- **Existing code has real defects.** Verified by running it:
+  - `snaputil.safe_snapshot_path` does not contain paths. `../../etc/passwd` and absolute paths escape the snapshot. The design rejects those inputs instead of normalizing them.
+  - `synccli.copy_file` swallows read errors, and `synccli.sync` then records the failed file as synced, so it is never retried.
+- **Commit model.** Each run builds in `.tmp-<runid>/` and commits with one rename to `snap-*`. Crash recovery deletes leftover temp directories under the lock. A corrupt committed index is reported and skipped, not silently rebuilt.
+- **Concurrency.** Writers use a non-blocking `flock`. Readers take a shared lock on each snapshot. Retention renames a snapshot to `.trash-*` before deleting it, and skips any snapshot a reader holds.
+- **Change detection.** Per-file, keyed on size, `mtime_ns`, `ctime_ns`, inode and device. It can miss a same-size rewrite on a filesystem with coarse ctime, and mmap writes that have not yet reached stat. An opt-in `--verify` mode hashes the content to close those gaps.
+- **Measured numbers.** On a 938 MB, 30,000-file tree:
+  - the existing `synccli.sync` full first sync took 11.8–12.6 s;
+  - an unchanged rerun took 0.88 s;
+  - index cost is about 391 bytes per entry;
+  - SHA-256 runs at about 179 MB/s.
+  The 60 s budget is about 5x the measured baseline. It is a margin, not a derived constant, and must be re-measured on the real implementation.
+- **Known gaps I did not resolve.** Per-file fsync is not measured and is left as an option, so a power loss during a run is not covered. The filesystem's ctime granularity is not checked.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 174: 42035 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 188: 42036 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-42021/final-report.md (session eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-42021 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4 above)

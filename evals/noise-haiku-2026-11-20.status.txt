@@ -1,0 +1,23 @@
+# campaign noise-haiku-2026-11-20 date=2026-11-20 budget_usd=5.00 start_ms=1795196554922 jobs=20
+# campaign noise-haiku-2026-11-20 date=2026-11-20 budget_usd=5.00 start_ms=1795196594345 jobs=20
+18:43:45 001 O/github-copilot/claude-haiku-5.5/-/a1 ok spent=0.0109
+18:43:57 002 IR/github-copilot/claude-haiku-5.5/-/a1 ok spent=0.0173
+18:44:17 003 DR2/github-copilot/claude-haiku-5.5/-/a1 ok spent=0.0250
+18:45:35 004 I2-RG4/github-copilot/claude-haiku-5.5/-/a1 ok spent=0.0491
+18:47:52 005 D/github-copilot/claude-haiku-5.5/-/a1 ok spent=0.0710
+18:48:23 006 O/github-copilot/claude-haiku-5.5/-/a2 ok spent=0.0805
+18:48:36 007 IR/github-copilot/claude-haiku-5.5/-/a2 ok spent=0.0869
+18:48:55 008 DR2/github-copilot/claude-haiku-5.5/-/a2 ok spent=0.0941
+18:50:36 009 I2-RG4/github-copilot/claude-haiku-5.5/-/a2 ok spent=0.1216
+18:52:29 010 D/github-copilot/claude-haiku-5.5/-/a2 ok spent=0.1404
+18:52:58 011 O/github-copilot/claude-haiku-5.5/-/a3 ok spent=0.1498
+18:53:11 012 IR/github-copilot/claude-haiku-5.5/-/a3 ok spent=0.1566
+18:53:31 013 DR2/github-copilot/claude-haiku-5.5/-/a3 ok spent=0.1644
+18:55:09 014 I2-RG4/github-copilot/claude-haiku-5.5/-/a3 ok spent=0.1906
+18:56:31 015 D/github-copilot/claude-haiku-5.5/-/a3 ok spent=0.2064
+18:57:03 016 O/github-copilot/claude-haiku-5.5/-/a4 ok spent=0.2168
+18:57:14 017 IR/github-copilot/claude-haiku-5.5/-/a4 ok spent=0.2231
+18:57:37 018 DR2/github-copilot/claude-haiku-5.5/-/a4 ok spent=0.2311
+18:59:35 019 I2-RG4/github-copilot/claude-haiku-5.5/-/a4 ok spent=0.2625
+19:02:10 020 D/github-copilot/claude-haiku-5.5/-/a4 ok spent=0.2822
+# done spent=0.2822 budget_usd=5.00

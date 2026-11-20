@@ -1,0 +1,122 @@
+[0m
+> build · claude-haiku-5.5
+[0m
+[0m→ [0mRead BRIEF.md
+Now I need to read the existing code it refers to.
+[0m→ [0mRead synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+The existing code has several behaviours I need to verify before designing against them. I'll run the tests and check the claims in `snaputil.py` directly.
+[0m
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37957 && python3 -m unittest 2>&1 | tail -3; python3 - <<'EOF'
+import os, tempfile, snaputil, synccli
+root = tempfile.mkdtemp()
+for n in ["snap-20260101-000000-01","snap-20260102-000000-02"]:
+    os.makedirs(os.path.join(root,n))
+# keep=0 behaviour
+print("keep=0 deleted:", snaputil.prune_snapshots(root, 0), "remaining:", snaputil.list_snapshots(root))
+print("normpath('../../etc/x') ->", os.path.normpath("../../etc/x"))
+print("safe path:", snaputil.safe_snapshot_path("/b","snap-1","../../etc/x"))
+print("abs rel:", snaputil.safe_snapshot_path("/b","snap-1","/etc/passwd"))
+# missing root
+try: snaputil.list_snapshots("/nonexistent-zz"); print("no error")
+except Exception as e: print("list missing root:", type(e).__name__)
+# copy_file unreadable source leaves empty dst
+d = tempfile.mkdtemp(); s = os.path.join(d,"s.txt"); open(s,"w").write("x"); os.chmod(s,0)
+synccli.copy_file(s, os.path.join(d,"out","s.txt")); print("unreadable dst exists:", os.path.exists(os.path.join(d,"out","s.txt")))
+# vanished file during build_manifest
+try:
+    os.makedirs(os.path.join(d,"v")); open(os.path.join(d,"v","f"),"w").write("y")
+    orig = synccli.scan_files; synccli.scan_files = lambda r: ["v/f","v/gone"] if False else orig(r)+["ghost"]
+    synccli.build_manifest(d); print("ghost ok")
+except FileNotFoundError: print("build_manifest raises FileNotFoundError on vanished file")
+EOF
+Ran 6 tests in 0.005s
+
+OK
+keep=0 deleted: ['snap-20260101-000000-01', 'snap-20260102-000000-02'] remaining: []
+normpath('../../etc/x') -> ../../etc/x
+safe path: /b/snap-1/../../etc/x
+abs rel: /etc/passwd
+list missing root: FileNotFoundError
+unreadable dst exists: False
+build_manifest raises FileNotFoundError on vanished file
+[0m
+Two of my checks need correcting: the unreadable-source case leaves no partial destination, since the source is opened first. I'll verify whether a skipped file is recorded in the manifest, and measure the first full-backup cost.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37957 && python3 - <<'EOF'
+import os, tempfile, json, time, synccli
+src = tempfile.mkdtemp(); dst = tempfile.mkdtemp()
+open(os.path.join(src,"ok.txt"),"w").write("x")
+p = os.path.join(src,"locked.txt"); open(p,"w").write("y")
+print("uid", os.getuid())
+if os.getuid()==0:
+    print("running as root: chmod 0 does not block reads; skipping that check")
+else:
+    os.chmod(p,0)
+    print("copied:", synccli.sync(src,dst))
+    print("manifest has locked.txt:", "locked.txt" in json.load(open(os.path.join(dst,".sync_manifest.json"))))
+    print("second run copied:", synccli.sync(src,dst))
+EOF
+df -h /private/var/folders | tail -1
+uid 502
+copied: ['locked.txt', 'ok.txt']
+manifest has locked.txt: True
+second run copied: []
+/dev/disk3s5   926Gi   647Gi   241Gi    73%    7.3M  2.5G    0%   /System/Volumes/Data
+[0m
+The run reports `locked.txt` as copied even though `copy_file` skipped it. Let me confirm the destination is missing it, then measure the 1 GB, ~30k-file first backup.
+[0m$ [0mcd /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-37957 && python3 - <<'EOF'
+import os, tempfile, time, random, synccli
+src = tempfile.mkdtemp(); dst = tempfile.mkdtemp()
+open(os.path.join(src,"ok.txt"),"w").write("x")
+p=os.path.join(src,"locked.txt"); open(p,"w").write("y"); os.chmod(p,0)
+r = synccli.sync(src,dst)
+print("reported:", r, "| on dst:", sorted(os.listdir(dst)))
+os.chmod(p,0o644)
+# benchmark tree: 30000 files, ~1 GiB total (avg ~35 KB, varied sizes)
+big = tempfile.mkdtemp(); random.seed(1)
+N=30000; total=0; t=time.time()
+for i in range(N):
+    d=os.path.join(big, f"d{i%300}", f"s{(i//300)%10}"); os.makedirs(d, exist_ok=True)
+    size = random.randint(1_000, 67_000); total+=size
+    with open(os.path.join(d,f"f{i}.bin"),"wb") as f: f.write(os.urandom(size))
+print(f"generated {N} files, {total/2**30:.3f} GiB in {time.time()-t:.1f}s")
+t=time.time(); m=synccli.build_manifest(big); t_scan=time.time()-t
+out = tempfile.mkdtemp()
+t=time.time(); copied=synccli.sync(big,out); t_sync=time.time()-t
+print(f"scan+stat: {t_scan:.2f}s  full sync (scan+copy+manifest): {t_sync:.2f}s  copied={len(copied)}")
+t=time.time(); copied=synccli.sync(big,out); print(f"second run (no-op): {time.time()-t:.2f}s copied={len(copied)}")
+EOF
+reported: ['locked.txt', 'ok.txt'] | on dst: ['.sync_manifest.json', 'ok.txt']
+generated 30000 files, 0.949 GiB in 11.2s
+scan+stat: 1.02s  full sync (scan+copy+manifest): 15.08s  copied=30000
+second run (no-op): 1.25s copied=0
+[0m
+I have the measurements and the verified behaviours. Writing the design now.
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+I wrote the design to `DESIGN-d1.md` in the repo copy. I did it alone, with no subagents. The main points are below.
+
+**What I verified in the existing code** (the design overrides these):
+- `synccli.copy_file` swallows read errors, and `sync` still records the skipped file as copied. A `chmod 0` file was reported as copied, was absent from the destination, and was never retried.
+- `build_manifest` crashes the whole run if a file vanishes between scan and stat.
+- `snaputil.prune_snapshots(keep=0)` deletes every snapshot, including the newest, even though its docstring says the newest is never deleted.
+- `snaputil.safe_snapshot_path` lets `../../etc/x` and absolute paths escape the snapshot, despite its docstring.
+- `snaputil.list_snapshots` does not check whether a snapshot is complete.
+
+**Design summary:**
+- **Concurrency:** one `flock` writer lock per backup root, released automatically if a process dies. Readers take shared locks, and prune skips any snapshot whose lock is busy.
+- **Atomic publish:** a run writes into a hidden staging directory, then renames it to `snap-*` as the commit point. Readers never see partial snapshots.
+- **Recovery:** staging and trash directories are discarded. Snapshots with a bad index are quarantined. The next run re-derives from the live tree.
+- **Vanished or unreadable files:** recorded in an index `skipped` list and reported with exit code 2. They are never recorded as copied. Scheduler and manual runs behave the same.
+- **Change detection:** size, `mtime_ns`, `ctime_ns`, inode, and device. Unchanged files are hard-linked from the previous snapshot. A racy-timestamp rule re-copies files modified in the same second as the base. The doc lists what the granularity misses.
+- **Retention:** keep the newest K valid snapshots per target, with K ≥ 1 enforced. Deletion is a rename to trash followed by removal, and is skipped if a reader holds the snapshot.
+
+**Performance:** I generated a 30,000-file, 0.949 GiB tree. The existing `synccli.sync` took 15.08 s for the first full copy and 1.25 s for a no-op run. The design sets a budget of ≤ 60 s, with a 120 s ceiling, for the first backup. The budget is about 4× the measured baseline. Streaming with SHA-256, per-file fsync, and the index write are not measured yet, and the doc says so. The implementation must be benchmarked before the budget is accepted.
+
+**Open items** are at the end of the doc: benchmark the real implementation, measure real index size (estimated at about 6 MB for 30,000 files), decide on a scheduler `--wait` option, and confirm the backup root is on a local filesystem.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 174: 37971 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 188: 37972 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-37957/final-report.md (session eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-37957 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1 above)
