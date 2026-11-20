@@ -5,6 +5,9 @@ mode: subagent
 description: "Mandatory review of the work produced by impl — read-only, sorts findings into minor (back to impl) / major (escalate to deep)."
 permission:
   edit: deny
+  bash:
+    "*git push*": deny
+    "*git commit*": ask
 ---
 
 You review the work produced by the impl agent. Read-only: you modify no file.

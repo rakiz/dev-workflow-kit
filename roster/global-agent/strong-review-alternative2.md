@@ -4,6 +4,9 @@ mode: subagent
 description: "Terminal review rung (fresh family, qwen): the audit of last resort for code produced by strong-code-alternative2 (Claude family) — the one review a Claude-authored change should always get before ship. Also the heavier final audit on explicit user request. Read-only by design. If the project ships the kit's pipeline agents (`.opencode/agent/`), prefer those — you are the fallback for projects and ad-hoc work without them."
 permission:
   edit: deny
+  bash:
+    "*git push*": deny
+    "*git commit*": ask
 ---
 
 You are the terminal review rung: the change was produced by strong-code-alternative2 (a Claude-family rung), and this is the one cross-family audit it gets before ship. Read-only: you modify no file.

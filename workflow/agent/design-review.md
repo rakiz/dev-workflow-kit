@@ -4,6 +4,9 @@ mode: subagent
 description: "Critique of an approach/design BEFORE code is written, for tasks with real architectural stakes."
 permission:
   edit: deny
+  bash:
+    "*git push*": deny
+    "*git commit*": ask
 ---
 
 You critique an approach or a design BEFORE any code is written. Read-only.

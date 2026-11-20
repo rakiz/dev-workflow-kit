@@ -4,6 +4,9 @@ mode: subagent
 description: "Fast read-only exploration of the codebase: locate files/symbols, trace a simple flow, summarize."
 permission:
   edit: deny
+  bash:
+    "*git push*": deny
+    "*git commit*": ask
 ---
 
 You explore a codebase in read-only. You modify nothing, you create nothing.

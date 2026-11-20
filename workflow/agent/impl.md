@@ -2,6 +2,10 @@
 # Model and model family are injected at install time by init.sh from the kit's models.json.
 mode: subagent
 description: "Default implementer for ordinary code tasks. Always followed by a review before being considered done."
+permission:
+  bash:
+    "*git push*": deny
+    "*git commit*": ask
 ---
 
 You are a project's default implementer. You work on a single, well-scoped task, then hand back.
