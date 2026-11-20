@@ -1,0 +1,41 @@
+run	model	effort	tag	status	glm	haiku	mean	spread	n_readings	divergent	reason
+IV4-ai-gateway-misc-fw-deepseek-v4-1-flash-q51	dsflash	default	q51	scored	11	10	10.5	1	2	no	
+IV4-ai-gateway-misc-fw-deepseek-v4-1-flash-q52	dsflash	default	q52	scored	13	13	13	0	2	no	
+IV4-ai-gateway-misc-fw-glm-5-3-flash-high-q51	glm	high	q51	scored		13	13		1	single	
+IV4-ai-gateway-misc-fw-glm-5-3-flash-high-q52	glm	high	q52	scored		12	12		1	single	
+IV4-ai-gateway-misc-fw-glm-5-3-flash-low-q51	glm	low	q51	scored		10	10		1	single	
+IV4-ai-gateway-misc-fw-glm-5-3-flash-low-q52	glm	low	q52	scored		9	9		1	single	
+IV4-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-high-q51	1017	high	q51	scored	13	13	13	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-high-q52	1017	high	q52	scored	13	13	13	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-low-q51	1017	low	q51	scored	13	12	12.5	1	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-low-q52	1017	low	q52	scored	12	11	11.5	1	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-medium-q51	1017	medium	q51	scored	13	13	13	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-deepseek-v4p1-flash-1017-medium-q52	1017	medium	q52	scored	11	11	11	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-q51	kimi	medium	q51	scored	11	11	11	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-q52	kimi	medium	q52	scored	11	11	11	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-low-q51	minimax	low	q51	scored	11	11	11	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-low-q52	minimax	low	q52	scored	13	13	13	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-q51	minimax	medium	q51	scored	11	11	11	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-q52	minimax	medium	q52	scored	11	11	11	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium-q51	muse	medium	q51	scored	9	9	9	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium-q52	muse	medium	q52	scored	9	9	9	0	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium-q51	qwen	medium	q51	scored	14	13	13.5	1	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium-q52	qwen	medium	q52	scored	14	13	13.5	1	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-q51	qwen	xhigh	q51	DNF							no-report marker (no final-report.md)
+IV4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-q52	qwen	xhigh	q52	DNF							no-report marker (no final-report.md)
+IV4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-q53	qwen	xhigh	q53	scored	13	14	13.5	1	2	no	
+IV4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-q53b	qwen	xhigh	q53b	scored	10	13	11.5	3	2	yes	
+IV4-github-copilot-claude-sonnet-5-5-high-q51	sonnet	high	q51	scored	13		13		1	single	
+IV4-github-copilot-claude-sonnet-5-5-high-q52	sonnet	high	q52	scored	14		14		1	single	
+IV4-github-copilot-gemini-3-8-flash-medium-q51	gem38	medium	q51	scored	12	11	11.5	1	2	no	
+IV4-github-copilot-gemini-3-8-flash-medium-q52	gem38	medium	q52	scored	12	11	11.5	1	2	no	
+IV4-github-copilot-gemini-4-argon-high-q51	argon	high	q51	scored	13	11	12	2	2	yes	
+IV4-github-copilot-gemini-4-argon-high-q52	argon	high	q52	DNF							cost-cap kill (2x cap $0.30) - no final report
+IV4-github-copilot-gemini-4-carbon-high-q51	carbon	high	q51	scored	14	14	14	0	2	no	
+IV4-github-copilot-gemini-4-carbon-high-q52	carbon	high	q52	DNF							15-min watchdog timeout - no final report
+IV4-github-copilot-gemini-4-hydrogen-high-q51	hydrogen	high	q51	scored	13	13	13	0	2	no	
+IV4-github-copilot-gemini-4-hydrogen-high-q52	hydrogen	high	q52	scored	13	13	13	0	2	no	
+IV4-github-copilot-gemini-4-hydrogen-medium-q51	hydrogen	medium	q51	scored	11	11	11	0	2	no	
+IV4-github-copilot-gemini-4-hydrogen-medium-q52	hydrogen	medium	q52	scored	11	11	11	0	2	no	
+IV4-github-copilot-gpt-6-1-terra-medium-q51	terra	medium	q51	scored	12	12	12	0	2	no	
+IV4-github-copilot-gpt-6-1-terra-medium-q52	terra	medium	q52	scored	12	12	12	0	2	no	

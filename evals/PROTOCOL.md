@@ -161,3 +161,5 @@ argued after the fact.
 - **MDE note (Étape 5).** Every cell is annotated with its n (valid runs).
   A gap below the bench's MDE is **not a ranking**: it is a tie, whatever the
   point difference reads.
+- **Tie rule (ratified 2026-11-20).** Eligibility = two scorer families + ≥2
+  valid runs; the cheapest arm inside the MDE band wins the seat.

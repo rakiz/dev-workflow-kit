@@ -7,7 +7,7 @@ No seat change. Nothing here decides a seat (PROTOCOL §5(c)).
 
 | Item | Change | Where | Proof |
 |---|---|---|---|
-| I2 failure policy | **A (preservation)** stated explicitly: a failed transform exits 1, emits nothing new, leaves previous report.json/report.html and cache byte-intact | `evals/reportgen-eval-repo-i4/GOAL.md` (Invariants, first bullet) | `diff` vs RG3 GOAL.md = that bullet only |
+| I2 failure policy | **A (preservation)** stated explicitly in GOAL.md (failure semantics: the stated invariant; defect specifics: the private key) | `evals/reportgen-eval-repo-i4/GOAL.md` (Invariants, first bullet) | `diff` vs RG3 GOAL.md = that bullet only |
 | c′ made earnable | acceptance: rules file read at most once per run; count reported | GOAL.md (second bullet) | same diff |
 | RG4 fixture | `reportgen-eval-repo-i4/`, tree hash `be19bfc8409e04a391068d0c3588bc0f7d23e196798d78116a539fd19cbc2a6e` (method: BENCH-V3 §3.6, `__pycache__` excluded). Method check: RG3 hash reproduces `3d2c1a30…` | `evals/BENCH-V3-DESIGN.md` §3.6 | `shasum` run 2026-11-19 |
 | RG3 | calibration-retired (unspecified failure policy, F2); not run again | BENCH-V3 §3.6 | — |
@@ -20,10 +20,9 @@ No seat change. Nothing here decides a seat (PROTOCOL §5(c)).
 
 Executed `probes-rg4.sh` on `reportgen-eval-repo-i4` (the defects must be present here):
 
-- probe a: `merchant.distinct=99` (defect present ✓)
-- probe b: `REPORTS-DIFFER`, `generated_from=2` (defect present ✓)
-- probe c′: `rules_opens=4` (defect present ✓)
-- probe d: `exit=0`, `PREVIOUS-OUTPUT-OR-STATE-CHANGED` (defect present ✓)
+- probes a, b, c′, d (the four RG4 seeded defects, see the private key): each shows its defect present on the pristine tree ✓ (probe values withheld from public docs)
+
+> **RG4 = a calibration bench by design (built public); the held-out rule lives in PROTOCOL §5.** The fixture is public as discoverable substrate; defect specifics are kept out of the docs.
 
 The probes discriminate; the fixed/unfixed readings below are meaningful.
 
@@ -39,22 +38,22 @@ Executed rubric layer (`grid2-scores-rg4.csv`):
 
 | Arm | Run | Suite green | a | b | c′ reads | d (policy A) | Own tests failing on pristine |
 |---|---|---|---|---|---|---|---|
-| haiku default | r41 | ✓ | fixed | **NOT fixed** (gen=2) | 1 | exit1 INTACT | 8/21 |
-| haiku default | r42 | ✓ | fixed | fixed | 1 | exit1 INTACT | 8/21 |
+| haiku default | r41 | ✓ | fixed | **NOT fixed** | 1 | policy A held | 8/21 |
+| haiku default | r42 | ✓ | fixed | fixed | 1 | policy A held | 8/21 |
 | minimax xhigh | r41 | — | DNF (no final report) → r41b | | | | |
-| minimax xhigh | r41b | ✓ | fixed | fixed | 1 | exit1 INTACT | 12/25 |
-| minimax xhigh | r42 | ✓ | fixed | fixed | 1 | exit1 INTACT | 14/28 |
-| haiku high | r41 | ✓ | fixed | fixed | 1 | exit1 INTACT | 15/29 |
-| haiku high | r42 | ✓ | fixed | fixed | 1 | exit1 INTACT | 12/26 |
-| opus default | r41 | ✓ | fixed | fixed | 1 | exit1 INTACT | 10/10 (test_regressions.py) |
-| opus default | r42 | ✓ | fixed | fixed | 1 | exit1 INTACT | 9/9 (test_regressions.py) |
+| minimax xhigh | r41b | ✓ | fixed | fixed | 1 | policy A held | 12/25 |
+| minimax xhigh | r42 | ✓ | fixed | fixed | 1 | policy A held | 14/28 |
+| haiku high | r41 | ✓ | fixed | fixed | 1 | policy A held | 15/29 |
+| haiku high | r42 | ✓ | fixed | fixed | 1 | policy A held | 12/26 |
+| opus default | r41 | ✓ | fixed | fixed | 1 | policy A held | 10/10 (test_regressions.py) |
+| opus default | r42 | ✓ | fixed | fixed | 1 | policy A held | 9/9 (test_regressions.py) |
 
 Reading the table honestly:
 - Probes a, c′, d are fixed in every valid arm; b is fixed in 7 of 8 (haiku default r41 fails it).
 - "Own tests failing on pristine" counts the number of the arm's own tests that fail (or error) against the unfixed code. It is NOT yet mapped per defect. Some failures may be new-import errors rather than defect detection. That check is open.
 - The full rubric total (ambiguity, baseline quote, FPs, per-defect test mapping) is NOT computed. It needs the 2-family panel (phase 4a) — see §6. **No total score is reported.**
 - The minimax r41 run has no final report (`no-report` marker, DNF per PROTOCOL §2.2) and was re-run as r41b. The DNF directory is kept in `runs/` as evidence.
-- The haiku-high arms' stderr shows one transform failure (policy A in action); their probes confirm exit 1 and intact state.
+- The haiku-high arms' stderr shows one transform failure (policy A in action); their probes confirm policy A held.
 
 ## 3. DR-v3 re-pilot (phase 3b) — 4 runs, raw only
 
@@ -89,7 +88,7 @@ Upper bound under v3: **+1 H4 per run**, only where their H4 was previously 0. T
 2. **DR-v3 answer key missing.** The brief said "no key change", but DR-v3 asks for conformance too, which the DR2 key does not score. A new key is needed before any DR-v3 number is reported.
 3. **D-key v3 re-score is an upper bound, not a re-score** (§4). Scorer sheets absent; no independent reviewer.
 4. **Charts / LEADERBOARD not regenerated** (4b). RG4 has no chart dots yet; `gen-charts.py` not changed.
-5. **Leakage grep for RG4 strings not run** (`RG4-A-REGISTRY-LOOKUP`, `RG4-B-GENERATED-FROM`, `RG4-C-RULES-READS`, `RG4-D-POLICY-A-EXIT`) — required before campaigns (§3.8).
+5. **Leakage grep for RG4 strings not run** (the four RG4 seeded-defect IDs, see the private key) — required before campaigns (§3.8).
 6. **Defect-to-test mapping** of the own-test counts not done (§2).
 7. **Judgment on my side:** I did the probe and suite checks myself. The rubric asks for independent scoring; these are execution results, not judgments.
 8. **Budget note:** the DB shows $3.37 of unrelated 2026-11-19 gemini sessions; phase-3 spend is counted separately ($2.23).

@@ -1,0 +1,1119 @@
+[0m
+> build · accounts/fireworks/models/qwen3p8-2p4t-a95b
+[0m
+[0m→ [0mRead GOAL.md
+[0m
+[0m$ [0mls -la
+total 80
+drwxr-xr-x@   11 sebastien.mendez  staff     352 Nov 20 09:30 .
+drwx------@ 3951 sebastien.mendez  staff  126432 Nov 20 09:30 ..
+-rw-r--r--@    1 sebastien.mendez  staff    2565 Nov 20 09:30 cache.py
+-rw-r--r--@    1 sebastien.mendez  staff    2232 Nov 20 09:30 GOAL.md
+drwxr-xr-x@    6 sebastien.mendez  staff     192 Nov 20 09:30 input
+drwxr-xr-x@    3 sebastien.mendez  staff      96 Nov 20 09:30 output
+-rw-r--r--@    1 sebastien.mendez  staff    8341 Nov 20 09:30 reportgen.py
+-rw-r--r--@    1 sebastien.mendez  staff     349 Nov 20 09:30 rules.example.toml
+-rw-r--r--@    1 sebastien.mendez  staff    1024 Nov 20 09:30 test_legacy_report.py
+-rw-r--r--@    1 sebastien.mendez  staff    5488 Nov 20 09:30 test_reportgen.py
+-rw-r--r--@    1 sebastien.mendez  staff    2250 Nov 20 09:30 transforms.py
+[0m
+[0m$ [0mpython3 -m unittest test_legacy_report 2>&1
+F
+======================================================================
+FAIL: test_sample_values_do_not_leak_markup (test_legacy_report.HtmlOutputTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_legacy_report.py", line 26, in test_sample_values_do_not_leak_markup
+    self.assertNotIn("<b>", html)
+AssertionError: '<b>' unexpectedly found in "<!doctype html>\n<html><head><meta charset='utf-8'>\n<title>reportgen summary</title></head><body>\n<h1>labels.csv</h1>\n<p>1 rows</p>\n<table border='1'>\n<tr><th>column</th><th>non_empty</th><th>distinct</th><th>sample</th></tr>\n<tr><td>item</td><td>1</td><td>1</td><td>i1</td></tr>\n<tr><td>label</td><td>1</td><td>1</td><td>red <b> & bold</td></tr>\n</table>\n</body></html>"
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (failures=1)
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen 2>&1
+../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_reportgen.py:128: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-xx8_cwj1/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_reportgen.py:130: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-xx8_cwj1/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..........
+----------------------------------------------------------------------
+Ran 12 tests in 0.224s
+
+OK
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+[0m→ [0mRead reportgen.py
+[0m→ [0mRead transforms.py
+[0m→ [0mRead cache.py
+[0m→ [0mRead test_reportgen.py
+[0m→ [0mRead test_legacy_report.py
+[0m→ [0mRead rules.example.toml
+Baseline recorded. Now reading all source files:
+Baseline recorded. Now examining inputs and output:
+[0m
+[0m$ [0mls input output cache 2>&1; echo ---; for f in input/*.csv; do echo "== $f"; head -c 400 "$f"; echo; done
+ls: cache: No such file or directory
+input:
+big_transactions.csv
+small_devices.csv
+small_employees.csv
+small_transactions.csv
+
+output:
+---
+== input/big_transactions.csv
+tx_id,merchant,amount,date,share
+t000000,Merchant-00,$0.00,03/01/2026,0.0000
+t000001,Merchant-01,$1.07,03/02/2026,0.0010
+t000002,Merchant-02,$2.14,03/03/2026,0.0020
+t000003,Merchant-03,$3.21,03/04/2026,0.0030
+t000004,Merchant-04,$4.28,03/05/2026,0.0040
+t000005,Merchant-05,$5.35,03/06/2026,0.0050
+t000006,Merchant-06,$6.42,03/07/2026,0.0060
+t000007,Merchant-07,$7.49,03/08/2026,0.0070
+t000008,Merchan
+== input/small_devices.csv
+device_id,status,notes
+d1,,sensor-a
+d2,,"wrapped
+note"
+d3,,sensor-c
+
+== input/small_employees.csv
+emp_id,name,dept,salary
+e01,Ann Premier,Eng,90500
+e02,Bo Li,Ops,72500
+e03,Cy Dey,Eng,84000
+e04,Ada Poe,Ops,69000
+e05,Li Ong,Design,114000
+
+== input/small_transactions.csv
+tx_id,merchant,amount,date
+t1,Acme,$120.50,01/15/2026
+t2,Bolt,$89.99,01/16/2026
+t3,Acme,$40.00,01/17/2026
+t4,Cirrus,$25.10,01/18/2026
+[0m
+`small_devices.csv` has an all-empty `status` column that IS rules-mapped — good probe for cache-coherence. Let me empirically verify suspected defects in a temp copy before changing anything:
+[0m$ [0mT=$(mktemp -d /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-XXXX) && cp -r . "$T/repo" && cd "$T/repo" && rm -rf output cache && python3 reportgen.py --rules rules.example.toml >/dev/null 2>&1 && cp output/report.json /tmp/run1.json && python3 reportgen.py --rules rules.example.toml >/dev/null 2>&1 && diff /tmp/run1.json output/report.json && echo IDENTICAL || echo DIFFERS; echo "T=$T"
+61c61
+<       "generated_from": 1,
+---
+>       "generated_from": 2,
+DIFFERS
+T=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx
+[0m
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo && python3 - <<'EOF'
+import builtins, os, reportgen
+real = builtins.open
+reads = []
+def counting(file, *a, **k):
+    if str(file).endswith("rules.example.toml") and (len(a)==0 or a[0]=="r" or "r" in str(a[:1])):
+        reads.append(file)
+    return real(file, *a, **k)
+builtins.open = counting
+try:
+    reportgen.run("rules.example.toml", "input", "output", "cache/state.json")
+finally:
+    builtins.open = real
+print("RULES READS:", len(reads))
+EOF
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+RULES READS: 4
+[0m
+Defect confirmed: same inputs, different report depending on cache hit. Now probing failure policy and rules-read count:
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo && cp output/report.json /tmp/good.json && cp output/report.html /tmp/good.html && cp cache/state.json /tmp/goodcache.json && echo 't9,Bad,$nope,01/20/2026' >> input/small_transactions.csv && python3 reportgen.py --rules rules.example.toml; echo "EXIT=$?"; echo "--- report.json changed?"; diff -q /tmp/good.json output/report.json && echo SAME || echo CHANGED; echo "--- report.html changed?"; diff -q /tmp/good.html output/report.html && echo SAME || echo CHANGED; echo "--- cache changed?"; diff -q /tmp/goodcache.json cache/state.json && echo SAME || echo CHANGED
+reportgen: warning: 1 cell(s) failed their transform (first: row 6, column amount)
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 5 rows
+EXIT=0
+--- report.json changed?
+SAME
+--- report.html changed?
+Files /tmp/good.html and output/report.html differ
+CHANGED
+--- cache changed?
+Files /tmp/goodcache.json and cache/state.json differ
+CHANGED
+[0m
+All three invariant violations confirmed. Quick probe of the future-schema cache behavior (GOAL item 2):
+[0m$ [0mcd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo && rm -rf output cache input && cp -r /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/input . && python3 - <<'EOF'
+import json, subprocess, os
+# future-schema state: version field greater than current REGISTRY_VERSION ("2"), future field layout
+future = {"small_devices.csv": {"version": 999, "digest": "x", "rows": 0, "generated_from": 0, "rules_fp": "y", "summary": {}}}
+os.makedirs("cache", exist_ok=True)
+json.dump(future, open("cache/state.json","w"))
+r = subprocess.run(["python3","reportgen.py","--rules","rules.example.toml"], capture_output=True, text=True)
+print("EXIT:", r.returncode); print("STDERR:", r.stderr[-400:])
+EOF
+EXIT: 0
+STDERR:
+[0m
+[0m← [0mEdit transforms.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/transforms.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/transforms.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/transforms.py
+@@ -44,8 +44,18 @@
+     except ValueError:
+         raise TransformError("not a number: %r" % value)
+ 
+ 
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0 (case-insensitive)."""
++    cleaned = value.strip().lower()
++    if cleaned in ("yes", "true"):
++        return 1.0
++    if cleaned in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ def date_iso(value):
+     """'MM/DD/YYYY' -> 'YYYY-MM-DD'."""
+     parts = value.strip().split("/")
+     if len(parts) != 3 or len(parts[2]) != 4:
+
+[0m
+[0m← [0mEdit transforms.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/transforms.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/transforms.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/transforms.py
+@@ -72,8 +72,9 @@
+     "lower": lower,
+     "currency_amount": currency_amount,
+     "round2": round2,
+     "date_iso": date_iso,
++    "boolean": boolean,
+ }
+ 
+ 
+ def apply(name, value):
+
+[0m
+All defects confirmed empirically:
+1. **Rules read 4× per run** (once per CSV) — violates "at most once".
+2. **Failure policy broken 3 ways**: failing transform → exit **0**, report.html **overwritten**, cache **modified** (policy demands exit 1, nothing new, byte-intact).
+3. **`generated_from` incoherent**: fresh run reports 1, cached run reports 2 for identical inputs (two conflicting definitions in `reportgen.generated_from` vs `cache.make_entry`).
+4. **HTML markup leak** (shipped `test_legacy_report` fails).
+5. **`registry_version` never compared at lookup** despite documented contract in transforms.py.
+6. Future-schema cache: no crash today by luck, but foreign entries can be reused/merged — no version guard exists.
+
+Now implementing. Starting with `transforms.py` (boolean + registry):
+[0m← [0mEdit cache.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
+@@ -9,21 +9,22 @@
+      "registry_version": "<version of the transform registry>",
+      "summary":          {...}}
+ 
+ Entries are reused when the file on disk is byte-identical to the file
+-processed in the previous run and the rules mapping is unchanged;
+-save_state() rewrites the state file after every run so it always mirrors
+-what the last run saw.
++processed in the previous run, the rules mapping is unchanged, and the
++entry was stamped with the current REGISTRY_VERSION; a state file written
++by a future schema version (any entry stamped with a registry_version
++greater than REGISTRY_VERSION) is treated as an empty cache, so the run
++recomputes everything and rewrites a valid state file.
+ """
+ 
+-import csv
+ import hashlib
+ import json
+ import os
+ 
+ DEFAULT_CACHE_PATH = os.path.join("cache", "state.json")
+ 
+-REGISTRY_VERSION = "2"
++REGISTRY_VERSION = "3"
+ 
+ 
+ def file_digest(path):
+     """sha256 of the file bytes (streamed, constant memory)."""
+
+[0m
+[0m← [0mEdit cache.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
+@@ -40,14 +40,36 @@
+     payload = json.dumps(rules, sort_keys=True, separators=(",", ":"))
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _entry_version(entry):
++    """Integer value of an entry's registry_version, or None when absent
++    or not parseable as an integer."""
++    if not isinstance(entry, dict):
++        return None
++    try:
++        return int(entry.get("registry_version"))
++    except (TypeError, ValueError):
++        return None
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state; a missing file is just an empty cache. A
++    state file written by a future schema version (any entry stamped with
++    a registry_version greater than REGISTRY_VERSION) is also treated as
++    an empty cache."""
+     if not os.path.exists(path):
+         return {}
+     with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++        state = json.load(fh)
++    if not isinstance(state, dict):
++        return {}
++    current = int(REGISTRY_VERSION)
++    for entry in state.values():
++        version = _entry_version(entry)
++        if version is not None and version > current:
++            return {}
++    return state
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+     """Merge `entries` into the state file, keeping entries for inputs the
+
+[0m
+[0m← [0mEdit cache.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/cache.py
+@@ -85,13 +85,11 @@
+         fh.write("\n")
+     os.replace(tmp, path)
+ 
+ 
+-def make_entry(path, digest, rows, summary, rules, rules_fp):
+-    """Build a cache entry for `path`. `generated_from` is the number of
+-    header columns covered by the rules mapping."""
+-    with open(path, "r", encoding="utf-8", newline="") as fh:
+-        header = next(csv.reader(fh))
+-    generated_from = sum(1 for col in header if col in rules)
++def make_entry(digest, rows, summary, generated_from, rules_fp):
++    """Build a cache entry. `generated_from` is the value the run
++    computed for the fresh report, stored verbatim so a cache-hit run
++    reports exactly what a fresh run would."""
+     return {"digest": digest, "rows": rows, "generated_from": generated_from,
+             "rules_fp": rules_fp, "registry_version": REGISTRY_VERSION,
+             "summary": summary}
+
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
+@@ -12,8 +12,9 @@
+ """
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+ 
+
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
+@@ -128,19 +128,20 @@
+          "<html><head><meta charset='utf-8'>",
+          "<title>reportgen summary</title></head><body>"]
+ for name in sorted(report["files"]):
+     res = report["files"][name]
+-    parts.append("<h1>%s</h1>" % name)
++    parts.append("<h1>%s</h1>" % html.escape(str(name)))
+     parts.append("<p>%d rows</p>" % res["rows"])
+     parts.append("<table border='1'>")
+     parts.append("<tr><th>column</th><th>non_empty</th>"
+                  "<th>distinct</th><th>sample</th></tr>")
+     summary = res["summary"]["columns"]
+     for col in sorted(summary):
+         stats = summary[col]
+-        sample = ", ".join(str(v) for v in stats["sample"])
++        sample = ", ".join(html.escape(str(v)) for v in stats["sample"])
+         parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                     % (col, stats["non_empty"], stats["distinct"], sample))
++                     % (html.escape(str(col)), stats["non_empty"],
++                        stats["distinct"], sample))
+     parts.append("</table>")
+ parts.append("</body></html>")
+ return "\n".join(parts)
+ 
+
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
+@@ -146,46 +146,55 @@
+     return "\n".join(parts)
+ 
+ 
+ def run(rules_path, input_dir, output_dir, cache_path):
+-    """Run one full pass over the input directory and write the report."""
++    """Run one full pass over the input directory and write the report.
++    The rules file is read exactly once. Nothing is emitted until every
++    summary has passed validation: a run in which any transform failed
++    raises without touching the previous report or the cache."""
+     state = cache.load_state(cache_path)
++    rules = load_rules(rules_path)
++    rules_fp = cache.rules_fingerprint(rules)
+ 
+     names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
+     results = {}
+     pending = {}
+     for name in names:
+-        rules = load_rules(rules_path)
+-        rules_fp = cache.rules_fingerprint(rules)
+         path = os.path.join(input_dir, name)
+         digest = cache.file_digest(path)
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++        if (isinstance(entry, dict)
++                and entry.get("digest") == digest
++                and entry.get("rules_fp") == rules_fp
++                and entry.get("registry_version") == cache.REGISTRY_VERSION):
+             results[name] = {"digest": digest, "rows": entry["rows"],
+                              "generated_from": entry["generated_from"],
+                              "summary": entry["summary"]}
+         else:
+             summary = summarize_file(header, data_rows, rules)
++            gen_from = generated_from(header, data_rows, rules)
+             results[name] = {"digest": digest, "rows": len(data_rows),
+-                             "generated_from": generated_from(header, data_rows, rules),
++                             "generated_from": gen_from,
+                              "summary": summary}
+-            pending[name] = cache.make_entry(path, digest, len(data_rows),
+-                                             summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
++            pending[name] = cache.make_entry(digest, len(data_rows), summary,
++                                             gen_from, rules_fp)
+ 
++    for name in sorted(results):
++        validate_summary(results[name]["summary"])
++
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+     with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
++    if pending:
++        cache.save_state(pending, path=cache_path)
+     return report
+ 
+ 
+ def main(argv=None):
+
+[0m
+Now `reportgen.py` — HTML escaping, run() reorder (validate before any emission, rules read once, single cache write after validation), and exit 1:
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/reportgen.py
+@@ -211,10 +211,10 @@
+     args = parser.parse_args(argv)
+     try:
+         return run(args.rules, args.input, args.output, args.cache)
+     except ValidationError as exc:
+-        sys.stderr.write("reportgen: warning: %s\n" % exc)
+-        return None
++        sys.stderr.write("reportgen: error: %s\n" % exc)
++        sys.exit(1)
+ 
+ 
+ if __name__ == "__main__":
+     main()
+
+[0m
+Now appending regression tests to `test_reportgen.py` (new classes only; existing tests untouched):
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_reportgen.py
+@@ -130,6 +130,231 @@
+         after = json.load(open(self.cache_path))
+         self.assertEqual(before, after)
+ 
+ 
++class BooleanTransformTests(unittest.TestCase):
++    def test_affirmative_forms_report_one(self):
++        for value in ("yes", "Yes", "YES", "true", "True", "TRUE", " yes "):
++            self.assertEqual(transforms.apply("boolean", value), 1.0)
++
++    def test_negative_forms_report_zero(self):
++        for value in ("no", "No", "NO", "false", "False", "FALSE", " no "):
++            self.assertEqual(transforms.apply("boolean", value), 0.0)
++
++    def test_any_other_input_raises(self):
++        for value in ("maybe", "1", "0", "", "yess", "truthy"):
++            with self.assertRaises(transforms.TransformError):
++                transforms.apply("boolean", value)
++
++    def test_boolean_end_to_end(self):
++        tmp = tempfile.mkdtemp(prefix="rg3-bool-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "flags.csv"), "w") as fh:
++            fh.write("id,flag\n1,YES\n2,no\n3,True\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nflag = "boolean"\n')
++        report = reportgen.run(rules_path, inp, os.path.join(tmp, "out"),
++                               os.path.join(tmp, "cache", "state.json"))
++        cols = report["files"]["flags.csv"]["summary"]["columns"]
++        self.assertEqual(cols["flag"]["distinct"], 2)
++        self.assertEqual(cols["flag"]["numeric_sum"], 1.0)
++
++
++class HtmlEscapingRegressionTests(unittest.TestCase):
++    def test_sample_markup_is_escaped_in_html(self):
++        tmp = tempfile.mkdtemp(prefix="rg3-esc-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "t.csv"), "w") as fh:
++            fh.write("item,label\ni1,<script>alert('x')</script> & more\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nitem = "trim"\n')
++        out = os.path.join(tmp, "out")
++        reportgen.run(rules_path, inp, out,
++                      os.path.join(tmp, "cache", "state.json"))
++        with open(os.path.join(out, "report.html")) as fh:
++            rendered = fh.read()
++        self.assertNotIn("<script>", rendered)
++        self.assertIn("&lt;script&gt;", rendered)
++        self.assertIn("&amp; more", rendered)
++
++
++class FailurePolicyTests(unittest.TestCase):
++    """A transform failure of any kind (raised TransformError carried on
++    from, or an unhandled crash) must exit 1, emit nothing new, and leave
++    the previously good report.json, report.html and cache byte-identical."""
++
++    def setUp(self):
++        self.tmp = tempfile.mkdtemp(prefix="rg3-fail-")
++        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
++        self.inp = os.path.join(self.tmp, "in")
++        os.makedirs(self.inp)
++        self.out = os.path.join(self.tmp, "out")
++        self.cache_path = os.path.join(self.tmp, "cache", "state.json")
++        self.rules_path = os.path.join(self.tmp, "rules.toml")
++        with open(self.rules_path, "w") as fh:
++            fh.write('[transforms]\namount = "currency_amount"\n')
++        with open(os.path.join(self.inp, "a.csv"), "w") as fh:
++            fh.write("id,amount\n1,$1.00\n")
++        with open(os.path.join(self.inp, "b.csv"), "w") as fh:
++            fh.write("id,amount\n1,$2.00\n")
++        reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        self.snapshot = {}
++        for path in (os.path.join(self.out, "report.json"),
++                     os.path.join(self.out, "report.html"),
++                     self.cache_path):
++            with open(path, "rb") as fh:
++                self.snapshot[path] = fh.read()
++
++    def assert_previous_outputs_intact(self):
++        for path, data in self.snapshot.items():
++            with open(path, "rb") as fh:
++                self.assertEqual(fh.read(), data, "changed: %s" % path)
++
++    def run_once(self):
++        return reportgen.run(self.rules_path, self.inp, self.out,
++                             self.cache_path)
++
++    def test_caught_transform_failure_emits_nothing_and_exits_1(self):
++        with open(os.path.join(self.inp, "b.csv"), "a") as fh:
++            fh.write("2,not-money\n")
++        with self.assertRaises(reportgen.ValidationError):
++            self.run_once()
++        self.assert_previous_outputs_intact()
++        with self.assertRaises(SystemExit) as cm:
++            reportgen.main(["--rules", self.rules_path, "--input", self.inp,
++                            "--output", self.out, "--cache", self.cache_path])
++        self.assertEqual(cm.exception.code, 1)
++        self.assert_previous_outputs_intact()
++
++    def test_unhandled_transform_crash_emits_nothing(self):
++        def boom(value):
++            raise RuntimeError("unhandled crash")
++        transforms.REGISTRY["boom"] = boom
++        self.addCleanup(transforms.REGISTRY.pop, "boom", None)
++        with open(self.rules_path, "w") as fh:
++            fh.write('[transforms]\namount = "boom"\n')
++        with self.assertRaises(RuntimeError):
++            self.run_once()
++        self.assert_previous_outputs_intact()
++
++
++class RulesReadOnceTests(unittest.TestCase):
++    def test_rules_file_read_exactly_once_per_run(self):
++        import builtins
++        tmp = tempfile.mkdtemp(prefix="rg3-reads-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        for i in range(3):
++            with open(os.path.join(inp, "f%d.csv" % i), "w") as fh:
++                fh.write("a,b\n1,2\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\na = "trim"\n')
++        reads = []
++        real_open = builtins.open
++
++        def counting_open(file, *args, **kwargs):
++            if os.fspath(file) == rules_path:
++                reads.append(file)
++            return real_open(file, *args, **kwargs)
++
++        builtins.open = counting_open
++        try:
++            reportgen.run(rules_path, inp, os.path.join(tmp, "out"),
++                          os.path.join(tmp, "cache", "state.json"))
++        finally:
++            builtins.open = real_open
++        self.assertEqual(len(reads), 1)
++
++
++class GeneratedFromCoherenceTests(unittest.TestCase):
++    def test_cached_run_reports_same_generated_from_as_fresh_run(self):
++        tmp = tempfile.mkdtemp(prefix="rg3-genfrom-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "t.csv"), "w") as fh:
++            fh.write("id,flag\n1,\n2,\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nid = "trim"\nflag = "upper"\n')
++        out = os.path.join(tmp, "out")
++        cache_path = os.path.join(tmp, "cache", "state.json")
++        fresh = reportgen.run(rules_path, inp, out, cache_path)
++        cached = reportgen.run(rules_path, inp, out, cache_path)
++        self.assertEqual(fresh, cached)
++        self.assertEqual(fresh["files"]["t.csv"]["generated_from"], 1)
++
++
++class RegistryVersionLookupTests(unittest.TestCase):
++    def test_entry_from_another_registry_version_is_not_reused(self):
++        tmp = tempfile.mkdtemp(prefix="rg3-regver-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "t.csv"), "w") as fh:
++            fh.write("id\n1\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nid = "trim"\n')
++        cache_path = os.path.join(tmp, "cache", "state.json")
++        reportgen.run(rules_path, inp, os.path.join(tmp, "out"), cache_path)
++        state = cache.load_state(cache_path)
++        state["t.csv"]["registry_version"] = "1"
++        state["t.csv"]["summary"] = {
++            "columns": {"id": {"non_empty": 999, "distinct": 999,
++                               "sample": ["SENTINEL"]}},
++            "skipped_rows": []}
++        with open(cache_path, "w") as fh:
++            json.dump(state, fh)
++        report = reportgen.run(rules_path, inp, os.path.join(tmp, "out"),
++                               cache_path)
++        cols = report["files"]["t.csv"]["summary"]["columns"]
++        self.assertEqual(cols["id"]["distinct"], 1)
++        self.assertNotIn("SENTINEL", cols["id"]["sample"])
++        self.assertEqual(cache.load_state(cache_path)["t.csv"]["registry_version"],
++                         cache.REGISTRY_VERSION)
++
++
++class FutureSchemaCacheTests(unittest.TestCase):
++    def test_future_version_state_is_treated_as_empty_and_rewritten(self):
++        tmp = tempfile.mkdtemp(prefix="rg3-future-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "t.csv"), "w") as fh:
++            fh.write("id\n1\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nid = "trim"\n')
++        cache_path = os.path.join(tmp, "cache", "state.json")
++        reportgen.run(rules_path, inp, os.path.join(tmp, "out"), cache_path)
++        state = cache.load_state(cache_path)
++        state["t.csv"]["registry_version"] = str(int(cache.REGISTRY_VERSION) + 1)
++        state["t.csv"]["summary"] = {
++            "columns": {"id": {"non_empty": 999, "distinct": 999,
++                               "sample": ["SENTINEL"]}},
++            "skipped_rows": []}
++        with open(cache_path, "w") as fh:
++            json.dump(state, fh)
++        report = reportgen.run(rules_path, inp, os.path.join(tmp, "out"),
++                               cache_path)
++        cols = report["files"]["t.csv"]["summary"]["columns"]
++        self.assertEqual(cols["id"]["distinct"], 1)
++        with open(cache_path) as fh:
++            rewritten = json.load(fh)
++        self.assertEqual(set(rewritten), {"t.csv"})
++        entry = rewritten["t.csv"]
++        self.assertEqual(entry["registry_version"], cache.REGISTRY_VERSION)
++        self.assertEqual(
++            entry["digest"], cache.file_digest(os.path.join(inp, "t.csv")))
++
++
+ if __name__ == "__main__":
+     unittest.main()
+
+[0m
+Running both suites plus the CLI command on the fixed code:
+[0m$ [0mpython3 -m unittest test_legacy_report 2>&1 | tail -5
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+OK
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen 2>&1 | tail -5
+reportgen: t.csv: parsed 1 rows
+reportgen: t.csv: parsed 1 rows
+reportgen: f0.csv: parsed 1 rows
+reportgen: f1.csv: parsed 1 rows
+reportgen: f2.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen 2>&1 | grep -E "^(Ran|OK|FAILED)"
+Ran 23 tests in 0.226s
+OK
+[0m
+[0m$ [0mrm -rf output/report.json output/report.html cache && python3 reportgen.py --rules rules.example.toml; echo "EXIT=$?"; ls output cache
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+EXIT=0
+cache:
+state.json
+
+output:
+report.html
+report.json
+[0m
+Both suites green. Verifying all invariants end-to-end on the real tool:
+[0m$ [0mT=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/verify-$$ && mkdir -p "$T" && cp -r cache.py reportgen.py transforms.py rules.example.toml input "$T/" && cd "$T" && python3 - <<'EOF'
+import builtins, os, json, subprocess, filecmp
+
+# 1) rules reads per run (fresh cache)
+import reportgen
+reads = []
+real = builtins.open
+def counting(file, *a, **k):
+    if str(file).endswith("rules.example.toml"): reads.append(file)
+    return real(file, *a, **k)
+builtins.open = counting
+try:
+    reportgen.run("rules.example.toml", "input", "output", "cache/state.json")
+    n_fresh = len(reads)
+    reportgen.run("rules.example.toml", "input", "output", "cache/state.json")
+    n_cached = len(reads) - n_fresh
+finally:
+    builtins.open = real
+print("RULES READS fresh=%d cached=%d" % (n_fresh, n_cached))
+
+# 2) generated_from stable across fresh/cached
+r1 = json.load(open("output/report.json"))
+print("generated_from small_devices:", r1["files"]["small_devices.csv"]["generated_from"])
+EOF
+echo "--- second-run report identical?"; cp output/report.json /tmp/v1.json && python3 reportgen.py --rules rules.example.toml >/dev/null && diff -q /tmp/v1.json output/report.json && echo IDENTICAL || echo DIFFERS
+echo "--- failure policy (real tool):"; cp output/report.json /tmp/p.json; cp output/report.html /tmp/p.html; cp cache/state.json /tmp/p.cache; echo 't9,Bad,$nope,01/20/2026' >> input/small_transactions.csv; python3 reportgen.py --rules rules.example.toml >/dev/null 2>/tmp/err.txt; echo "EXIT=$?"; cat /tmp/err.txt; diff -q /tmp/p.json output/report.json && diff -q /tmp/p.html output/report.html && diff -q /tmp/p.cache cache/state.json && echo "ALL THREE BYTE-IDENTICAL" || echo CHANGED
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+RULES READS fresh=1 cached=1
+generated_from small_devices: 1
+--- second-run report identical?
+IDENTICAL
+--- failure policy (real tool):
+EXIT=1
+reportgen: error: 1 cell(s) failed their transform (first: row 6, column amount)
+ALL THREE BYTE-IDENTICAL
+[0m
+All invariants hold. Now proving each new test is a genuine regression test — running them against the **pre-fix** code (preserved in the probe copy):
+[0m$ [0mP=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo && cp test_reportgen.py "$P/" && cd "$P" && grep -n 'REGISTRY_VERSION = ' cache.py && python3 -m unittest test_reportgen 2>&1 | grep -E "^(FAIL|ERROR|Ran|OK|FAILED)" | sort | uniq -c | sort -rn
+25:REGISTRY_VERSION = "2"
+   1 Ran 23 tests in 0.252s
+   1 FAILED (failures=6, errors=3)
+   1 FAIL: test_sample_markup_is_escaped_in_html (test_reportgen.HtmlEscapingRegressionTests)
+   1 FAIL: test_rules_file_read_exactly_once_per_run (test_reportgen.RulesReadOnceTests)
+   1 FAIL: test_future_version_state_is_treated_as_empty_and_rewritten (test_reportgen.FutureSchemaCacheTests)
+   1 FAIL: test_entry_from_another_registry_version_is_not_reused (test_reportgen.RegistryVersionLookupTests)
+   1 FAIL: test_caught_transform_failure_emits_nothing_and_exits_1 (test_reportgen.FailurePolicyTests)
+   1 FAIL: test_cached_run_reports_same_generated_from_as_fresh_run (test_reportgen.GeneratedFromCoherenceTests)
+   1 ERROR: test_negative_forms_report_zero (test_reportgen.BooleanTransformTests)
+   1 ERROR: test_boolean_end_to_end (test_reportgen.BooleanTransformTests)
+   1 ERROR: test_affirmative_forms_report_one (test_reportgen.BooleanTransformTests)
+[0m
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-22777/test_reportgen.py
+@@ -236,9 +236,11 @@
+     raise RuntimeError("unhandled crash")
+ transforms.REGISTRY["boom"] = boom
+ self.addCleanup(transforms.REGISTRY.pop, "boom", None)
+ with open(self.rules_path, "w") as fh:
+-    fh.write('[transforms]\namount = "boom"\n')
++    fh.write('[transforms]\namount = "currency_amount"\nextra = "boom"\n')
++with open(os.path.join(self.inp, "b.csv"), "w") as fh:
++    fh.write("id,amount,extra\n1,$2.00,x\n")
+ with self.assertRaises(RuntimeError):
+     self.run_once()
+ self.assert_previous_outputs_intact()
+ 
+
+[0m
+9/11 fail pre-fix as expected. But `test_unhandled_transform_crash_emits_nothing` passed pre-fix — my setup crashed on the *first* file (rules map boom for all), so even buggy code wrote nothing. A true regression test must crash on the *second* file, after pre-fix code already wrote the first file's cache entry mid-loop:
+[0m$ [0mcp test_reportgen.py /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo/ && cd /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo && python3 -m unittest test_reportgen.FailurePolicyTests 2>&1 | grep -E "^(FAIL|ERROR|Ran|OK|FAILED)"
+FAIL: test_caught_transform_failure_emits_nothing_and_exits_1 (test_reportgen.FailurePolicyTests)
+FAIL: test_unhandled_transform_crash_emits_nothing (test_reportgen.FailurePolicyTests)
+Ran 2 tests in 0.017s
+FAILED (failures=2)
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen 2>&1 | grep -E "^(FAIL|ERROR|Ran|OK|FAILED)"; python3 -m unittest test_legacy_report 2>&1 | grep -E "^(Ran|OK|FAILED)"
+Ran 23 tests in 0.236s
+OK
+Ran 1 test in 0.004s
+OK
+[0m
+Both failure-policy tests now fail pre-fix and pass post-fix; all suites green. Final review of the complete diff vs pre-fix code and repo state:
+[0m$ [0mP=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo; for f in cache.py transforms.py reportgen.py; do echo "===== $f"; diff -u "$P/$f" "$f"; done; echo "===== input intact?"; tail -1 input/small_transactions.csv; ls output cache
+===== cache.py
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo/cache.py	2026-11-20 09:33:07
++++ cache.py	2026-11-20 09:35:08
+@@ -10,19 +10,20 @@
+      "summary":          {...}}
+ 
+ Entries are reused when the file on disk is byte-identical to the file
+-processed in the previous run and the rules mapping is unchanged;
+-save_state() rewrites the state file after every run so it always mirrors
+-what the last run saw.
++processed in the previous run, the rules mapping is unchanged, and the
++entry was stamped with the current REGISTRY_VERSION; a state file written
++by a future schema version (any entry stamped with a registry_version
++greater than REGISTRY_VERSION) is treated as an empty cache, so the run
++recomputes everything and rewrites a valid state file.
+ """
+ 
+-import csv
+ import hashlib
+ import json
+ import os
+ 
+ DEFAULT_CACHE_PATH = os.path.join("cache", "state.json")
+ 
+-REGISTRY_VERSION = "2"
++REGISTRY_VERSION = "3"
+ 
+ 
+ def file_digest(path):
+@@ -40,12 +41,34 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _entry_version(entry):
++    """Integer value of an entry's registry_version, or None when absent
++    or not parseable as an integer."""
++    if not isinstance(entry, dict):
++        return None
++    try:
++        return int(entry.get("registry_version"))
++    except (TypeError, ValueError):
++        return None
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state; a missing file is just an empty cache. A
++    state file written by a future schema version (any entry stamped with
++    a registry_version greater than REGISTRY_VERSION) is also treated as
++    an empty cache."""
+     if not os.path.exists(path):
+         return {}
+     with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++        state = json.load(fh)
++    if not isinstance(state, dict):
++        return {}
++    current = int(REGISTRY_VERSION)
++    for entry in state.values():
++        version = _entry_version(entry)
++        if version is not None and version > current:
++            return {}
++    return state
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+@@ -63,12 +86,10 @@
+     os.replace(tmp, path)
+ 
+ 
+-def make_entry(path, digest, rows, summary, rules, rules_fp):
+-    """Build a cache entry for `path`. `generated_from` is the number of
+-    header columns covered by the rules mapping."""
+-    with open(path, "r", encoding="utf-8", newline="") as fh:
+-        header = next(csv.reader(fh))
+-    generated_from = sum(1 for col in header if col in rules)
++def make_entry(digest, rows, summary, generated_from, rules_fp):
++    """Build a cache entry. `generated_from` is the value the run
++    computed for the fresh report, stored verbatim so a cache-hit run
++    reports exactly what a fresh run would."""
+     return {"digest": digest, "rows": rows, "generated_from": generated_from,
+             "rules_fp": rules_fp, "registry_version": REGISTRY_VERSION,
+             "summary": summary}
+===== transforms.py
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo/transforms.py	2026-11-20 09:33:07
++++ transforms.py	2026-11-20 09:34:59
+@@ -45,6 +45,16 @@
+         raise TransformError("not a number: %r" % value)
+ 
+ 
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0 (case-insensitive)."""
++    cleaned = value.strip().lower()
++    if cleaned in ("yes", "true"):
++        return 1.0
++    if cleaned in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ def date_iso(value):
+     """'MM/DD/YYYY' -> 'YYYY-MM-DD'."""
+     parts = value.strip().split("/")
+@@ -63,6 +73,7 @@
+     "currency_amount": currency_amount,
+     "round2": round2,
+     "date_iso": date_iso,
++    "boolean": boolean,
+ }
+ 
+ 
+===== reportgen.py
+--- /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx/repo/reportgen.py	2026-11-20 09:33:07
++++ reportgen.py	2026-11-20 09:35:23
+@@ -13,6 +13,7 @@
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+@@ -128,7 +129,7 @@
+              "<title>reportgen summary</title></head><body>"]
+     for name in sorted(report["files"]):
+         res = report["files"][name]
+-        parts.append("<h1>%s</h1>" % name)
++        parts.append("<h1>%s</h1>" % html.escape(str(name)))
+         parts.append("<p>%d rows</p>" % res["rows"])
+         parts.append("<table border='1'>")
+         parts.append("<tr><th>column</th><th>non_empty</th>"
+@@ -136,53 +137,63 @@
+         summary = res["summary"]["columns"]
+         for col in sorted(summary):
+             stats = summary[col]
+-            sample = ", ".join(str(v) for v in stats["sample"])
++            sample = ", ".join(html.escape(str(v)) for v in stats["sample"])
+             parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                         % (col, stats["non_empty"], stats["distinct"], sample))
++                         % (html.escape(str(col)), stats["non_empty"],
++                            stats["distinct"], sample))
+         parts.append("</table>")
+     parts.append("</body></html>")
+     return "\n".join(parts)
+ 
+ 
+ def run(rules_path, input_dir, output_dir, cache_path):
+-    """Run one full pass over the input directory and write the report."""
++    """Run one full pass over the input directory and write the report.
++    The rules file is read exactly once. Nothing is emitted until every
++    summary has passed validation: a run in which any transform failed
++    raises without touching the previous report or the cache."""
+     state = cache.load_state(cache_path)
++    rules = load_rules(rules_path)
++    rules_fp = cache.rules_fingerprint(rules)
+ 
+     names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
+     results = {}
+     pending = {}
+     for name in names:
+-        rules = load_rules(rules_path)
+-        rules_fp = cache.rules_fingerprint(rules)
+         path = os.path.join(input_dir, name)
+         digest = cache.file_digest(path)
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++        if (isinstance(entry, dict)
++                and entry.get("digest") == digest
++                and entry.get("rules_fp") == rules_fp
++                and entry.get("registry_version") == cache.REGISTRY_VERSION):
+             results[name] = {"digest": digest, "rows": entry["rows"],
+                              "generated_from": entry["generated_from"],
+                              "summary": entry["summary"]}
+         else:
+             summary = summarize_file(header, data_rows, rules)
++            gen_from = generated_from(header, data_rows, rules)
+             results[name] = {"digest": digest, "rows": len(data_rows),
+-                             "generated_from": generated_from(header, data_rows, rules),
++                             "generated_from": gen_from,
+                              "summary": summary}
+-            pending[name] = cache.make_entry(path, digest, len(data_rows),
+-                                             summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
++            pending[name] = cache.make_entry(digest, len(data_rows), summary,
++                                             gen_from, rules_fp)
+ 
++    for name in sorted(results):
++        validate_summary(results[name]["summary"])
++
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
+     os.makedirs(output_dir, exist_ok=True)
+     with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+         fh.write(render_html(report))
+-    for name in sorted(results):
+-        validate_summary(results[name]["summary"])
+     with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
++    if pending:
++        cache.save_state(pending, path=cache_path)
+     return report
+ 
+ 
+@@ -201,8 +212,8 @@
+     try:
+         return run(args.rules, args.input, args.output, args.cache)
+     except ValidationError as exc:
+-        sys.stderr.write("reportgen: warning: %s\n" % exc)
+-        return None
++        sys.stderr.write("reportgen: error: %s\n" % exc)
++        sys.exit(1)
+ 
+ 
+ if __name__ == "__main__":
+===== input intact?
+t4,Cirrus,$25.10,01/18/2026
+cache:
+state.json
+
+output:
+report.html
+report.json
+[0m
+Diff is minimal and focused. Final full verification and cleanup of probe dirs:
+[0m$ [0mpython3 -m unittest test_reportgen 2>&1 | grep -E "^(Ran|OK|FAILED)"; python3 -m unittest test_legacy_report 2>&1 | grep -E "^(Ran|OK|FAILED)"; python3 reportgen.py --rules rules.example.toml >/dev/null 2>&1; echo "CLI EXIT=$?"; python3 reportgen.py --rules rules.example.toml >/dev/null 2>&1; echo "CLI CACHED EXIT=$?"; rm -rf /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/probe-9kHx /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/opencode/verify-*
+Ran 23 tests in 0.231s
+OK
+Ran 1 test in 0.020s
+OK
+CLI EXIT=0
+CLI CACHED EXIT=0
+[0m
+## Final report
+
+### Baseline (before any changes, as executed)
+
+- `python3 -m unittest test_reportgen` → `Ran 12 tests in 0.224s` / `OK` (with 2 `ResourceWarning: unclosed file` from the test's own `json.load(open(...))`)
+- `python3 -m unittest test_legacy_report` → `Ran 1 test` / `FAILED (failures=1)`: `AssertionError: '<b>' unexpectedly found in ...` — sample values leak markup into report.html
+
+### Features implemented
+
+1. **`boolean` transform** (transforms.py:48) — case-insensitive yes/true → `1.0`, no/false → `0.0`, anything else raises `TransformError`; registered in `REGISTRY`.
+2. **Future-schema cache hygiene** (cache.py `load_state`) — any entry stamped `registry_version > REGISTRY_VERSION` → whole state treated as empty; full run proceeds and `save_state` rewrites a clean, current-version state file. Non-dict state/entries are tolerated, never crash.
+
+### Defects fixed (each with a regression test, each verified to fail against the pre-fix code)
+
+1. **Failure policy violated 3 ways**: a failing transform exited **0**, overwrote `report.html` before validation, and wrote cache entries mid-loop from the failed pass. Fix: validate all summaries **before any emission**, save cache once **after** validation, `main()` exits **1**. Verified with the real tool: corrupt cell → `EXIT=1`, report.json/report.html/state.json all byte-identical. Tests: `FailurePolicyTests` (caught failure + unhandled-crash variants).
+2. **Rules file read once per CSV** (4 reads/run). Fix: hoisted `load_rules` out of the loop. Test: `RulesReadOnceTests` (counts `builtins.open` on the rules path).
+3. **`generated_from` incoherent**: fresh run computed "rules-mapped columns with ≥1 non-empty cell" (=1 for `small_devices.csv`), cache stored "mapped header columns" (=2) — identical inputs produced different reports depending on cache hit. Fix: `make_entry` stores the run's computed value verbatim. Test: `GeneratedFromCoherenceTests`.
+4. **HTML escaping** (the failing legacy suite): `render_html` now `html.escape`s file names, column names, samples. Tests: shipped `test_legacy_report` + `HtmlEscapingRegressionTests`.
+5. **`registry_version` never compared at lookup** despite the documented contract ("a summary written under an older registry is never reused"). Fix: version equality added to the reuse condition; `REGISTRY_VERSION` bumped `"2"`→`"3"` for the changed registry. Test: `RegistryVersionLookupTests`.
+
+**Rules-read count (invariant measurement): 1 per run** — measured via an `open()` counter, fresh-cache and cached runs alike (was 4 pre-fix).
+
+**Final state**: `test_reportgen` 23 tests OK, `test_legacy_report` OK, `python3 reportgen.py --rules rules.example.toml` exits 0 (twice — fresh and cached reports byte-identical).
+
+### Trade-offs the brief leaves open
+
+- **`boolean` strips surrounding whitespace** (" YES " → 1.0). The brief says "accepted case-insensitively" but is silent on padding. Chose strip, consistent with `round2`/`currency_amount`/`date_iso`. Cost: padded cells are accepted rather than failing the whole run.
+- **Future-version guard discards the entire state file**, not just foreign entries (the brief says "treat the cache as empty" but a per-entry drop was conceivable). Cost: a mixed-version file loses still-usable entries → one full recompute. Correct, just slower.
+- **Unhandled crashes propagate as tracebacks** (exit 1 via the interpreter) instead of being caught and printed as a one-line error. Cost: uglier CLI output on bugs; benefit: real crashes stay visible, and write ordering already guarantees "emit nothing new".
+- **`generated_from` canonical semantics**: chose the report-side definition (non-empty mapped columns) over the cache-side one (header coverage). Cost: none observable — but it fixes one of two possible meanings; if header-coverage was intended, the report values change (1 vs 2 for `small_devices.csv`).
+- **Bumping `REGISTRY_VERSION`** invalidates all existing caches once. Cost: first run after upgrade recomputes everything; benefit: poisoned pre-fix entries (e.g. cached `skipped_rows` from runs that failed under an unknown `boolean` mapping) can never be replayed.
+- **Consequence of the binding failure policy** (not open, but worth stating): an empty cell in a numerically-mapped column now hard-fails the entire run (exit 1, nothing emitted) instead of being silently skipped — the brief explicitly classifies "a failure the code catches and carries on from" as a transform failure.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 174: 23526 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 188: 22792 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-22777/final-report.md (session eval-2026-11-20-IV2-RG4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium-q51)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-22777 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-IV2-RG4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-medium-q51 above)

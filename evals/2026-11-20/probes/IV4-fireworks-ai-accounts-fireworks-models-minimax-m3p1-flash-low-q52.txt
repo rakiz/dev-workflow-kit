@@ -1,0 +1,67 @@
+SUITE_EXIT=0
+Ran 12 tests in 0.463s
+OK
+===== IV4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-low-q52 =====
+--- suite_green:
+SUITE_EXIT=0
+Ran 12 tests in 0.463s
+OK
+--- probe a:
+merchant.distinct=3
+--- probe b:
+REPORTS-IDENTICAL
+generated_from=1
+--- probe c:
+1
+--- probe d:
+HTML-PRESENT-IN-BEFORE=yes
+exit=1
+PREVIOUS-OUTPUT-AND-STATE-INTACT
+PRISTINE_TESTS_EXIT=1
+  test_boolean_column_is_reported_as_floats (test_reportgen.BooleanColumnTests) ... ERROR
+  test_invalid_boolean_value_fails_the_run (test_reportgen.BooleanColumnTests) ... ok
+  test_entry_from_another_registry_version_is_not_reused (test_reportgen.CacheSchemaTests) ... FAIL
+  test_future_schema_version_does_not_crash_the_cli (test_reportgen.CacheSchemaTests) ... ERROR
+  test_future_schema_version_is_treated_as_an_empty_cache (test_reportgen.CacheSchemaTests) ... ERROR
+  test_incomplete_cache_entry_is_recomputed_not_crashed (test_reportgen.CacheSchemaTests) ... ok
+  test_cache_state_written_on_first_run (test_reportgen.CacheTests) ... ok
+  test_first_run_creates_missing_cache_dir (test_reportgen.CacheTests) ... ok
+  test_shipped_inputs_report (test_reportgen.EndToEndTests) ... ok
+  test_temp_input_end_to_end (test_reportgen.EndToEndTests) ... ok
+  test_file_name_and_column_name_do_not_leak_markup (test_reportgen.HtmlEscapingTests) ... FAIL
+  test_numeric_sum_covers_every_cell_not_just_distinct_values (test_reportgen.NumericSumTests) ... FAIL
+  test_report_is_identical_when_the_cache_is_reused (test_reportgen.ReportStabilityTests) ... FAIL
+  test_rules_file_is_read_once_per_run (test_reportgen.RulesReadCountTests) ... FAIL
+  test_rules_loader_ignores_other_tables (test_reportgen.RulesTests) ... ok
+  test_shipped_rules_load (test_reportgen.RulesTests) ... ok
+  test_crash_leaves_nothing_written (test_reportgen.TransformCrashTests) ... ok
+  test_unknown_transform_name_exits_1_from_the_cli (test_reportgen.TransformCrashTests) ... FAIL
+  test_cli_exits_0_on_a_good_run (test_reportgen.TransformFailureTests) ... ok
+  test_cli_exits_1_and_writes_nothing_on_transform_failure (test_reportgen.TransformFailureTests) ... FAIL
+  test_failed_run_emits_nothing_on_stdout (test_reportgen.TransformFailureTests) ... FAIL
+  test_boolean_transform (test_reportgen.TransformTests) ... ERROR
+  test_boolean_transform_rejects_other_values (test_reportgen.TransformTests) ... ok
+  test_currency_amount (test_reportgen.TransformTests) ... ok
+  test_date_iso (test_reportgen.TransformTests) ... ok
+  test_round2 (test_reportgen.TransformTests) ... ok
+  test_trim_upper_lower (test_reportgen.TransformTests) ... ok
+  test_unknown_transform_name (test_reportgen.TransformTests) ... ok
+  [tail]
+  Ran 30 tests in 1.494s
+  FAILED (failures=9, errors=4)
+  [reasons]
+   * test_boolean_column_is_reported_as_floats (test_reportgen.BooleanColumnTests) ... ERROR || test_unknown_transform_name (test_reportgen.TransformTests) ... ok
+   * ERROR: test_boolean_column_is_reported_as_floats (test_reportgen.BooleanColumnTests) || reportgen.ValidationError: 4 cell(s) failed their transform (first: row 2, column active)
+   * ERROR: test_future_schema_version_does_not_crash_the_cli (test_reportgen.CacheSchemaTests) || TypeError: can only concatenate str (not "int") to str
+   * ERROR: test_future_schema_version_is_treated_as_an_empty_cache (test_reportgen.CacheSchemaTests) || TypeError: can only concatenate str (not "int") to str
+   * ERROR: test_boolean_transform (test_reportgen.TransformTests) || transforms.TransformError: unknown transform: 'boolean'
+   * FAIL: test_entry_from_another_registry_version_is_not_reused (test_reportgen.CacheSchemaTests) || AssertionError: ['stale'] == ['stale']
+   * FAIL: test_file_name_and_column_name_do_not_leak_markup (test_reportgen.HtmlEscapingTests) || AssertionError: '<b>' unexpectedly found in "<!doctype html>\n<html><head><meta charset='utf-8'>\n<title>reportgen summary</title></head><bo
+   * FAIL: test_numeric_sum_covers_every_cell_not_just_distinct_values (test_reportgen.NumericSumTests) || AssertionError: 30.0 != 40.0
+   * FAIL: test_report_is_identical_when_the_cache_is_reused (test_reportgen.ReportStabilityTests) || AssertionError: b'{\n[1537 chars]om": 1,\n      "rows": 3,\n      "summary": {\[3024 chars]n}\n' != b'{\n[1537 chars]om": 2,\n      "rows": 
+   * FAIL: test_rules_file_is_read_once_per_run (test_reportgen.RulesReadCountTests) || AssertionError: 4 != 1
+   * FAIL: test_unknown_transform_name_exits_1_from_the_cli (test_reportgen.TransformCrashTests) || AssertionError: 0 != 1
+   * FAIL: test_cli_exits_1_and_writes_nothing_on_transform_failure (test_reportgen.TransformFailureTests) || AssertionError: 0 != 1
+   * FAIL: test_failed_run_emits_nothing_on_stdout (test_reportgen.TransformFailureTests) || AssertionError: 0 != 1
+   * FAIL: test_failed_transform_leaves_outputs_and_cache_intact (test_reportgen.TransformFailureTests) || AssertionError: {'/va[1010 chars]\n<p>2 rows</p>\n<table border='1'>\n<tr><th>c[1056 chars]}\n'} != {'/va[1010 chars]\n<p>1 rows</p>\n<table
+WORK=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp.WORwfjtTph

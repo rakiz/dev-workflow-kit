@@ -1,0 +1,55 @@
+SUITE_EXIT=0
+Ran 12 tests in 0.395s
+OK
+===== IV4-fireworks-ai-accounts-fireworks-models-muse-spark-open-medium-q52 =====
+--- suite_green:
+SUITE_EXIT=0
+Ran 12 tests in 0.395s
+OK
+--- probe a:
+merchant.distinct=99
+--- probe b:
+REPORTS-DIFFER
+generated_from=2
+--- probe c:
+1
+--- probe d:
+HTML-PRESENT-IN-BEFORE=yes
+exit=1
+PREVIOUS-OUTPUT-AND-STATE-INTACT
+PRISTINE_TESTS_EXIT=1
+  test_boolean_end_to_end (test_regression.BooleanTransformTests) ... ERROR
+  test_boolean_invalid_raises (test_regression.BooleanTransformTests) ... ok
+  test_boolean_values (test_regression.BooleanTransformTests) ... ERROR
+  test_future_cache_does_not_crash_run (test_regression.CacheHygieneTests) ... ok
+  test_future_entry_registry_version_treated_as_empty (test_regression.CacheHygieneTests) ... FAIL
+  test_future_version_treated_as_empty (test_regression.CacheHygieneTests) ... FAIL
+  test_failed_run_leaves_previous_report_and_cache_intact (test_regression.FailureAtomicityTests) ... FAIL
+  test_unhandled_crash_treated_as_transform_failure (test_regression.FailureAtomicityTests) ... ERROR
+  test_html_escapes_content (test_regression.HtmlEscapingRegressionTests) ... FAIL
+  test_rules_read_at_most_once (test_regression.RulesReadOnceTests) ... FAIL
+  test_cache_state_written_on_first_run (test_reportgen.CacheTests) ... ok
+  test_first_run_creates_missing_cache_dir (test_reportgen.CacheTests) ... ok
+  test_shipped_inputs_report (test_reportgen.EndToEndTests) ... ok
+  test_temp_input_end_to_end (test_reportgen.EndToEndTests) ... ok
+  test_rules_loader_ignores_other_tables (test_reportgen.RulesTests) ... ok
+  test_shipped_rules_load (test_reportgen.RulesTests) ... ok
+  test_currency_amount (test_reportgen.TransformTests) ... ok
+  test_date_iso (test_reportgen.TransformTests) ... ok
+  test_round2 (test_reportgen.TransformTests) ... ok
+  test_trim_upper_lower (test_reportgen.TransformTests) ... ok
+  test_unknown_transform_name (test_reportgen.TransformTests) ... ok
+  [tail]
+  Ran 22 tests in 0.482s
+  FAILED (failures=5, errors=3)
+  [reasons]
+   * test_boolean_end_to_end (test_regression.BooleanTransformTests) ... ERROR || test_unknown_transform_name (test_reportgen.TransformTests) ... ok
+   * ERROR: test_boolean_end_to_end (test_regression.BooleanTransformTests) || reportgen.ValidationError: 4 cell(s) failed their transform (first: row 2, column flag)
+   * ERROR: test_boolean_values (test_regression.BooleanTransformTests) || transforms.TransformError: unknown transform: 'boolean'
+   * ERROR: test_unhandled_crash_treated_as_transform_failure (test_regression.FailureAtomicityTests) || RuntimeError: boom
+   * FAIL: test_future_entry_registry_version_treated_as_empty (test_regression.CacheHygieneTests) || AssertionError: {'a.csv': {'digest': 'x', 'registry_version': '99'}} != {}
+   * FAIL: test_future_version_treated_as_empty (test_regression.CacheHygieneTests) || AssertionError: {'version': '99', 'some': {'digest': 'x'}} != {}
+   * FAIL: test_failed_run_leaves_previous_report_and_cache_intact (test_regression.FailureAtomicityTests) || AssertionError: b"<!d[96 chars]n<h1>bad.csv</h1>\n<p>1 rows</p>\n<table borde[302 chars]tml>" != b"<!d[96 chars]n<h1>good.csv</h1>\n<p>1 row
+   * FAIL: test_html_escapes_content (test_regression.HtmlEscapingRegressionTests) || AssertionError: '<>&"' unexpectedly found in ' border=\'1\'>\n<tr><th>column</th><th>non_empty</th><th>distinct</th><th>sample</th></tr>\n<t
+   * FAIL: test_rules_read_at_most_once (test_regression.RulesReadOnceTests) || AssertionError: 3 != 1
+WORK=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp.8sWU60xHNm

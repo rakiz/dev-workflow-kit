@@ -1,0 +1,6 @@
+[09:09:27] BASELINE DB spend = $125.0677 ; budget $20.00 counted from here
+[09:09:27] LAUNCH glm-low q51 cap=$0.10 delta-before=$0.0000
+[09:10:37] EXIT glm-low q51 status=0 delta-after=$0.0000
+[09:10:37] LAUNCH glm-high q51 cap=$0.10 delta-before=$0.0000
+[09:12:35] EXIT glm-high q51 status=0 delta-after=$0.0000
+[09:12:35] LAUNCH dsflash-default q51 cap=$0.10 delta-before=$0.0000

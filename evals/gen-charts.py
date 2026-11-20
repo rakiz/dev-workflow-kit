@@ -39,13 +39,13 @@ FULLIDS = {
 # work); hydrogen-high holds no seat.
 SEATS = {
     ("glm", "high"): [("orchestration", "O")],
-    ("haiku", "default"): [("cheap-code", "I-v2")],
+    ("haiku", "default"): [("cheap-code", "I2-RG4")],
     ("haiku", "medium"): [("cheap-design", "D")],
-    ("haiku", "high"): [("strong-code-alternative", "I-v2")],
-    ("dsflash", "default"): [("cheap-mech", "I-v2"), ("explore", "I-v2")],
+    ("haiku", "high"): [("strong-code-alternative", "I2-RG4")],
+    ("dsflash", "default"): [("cheap-mech", "I2-RG4"), ("explore", "I2-RG4")],
     ("minimax", "medium"): [("cheap-design-review", "DR-v2")],
-    ("minimax", "xhigh"): [("cheap-review", "IR"), ("strong-design-review", "DR-v2"), ("strong-code", "I-v2")],
-    ("opus", "default"): [("deep", "I-v2"), ("strong-code-alternative2", "I-v2"), ("strong-design-alternative2", "D")],
+    ("minimax", "xhigh"): [("cheap-review", "IR"), ("strong-design-review", "DR-v2"), ("strong-code", "I2-RG4")],
+    ("opus", "default"): [("deep", "I2-RG4"), ("strong-code-alternative2", "I2-RG4"), ("strong-design-alternative2", "D")],
     ("sonnet", "medium"): [("strong-review", "IR")],
     ("sonnet", "high"): [("strong-design-alternative", "D")],
     ("qwen", "xhigh"): [("strong-review-alternative2", "IR")],
@@ -65,8 +65,8 @@ BENCHES = [
      "Design review (DR-v2, /14): minimax-xhigh posts 11.25 with 4 executed proofs and takes the strong rung; opus scores 0 (2 FPs)",
      14, "DR2", "score on this bench", None, "DR-v2"),
     ("Implementation",
-     "Implementation (I-v2 RG4, /14): haiku-high ties opus on the 2-family RG4 mean (13.5 each); minimax-xhigh 13.0 at $0.03; cheap-code haiku-default 11.75 (2 runs, 2 families)",
-     14, "I2-RG4", "score on this bench", None, "I-v2 RG4"),
+     "Implementation (I-v2 RG4 full set, /14; tie rule: gaps under the 1.5 MDE are ties and the cheaper model wins): carbon-high 14* (1 run) leads; qwen-medium, haiku-high, opus 13.5; minimax-xhigh 13.0 at $0.03",
+     14, "I2-RG4", "score on this bench", None, "I2-RG4"),
     ("Code review",
      "Code review (IR, /3+bonus): the 3 seeded defects stop separating at 3 - the bonus axis ranks the top crowd (3.0-4.35); the bottom cluster (2.0-2.5) misses a seeded defect",
      5, "IR", "IR /3 seeded (+bonus up to +2)", (3, "seeded ceiling"), "IR"),
@@ -79,6 +79,8 @@ BENCHES = [
 # (haiku-high I2 runs: $0.15/task vs the CSV's $0.05 D-bench figure).
 COST_OVERRIDES = {
     ("haiku", "high", "I2-RG4"): 0.15,
+    # qwen-xhigh RG4 D1 re-runs, measured in the opencode DB: $0.8455 (q53) and $1.37 (q53b) -> mean
+    ("qwen", "xhigh", "I2-RG4"): 1.11,
 }
 
 
@@ -105,7 +107,7 @@ def load_dots(column):
     for r in csv.DictReader(open(CSVPATH)):
         v = r[column].strip()
         try:
-            s = float(v.rstrip("*"))
+            s = float(v.rstrip("*~"))
         except ValueError:
             continue
         cost = parse_cost(r["cost_per_task_est"])
@@ -117,7 +119,9 @@ def load_dots(column):
         note = r["notes"].strip().lstrip("-").strip()
         # hollow = under-measured: CSV star OR the row's notes say single / 1 valid
         single = v.endswith("*") or bool(re.search(r"\bsingle\b|1 valid|\b1v\b", note, re.I))
-        pts.append((name, s, cost, SEATS.get((model, eff), []), single, note))
+        # one_fam = trailing "~": the cell's runs were scored by one scorer family only
+        one_fam = v.endswith("~")
+        pts.append((name, s, cost, SEATS.get((model, eff), []), single, note, one_fam))
     return pts
 
 
@@ -180,7 +184,7 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
     def overlap(a, b):
         return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
     for entry in sorted(pts, key=lambda p: (p[2], -p[1])):
-        name, s_, c, seats, single, note = entry
+        name, s_, c, seats, single, note, one_fam = entry
         x, y = xpos(c), ypos(s_, ymax)
         # color = seat on THIS bench; fill = measurement investment (single -> hollow)
         here = [f"{n} ({b})" for n, b in seats if b == bench]
@@ -197,6 +201,7 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
         TIPHTML = (f'<b>{html.escape(full)}</b> <i>{html.escape(eff)}</i><br>'
                    f'score {s_:g} · ${c:g}/task'
                    + (' · single valid run' if single else '')
+                   + (' · one scorer family (~)' if one_fam else '')
                    + (f'<br>{seat_line}' if seat_line else '')
                    + (f'<br><small>{html.escape(why)}</small>' if why else '')
                    + (f'<br><small>note: {html.escape(note)}</small>' if note else ''))
@@ -205,7 +210,7 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
             o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#fff" stroke="{col}" stroke-width="2"/>')
         else:
             o.append(f'<circle class="pt" data-tip="{data_tip}" cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{col}"/>')
-        label = name  # model name (with effort qualifier) only; tooltip carries score/cost/seat/why
+        label = name + ("~" if one_fam else "")  # model name (+ ~ = one scorer family); tooltip carries score/cost/seat/why
         w = len(label) * CH
         # displacement cap: labels stay within +/-20px vertical of their own dot
         cands = [(x+9, y+d, "start") for d in (-4, 14, -20)] \
@@ -242,13 +247,14 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
 
 def build_and_write():
     blocks = []
-    blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one measured model&times;effort cell, read directly from the score CSV (dots = measured cells; not measured / DNF / categorical cells have no dot). Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
+    blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one measured model&times;effort cell, read directly from the score CSV (dots = measured cells; not measured / DNF / categorical cells have no dot). Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). <strong>~</strong> = one scorer family (the cell was scored by one family only). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
     for key, title, ymax, column, ylabel, ref, bench in BENCHES:
         pts = load_dots(column)
         blocks.append(f'<h3>{html.escape(title)}</h3>')
         blocks.append(svg(title, ymax, pts, bench, ylabel, ref))
-        blocks.append('<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · dashed = frontier · hover = provider/model id, effort, score, cost, seats, why, CSV note</p>')
+        blocks.append(f'<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · ~ = one scorer family · dashed = frontier · hover = provider/model id, effort, score, cost, seats, why, CSV note</p>')
     blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
+    blocks.append('<p class="note"><strong>Tie rule (ratified 2026-11-20).</strong> Eligibility = two scorer families + &ge;2 valid runs; the cheapest arm inside the MDE band wins the seat.</p>')
     blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>
 <tr><td>orchestration</td><td>haiku-medium (7.5 at $0.01) / sonnet-high (8 at $0.10)</td><td>glm-high (7/8 · $0.005) — the highest-volume seat: haiku-medium scores 7.5 at 2x, sonnet-high 8 at 20x; the price rule wins at this volume. Revisit if glm O &lt; 5.</td></tr>
 <tr><td>cheap-design-review</td><td>qwen-xhigh (10 at ~$1.07, one valid run)</td><td>minimax holds it twice over: medium effort holds this rung (8.0 at $0.04, on price - qwen-medium posts 8.6 at 8x the cost), xhigh holds strong-design-review (11.25 with 4 executed proofs) — a same-family effort escalation the owner accepted. Minimax is critique-only: its design authoring collapses across runs (two DNFs, false claim).</td></tr>
@@ -265,7 +271,7 @@ def build_and_write():
 <tr><td>strong-review-alt</td><td>qwen-xhigh (4.0 at $0.15, the quality step)</td><td>strong-review-alt = 1017 high (3.62 · $0.016) — a lineage VALVE, not a quality step: when minimax-xhigh (the floor gate) fails on claude-produced code, the next rung up (sonnet-medium) is claude and may not review claude — 1017 (deepseek) is the only cheap fresh-family escalation. Dominated on this chart by minimax-xhigh (4.33, cheaper) ON PURPOSE: quality here would be qwen-xhigh (4.0 · $0.15) — 10x the price for a rung almost never pulled.</td></tr>
 <tr><td>strong-code-alternative</td><td>haiku-high (8.83 at $0.15)</td><td>The only real capability step above cheap-code (+0.5); family-alternates with minimax. sonnet-high (7.75 at $0.40) buys no I2 points and left the code ladder.</td></tr>
 <tr><td>strong-design-alternative</td><td>kimi-medium (6.94 at $0.18, 2 runs)</td><td>sonnet-high holds it (8 at $0.83, clean re-fold) - beat kimi-medium on quality; fresh family vs 1017 for stuck designs. Sonnet keeps a seat, just on a different bench.</td></tr>
-<tr><td>strong-code</td><td>sonnet-high (7.75 at $0.40-1.26, panel mean)</td><td>minimax-xhigh holds it (7.04 re-folded): 0.71 below sonnet-high, a tie under the 1.5 pt gate, so price decides (13&times; cheaper).</td></tr>
+<tr><td>strong-code</td><td>sonnet-high (13.5~ on RG4, one scorer family) · haiku-high (13.5 at $0.15)</td><td>minimax-xhigh holds it: 13.0 at $0.03 on RG4 (2 valid runs, 3-pt spread). The 0.5 gap to sonnet-high and haiku-high is under the 1.5 pt MDE, so the tie rule applies and the price decides (13&times; cheaper than sonnet-high at $0.40). Challenger line: qwen-medium 13.5 (2 valid runs, $0.30-0.68) - the family-diverse tie at 10x the price, not a seat change.</td></tr>
 </tbody></table>''')
     blocks.append('''<div id="tooltip" style="position:fixed;pointer-events:none;background:#1f2937;color:#fff;padding:8px 10px;border-radius:6px;font:12px system-ui;max-width:340px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none"></div>
 <script>

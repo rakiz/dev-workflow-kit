@@ -42,7 +42,7 @@ def expected_dots(pts, bench, ymax):
     """What svg() in gen-charts.py would draw: same iteration order
     (sorted by cost asc, score desc), same xpos/ypos/color/fill math."""
     out = []
-    for name, s, cost, seats, single, note in sorted(pts, key=lambda p: (p[2], -p[1])):
+    for name, s, cost, seats, single, note, one_fam in sorted(pts, key=lambda p: (p[2], -p[1])):
         x, y = xpos(cost), ypos(s, ymax)
         here = [1 for n, b in seats if b == bench]
         col = "#1d4ed8" if here else "#9ca3af"
@@ -82,9 +82,15 @@ def main():
                     f" expected (x={ex}, y={ey}, color={ecol}, hollow={ehollow})")
             else:
                 ok += 1
+        # one-family marker: every cell flagged one_fam in the CSV carries a "~" label
+        # suffix, and no other label does (the marker is the only "~" on a label)
+        want_tilde = sum(1 for p in load_dots(column) if p[6])
+        got_tilde = len(re.findall(r'<text class="pt"[^>]*>[^<]*~</text>', svg))
+        if got_tilde != want_tilde:
+            failures.append(f"{bench}: one-family '~' labels {got_tilde} != expected {want_tilde}")
         total_checked += len(exp)
         total_ok += ok
-        print(f"{bench:<12} {len(exp):>7} {ok:>7}")
+        print(f"{bench:<12} {len(exp):>7} {ok:>7}  (~ labels {got_tilde}/{want_tilde})")
 
     print(f"{'TOTAL':<12} {total_checked:>7} {total_ok:>7}")
     if failures:

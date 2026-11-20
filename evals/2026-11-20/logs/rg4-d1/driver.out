@@ -1,0 +1,7 @@
+[13:40:01] D1 driver: BASE=$141.1382 ; budget $3.00
+[13:40:01] LAUNCH qwen-xhigh q53 cap=$1.00 delta-before=$0.0000
+[13:45:42] EXIT qwen-xhigh q53 status=0 delta-after=$0.8455
+[13:45:42] LAUNCH qwen-xhigh q53b cap=$1.00 delta-before=$0.8455
+[13:52:39] EXIT qwen-xhigh q53b status=0 delta-after=$2.2155
+BUDGET-GUARD stop before [argon-high q53]: delta=$2.2155 (need delta+2x$0.60 <= $3.00)
+DRIVER STOPPED (guard)

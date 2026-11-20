@@ -1,0 +1,46 @@
+SUITE_EXIT=0
+Ran 12 tests in 0.243s
+OK
+===== IV4-fireworks-ai-accounts-fireworks-models-qwen3p8-2p4t-a95b-xhigh-q53b =====
+--- suite_green:
+SUITE_EXIT=0
+Ran 12 tests in 0.243s
+OK
+--- probe a:
+merchant.distinct=3
+--- probe b:
+REPORTS-IDENTICAL
+generated_from=1
+--- probe c:
+1
+--- probe d:
+exit=1
+PREVIOUS-OUTPUT-AND-STATE-INTACT
+PRISTINE_TESTS_EXIT=1
+test_affirmative_forms_report_one (test_reportgen.BooleanTransformTests) ... ERROR
+test_any_other_input_raises (test_reportgen.BooleanTransformTests) ... ok
+test_boolean_end_to_end (test_reportgen.BooleanTransformTests) ... ERROR
+test_negative_forms_report_zero (test_reportgen.BooleanTransformTests) ... ERROR
+test_report_json_identical_on_cached_rerun (test_reportgen.CacheHitReportStabilityTests) ... FAIL
+test_cache_state_written_on_first_run (test_reportgen.CacheTests) ... ok
+test_first_run_creates_missing_cache_dir (test_reportgen.CacheTests) ... ok
+test_shipped_inputs_report (test_reportgen.EndToEndTests) ... ok
+test_temp_input_end_to_end (test_reportgen.EndToEndTests) ... ok
+test_caught_transform_failure_exits_1_and_emits_nothing (test_reportgen.FailurePolicyTests) ... FAIL
+test_unhandled_transform_crash_exits_1_and_emits_nothing (test_reportgen.FailurePolicyTests) ... FAIL
+test_future_entry_registry_version_treated_as_empty (test_reportgen.FutureSchemaCacheTests) ... FAIL
+test_future_top_level_version_treated_as_empty (test_reportgen.FutureSchemaCacheTests) ... FAIL
+test_file_and_column_names_are_escaped (test_reportgen.HtmlEscapeTests) ... FAIL
+test_old_registry_entry_not_reused (test_reportgen.RegistryVersionLookupTests) ... FAIL
+test_rules_file_read_at_most_once_per_run (test_reportgen.RulesReadOnceTests) ... FAIL
+test_rules_loader_ignores_other_tables (test_reportgen.RulesTests) ... ok
+test_shipped_rules_load (test_reportgen.RulesTests) ... ok
+test_currency_amount (test_reportgen.TransformTests) ... ok
+test_date_iso (test_reportgen.TransformTests) ... ok
+test_round2 (test_reportgen.TransformTests) ... ok
+test_trim_upper_lower (test_reportgen.TransformTests) ... ok
+test_unknown_transform_name (test_reportgen.TransformTests) ... ok
+[tail]
+Ran 24 tests in 0.487s
+FAILED (failures=8, errors=3)
+WORK=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp.OYTmfKcYSY

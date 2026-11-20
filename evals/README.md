@@ -91,6 +91,8 @@ Pipeline stages: **D** design authoring, **DR** design-review, **I** impl,
 the distinctive-string leakage check may not assume eventual publication of
 past benches.
 
+**RG4 = a calibration bench by design (built public); the held-out rule lives in PROTOCOL §5.** The RG4 fixture (`reportgen-eval-repo-i4/`) ships public as discoverable substrate; its defect specifics stay out of the docs and live in the private key.
+
 **Key-purge record (Étape 0, 2026-11-19):** the 2026-11-16 scoring-panel
 transcripts (89 files quoting the I2/D rubric keys verbatim) were moved to the
 PRIVATE repo (`evals-keys@score-logs/2026-11-16/panel/`) and purged from this

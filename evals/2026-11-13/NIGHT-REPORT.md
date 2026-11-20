@@ -38,7 +38,7 @@ all decisions owner-delegated for the night, PROVISIONAL:
   everywhere (headroom-only block).
 - **Gate 2 (sonnet−terra ≥ 3): FAIL** — mean gap 1.5 (round-to-round the pair FLIPPED: p3
   8−8=0, p4 10−7=3). Robustly below the floor even ignoring variance.
-- **c′ wiped out everywhere again**: 0 points across ALL arms both rounds (rules_opens=4 in
+- **c′ wiped out everywhere again**: 0 points across ALL arms both rounds (the c′ probe failed in
   every build) — the THIRD measurement-forcing shape in a row that no model fixes
   (parse-before-check r1, stdout signal r2, loop-nested r3). Conclusion for the redesign:
   in this domain, no model measures unless forced; a 4-point block nobody can earn is

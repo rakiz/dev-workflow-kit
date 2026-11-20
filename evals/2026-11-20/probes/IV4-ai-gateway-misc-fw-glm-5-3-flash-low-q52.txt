@@ -1,0 +1,45 @@
+SUITE_EXIT=0
+Ran 12 tests in 0.509s
+OK
+===== IV4-ai-gateway-misc-fw-glm-5-3-flash-low-q52 =====
+--- suite_green:
+SUITE_EXIT=0
+Ran 12 tests in 0.509s
+OK
+--- probe a:
+merchant.distinct=3
+--- probe b:
+REPORTS-DIFFER
+generated_from=2
+--- probe c:
+1
+--- probe d:
+HTML-PRESENT-IN-BEFORE=yes
+exit=1
+PREVIOUS-OUTPUT-AND-STATE-INTACT
+PRISTINE_TESTS_EXIT=1
+  test_cache_state_written_on_first_run (test_reportgen.CacheTests) ... ok
+  test_first_run_creates_missing_cache_dir (test_reportgen.CacheTests) ... ok
+  test_future_version_cache_treated_as_empty (test_reportgen.CacheTests) ... ok
+  test_shipped_inputs_report (test_reportgen.EndToEndTests) ... ok
+  test_temp_input_end_to_end (test_reportgen.EndToEndTests) ... ok
+  test_failed_transform_writes_nothing_and_leaves_outputs_intact (test_reportgen.FailurePolicyTests) ... FAIL
+  test_rules_file_read_at_most_once_per_run (test_reportgen.FailurePolicyTests) ... ok
+  test_rules_loader_ignores_other_tables (test_reportgen.RulesTests) ... ok
+  test_shipped_rules_load (test_reportgen.RulesTests) ... ok
+  test_boolean_affirmative_and_negative (test_reportgen.TransformTests) ... ERROR
+  test_boolean_rejects_other_input (test_reportgen.TransformTests) ... ok
+  test_currency_amount (test_reportgen.TransformTests) ... ok
+  test_date_iso (test_reportgen.TransformTests) ... ok
+  test_round2 (test_reportgen.TransformTests) ... ok
+  test_trim_upper_lower (test_reportgen.TransformTests) ... ok
+  test_unknown_transform_name (test_reportgen.TransformTests) ... ok
+  [tail]
+  Ran 18 tests in 0.401s
+  FAILED (failures=2, errors=1)
+  [reasons]
+   * test_cache_state_written_on_first_run (test_reportgen.CacheTests) ... ok || test_unknown_transform_name (test_reportgen.TransformTests) ... ok
+   * ERROR: test_boolean_affirmative_and_negative (test_reportgen.TransformTests) || transforms.TransformError: unknown transform: 'boolean'
+   * FAIL: test_failed_transform_writes_nothing_and_leaves_outputs_intact (test_reportgen.FailurePolicyTests) || AssertionError: "<!do[110 chars]\n<p>2 rows</p>\n<table border='1'>\n<tr><th>c[208 chars]tml>" != "<!do[110 chars]\n<p>1 rows</p>\n<table bo
+   * FAIL: test_main_exits_1_on_transform_failure (test_reportgen.FailurePolicyTests) || AssertionError: None != 1
+WORK=/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/tmp.Z1ZE1fuWMP
