@@ -548,7 +548,10 @@ def ops_section_html():
                 tip = html.escape(f'{m} {e} · {bcode}: {lab} {v / 1000:.0f}k of {t["total"] / 1000:.0f}k tokens per run (mean of {t["n"]} run(s))', quote=True)
                 ok.append(f'<rect class="pt" data-tip="{tip}" x="{x0:.1f}" y="{y + 3}" width="{max(x1 - x0, 0):.1f}" height="12" fill="{colr}"/>')
                 acc += v
-            ok.append(f'<text x="{xk(acc) + 6:.1f}" y="{y + 12}" fill="#374151">{t["total"] / 1000:.0f}k</text>')
+            sc = bench_score(bcode, m, e)
+            tok_lab = f'{t["total"] / 1000:.0f}k' if t["total"] < 1_000_000 else f'{t["total"] / 1_000_000:.1f}M'
+            lab = f"~{tok_lab} tok" + (f" · {sc}" if sc else "")
+            ok.append(f'<text x="{xk(acc) + 6:.1f}" y="{y + 12}" fill="#374151">{html.escape(lab)}</text>')
             y += RH
     ok.append('</svg>')
     tok_svg = "\n".join(ok)
