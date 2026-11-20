@@ -73,15 +73,90 @@ BENCHES = [
 ]
 
 
-# Per-bench cost overrides: cost_per_task_est in the CSV is bench-agnostic
-# (it names the bench where the seat was decided). Where a bench's measured
-# actual differs materially, override here; source: 2026-11-16/grid2-costs.tsv
-# (haiku-high I2 runs: $0.15/task vs the CSV's $0.05 D-bench figure).
-COST_OVERRIDES = {
-    ("haiku", "high", "I2-RG4"): 0.15,
-    # qwen-xhigh RG4 D1 re-runs, measured in the opencode DB: $0.8455 (q53) and $1.37 (q53b) -> mean
-    ("qwen", "xhigh", "I2-RG4"): 1.11,
-}
+RUNOPS = os.path.join(_HERE, "2026-11-16", "run-ops.tsv")  # build-ops.py output (keyed DB + TSV)
+GRID_FROM = "2026-11-16"   # costs come from the same campaign as the scores
+COLBENCH = {"O8": "O", "IR": "IR", "DR2": "DR2", "I2-RG4": "I2-RG4", "D": "D"}  # CSV column -> run-ops bench
+
+
+def _load_ops():
+    """Per-run ops from run-ops.tsv: bench-specific cost, delivery, latency."""
+    cells, model_ops = {}, {}
+    for r in csv.DictReader(open(RUNOPS), delimiter="\t"):
+        if r["date"] < GRID_FROM:
+            continue
+        bench, model, eff = r["bench"], r["model"], r["effort"]
+        deliv = r["delivered"] == "1"
+        cost = float(r["cost_usd"])
+        dur = float(r["duration_s"]) if r["duration_s"] else None
+        c = cells.setdefault((bench, model, eff), {"n": 0, "d": 0, "tot": 0.0, "valid": [], "dur": []})
+        c["n"] += 1; c["tot"] += cost
+        m = model_ops.setdefault((model, eff), {"n": 0, "d": 0, "dur": [], "tot": 0.0})
+        m["n"] += 1; m["tot"] += cost
+        if deliv:
+            c["d"] += 1; c["valid"].append(cost)
+            if dur is not None:
+                c["dur"].append(dur)
+            m["d"] += 1
+            if dur is not None:
+                m["dur"].append(dur)
+    return cells, model_ops
+
+
+CELLS, MODEL_OPS = _load_ops()
+
+
+def cell_info(bench, model, eff):
+    """Bench-specific cost = mean over DELIVERED runs; incl = all spend / delivered."""
+    c = CELLS.get((bench, model, eff))
+    if not c or not c["valid"]:
+        return None
+    return {"cost": sum(c["valid"]) / len(c["valid"]), "n": c["n"], "d": c["d"],
+            "incl": c["tot"] / c["d"]}
+
+
+def cell_dur(bench, model, eff):
+    """Bench-specific latency of DELIVERED runs: median and range (seconds), or None."""
+    c = CELLS.get((bench, model, eff))
+    if not c or not c["dur"]:
+        return None
+    d = sorted(c["dur"])
+    med = d[len(d) // 2] if len(d) % 2 else (d[len(d) // 2 - 1] + d[len(d) // 2]) / 2
+    return {"med": med, "lo": d[0], "hi": d[-1], "n": len(d)}
+
+
+def fmt_lat(sec):
+    """Seconds below two minutes, minutes above (one unit per tooltip)."""
+    return f"{sec:.0f}s" if sec < 120 else f"{sec / 60:.0f} min"
+
+
+def latency_text(dur):
+    if dur is None:
+        return "~? (no timing)"
+    unit = (lambda v: f"{v:.0f}s") if dur["med"] < 120 else (lambda v: f"{v / 60:.0f} min")
+    txt = f"~{unit(dur['med'])} on this bench"
+    if dur["n"] > 1 and (dur["lo"] != dur["hi"]):
+        txt += f" ({unit(dur['lo'])}–{unit(dur['hi'])})"
+    return txt
+
+
+def ops_for(model, eff):
+    """Delivery + latency across ALL benches for one model x effort."""
+    m = MODEL_OPS.get((model, eff))
+    if not m:
+        return None
+    dur = m["dur"]
+    return {"n": m["n"], "d": m["d"], "tot": m["tot"],
+            "dur_mean": sum(dur) / len(dur) if dur else None,
+            "dur_min": min(dur) if dur else None, "dur_max": max(dur) if dur else None}
+
+
+def parse_fp(note, bench):
+    """FP count only where the note states it for this bench (else None = net only)."""
+    tag = {"IR": "IR", "DR2": "DR2"}.get(bench)
+    if not tag:
+        return None
+    m = re.search(tag + r"[^;]*?(\d+)\s*FP", note)
+    return int(m.group(1)) if m else None
 
 
 def parse_cost(c):
@@ -102,7 +177,10 @@ def parse_cost(c):
 
 def load_dots(column):
     """One dot per CSV row whose cell in `column` is numeric (a trailing *
-    marks a single-valid run). not measured / DNF / cat * render no dot."""
+    marks a single-valid run). not measured / DNF / cat * render no dot.
+    X = bench-specific cost (mean over delivered runs of THAT bench); the CSV
+    generic estimate is the labelled fallback."""
+    bench = COLBENCH[column]
     pts = []
     for r in csv.DictReader(open(CSVPATH)):
         v = r[column].strip()
@@ -110,18 +188,25 @@ def load_dots(column):
             s = float(v.rstrip("*~"))
         except ValueError:
             continue
-        cost = parse_cost(r["cost_per_task_est"])
-        if cost is None:
-            continue
         model, eff = r["model"].strip(), r["effort"].strip()
-        cost = COST_OVERRIDES.get((model, eff, column), cost)
+        info = cell_info(bench, model, eff)
+        if info:
+            cost, cost_src = info["cost"], "bench"
+        else:
+            cost = parse_cost(r["cost_per_task_est"])
+            if cost is None:
+                continue
+            cost_src = "generic"
         name = model if eff == "default" else f"{model}-{eff}"
         note = r["notes"].strip().lstrip("-").strip()
         # hollow = under-measured: CSV star OR the row's notes say single / 1 valid
         single = v.endswith("*") or bool(re.search(r"\bsingle\b|1 valid|\b1v\b", note, re.I))
         # one_fam = trailing "~": the cell's runs were scored by one scorer family only
         one_fam = v.endswith("~")
-        pts.append((name, s, cost, SEATS.get((model, eff), []), single, note, one_fam))
+        meta = {"bench": bench, "cost_src": cost_src, "info": info,
+                "dur": cell_dur(bench, model, eff),
+                "ops": ops_for(model, eff), "fp": parse_fp(note, bench)}
+        pts.append((name, s, cost, SEATS.get((model, eff), []), single, note, one_fam, meta))
     return pts
 
 
@@ -184,7 +269,7 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
     def overlap(a, b):
         return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
     for entry in sorted(pts, key=lambda p: (p[2], -p[1])):
-        name, s_, c, seats, single, note, one_fam = entry
+        name, s_, c, seats, single, note, one_fam, meta = entry
         x, y = xpos(c), ypos(s_, ymax)
         # color = seat on THIS bench; fill = measurement investment (single -> hollow)
         here = [f"{n} ({b})" for n, b in seats if b == bench]
@@ -198,10 +283,30 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
         full = FULLIDS[base]
         why = REASONS[key].get(name, "")
         seat_line = (f'seats: {html.escape(", ".join(f"{n} ({b})" for n, b in seats))}' if seats else '')
+        info, ops = meta["info"], meta["ops"]
+        if meta["cost_src"] == "bench":
+            cost_line = f'cost: mean of {info["d"]} delivered run(s), this bench'
+            if info["n"] > info["d"]:
+                cost_line += f' (incl. {info["n"] - info["d"]} failed attempt(s): ${info["incl"]:.3f}/delivered)'
+        else:
+            cost_line = 'cost: generic CSV estimate (no run data on this bench)'
+        if ops:
+            ops_line = f'delivered {ops["d"]}/{ops["n"]} (all benches)'
+        else:
+            ops_line = 'delivered: no run data'
+        if meta["fp"] is not None:
+            fp_line = f'FP {meta["fp"]} (findings not recorded per run)'
+        elif meta["bench"] in ("IR", "DR2"):
+            fp_line = 'net score (FP not recorded per run)'
+        else:
+            fp_line = ''
         TIPHTML = (f'<b>{html.escape(full)}</b> <i>{html.escape(eff)}</i><br>'
-                   f'score {s_:g} · ${c:g}/task'
+                   f'score {s_:g} · ${c:g}/task · {latency_text(meta["dur"])}'
                    + (' · single valid run' if single else '')
                    + (' · one scorer family (~)' if one_fam else '')
+                   + f'<br><small>{html.escape(cost_line)}</small>'
+                   + f'<br><small>{html.escape(ops_line)}</small>'
+                   + (f'<br><small>{html.escape(fp_line)}</small>' if fp_line else '')
                    + (f'<br>{seat_line}' if seat_line else '')
                    + (f'<br><small>{html.escape(why)}</small>' if why else '')
                    + (f'<br><small>note: {html.escape(note)}</small>' if note else ''))
@@ -245,6 +350,60 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
     o.append('</svg>')
     return "\n".join(o)
 
+ROSTER_MODEL = {
+    "glm-5.3-flash": "glm", "claude-haiku-5.5": "haiku", "deepseek-v4p1-flash": "dsflash",
+    "deepseek-v4p1-flash-1017": "1017", "minimax-m3p1-flash": "minimax", "claude-sonnet-5.5": "sonnet",
+    "gpt-6.1-terra": "terra", "claude-opus-5.5": "opus", "qwen3p8-2p4t-a95b": "qwen",
+    "gemini-4-hydrogen": "hydrogen", "gemini-4-argon": "argon", "gemini-4-carbon": "carbon",
+}
+ROSTER_EFFORTS = ("low", "medium", "high", "xhigh")
+
+
+def ops_text(model, eff):
+    """Roster ops cell: delivered k/n across all benches, latency range in minutes."""
+    o = ops_for(model, eff) if model else None
+    if not o or o["n"] == 0:
+        return "no runs"
+    txt = f'{o["d"]}/{o["n"]} delivered'
+    if o["dur_min"] is not None:
+        lo, hi = round(o["dur_min"] / 60), round(o["dur_max"] / 60)
+        txt += f' · {lo}–{hi} min' if lo != hi else f' · ~{lo} min'
+    if o["n"] > o["d"]:
+        txt += f' · {o["n"] - o["d"]} failed attempt(s)'
+        txt += f' · cost incl. failed ${o["tot"] / o["d"]:.2f}/delivered'
+    return txt
+
+
+def patch_roster_ops(src):
+    """Adds an 'ops' column (before the fallback column) to every #roster seat row.
+    Idempotent: an existing ops cell is replaced, not duplicated."""
+    a = src.index('<section id="roster">'); b = src.index('<section id="charts">')
+    sec = src[a:b]
+    if 'Ops (delivered' not in sec:
+        sec = sec.replace('<th>Fallback if it regresses</th>',
+                          '<th>Ops (delivered · latency)</th><th>Fallback if it regresses</th>', 1)
+    def patch_row(m):
+        attrs, body = m.group(1), m.group(2)
+        cells = re.findall(r"<td[^>]*>.*?</td>", body, re.S)
+        if len(cells) < 6:
+            return m.group(0)
+        model_txt = re.sub(r"<[^>]+>", " ", cells[1]).split()
+        if not model_txt:
+            return m.group(0)
+        name = model_txt[0]
+        eff = model_txt[1] if len(model_txt) > 1 and model_txt[1] in ROSTER_EFFORTS else "default"
+        key = ROSTER_MODEL.get(name)
+        ops_cell = f'<td class="ops" style="white-space:nowrap">{html.escape(ops_text(key, eff))}</td>'
+        if 'class="ops"' in body:
+            body = re.sub(r'<td class="ops"[^>]*>.*?</td>', ops_cell, body, count=1, flags=re.S)
+        else:
+            last = cells[-1]
+            body = body.replace(last, ops_cell + last, 1)
+        return f"<tr{attrs}>{body}</tr>"
+    sec = re.sub(r"<tr([^>]*)>(.*?)</tr>", patch_row, sec, flags=re.S)
+    return src[:a] + sec + src[b:]
+
+
 def build_and_write():
     blocks = []
     blocks.append('<section id="charts">\n<h2>Charts — who wins each decision bench</h2>\n<p class="note">Each dot is one measured model&times;effort cell, read directly from the score CSV (dots = measured cells; not measured / DNF / categorical cells have no dot). Left = cheaper per task, up = higher score. <strong>Blue</strong> = holds a seat on this bench; grey = does not; hollow ring = single valid run (*). <strong>~</strong> = one scorer family (the cell was scored by one family only). Dashed line = best trade-off frontier: no other model is both cheaper and better.</p>')
@@ -252,7 +411,7 @@ def build_and_write():
         pts = load_dots(column)
         blocks.append(f'<h3>{html.escape(title)}</h3>')
         blocks.append(svg(title, ymax, pts, bench, ylabel, ref))
-        blocks.append(f'<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · ~ = one scorer family · dashed = frontier · hover = provider/model id, effort, score, cost, seats, why, CSV note</p>')
+        blocks.append(f'<p class="note">blue = seat on this bench · grey = no seat · filled = 2+ valid runs · hollow = 1 run (under-measured) · ~ = one scorer family · dashed = frontier · X = cost per delivered run on this bench (generic CSV estimate where no run data) · IR/DR2 show findings and false positives separately where the run record states them; otherwise the net is marked “net” — a net score never hides real findings · hover = provider/model id, effort, score, cost, delivery and latency, seats, why, CSV note</p>')
     blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
     blocks.append('<p class="note"><strong>Tie rule (ratified 2026-11-20).</strong> Eligibility = two scorer families + &ge;2 valid runs; the cheapest arm inside the MDE band wins the seat.</p>')
     blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>
@@ -300,7 +459,7 @@ def build_and_write():
     blocks.append('</section>\n')
     new = "\n".join(blocks)
 
-    src = open(PATH).read()
+    src = patch_roster_ops(open(PATH).read())
     start = src.index('<section id="charts">')
     end = src.index('<section id="codes">')
     src = src[:start] + new + src[end:]

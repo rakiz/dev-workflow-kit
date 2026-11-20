@@ -42,7 +42,7 @@ def expected_dots(pts, bench, ymax):
     """What svg() in gen-charts.py would draw: same iteration order
     (sorted by cost asc, score desc), same xpos/ypos/color/fill math."""
     out = []
-    for name, s, cost, seats, single, note, one_fam in sorted(pts, key=lambda p: (p[2], -p[1])):
+    for name, s, cost, seats, single, note, one_fam, meta in sorted(pts, key=lambda p: (p[2], -p[1])):
         x, y = xpos(cost), ypos(s, ymax)
         here = [1 for n, b in seats if b == bench]
         col = "#1d4ed8" if here else "#9ca3af"
