@@ -1,0 +1,84 @@
+[0m
+> build · grok-4.7
+[0m
+I'll review the last commit for real defects only.
+[0m$ [0mgit show HEAD --stat && echo "==== DIFF ====" && git show HEAD --format=fuller
+commit c7628cc4b09cf4d113bd8f94422bddf9c769d3e1
+Author: eval <eval@example.com>
+Date:   Fri Nov 20 21:07:02 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+==== DIFF ====
+commit c7628cc4b09cf4d113bd8f94422bddf9c769d3e1
+Author:     eval <eval@example.com>
+AuthorDate: Fri Nov 20 21:07:02 2026 +0100
+Commit:     eval <eval@example.com>
+CommitDate: Fri Nov 20 21:07:02 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+The commit only adds `incremental.py`. I'll check how those helpers are supposed to be used.
+[0m✱ [0mGlob "**/*.{py,md}"[90m 6 matches[0m
+[0m✱ [0mGrep "filter_excluded|copy_many|merge_manifest|copy_file|EXCLUDE_TOP"[90m 9 matches[0m
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead synccli.py
+**major** — `filter_excluded` inverts its contract and uses a mutable default. The docstring says it returns paths that must be excluded, but the name and typical call site (`keep = filter_excluded(paths)`) treat the return as the keep-set. It returns only matches, so a caller that syncs the result copies `.git` / `__pycache__` / the manifest and drops everything else. `excluded=[]` is shared across calls, so later calls accumulate earlier exclusions and can exclude paths not in the current input.
+
+**major** — `merge_manifest` never writes the merged manifest. It loads, merges in memory, and returns the dict. `sync()` still overwrites `.sync_manifest.json` with `json.dump`, so a caller that uses this helper and expects the destination manifest updated gets no write. A crash between copy and a later write leaves the on-disk manifest stale, so the next pass recopies or misses state. Equal mtimes also overwrite (`<=`), which can replace a larger/different entry with an older-content same-mtime state.
+
+**minor** — `copy_many` swallows every exception (`except Exception: continue`) and still returns `done`. A partial batch looks successful: callers cannot tell which pairs failed, and a bad pair is silently skipped with no retry signal. `copy_file` already swallows `OSError`, so the extra blanket catch hides programming errors (bad pairs, missing import) as “copied.”
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 15979 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 15980 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-15950/final-report.md (session eval-2026-11-20-T3-github-copilot-grok-4-7-catchup-grok-2026-11-20-a2)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-15950 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T3-github-copilot-grok-4-7-catchup-grok-2026-11-20-a2)

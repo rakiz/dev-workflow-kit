@@ -1,0 +1,133 @@
+[0m
+> build · grok-4.7
+[0m
+I'll review the last commit and report only real defects.
+[0m$ [0mgit show HEAD --stat && echo "==== DIFF ====" && git show HEAD --format=fuller
+commit c6ab07f3cc359f59db1a0c17a43f794fc55eee06
+Author: eval <eval@example.com>
+Date:   Fri Nov 20 20:49:14 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+ incremental.py | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+==== DIFF ====
+commit c6ab07f3cc359f59db1a0c17a43f794fc55eee06
+Author:     eval <eval@example.com>
+AuthorDate: Fri Nov 20 20:49:14 2026 +0100
+Commit:     eval <eval@example.com>
+CommitDate: Fri Nov 20 20:49:14 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mrg -n "def copy_file|def filter_excluded|merge_manifest|copy_many|EXCLUDE" --type py && echo "==== FILES ====" && ls -la
+incremental.py:7:EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
+incremental.py:10:def filter_excluded(paths, excluded=[]):
+incremental.py:13:        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
+incremental.py:18:def copy_many(pairs):
+incremental.py:30:def merge_manifest(dst_manifest_path, new_manifest):
+synccli.py:62:def copy_file(src, dst):
+==== FILES ====
+total 48
+drwxr-xr-x@    4 sebastien.mendez  staff     128 Nov 20 20:49 __pycache__
+drwxr-xr-x@   10 sebastien.mendez  staff     320 Nov 20 20:49 .
+drwx------@ 4591 sebastien.mendez  staff  146912 Nov 20 20:49 ..
+drwxr-xr-x@   13 sebastien.mendez  staff     416 Nov 20 20:49 .git
+-rw-r--r--@    1 sebastien.mendez  staff    1317 Nov 20 20:49 DESIGN.md
+-rw-r--r--@    1 sebastien.mendez  staff     657 Nov 20 20:49 GOAL.md
+-rw-r--r--@    1 sebastien.mendez  staff    1157 Nov 20 20:49 incremental.py
+-rw-r--r--@    1 sebastien.mendez  staff     210 Nov 20 20:49 README.md
+-rw-r--r--@    1 sebastien.mendez  staff    3172 Nov 20 20:49 synccli.py
+-rw-r--r--@    1 sebastien.mendez  staff    1834 Nov 20 20:49 test_synccli.py
+[0m
+I need the surrounding API so I can judge whether these helpers actually break the contract.
+[0m$ [0mgit log --oneline -15 && echo "==== SHOW PREV ====" && git show HEAD~1 --stat 2>/dev/null | head -40
+c6ab07f v0.2: add exclude filter, batch copy and manifest merge
+3b1867d Initial synccli
+==== SHOW PREV ====
+commit 3b1867d926af212d68f26e6b109ffdca9555fc6e
+Author: eval <eval@example.com>
+Date:   Fri Nov 20 20:49:14 2026 +0100
+
+    Initial synccli
+
+ DESIGN.md                                |  31 ++++++++++
+ GOAL.md                                  |  14 +++++
+ README.md                                |   7 +++
+ __pycache__/synccli.cpython-310.pyc      | Bin 0 -> 3615 bytes
+ __pycache__/test_synccli.cpython-310.pyc | Bin 0 -> 2912 bytes
+ synccli.py                               | 103 +++++++++++++++++++++++++++++++
+ test_synccli.py                          |  55 +++++++++++++++++
+ 7 files changed, 210 insertions(+)
+[0m
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead synccli.py
+[0m→ [0mRead README.md
+[0m→ [0mRead incremental.py
+The design contract is in the existing docs. I'll read those next to the new helpers.
+[0m→ [0mRead test_synccli.py
+**Major**
+
+1. `filter_excluded` has a mutable default (`excluded=[]`) and appends into it. The docstring says it returns the excluded subset of *this* call, but the list is shared across calls, so later calls return previous calls' paths mixed in. Callers that drop those paths will skip files that should sync.
+
+2. `filter_excluded` is inverted vs its name and the `EXCLUDE_TOP_DIRS` contract. It returns paths that *must* be excluded, not the keep-set. Feeding that result into a copy loop syncs `.git` / `__pycache__` / the manifest and drops everything else.
+
+3. `merge_manifest` never writes the merged manifest. It loads, merges, and returns the dict, so the destination manifest is unchanged. A caller that treats the function as the merge (the docstring says "Merge … into the destination manifest") keeps the old state and recopies or drops updates on the next pass.
+
+4. `merge_manifest` uses `old[rel]["mtime"] <= state["mtime"]` and never deletes keys absent from `new_manifest`. A source delete, a same-mtime content change (size differs; `changed_files` compares the full state), or a clock-stepped mtime leaves the destination manifest stale. The next sync treats those files as unchanged, so deletes are not propagated and changed content is not recopied.
+
+**Minor**
+
+5. `copy_many` treats every `copy_file` return as success and appends `dst` to `done`. `copy_file` swallows `OSError` and still returns, so a failed copy is reported as done. A later manifest write will record a file that was never copied.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 14278 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 13276 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-13245/final-report.md (session eval-2026-11-20-T3-github-copilot-grok-4-7-catchup-grok-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-13245 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T3-github-copilot-grok-4-7-catchup-grok-2026-11-20-a1)

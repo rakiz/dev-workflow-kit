@@ -1,0 +1,39 @@
+[0m
+> build · grok-4.7
+[0m
+I'll read the design and critique the approach before any code.
+[0m✱ [0mGlob "**/*.{md,txt}"[90m 3 matches[0m
+[0m✱ [0mGlob "DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+The design doc assumes existing code. I'll check what's actually implemented before judging the claims.
+[0m✱ [0mGlob "**/*.{py,json}"[90m 2 matches[0m
+[0m→ [0mRead state.py
+[0m→ [0mRead syncd.py
+The design's crash-safety and latency story is false under its own mechanisms. Fix these before writing more code.
+
+**Wrong assumptions**
+- Whole-second mtime does not change on every edit. A same-size rewrite in the same second is invisible, and the post-copy re-stat uses that same key, so a torn read is marked clean.
+- 200 ms debounce cannot be observed with a 500 ms poll. The discovering poll always sees elapsed 0, so latency is about two polls, not poll+200 ms. A file written continuously never goes quiet, which contradicts the "at most 200 ms" claim.
+- "Entries merge cleanly" is false. The manifest commit is a full replace, and the lock is dropped before that commit and across the sleep, so two writers clobber each other.
+- The exists-then-create PID file is not a lock (TOCTOU), the PID is never checked, and a crash leaves a permanent stale lock.
+- Journal replay cannot repair an in-place manifest rewrite: `open(..., "w")` truncates first, `json.load` throws, and replay is not a fallback. Compaction after that commit deletes the only repair log.
+
+**Breaks under load**
+- 50k `stat`s every 500 ms is not under 100 ms once you add Python, a cold cache, or anything but a warm local SSD. It will peg a laptop and stall the build it is syncing. `node_modules` or a directory rename turns into a full recopy.
+- `read()` of the whole file is unbounded. One large artifact spikes RAM, and a burst of hundreds stretches the "500 ms" loop to seconds. Pending is the whole burst, not one poll.
+- Non-atomic `open(dst, "wb")` means every reader of `dst` sees a truncated file during the copy. A crash after the journal append and before the data is durable leaves a permanently stale `dst`, because the manifest now says it is synced.
+- One vanished file, a FIFO, a symlink `stat` failure, or a file-to-directory swap raises and kills the daemon. Nothing here is isolated.
+- Rewriting the full 50k-entry manifest twice a second is the write amplification. Skipping `fsync` does not remove it. Pending-count and commit-duration do not show a loop stuck in copies.
+
+**Change first**
+1. Detect changes with `st_mtime_ns` plus size. Keep the integer field only if synccli still reads it. Hash the bytes you already copy. Do not hash the whole tree.
+2. Write each `dst` file to a temp file, `fsync`, and `rename`. Do the same for the manifest. Journal the new state only after that, and only on a clean pass. `fsync` the journal before truncate. Compaction is safe only after a durable manifest rename.
+3. Hold one real exclusive lock for the process lifetime (`O_EXCL` or `flock`), with stale-PID recovery. Never release it per cycle.
+4. Drop the 500 ms full walk on a workstation. Use FSEvents plus a slow rescan. If you stay portable, poll every few seconds, not twice a second.
+5. Stream copies. Isolate per-file errors. Decide how to handle delete, rename, symlink, FIFO, and type changes in the design. A rename is not a free delete plus create at 50k files.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 14866 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 14867 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-14853/final-report.md (session eval-2026-11-20-T4V2-github-copilot-grok-4-7-catchup-grok-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-14853 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T4V2-github-copilot-grok-4-7-catchup-grok-2026-11-20-a1)

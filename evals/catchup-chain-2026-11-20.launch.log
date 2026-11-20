@@ -1,0 +1,25 @@
+20:16:50 001 O/github-copilot/gpt-6.2-astra/-/a1 ok spent=0.3072
+20:18:42 002 IR/github-copilot/gpt-6.2-astra/-/a1 ok spent=0.6250
+20:22:42 003 DR2/github-copilot/gpt-6.2-astra/-/a1 ok spent=1.0065
+20:23:05 004 I2-RG4/github-copilot/gpt-6.2-astra/-/a1 ok spent=1.3197
+20:25:03 005 D/github-copilot/gpt-6.2-astra/-/a1 ok spent=1.8204
+CAMPAIGN DONE id=catchup-astra-2026-11-20 spent=1.8204 budget_usd=25.00
+CAMPAIGN astra EXIT 0
+20:25:52 001 O/github-copilot/claude-fable-5.2/-/a1 ok spent=0.6258
+20:26:15 002 IR/github-copilot/claude-fable-5.2/-/a1 ok spent=1.1225
+CAMPAIGN DONE id=catchup-fable-2026-11-20 spent=1.1225 budget_usd=8.00
+CAMPAIGN fable EXIT 0
+20:27:04 001 O/github-copilot/gemini-4-neon/-/a1 ok spent=0.1860
+20:27:50 002 IR/github-copilot/gemini-4-neon/-/a1 ok spent=0.3168
+20:28:30 003 DR2/github-copilot/gemini-4-neon/-/a1 ok spent=0.4332
+20:29:17 004 O/github-copilot/gemini-4-neon/-/a2 ok spent=0.5629
+20:31:02 005 IR/github-copilot/gemini-4-neon/-/a2 ok spent=0.6881
+20:49:14 006 DR2/github-copilot/gemini-4-neon/-/a2 rc143 spent=0.7452
+CAMPAIGN DONE id=catchup-neon-2026-11-20 spent=0.7452 budget_usd=4.00
+CAMPAIGN neon EXIT 0
+21:03:08 001 IR/github-copilot/grok-4.7/-/a1 ok spent=0.1806
+21:07:01 002 DR2/github-copilot/grok-4.7/-/a1 ok spent=0.4176
+21:07:24 003 IR/github-copilot/grok-4.7/-/a2 ok spent=0.5675
+21:08:48 004 DR2/github-copilot/grok-4.7/-/a2 ok spent=0.7156
+CAMPAIGN DONE id=catchup-grok-2026-11-20 spent=0.7156 budget_usd=2.00
+CAMPAIGN grok EXIT 0

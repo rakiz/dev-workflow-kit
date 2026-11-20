@@ -1,0 +1,14 @@
+[0m
+> build · gpt-6.2-astra
+[0m
+[0m→ [0mRead BRIEF.md
+[0m→ [0mRead .
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead snaputil.py
+[0m% [0mPatch 1 file
+Created [DESIGN-d1.md](./DESIGN-d1.md) in this repo copy. It specifies how `backupctl` publishes complete snapshots, protects active restores during pruning, recovers from interrupted runs and corrupt indexes, and reuses unchanged files. The 120-second first-backup target is derived from explicit assumptions and includes a benchmark plan; it is not presented as a measured result.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 174:  8977 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 188:  8978 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-8963/final-report.md (session eval-2026-11-20-D-D1-github-copilot-gpt-6-2-astra-catchup-astra-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-8963 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-D-D1-github-copilot-gpt-6-2-astra-catchup-astra-2026-11-20-a1 above)

@@ -1,0 +1,35 @@
+{
+  "id": "catchup-fable-2026-11-20",
+  "date": "2026-11-20",
+  "budget_usd": 8.0,
+  "parallelism": 1,
+  "timeout_default": 1800,
+  "benches": {
+    "O": {
+      "runner": "run-eval-v5.sh",
+      "task": "T1",
+      "title_token": "T1"
+    },
+    "IR": {
+      "runner": "run-eval-v5.sh",
+      "task": "T3",
+      "title_token": "T3"
+    }
+  },
+  "arms": [
+    {
+      "bench": "O",
+      "model": "github-copilot/claude-fable-5.2",
+      "variant": "",
+      "cap": 4.0,
+      "attempts": 1
+    },
+    {
+      "bench": "IR",
+      "model": "github-copilot/claude-fable-5.2",
+      "variant": "",
+      "cap": 3.0,
+      "attempts": 1
+    }
+  ]
+}

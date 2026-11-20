@@ -1,0 +1,35 @@
+{
+  "id": "catchup-grok-2026-11-20",
+  "date": "2026-11-20",
+  "budget_usd": 2.0,
+  "parallelism": 1,
+  "timeout_default": 900,
+  "benches": {
+    "IR": {
+      "runner": "run-eval-v5.sh",
+      "task": "T3",
+      "title_token": "T3"
+    },
+    "DR2": {
+      "runner": "run-eval-v5.sh",
+      "task": "T4V2",
+      "title_token": "T4V2"
+    }
+  },
+  "arms": [
+    {
+      "bench": "IR",
+      "model": "github-copilot/grok-4.7",
+      "variant": "",
+      "cap": 0.5,
+      "attempts": 2
+    },
+    {
+      "bench": "DR2",
+      "model": "github-copilot/grok-4.7",
+      "variant": "",
+      "cap": 0.5,
+      "attempts": 2
+    }
+  ]
+}

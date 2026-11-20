@@ -1,0 +1,40 @@
+[0m
+> build · grok-4.7
+[0m
+[0m✱ [0mGlob "DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+The design’s load and crash claims need a check against the existing sync code.
+[0m✱ [0mGlob "**/*.{py,md}"[90m in . · 5 matches[0m
+[0m→ [0mRead state.py
+[0m→ [0mRead syncd.py
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+**Change first**
+
+1. **Do not release the lock between poll and commit.** `acquire_lock` is a non-atomic exists-then-create, and DESIGN.md releases it before `commit_manifest`. A second process can start in that window and both will write `dst` and the manifest. Hold one exclusive lock (`O_CREAT|O_EXCL` or `flock`) for the whole process lifetime. Stale PID after a crash must be reclaimed; a live PID must block start.
+
+2. **Manifest commit must be atomic, and the journal must be truncated only after that commit is durable.** In-place `open(path, "w")` truncates first. A crash there yields a partial JSON that `json.load` cannot repair, and `replay_journal` never runs. Write temp + `fsync` + `rename`, then truncate the journal. Truncating before the commit is durable loses the only recovery path. `replay_journal` is specified and not called on start.
+
+3. **Do not journal or mark synced until the post-copy re-stat matches.** `flush_one` always appends the pre-copy state and always sets `synced`, including when the source changed mid-copy. Restart then records a truncated copy as clean. Journal the post-copy state only after a clean pass, and do not drop the pending entry on a mismatch.
+
+**What breaks under load**
+
+- A 500 ms full `os.walk` of 50k files is not “well under 100 ms” on a laptop disk, network volume, or antivirus. A build burst of hundreds of files is copy-bound, not stat-bound. The loop has no budget: if a cycle exceeds 500 ms it immediately starts another full walk, so it falls behind and never catches up. Debounce does not bound that.
+- Pending is not “one poll of changes.” A file rewritten every <200 ms never goes quiet, so it stays pending forever and is never copied. A burst larger than one cycle stays pending across polls. The dict grows with distinct dirty paths, not with one poll.
+- Copies are fully buffered (`read()` then `write()`), so a few large files blow memory. No copy concurrency limit, no skip of unchanged mtime-within-the-same-second, no backoff.
+- Whole-second `mtime` misses sub-second edits. Size+mtime equal means “same” even when content changed inside that second. macOS `st_mtime` can also stay unchanged. Hash at least the copied bytes, or store `st_mtime_ns`.
+- Deletions are specified and not implemented. `poll` never removes manifest entries or deletes `dst`. A rename is therefore a permanent duplicate, not delete+create. `--verify` `missing_in_src` has no defined dst action (delete vs keep vs quarantine) — decide that before coding it.
+- Journal grows without bound until compaction exists, and compaction is unsafe until the commit is atomic. A torn last line makes `json.loads` abort the whole replay.
+- Lock lives in `dst`, so a second machine or a crash that leaves the lock file wedges the daemon permanently.
+
+**Wrong assumptions**
+
+- “mtime is guaranteed to change on every edit” — false at 1s resolution, and false on some filesystems.
+- “A partially written manifest is repaired by journal replay” — false if the rewrite truncated the file and replay is not wired, and false if you truncate the journal first.
+- “Entries merge cleanly if two instances commit” — last writer wins; torn copies and deleted-then-recreated files do not merge.
+- “Renames need no special handling” — only if delete is actually implemented.
+- “Retry next poll” for a vanished file — the current loop has no try/except, so `FileNotFoundError` kills the daemon.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 16450 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 16452 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-16431/final-report.md (session eval-2026-11-20-T4V2-github-copilot-grok-4-7-catchup-grok-2026-11-20-a2)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-16431 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T4V2-github-copilot-grok-4-7-catchup-grok-2026-11-20-a2)

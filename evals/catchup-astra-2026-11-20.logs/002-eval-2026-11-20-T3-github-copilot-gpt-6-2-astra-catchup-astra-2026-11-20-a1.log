@@ -1,0 +1,69 @@
+[0m
+> build · gpt-6.2-astra
+[0m
+[0m• [0mReview last commit[90m Cheap-Review Agent[0m
+[0m
+[0m$ [0mgit show HEAD
+commit 0c47fceb742a9608c79e8b9053fad6742e1c9c80
+Author: eval <eval@example.com>
+Date:   Fri Nov 20 20:16:51 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m✓ [0mReview last commit[90m Cheap-Review Agent[0m
+[0m→ [0mRead synccli.py
+- **Major — `incremental.py:23–24`:** `copy_many` reports failed copies as successful. `copy_file` swallows `OSError`, so even a missing source causes `dst` to be appended to `done`. A caller relying on that list can mark a file as synced when no copy exists.
+- **Major — `incremental.py:30–40`:** `merge_manifest` promises to merge states into the destination manifest, but it only returns a dictionary. After a successful call, the file at `dst_manifest_path` is unchanged, and the next run reads the old state.
+- **Minor — `incremental.py:38–39`:** `merge_manifest` discards a replacement file’s state if its mtime is older than the recorded one, even when its size changed. Restoring a file from backup can therefore leave the returned manifest describing the version it replaced.
+- **Minor — `incremental.py:10–15`:** `filter_excluded` reuses the same default list across calls. After `filter_excluded([".git/config"])`, calling `filter_excluded([])` still returns `[".git/config"]`, rather than the documented subset of the current input.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 96124 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 96125 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-96078/final-report.md (session eval-2026-11-20-T3-github-copilot-gpt-6-2-astra-catchup-astra-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-96078 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T3-github-copilot-gpt-6-2-astra-catchup-astra-2026-11-20-a1)

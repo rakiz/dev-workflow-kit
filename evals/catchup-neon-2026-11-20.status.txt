@@ -1,0 +1,8 @@
+# campaign catchup-neon-2026-11-20 date=2026-11-20 budget_usd=4.00 start_ms=1795202775329 jobs=6
+20:27:04 001 O/github-copilot/gemini-4-neon/-/a1 ok spent=0.1860
+20:27:50 002 IR/github-copilot/gemini-4-neon/-/a1 ok spent=0.3168
+20:28:30 003 DR2/github-copilot/gemini-4-neon/-/a1 ok spent=0.4332
+20:29:17 004 O/github-copilot/gemini-4-neon/-/a2 ok spent=0.5629
+20:31:02 005 IR/github-copilot/gemini-4-neon/-/a2 ok spent=0.6881
+20:49:14 006 DR2/github-copilot/gemini-4-neon/-/a2 rc143 spent=0.7452
+# done spent=0.7452 budget_usd=4.00

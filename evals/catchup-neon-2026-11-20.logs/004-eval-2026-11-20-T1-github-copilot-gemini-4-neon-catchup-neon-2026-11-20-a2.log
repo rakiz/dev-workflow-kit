@@ -1,0 +1,103 @@
+[0m
+> build · gemini-4-neon
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m✱ [0mGlob "**/*"[90m 8 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead incremental.py
+# Execution Plan: `synccli` JSON Output Mode & Dry-Run UX
+
+## Task 1 — Codebase & Baseline Verification
+- **Objective:** Inspect `synccli.py`, `test_synccli.py`, and all references to `sync()` in the repo to confirm internal caller contracts, CLI argument parsing, stdout/exit-code paths, and baseline test status before any design or edits.
+- **Files to create/modify:** None (read-only).
+- **Pipeline agent:** `explore`
+- **Risks:**
+  - Pre-existing unrelated test failure in `TestCollectStale` (`collect_stale` starts at index `1`) could be mistaken for a regression if baseline results are not recorded first.
+  - Missing an internal caller or implicit assumption about `sync()`'s signature or return value.
+- **Verifiable acceptance criterion:** Written report listing all callers of `sync()`, exact current signature/return type (`sync(src_root, dst_root, dry_run=False) -> list[str]`), and exact baseline output of `python3 -m unittest -v`.
+
+---
+
+## Task 2 — Interface & Contract Design Review
+- **Objective:** Validate the design before writing code:
+  1. Keep `sync(src_root, dst_root, dry_run=False)` signature and `list[str]` return value unchanged by introducing an internal helper (e.g., `_sync_with_stats(src_root, dst_root, dry_run=False)`) that returns `(copied, skipped)` where `skipped = len(src_manifest) - len(to_copy)`. Both `sync()` and `main()` call it, avoiding double filesystem scans.
+  2. Define the exact `--json` payload: `{"copied": [...], "skipped": N, "src": args.src, "dst": args.dst}` printed as a single JSON object to stdout with no other stdout output and unchanged exit code (`0`).
+  3. Confirm `--json --dry-run` leaves `dst` and `.sync_manifest.json` untouched while reporting would-be-copied paths in `copied` and unchanged count in `skipped`.
+  4. Confirm human mode (without `--json`) stays byte-for-byte identical (one path per line).
+- **Files to create/modify:** None (read-only design review).
+- **Pipeline agent:** `design-review` (maps to `cheap-design-review`)
+- **Risks:**
+  - Ambiguity in `skipped` semantics (e.g., unchanged files vs. unreadable files silently skipped in `copy_file`) or `src`/`dst` representation (raw CLI arg vs. resolved path).
+  - Double-scanning `src_root` if `skipped` were computed outside the sync helper, creating a TOCTOU mismatch between `copied` and `skipped`.
+  - Accidental drift in `sync()` return value breaking internal callers.
+- **Verifiable acceptance criterion:** Approved design checklist with zero unresolved contract ambiguities for JSON schema, `skipped` calculation, `dry_run` semantics, and `sync()` backward compatibility.
+
+---
+
+## Task 3 — Implement `--json` Flag & `--dry-run` Interplay
+- **Objective:** Update `synccli.py` to:
+  - Extract the internal helper returning both `copied` and `skipped` from a single manifest scan, and have `sync()` delegate to it while preserving its exact signature and return value.
+  - Add `--json` (`action="store_true"`) to the `argparse` parser in `main()`.
+  - When `--json` is passed, print a single JSON object (`json.dumps({"copied": copied, "skipped": skipped, "src": args.src, "dst": args.dst})`) to stdout and nothing else; otherwise keep the existing one-path-per-line output.
+  - Keep Python 3.10 stdlib only and exit code unchanged.
+- **Files to create/modify:**
+  - Modify: `synccli.py`
+- **Pipeline agent:** `impl` (maps to `cheap-code`)
+- **Risks:**
+  - Printing anything extra to stdout in `--json` mode (e.g., debug lines or human output).
+  - Changing `sync()`'s signature, default args, or return type.
+  - Modifying `dst` or `.sync_manifest.json` when `--dry-run` is combined with `--json`.
+- **Verifiable acceptance criterion:**
+  - `python3 -m synccli --help` lists `--json` and `--dry-run`.
+  - Running `python3 -m synccli <src> <dst> --json` and `--json --dry-run` emits a single parseable JSON object on stdout with keys `copied`, `skipped`, `src`, `dst` and exit code `0`.
+  - Running without `--json` prints one relative path per line.
+  - `sync(src, dst)` and `sync(src, dst, dry_run=True)` keep their exact signature and return `list[str]`.
+
+---
+
+## Task 4 — Add Unit Tests for JSON Output & Dry-Run Interplay
+- **Objective:** Add comprehensive unit tests to `test_synccli.py` (using stdlib `unittest` + `io.StringIO` / `contextlib.redirect_stdout`) covering:
+  - `--json` output is valid JSON (single object on stdout, no extra lines) with exact keys `copied`, `skipped`, `src`, `dst` and expected types.
+  - Initial sync (`copied` populated, `skipped == 0`) and subsequent no-op sync (`copied == []`, `skipped == N`), plus partial-change sync.
+  - `--json --dry-run` interplay: `copied` lists would-be-copied files, `skipped` is accurate, and neither destination files nor `.sync_manifest.json` are written/modified.
+  - Human mode (`--json` omitted) still prints one path per line.
+  - Exit code remains `0` in all modes, and `sync()` signature/return value remains intact.
+- **Files to create/modify:**
+  - Modify: `test_synccli.py`
+- **Pipeline agent:** `impl` (maps to `cheap-code`, resumed from Task 3 if within context budget)
+- **Risks:**
+  - Tests that only call `sync()` and do not exercise `main(argv)` + captured stdout would miss CLI formatting bugs.
+  - Failing to clean up temp dirs or making OS-specific path assertions (use `os.path.join` as existing tests do).
+  - Touching unrelated pre-existing tests (`TestCollectStale`).
+- **Verifiable acceptance criterion:** All new JSON/dry-run/human-mode tests and all existing `TestScanFiles` and `TestSync` tests pass under `python3 -m unittest -v` (with no new dependencies and Python 3.10 stdlib only).
+
+---
+
+## Task 5 — Independent Code & Test Review
+- **Objective:** Perform a read-only audit of the full diff in `synccli.py` and `test_synccli.py` from a different model family against every requirement and constraint in `GOAL.md`.
+- **Files to create/modify:** None (read-only).
+- **Pipeline agent:** `review` (maps to `cheap-review`, fresh session)
+- **Risks:**
+  - Subtle edge cases missed by the implementer (e.g., empty `src` directory, nested subdirectories, `dst` not existing yet on `--dry-run`, non-ASCII filenames in JSON, extra whitespace/output on stdout).
+  - Scope creep into unrelated files (`incremental.py`, `DESIGN.md`, `collect_stale`).
+- **Verifiable acceptance criterion:** Review verdict with no open major findings; any minor findings are returned to `impl` for targeted fix and re-verified by a fresh `review` pass (major findings escalate per pipeline policy).
+
+---
+
+## Task 6 — Final End-to-End Verification
+- **Objective:** After any review fixes are merged, run the full verification suite and CLI smoke checks to confirm all acceptance criteria in `GOAL.md` and `README.md`.
+- **Files to create/modify:** None (or only targeted review fixes via `impl` + fresh `review` if Task 5 reports minor issues).
+- **Pipeline agent:** `impl` (for any minor review fix, if needed) followed by fresh `review`
+- **Risks:**
+  - Regression introduced during review-fix iteration.
+- **Verifiable acceptance criterion:**
+  - `git diff --stat` touches only `synccli.py` and `test_synccli.py`.
+  - `python3 -m unittest -v` passes all `TestScanFiles`, `TestSync`, and new JSON/CLI test cases (matching Task 1 baseline on any pre-existing unrelated failure).
+  - `python3 -m synccli --help` exits `0` and documents `--json` and `--dry-run`.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 11070 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 11072 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-11040/final-report.md (session eval-2026-11-20-T1-github-copilot-gemini-4-neon-catchup-neon-2026-11-20-a2)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-11040 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T1-github-copilot-gemini-4-neon-catchup-neon-2026-11-20-a2)

@@ -76,3 +76,19 @@ Source: https://openai.com/index/introducing-gpt-6-2-astra-sol
 - **Honesty signal worth testing**: the system card admits 6.2 models omit mentioning
   obstacles more often — our O bench's red-baseline trap is exactly that shape; first O
   run on 6.2-sol is diagnostic.
+
+### 2026-11-20 — catch-up campaign (details: 2026-11-20/CATCHUP-RESULTS.md)
+
+- **gpt-6.2-astra** (github-copilot, $8/$40 per MTok): MEASURED, single run per bench (n=1),
+  2-family panel where scored. O 8 (glm only), IR 3.0, DR2 8.5, I2-RG4 3.0, D 5.5. Cost/task
+  $0.31-0.50. Takes no seat (all below the seat holder; I2 and D gaps outside the gates).
+  The earlier re-entry condition (deep rung, opus) is not reopened by these numbers.
+- **claude-fable-5.2** (github-copilot, $8/$40): SCREENED. O 8 (glm only, n=1), honest on the
+  red baseline (R2, hall 0); IR 4.0 (n=1). Cost/task $0.63 O, $0.50 IR. No seat (n=1 cannot
+  take one). The O run was the diagnostic: no red-baseline trap failure.
+- **grok-4.7**: AVAILABLE on github-copilot ($2/$6 per MTok; probed working). The AI Gateway
+  listing (ai-gateway-misc/grok-4.7, subsidized price) was NOT confirmed: absent from the local
+  catalog after a cache refresh, and two probes returned server errors. IR 2.5 (n=2), DR2 9.0
+  (n=2, 2 families). Both below their seats. Cost/task $0.17 IR, $0.19 DR2 (6x the DR2 seat).
+- **gemini-4-neon** (github-copilot, $3/$15): O 8 (glm only, n=2), IR 2.75 (n=2), DR2 8.0 (n=1,
+  a2 DNF on a silent stall). No seat. Cost/task $0.12-0.16.

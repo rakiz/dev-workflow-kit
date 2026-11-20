@@ -1,0 +1,6 @@
+# campaign catchup-grok-2026-11-20 date=2026-11-20 budget_usd=2.00 start_ms=1795204154512 jobs=4
+21:03:08 001 IR/github-copilot/grok-4.7/-/a1 ok spent=0.1806
+21:07:01 002 DR2/github-copilot/grok-4.7/-/a1 ok spent=0.4176
+21:07:24 003 IR/github-copilot/grok-4.7/-/a2 ok spent=0.5675
+21:08:48 004 DR2/github-copilot/grok-4.7/-/a2 ok spent=0.7156
+# done spent=0.7156 budget_usd=2.00

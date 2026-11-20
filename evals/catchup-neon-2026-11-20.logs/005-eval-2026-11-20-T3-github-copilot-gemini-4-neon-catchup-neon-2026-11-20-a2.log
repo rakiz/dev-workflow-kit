@@ -1,0 +1,87 @@
+[0m
+> build · gemini-4-neon
+[0m
+[0m$ [0mgit show HEAD
+commit 0b2dcaaccdab56a9ce82a9b51c09879c6f37bb57
+Author: eval <eval@example.com>
+Date:   Fri Nov 20 20:29:17 2026 +0100
+
+    v0.2: add exclude filter, batch copy and manifest merge
+
+diff --git a/incremental.py b/incremental.py
+new file mode 100644
+index 0000000..8c1c17d
+--- /dev/null
++++ b/incremental.py
+@@ -0,0 +1,40 @@
++"""Incremental sync helpers added in v0.2 (commit under review)."""
++import json
++import os
++
++from synccli import copy_file
++
++EXCLUDE_TOP_DIRS = {".git", "__pycache__", ".sync_manifest.json"}
++
++
++def filter_excluded(paths, excluded=[]):
++    """Return the subset of paths that must be excluded from sync."""
++    for p in paths:
++        if p.split(os.sep)[0] in EXCLUDE_TOP_DIRS:
++            excluded.append(p)
++    return excluded
++
++
++def copy_many(pairs):
++    """Copy a batch of (src, dst) pairs; return the list of dst paths done."""
++    done = []
++    for src, dst in pairs:
++        try:
++            copy_file(src, dst)
++            done.append(dst)
++        except Exception:
++            continue
++    return done
++
++
++def merge_manifest(dst_manifest_path, new_manifest):
++    """Merge new file states into the destination manifest."""
++    old = {}
++    if os.path.exists(dst_manifest_path):
++        with open(dst_manifest_path, "r", encoding="utf-8") as f:
++            old = json.load(f)
++    merged = dict(old)
++    for rel, state in new_manifest.items():
++        if rel not in old or old[rel]["mtime"] <= state["mtime"]:
++            merged[rel] = state
++    return merged
+[0m
+[0m$ [0mgit log --oneline -5
+0b2dcaa v0.2: add exclude filter, batch copy and manifest merge
+38cb0b8 Initial synccli
+[0m
+[0m✱ [0mGlob "**/*"[90m 8 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead DESIGN.md
+[0m→ [0mRead README.md
+[0m→ [0mRead GOAL.md
+Review of commit `0b2dcaa` (`incremental.py`):
+
+1. **`filter_excluded`: mutable default argument (`excluded=[]`) — Major** (`incremental.py:10-15`)
+   - `excluded` defaults to a single shared list mutated in place via `excluded.append(p)`. Every call that omits `excluded` accumulates and returns entries from all prior calls, corrupting state across invocations.
+
+2. **`copy_many`: failed copies are silently reported as done — Major** (`incremental.py:18-27`)
+   - `synccli.copy_file` catches and swallows `OSError` (`synccli.py:68-69`) without raising or returning a status. As a result, `copy_many` still executes `done.append(dst)` when a copy fails (e.g., unreadable source, permission error, disk full), violating its contract ("return the list of dst paths done") and risking data loss if callers treat `done` as synced.
+   - `except Exception: continue` also silently drops all other failures with no error reporting or indication of which pairs failed.
+
+3. **`merge_manifest`: never writes the merged manifest to `dst_manifest_path` — Major** (`incremental.py:30-40`)
+   - The function accepts `dst_manifest_path` and states `"Merge new file states into the destination manifest."`, but only reads the file and returns `merged` in memory without persisting it. Callers expecting the destination manifest on disk to be updated will silently lose the merged state.
+
+4. **`filter_excluded`: path matching bypassed by nested or non-normalized paths — Minor** (`incremental.py:13`)
+   - Checking only `p.split(os.sep)[0]` misses nested excluded entries (e.g., `pkg/__pycache__/mod.pyc`) and fails on leading `./` or absolute paths (where segment `0` is `.` or `""`).
+
+5. **`merge_manifest`: silently drops updates with an older `mtime` — Minor** (`incremental.py:38`)
+   - `old[rel]["mtime"] <= state["mtime"]` ignores new states whose `mtime` is earlier than the old entry (e.g., file revert/checkout, archive extraction with preserved timestamps, clock skew), even when `size` changed—inconsistent with `synccli.changed_files`, which compares full state (`!=`), leaving the manifest out of sync.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 11292 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 11293 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-11262/final-report.md (session eval-2026-11-20-T3-github-copilot-gemini-4-neon-catchup-neon-2026-11-20-a2)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-11262 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T3-github-copilot-gemini-4-neon-catchup-neon-2026-11-20-a2)

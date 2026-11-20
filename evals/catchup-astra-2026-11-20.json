@@ -1,0 +1,71 @@
+{
+  "id": "catchup-astra-2026-11-20",
+  "date": "2026-11-20",
+  "budget_usd": 25.0,
+  "parallelism": 1,
+  "timeout_default": 1800,
+  "benches": {
+    "DR2": {
+      "runner": "run-eval-v5.sh",
+      "task": "T4V2",
+      "title_token": "T4V2"
+    },
+    "O": {
+      "runner": "run-eval-v5.sh",
+      "task": "T1",
+      "title_token": "T1"
+    },
+    "IR": {
+      "runner": "run-eval-v5.sh",
+      "task": "T3",
+      "title_token": "T3"
+    },
+    "I2-RG4": {
+      "runner": "run-eval-v4.sh",
+      "task": "IV4",
+      "title_token": "IV2-RG4"
+    },
+    "D": {
+      "runner": "run-eval-v4.sh",
+      "task": "D1",
+      "title_token": "D-D1"
+    }
+  },
+  "arms": [
+    {
+      "bench": "O",
+      "model": "github-copilot/gpt-6.2-astra",
+      "variant": "",
+      "cap": 4.0,
+      "attempts": 1
+    },
+    {
+      "bench": "IR",
+      "model": "github-copilot/gpt-6.2-astra",
+      "variant": "",
+      "cap": 3.0,
+      "attempts": 1
+    },
+    {
+      "bench": "DR2",
+      "model": "github-copilot/gpt-6.2-astra",
+      "variant": "",
+      "cap": 4.0,
+      "attempts": 1
+    },
+    {
+      "bench": "I2-RG4",
+      "model": "github-copilot/gpt-6.2-astra",
+      "variant": "",
+      "cap": 5.0,
+      "attempts": 1
+    },
+    {
+      "bench": "D",
+      "model": "github-copilot/gpt-6.2-astra",
+      "variant": "",
+      "cap": 5.0,
+      "attempts": 1
+    }
+  ]
+}

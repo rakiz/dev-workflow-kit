@@ -1,0 +1,56 @@
+[0m
+> build · gemini-4-neon
+[0m
+[0m→ [0mRead DESIGN.md
+[0m✱ [0mGlob "*"[90m 5 matches[0m
+[0m→ [0mRead state.py
+[0m→ [0mRead syncd.py
+### Major Risks & Wrong Assumptions
+
+1. **In-place manifest rewrite + journal does not give crash safety.**
+   - Rewriting the manifest in place truncates it first. A crash mid-write leaves corrupt/truncated JSON that breaks startup (`json.load` fails) or wipes every entry not in the journal.
+   - The journal is never compacted/truncated (unbounded growth, slower restarts), doesn't handle a torn trailing line on crash, and doesn't record deletions (replay resurrects deleted files).
+
+2. **Whole-second `mtime` + `size` causes silent missed updates.**
+   - With a 500 ms poll and 200 ms debounce, a file modified twice in the same wall-clock second with the same byte size (or via tools that preserve `mtime`, like `git checkout` / tar) produces the exact same `(size, int(mtime))` and will never re-sync.
+   - Same-second writes during a copy also defeat the post-copy `stat` integrity check.
+
+3. **Locking is broken in scope, atomicity, and crash recovery.**
+   - Releasing the lock *before* the manifest commit lets a second instance start in that window (or between polls) and race on `dst` and the manifest—in-place JSON rewrites do **not** "merge cleanly."
+   - A PID file checked with `exists()` + `open("w")` has a TOCTOU race and leaves a stale lock after `SIGKILL`/crash, permanently blocking restarts.
+
+4. **Post-copy `stat` does not prevent corrupt/truncated files in `dst`.**
+   - Writing directly to `dst` exposes partial/truncated files to any reader during the copy, and if `src` changes mid-copy (or `syncd` crashes before retry), `dst` is already corrupted.
+   - Reading whole files into memory (`f.read()`) risks OOM on large build artifacts.
+
+5. **Debounce math contradicts itself and starves active files.**
+   - A 200 ms quiet period checked on a 500 ms poll adds up to ~1000 ms (two polls), not `poll + 200 ms`.
+   - Resetting `quiet_since` on every observed change means a continuously written file (logs, incremental builds) **never** flushes until writes stop—unbounded latency, not "at most 200 ms."
+   - Using wall-clock time (`time.time()`) instead of `time.monotonic()` breaks debounce on NTP/clock jumps.
+
+6. **Edge cases that will crash or corrupt state:**
+   - **Vanished files:** A file disappearing between `os.walk` and `os.stat` or between scan and copy raises `FileNotFoundError`; retrying a deleted file instead of dropping it leaks it in `pending`.
+   - **Symlinks & type swaps:** `os.stat` follows symlinks (infinite loops / escaping `src`), and file↔directory replacements or empty-directory cleanup in `dst` are unhandled.
+
+---
+
+### What Will Break Under Real Load
+
+- **Constant CPU & disk churn at idle:** Walking 50 000 files every 500 ms in Python (`os.walk` + `os.stat` = 100k syscalls/s) burns CPU/battery even when nothing changes—especially on macOS APFS or with AV scanners. Worse, reloading and rewriting a 50k-entry JSON manifest (~5–10 MB) on *every* cycle generates ~10–20 MB/s of continuous disk I/O at idle.
+- **Head-of-line blocking during build bursts:** Synchronous copying inside the poll loop stalls scanning and deletes for the duration of the burst; "bounded by one poll's worth of changes" fails as soon as a cycle exceeds 500 ms.
+- **No visibility into drift:** Logging only `pending` count and commit duration misses scan time, copy time, and error/skip counts—you won't see a daemon falling behind on scans or stuck retrying a vanished/unreadable file.
+
+---
+
+### Decisions to Change First (Before Writing Code)
+
+1. **Atomic persistence:** Replace in-place manifest writes with `tmpfile -> fsync -> os.replace()` and truncate/checkpoint the journal atomically (or use SQLite in WAL mode, which solves manifest, journal, deletions, and partial writes in one step). Only write when state actually changed.
+2. **Process-lifetime OS lock:** Replace the per-cycle PID file with `fcntl.flock` held for the entire daemon lifetime (auto-released by the kernel on crash, zero TOCTOU, covers copy + commit).
+3. **Atomic file copies:** Stream-copy into a temp file in `dst`'s directory, verify `src` metadata (`st_mtime_ns`, `st_ctime_ns`, `st_size`, `st_ino`), then `os.replace(tmp, dst)`. Only record as synced/journaled *after* clean verification + rename.
+4. **High-resolution change detection:** Drop whole-second `int(st_mtime)` in favor of `st_mtime_ns` + `st_size` + `st_ino` (and hash fallback when timestamps are equal or suspicious).
+5. **Rethink polling + debounce:** Use OS watchers (FSEvents/inotify) with a slow periodic rescan fallback—or if polling is mandatory, use `os.scandir()`, adaptive backoff, `time.monotonic()`, and a `max_wait` cap on debounce so active files don't starve.
+6. **Define failure & filesystem semantics:** Handle `FileNotFoundError`/`PermissionError` per-file without crashing, decide symlink policy (`lstat` vs skip), and handle directory deletions and file↔dir replacements explicitly.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 10849 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 10850 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-10831/final-report.md (session eval-2026-11-20-T4V2-github-copilot-gemini-4-neon-catchup-neon-2026-11-20-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-10831 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-T4V2-github-copilot-gemini-4-neon-catchup-neon-2026-11-20-a1)
