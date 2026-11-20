@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for the eval machinery. Every new
 > session MUST read it before touching `LEADERBOARD.html`, the runners, or
-> launching runs. Last amended: 2026-11-16 (grid completion campaign).
+> launching runs. Last amended: 2026-11-19 (Étape 1: RG4 gates re-frozen, §5(e)).
 
 ## 1. The five decision benches
 
@@ -135,3 +135,29 @@ order seats.
 | F5 — D key contains two factual errors | Étape 1 — key credits correct alternative diagnoses |
 | F6 — capture chain (report never captured; costs) | Étape 0 — harness capture (§2 rule 9), p5 re-scored, purge |
 | F7 — delivery/independence/policy distinct from capability | Étape 3 (real blinding) + Étape 5 (n, margin, CI) + docs (seats ≠ capability, §5(c)) |
+
+**(e) RG4 decision gates (pre-registered 2026-11-19, prospective).** These
+gates apply to the RG4 I2 bench and to any bench whose MDE is pre-registered.
+They are NOT fitted to an RG4 panel distribution: no RG4 judgment layer exists
+yet (phase 4a not run). They are stated so the first RG4 decision cannot be
+argued after the fact.
+
+- **Gate 1 — the ceiling (14/14) is censoring, not equivalence.** A tie at
+  the rubric maximum means "at least the top of what the rubric can see", not
+  "equally good". A ceiling tie that blocks a seat decision triggers a **bench
+  extension** (a harder fixture or added defect) BEFORE the price rule is
+  applied. A ceiling tie on a low-stakes call (no seat changes either way)
+  takes the price rule and is documented as **ceiling-censored** in the cell's
+  note.
+- **Gate 2 — the decision gap is the noise threshold.** On I2 (/14), a gap
+  below **1.5 pt** is a **TIE**, and the price rule applies. This is the
+  pre-registered threshold of §5(b), now the operative gate. Its empirical
+  basis is NOT yet established: the observed panel spread on I2 (scorer
+  disagreement across 35 cells with n ≥ 2: median 1.0, mean 1.66) measures
+  scorer disagreement, not run-to-run noise, and cannot stand in for the
+  MDE. Étape 5 must measure the run-to-run noise and pre-register the MDE.
+  Until then the 1.5 pt gate is not applied to D, DR2, O or IR, whose MDEs are
+  unmeasured.
+- **MDE note (Étape 5).** Every cell is annotated with its n (valid runs).
+  A gap below the bench's MDE is **not a ranking**: it is a tie, whatever the
+  point difference reads.

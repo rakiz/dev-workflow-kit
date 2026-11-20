@@ -39,6 +39,7 @@ the muse-spark grid detail lives in `evals/2026-10-16/RESULTS.md`.
   governs only strong-design-review/strong-depth rungs. First campaign
   2026-11-01: qwen3p8-2p4t `xhigh` 10/14, 1017 `medium` 9/14,
   M3.1 `medium` 9/14, terra `medium` 8/14 — 0 FP, 0 proofs executed.
+- **RG4 / DR-v3 (2026-11-19 Étape 1 phase 4, 2-family panels, `evals/2026-11-19/RESULTS.md` §7)** — RG4 I-v2 panel means /14 (haiku draft + GLM): haiku `default` 11.75, minimax `xhigh` 13.0, haiku `high` 13.5, opus `default` 13.5. Gate 1 (saturation) and gate 2 (pair gap) FAIL on RG4: no seat change from this bench. DR-v3 /14: minimax `xhigh` 13.5 (2 families); sonnet `high` 13.5 (1 family, unofficial). RG3 I-v2 scores below are a different fixture and are never compared with RG4.
 - **Bench-v3 redesign scores (I-v2 RG3 /14, D /11 — `evals/2026-11-16/`,
   night campaign 2026-11-12/13 + grid2 full-matrix completion 11-16/17) also
   live outside the tables below.** Both benches are SHELVED as discriminators

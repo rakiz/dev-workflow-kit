@@ -3,7 +3,7 @@ from reasons import REASONS
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 PATH = os.path.join(_HERE, "LEADERBOARD.html")
-CSVPATH = os.path.join(_HERE, "2026-11-16", "grid2-scores.csv")
+CSVPATH = os.path.join(_HERE, "2026-11-16", "grid2-scores.csv")  # I2-RG4 + DR-v3 + H4-folded D columns (Etape 1 phase 4)
 
 W, H = 1200, 540
 L, R, T, B = 80, 60, 30, 60
@@ -59,14 +59,14 @@ BENCHES = [
      "Orchestration (O, /8): sonnet-high plans best (8); glm keeps the seat on price (7 at $0.005 - 20x cheaper than the top scorers)",
      8, "O8", "score on this bench", None, "O"),
     ("Design writing",
-     "Design writing (D, /11): 1017-high best (9.44 at $0.12), opus 8.58 at 12x the cost; glm and gem38 cannot write designs",
+     "Design writing (D, /11): 1017-high best (9.81 at $0.12), opus 9.58 at 12x the cost; glm and gem38 cannot write designs",
      11, "D", "score on this bench", None, "D"),
     ("Design review",
      "Design review (DR-v2, /14): minimax-xhigh posts 11.25 with 4 executed proofs and takes the strong rung; opus scores 0 (2 FPs)",
      14, "DR2", "score on this bench", None, "DR-v2"),
     ("Implementation",
-     "Implementation (I-v2, /14): haiku-high edges opus on the official panel mean (8.83 vs 8.5); the multi-scorer re-score reshapes the grid",
-     14, "I2", "score on this bench", None, "I-v2"),
+     "Implementation (I-v2 RG4, /14): haiku-high ties opus on the 2-family RG4 mean (13.5 each); minimax-xhigh 13.0 at $0.03; cheap-code haiku-default 11.75 (2 runs, 2 families)",
+     14, "I2-RG4", "score on this bench", None, "I-v2 RG4"),
     ("Code review",
      "Code review (IR, /3+bonus): the 3 seeded defects stop separating at 3 - the bonus axis ranks the top crowd (3.0-4.35); the bottom cluster (2.0-2.5) misses a seeded defect",
      5, "IR", "IR /3 seeded (+bonus up to +2)", (3, "seeded ceiling"), "IR"),
@@ -78,7 +78,7 @@ BENCHES = [
 # actual differs materially, override here; source: 2026-11-16/grid2-costs.tsv
 # (haiku-high I2 runs: $0.15/task vs the CSV's $0.05 D-bench figure).
 COST_OVERRIDES = {
-    ("haiku", "high", "I2"): 0.15,
+    ("haiku", "high", "I2-RG4"): 0.15,
 }
 
 
@@ -253,19 +253,19 @@ def build_and_write():
 <tr><td>orchestration</td><td>haiku-medium (7.5 at $0.01) / sonnet-high (8 at $0.10)</td><td>glm-high (7/8 · $0.005) — the highest-volume seat: haiku-medium scores 7.5 at 2x, sonnet-high 8 at 20x; the price rule wins at this volume. Revisit if glm O &lt; 5.</td></tr>
 <tr><td>cheap-design-review</td><td>qwen-xhigh (10 at ~$1.07, one valid run)</td><td>minimax holds it twice over: medium effort holds this rung (8.0 at $0.04, on price - qwen-medium posts 8.6 at 8x the cost), xhigh holds strong-design-review (11.25 with 4 executed proofs) — a same-family effort escalation the owner accepted. Minimax is critique-only: its design authoring collapses across runs (two DNFs, false claim).</td></tr>
 <tr><td>strong-design-review</td><td>carbon-high (10 at $0.15-0.23, one valid run)</td><td>minimax-xhigh holds the rung on the complete grid: 11.25/14 with 4 executed proofs at $0.03 — the best DR2 measured. 1017 medium measures 4.75 on the official panel.</td></tr>
-<tr><td>strong-design</td><td>opus (8.58 at ~$1.39)</td><td>1017-high holds it (9.44 at $0.12) - rank-1 D measured, 1/12 of opus's price; opus keeps alt2/terminal.</td></tr>
+<tr><td>strong-design</td><td>opus (9.58 at ~$1.39)</td><td>1017-high holds it (9.81 at $0.12) - rank-1 D measured, 1/12 of opus's price; opus keeps alt2/terminal.</td></tr>
 <tr><td>strong-review-alternative2</td><td>—</td><td>qwen-xhigh (4.0 · $0.15) — family-diverse last stop before opus/deep (the true terminal); qwen misses seeded-3 on both runs — depth stop, not floor material.</td></tr>
 <tr><td>strong-design-review-alternative</td><td>carbon-high (10 at $0.15-0.23, one valid run)</td><td>argon-high (9.5, multi-run) - the best non-minimax DR2; reviews designs when minimax has already reviewed them (fresh family, gemini vs minimax). carbon's 10 is one valid run; qwen's 10 is a single run at ~$1/task with 0-7.5 variance elsewhere.</td></tr>
-<tr><td>cheap-design</td><td>1017 (7.06 at $0.10; high posts 9.44)</td><td>haiku medium holds the rung: 8.08 at $0.02/task — higher and 5x cheaper than 1017 medium. 1017 high holds strong-design; minimax cannot write designs (collapsing runs, false claim).</td></tr>
+<tr><td>cheap-design</td><td>1017 (7.06 at $0.10; high posts 9.81)</td><td>haiku medium holds the rung: 8.08 at $0.02/task — higher and 5x cheaper than 1017 medium. 1017 high holds strong-design; minimax cannot write designs (collapsing runs, false claim).</td></tr>
 <tr><td>cheap-code</td><td>haiku-high (8.83 at $0.05)</td><td>The seat is haiku default (8.33 official I-v2 mean at $0.02-0.03): the cheap tier needs cheap, not best, and briefs &gt;90k tokens already pay a 5&times; cliff at default.</td></tr>
 <tr><td>cheap-review</td><td>glm-low (2.5 at $0.005, the previous holder)</td><td>minimax-xhigh takes the rung (IR 4.33 bonus-inclusive at $0.014): gates fail silently, so floor recall is the protection - the 4.33 mean on top of clean 3/3 runs buys the recall the 2.5 floor lacks. glm-low leaves review (2.5) and is documented as the lineage-legal fallback reviewer for deepseek/gemini-produced work only.</td></tr>
-<tr><td>cheap-mech</td><td>—</td><td>dsflash - mechanical edits need cheapest-per-token reliability, not depth; I2 7.75 suffices.</td></tr>
+<tr><td>cheap-mech</td><td>—</td><td>dsflash - mechanical edits need cheapest-per-token reliability, not depth; I2 8 suffices.</td></tr>
 <tr><td>explore</td><td>—</td><td>dsflash - read-only grounding at the cheapest blended rate; no bench disputes it.</td></tr>
 <tr><td>strong-review</td><td>minimax-xhigh (4.33 at $0.014, holds cheap-review)</td><td>sonnet-medium takes the rung (IR 4.75, 4 valid runs 5;5;4;5 at $0.09) - a fresh family vs the minimax floor it escalates from; keeping the rung in the floor's own family would pair minimax review with minimax review.</td></tr>
 <tr><td>strong-review-alt</td><td>qwen-xhigh (4.0 at $0.15, the quality step)</td><td>strong-review-alt = 1017 high (3.62 · $0.016) — a lineage VALVE, not a quality step: when minimax-xhigh (the floor gate) fails on claude-produced code, the next rung up (sonnet-medium) is claude and may not review claude — 1017 (deepseek) is the only cheap fresh-family escalation. Dominated on this chart by minimax-xhigh (4.33, cheaper) ON PURPOSE: quality here would be qwen-xhigh (4.0 · $0.15) — 10x the price for a rung almost never pulled.</td></tr>
 <tr><td>strong-code-alternative</td><td>haiku-high (8.83 at $0.15)</td><td>The only real capability step above cheap-code (+0.5); family-alternates with minimax. sonnet-high (7.75 at $0.40) buys no I2 points and left the code ladder.</td></tr>
-<tr><td>strong-design-alternative</td><td>kimi-medium (6.94 at $0.18, 2 runs)</td><td>sonnet-high holds it (8.17 at $0.83, 4-run evidence) - beat kimi-medium on quality; fresh family vs 1017 for stuck designs. Sonnet keeps a seat, just on a different bench.</td></tr>
-<tr><td>strong-code</td><td>sonnet-high (7.75 at $0.40-1.26, 4-run panel mean)</td><td>Lost it 11-18 (owner vote seat swap): minimax-xhigh takes the rung on price at I2 parity (7.67 arbitrated vs 7.75, 13&times; cheaper).</td></tr>
+<tr><td>strong-design-alternative</td><td>kimi-medium (6.94 at $0.18, 2 runs)</td><td>sonnet-high holds it (8 at $0.83, clean re-fold) - beat kimi-medium on quality; fresh family vs 1017 for stuck designs. Sonnet keeps a seat, just on a different bench.</td></tr>
+<tr><td>strong-code</td><td>sonnet-high (7.75 at $0.40-1.26, panel mean)</td><td>minimax-xhigh holds it (7.04 re-folded): 0.71 below sonnet-high, a tie under the 1.5 pt gate, so price decides (13&times; cheaper).</td></tr>
 </tbody></table>''')
     blocks.append('''<div id="tooltip" style="position:fixed;pointer-events:none;background:#1f2937;color:#fff;padding:8px 10px;border-radius:6px;font:12px system-ui;max-width:340px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none"></div>
 <script>

@@ -1,0 +1,525 @@
+[0m
+> build · gemini-4-neon
+[0m
+[0m→ [0mRead GOAL.md
+[0m✱ [0mGlob "**/*"[90m in . · 12 matches[0m
+[0m
+[0m$ [0mpython3 -m unittest test_legacy_report
+F
+======================================================================
+FAIL: test_sample_values_do_not_leak_markup (test_legacy_report.HtmlOutputTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_legacy_report.py", line 26, in test_sample_values_do_not_leak_markup
+    self.assertNotIn("<b>", html)
+AssertionError: '<b>' unexpectedly found in "<!doctype html>\n<html><head><meta charset='utf-8'>\n<title>reportgen summary</title></head><body>\n<h1>labels.csv</h1>\n<p>1 rows</p>\n<table border='1'>\n<tr><th>column</th><th>non_empty</th><th>distinct</th><th>sample</th></tr>\n<tr><td>item</td><td>1</td><td>1</td><td>i1</td></tr>\n<tr><td>label</td><td>1</td><td>1</td><td>red <b> & bold</td></tr>\n</table>\n</body></html>"
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (failures=1)
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen
+../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_reportgen.py:128: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-teeq83ij/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_reportgen.py:130: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-teeq83ij/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..........
+----------------------------------------------------------------------
+Ran 12 tests in 0.225s
+
+OK
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+[0m→ [0mRead reportgen.py
+[0m→ [0mRead transforms.py
+[0m→ [0mRead cache.py
+[0m→ [0mRead test_reportgen.py
+[0m→ [0mRead test_legacy_report.py
+[0m→ [0mRead rules.example.toml
+[0m
+[0m← [0mEdit transforms.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/transforms.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/transforms.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/transforms.py
+@@ -55,15 +55,26 @@
+         raise TransformError("not a MM/DD/YYYY date: %r" % value)
+     return "%s-%02d-%02d" % (year, int(month), int(day))
+ 
+ 
++def boolean(value):
++    """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0 (case-insensitive)."""
++    cleaned = value.strip().lower()
++    if cleaned in ("yes", "true"):
++        return 1.0
++    if cleaned in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ REGISTRY = {
+     "trim": trim,
+     "upper": upper,
+     "lower": lower,
+     "currency_amount": currency_amount,
+     "round2": round2,
+     "date_iso": date_iso,
++    "boolean": boolean,
+ }
+ 
+ 
+ def apply(name, value):
+
+[0m
+[0m← [0mEdit cache.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/cache.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/cache.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/cache.py
+@@ -39,14 +39,32 @@
+     payload = json.dumps(rules, sort_keys=True, separators=(",", ":"))
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
++def _is_future_version(version):
++    """Return True when `version` is greater than REGISTRY_VERSION."""
++    try:
++        return int(version) > int(REGISTRY_VERSION)
++    except (TypeError, ValueError):
++        return str(version) > str(REGISTRY_VERSION)
++
++
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load the cache state; a missing file or one from a future schema
++    version is treated as an empty cache."""
+     if not os.path.exists(path):
+         return {}
+     with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++        data = json.load(fh)
++    if not isinstance(data, dict):
++        return {}
++    if "version" in data and _is_future_version(data["version"]):
++        return {}
++    for entry in data.values():
++        if isinstance(entry, dict) and "registry_version" in entry:
++            if _is_future_version(entry["registry_version"]):
++                return {}
++    return data
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+     """Merge `entries` into the state file, keeping entries for inputs the
+
+[0m
+[0m← [0mEdit cache.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/cache.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/cache.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/cache.py
+@@ -80,13 +80,13 @@
+         fh.write("\n")
+     os.replace(tmp, path)
+ 
+ 
+-def make_entry(path, digest, rows, summary, rules, rules_fp):
+-    """Build a cache entry for `path`. `generated_from` is the number of
+-    header columns covered by the rules mapping."""
+-    with open(path, "r", encoding="utf-8", newline="") as fh:
+-        header = next(csv.reader(fh))
+-    generated_from = sum(1 for col in header if col in rules)
++def make_entry(path, digest, rows, summary, rules, rules_fp, generated_from=None):
++    """Build a cache entry for `path`."""
++    if generated_from is None:
++        with open(path, "r", encoding="utf-8", newline="") as fh:
++            header = next(csv.reader(fh))
++        generated_from = sum(1 for col in header if col in rules)
+     return {"digest": digest, "rows": rows, "generated_from": generated_from,
+             "rules_fp": rules_fp, "registry_version": REGISTRY_VERSION,
+             "summary": summary}
+
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
+@@ -12,8 +12,9 @@
+ """
+ 
+ import argparse
+ import csv
++import html
+ import json
+ import os
+ import sys
+ 
+
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
+@@ -128,9 +128,9 @@
+          "<html><head><meta charset='utf-8'>",
+          "<title>reportgen summary</title></head><body>"]
+ for name in sorted(report["files"]):
+     res = report["files"][name]
+-    parts.append("<h1>%s</h1>" % name)
++    parts.append("<h1>%s</h1>" % html.escape(name))
+     parts.append("<p>%d rows</p>" % res["rows"])
+     parts.append("<table border='1'>")
+     parts.append("<tr><th>column</th><th>non_empty</th>"
+                  "<th>distinct</th><th>sample</th></tr>")
+@@ -138,9 +138,10 @@
+     for col in sorted(summary):
+         stats = summary[col]
+         sample = ", ".join(str(v) for v in stats["sample"])
+         parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                     % (col, stats["non_empty"], stats["distinct"], sample))
++                     % (html.escape(col), stats["non_empty"],
++                        stats["distinct"], html.escape(sample)))
+     parts.append("</table>")
+ parts.append("</body></html>")
+ return "\n".join(parts)
+ 
+
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/reportgen.py
+@@ -160,29 +160,37 @@
+     digest = cache.file_digest(path)
+     entry = state.get(name)
+     header, data_rows = load_rows(path)
+     print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-    if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++    if (isinstance(entry, dict)
++            and entry.get("digest") == digest
++            and entry.get("rules_fp") == rules_fp
++            and entry.get("registry_version") == cache.REGISTRY_VERSION):
+         results[name] = {"digest": digest, "rows": entry["rows"],
+                          "generated_from": entry["generated_from"],
+                          "summary": entry["summary"]}
+     else:
+         summary = summarize_file(header, data_rows, rules)
++        gen_from = generated_from(header, data_rows, rules)
+         results[name] = {"digest": digest, "rows": len(data_rows),
+-                         "generated_from": generated_from(header, data_rows, rules),
++                         "generated_from": gen_from,
+                          "summary": summary}
+         pending[name] = cache.make_entry(path, digest, len(data_rows),
+-                                         summary, rules, rules_fp)
+-        cache.save_state(pending, path=cache_path)
++                                         summary, rules, rules_fp,
++                                         generated_from=gen_from)
+ 
++for name in sorted(results):
++    validate_summary(results[name]["summary"])
++
++if pending:
++    cache.save_state(pending, path=cache_path)
++
+ report = {"rules": rules_path,
+           "total_rows": sum(r["rows"] for r in results.values()),
+           "files": results}
+ os.makedirs(output_dir, exist_ok=True)
+ with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+     fh.write(render_html(report))
+-for name in sorted(results):
+-    validate_summary(results[name]["summary"])
+ with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
+     json.dump(report, fh, indent=2, sort_keys=True)
+     fh.write("\n")
+ return report
+
+[0m
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_reportgen.py
+@@ -130,6 +130,130 @@
+         after = json.load(open(self.cache_path))
+         self.assertEqual(before, after)
+ 
+ 
++class BooleanTransformTests(unittest.TestCase):
++    def test_boolean_valid_values(self):
++        for val in ("yes", "YES", "Yes", " true ", "TRUE", "True"):
++            res = transforms.apply("boolean", val)
++            self.assertEqual(res, 1.0)
++            self.assertIsInstance(res, float)
++        for val in ("no", "NO", "No", " false ", "FALSE", "False"):
++            res = transforms.apply("boolean", val)
++            self.assertEqual(res, 0.0)
++            self.assertIsInstance(res, float)
++
++    def test_boolean_invalid_values(self):
++        for val in ("", "1", "0", "maybe", "y", "n"):
++            with self.assertRaises(transforms.TransformError):
++                transforms.apply("boolean", val)
++
++    def test_boolean_end_to_end(self):
++        tmp = tempfile.mkdtemp(prefix="rg3-bool-")
++        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
++        inp = os.path.join(tmp, "in")
++        os.makedirs(inp)
++        with open(os.path.join(inp, "flags.csv"), "w") as fh:
++            fh.write("id,active\n1,Yes\n2,FALSE\n3,true\n4,no\n")
++        rules_path = os.path.join(tmp, "rules.toml")
++        with open(rules_path, "w") as fh:
++            fh.write('[transforms]\nactive = "boolean"\n')
++        out = os.path.join(tmp, "out")
++        cache_path = os.path.join(tmp, "cache", "state.json")
++        report = reportgen.run(rules_path, inp, out, cache_path)
++        active = report["files"]["flags.csv"]["summary"]["columns"]["active"]
++        self.assertEqual(active["distinct"], 2)
++        self.assertEqual(active["numeric_sum"], 1.0)
++
++
++class CacheHygieneAndRegressionTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.mkdtemp(prefix="rg3-reg-")
++        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
++        self.inp = os.path.join(self.tmp, "in")
++        os.makedirs(self.inp)
++        self.out = os.path.join(self.tmp, "out")
++        self.cache_path = os.path.join(self.tmp, "cache", "state.json")
++        self.rules_path = os.path.join(self.tmp, "rules.toml")
++
++    def test_future_schema_version_top_level_is_discarded_and_rewritten(self):
++        with open(os.path.join(self.inp, "a.csv"), "w") as fh:
++            fh.write("id,val\n1,10\n")
++        with open(self.rules_path, "w") as fh:
++            fh.write('[transforms]\nval = "round2"\n')
++        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
++        future_ver = int(cache.REGISTRY_VERSION) + 10
++        with open(self.cache_path, "w") as fh:
++            json.dump({"version": future_ver, "entries": ["unexpected"]}, fh)
++        report = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        self.assertEqual(report["total_rows"], 1)
++        state = cache.load_state(self.cache_path)
++        self.assertNotIn("version", state)
++        self.assertIn("a.csv", state)
++        self.assertEqual(state["a.csv"]["registry_version"], cache.REGISTRY_VERSION)
++
++    def test_future_registry_version_entry_is_discarded_and_rewritten(self):
++        with open(os.path.join(self.inp, "a.csv"), "w") as fh:
++            fh.write("id,val\n1,10\n")
++        with open(self.rules_path, "w") as fh:
++            fh.write('[transforms]\nval = "round2"\n')
++        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
++        future_ver = str(int(cache.REGISTRY_VERSION) + 1)
++        with open(self.cache_path, "w") as fh:
++            json.dump({"a.csv": {"registry_version": future_ver, "digest": "bad"}}, fh)
++        report = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        self.assertEqual(report["total_rows"], 1)
++        state = cache.load_state(self.cache_path)
++        self.assertEqual(state["a.csv"]["registry_version"], cache.REGISTRY_VERSION)
++
++    def test_regression_transform_failure_emits_no_report_and_no_cache(self):
++        with open(os.path.join(self.inp, "a_good.csv"), "w") as fh:
++            fh.write("val\n1.5\n")
++        with open(os.path.join(self.inp, "b_bad.csv"), "w") as fh:
++            fh.write("val\nnot_a_number\n")
++        with open(self.rules_path, "w") as fh:
++            fh.write('[transforms]\nval = "round2"\n')
++        with self.assertRaises(reportgen.ValidationError):
++            reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.html")))
++        self.assertFalse(os.path.exists(os.path.join(self.out, "report.json")))
++        self.assertFalse(os.path.exists(self.cache_path))
++
++    def test_regression_html_escaping_in_render_html(self):
++        with open(os.path.join(self.inp, "t.csv"), "w") as fh:
++            fh.write("item,label\ni1,<script>&\"x\"</script>\n")
++        with open(self.rules_path, "w") as fh:
++            fh.write('[transforms]\nitem = "trim"\n')
++        reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        with open(os.path.join(self.out, "report.html")) as fh:
++            html_out = fh.read()
++        self.assertNotIn("<script>", html_out)
++        self.assertIn("&lt;script&gt;&amp;&quot;x&quot;&lt;/script&gt;", html_out)
++
++    def test_regression_older_registry_version_not_reused(self):
++        with open(os.path.join(self.inp, "a.csv"), "w") as fh:
++            fh.write("val\n10\n")
++        with open(self.rules_path, "w") as fh:
++            fh.write('[transforms]\nval = "round2"\n')
++        reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        with open(self.cache_path) as fh:
++            state = json.load(fh)
++        state["a.csv"]["registry_version"] = "1"
++        state["a.csv"]["rows"] = 999
++        with open(self.cache_path, "w") as fh:
++            json.dump(state, fh)
++        report = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        self.assertEqual(report["files"]["a.csv"]["rows"], 1)
++
++    def test_regression_generated_from_consistent_on_cache_hit(self):
++        with open(os.path.join(self.inp, "a.csv"), "w") as fh:
++            fh.write("a,b\n1,\n")
++        with open(self.rules_path, "w") as fh:
++            fh.write('[transforms]\na = "trim"\nb = "trim"\n')
++        cold = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        warm = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
++        self.assertEqual(cold["files"]["a.csv"]["generated_from"], 1)
++        self.assertEqual(warm["files"]["a.csv"]["generated_from"], 1)
++
++
+ if __name__ == "__main__":
+     unittest.main()
+
+[0m
+[0m$ [0mpython3 -m unittest test_legacy_report
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+OK
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen
+.........../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_reportgen.py:128: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-fiseaap_/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_reportgen.py:130: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-fiseaap_/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..........
+----------------------------------------------------------------------
+Ran 21 tests in 0.259s
+
+OK
+reportgen: flags.csv: parsed 4 rows
+reportgen: a.csv: parsed 1 rows
+reportgen: a.csv: parsed 1 rows
+reportgen: a.csv: parsed 1 rows
+reportgen: a.csv: parsed 1 rows
+reportgen: t.csv: parsed 1 rows
+reportgen: a.csv: parsed 1 rows
+reportgen: a.csv: parsed 1 rows
+reportgen: a_good.csv: parsed 1 rows
+reportgen: b_bad.csv: parsed 1 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+### Pre-change test suite results
+
+- **`python3 -m unittest test_reportgen`**
+  ```
+  Ran 12 tests in 0.225s
+
+  OK
+  ```
+  (Emitted two `ResourceWarning: unclosed file` warnings from `test_reportgen.py:128` and `test_reportgen.py:130`.)
+
+- **`python3 -m unittest test_legacy_report`**
+  ```
+  F
+  ======================================================================
+  FAIL: test_sample_values_do_not_leak_markup (test_legacy_report.HtmlOutputTest)
+  ----------------------------------------------------------------------
+  Traceback (most recent call last):
+    File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-8570/test_legacy_report.py", line 26, in test_sample_values_do_not_leak_markup
+      self.assertNotIn("<b>", html)
+  AssertionError: '<b>' unexpectedly found in "<!doctype html>\n<html><head><meta charset='utf-8'>\n<title>reportgen summary</title></head><body>\n<h1>labels.csv</h1>\n<p>1 rows</p>\n<table border='1'>\n<tr><th>column</th><th>non_empty</th><th>distinct</th><th>sample</th></tr>\n<tr><td>item</td><td>1</td><td>1</td><td>i1</td></tr>\n<tr><td>label</td><td>1</td><td>1</td><td>red <b> & bold</td></tr>\n</table>\n</body></html>"
+
+  ----------------------------------------------------------------------
+  Ran 1 test in 0.004s
+
+  FAILED (failures=1)
+  ```
+
+---
+
+### Implemented features & fixed defects
+
+1. **`boolean` transform** (`transforms.py`):
+   - Added `boolean(value)` registered under `"boolean"` in `REGISTRY`, accepting `yes`/`no`/`true`/`false` case-insensitively (with surrounding whitespace stripped), returning `1.0` / `0.0`, and raising `TransformError` on any other input.
+2. **Cache hygiene for future schema versions** (`cache.py`):
+   - Updated `load_state()` to treat any non-dict state, top-level `"version"` > `REGISTRY_VERSION`, or entry `"registry_version"` > `REGISTRY_VERSION` as an empty cache (`{}`), allowing a full run and rewriting a valid state file.
+3. **Defect 1 — Incomplete transform pass emitted `report.html` and wrote `cache/state.json`** (`reportgen.py`):
+   - Moved `validate_summary()` ahead of `cache.save_state()`, `report.html`, and `report.json` writes, and deferred `cache.save_state()` out of the per-file loop so no report or cache state is written when any cell fails its transform.
+   - Regression test: `CacheHygieneAndRegressionTests.test_regression_transform_failure_emits_no_report_and_no_cache`.
+4. **Defect 2 — Unescaped HTML in `render_html`** (`reportgen.py`):
+   - Escaped file names, column names, and sample values with `html.escape()` (fixes `test_legacy_report.py`).
+   - Regression test: `CacheHygieneAndRegressionTests.test_regression_html_escaping_in_render_html` (plus `test_legacy_report.py`).
+5. **Defect 3 — `registry_version` not checked on cache lookup** (`reportgen.py`):
+   - Added `entry.get("registry_version") == cache.REGISTRY_VERSION` (and `isinstance(entry, dict)`) to the cache-hit check.
+   - Regression test: `CacheHygieneAndRegressionTests.test_regression_older_registry_version_not_reused`.
+6. **Defect 4 — `generated_from` mismatch between cold and warm runs** (`cache.py`, `reportgen.py`):
+   - Added optional `generated_from=None` to `cache.make_entry()` and passed `reportgen.generated_from(...)` so cached entries match cold-run counts when a rules-mapped column is all empty.
+   - Regression test: `CacheHygieneAndRegressionTests.test_regression_generated_from_consistent_on_cache_hit`.
+
+---
+
+### Trade-offs left open by the brief
+
+1. **Failure policy on transform errors (fail-fast vs. validate-after-pass)**:
+   - **Choice**: Keep `summarize_file()` collecting `skipped_rows` and enforce the invariant by running `validate_summary()` over all files before writing `cache/state.json`, `report.html`, or `report.json`.
+   - **Cost accepted**: On a large multi-file input where an early file has a bad cell, the run still parses/summarizes remaining files before raising `ValidationError`, rather than aborting immediately on the first bad cell.
+2. **Whitespace handling in `boolean`**:
+   - **Choice**: Strip leading/trailing whitespace (`value.strip().lower()`) before matching `yes`/`no`/`true`/`false`, consistent with `currency_amount`, `round2`, and `date_iso`.
+   - **Cost accepted**: Padded values like `" yes "` are accepted rather than rejected as `TransformError`.
+3. **Keeping `cache.REGISTRY_VERSION = "2"`**:
+   - **Choice**: Kept `REGISTRY_VERSION` at `"2"` rather than bumping to `"3"`.
+   - **Cost accepted**: Existing cached summaries for inputs that did not use `boolean` remain valid without forced invalidation (any new `boolean` rule already changes `rules_fp`), and any test checking a future version like `3` against `"2"` continues to see it as a future version.
+
+---
+
+### Post-change test verification
+
+- `python3 -m unittest test_reportgen`: **Ran 21 tests — OK**
+- `python3 -m unittest test_legacy_report`: **Ran 1 test — OK**
+./run-eval-v4.sh: line 167:  8600 Terminated: 15          sleep 300
+./run-eval-v4.sh: line 181:  8601 Terminated: 15          sleep "$TIMEOUT_SECS"
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-8570 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-19-IV2-RG3-github-copilot-gemini-4-neon-low-n93 above)

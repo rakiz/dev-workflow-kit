@@ -93,3 +93,110 @@ Upper bound under v3: **+1 H4 per run**, only where their H4 was previously 0. T
 6. **Defect-to-test mapping** of the own-test counts not done (§2).
 7. **Judgment on my side:** I did the probe and suite checks myself. The rubric asks for independent scoring; these are execution results, not judgments.
 8. **Budget note:** the DB shows $3.37 of unrelated 2026-11-19 gemini sessions; phase-3 spend is counted separately ($2.23).
+
+## 7. Phase 4 — 2-family panel, DR-v3 scores, D-key v3 H4 folds (2026-11-20)
+
+Scorer prompts, raw logs and TSVs: private `evals-keys/score-logs/2026-11-19/panel/` (not in the
+public repo; the rubrics are private). Every per-run total below is the sum of the scorer's own
+breakdown fields; the sums were re-checked against the rubric formula.
+
+### 7.1 RG4 panel (RUBRIC-IV2-RG4 v1, /14, policy A)
+
+GLM family: `ai-gateway-misc/fw-glm-5.3-flash --variant high`, `EVAL_ARM_CAP=0.60`, batches A
+(haiku-default r41/r42, minimax-xhigh r41b/r42) and B (haiku-high r41/r42, opus r41/r42), 2 sessions.
+Haiku family: the single-scorer values from the brief (haiku-default 11.5, minimax-xhigh 13.5,
+haiku-high 14, opus 14). **These four values are not on disk**, so they cannot be re-verified here.
+
+| Arm | GLM r1 | GLM r2 | GLM mean | Haiku (brief draft) | **Panel mean (2 families)** |
+|---|---|---|---|---|---|
+| haiku default (cheap-code) | 11 (r41) | 13 (r42) | 12.0 | 11.5 | **11.75** |
+| minimax xhigh (strong-code) | 14 (r41b) | 11 (r42, −3 FP) | 12.5 | 13.5 | **13.0** |
+| haiku high | 13 (r41) | 13 (r42) | 13.0 | 14 | **13.5** |
+| opus default | 13 (r41) | 13 (r42) | 13.0 | 14 | **13.5** |
+
+- minimax r42 −3 FP: the scorer found an explicit false claim ("All 16 new tests verified to fail on
+  pristine", 14 of 16 do).
+- Gate 1 (anti-saturation, best ≤ 11 = 80% of 14): **FAILED** (best panel mean 13.5 = 96%).
+  The RG4 fixture is saturated for these arms. No RG4 seat decision is valid under the gate as written.
+- Gate 2 (pair gap ≥ max(3, 2×variance)): **FAILED** (haiku-high vs opus gap 0.0).
+- Variance: not measured (no double-scored run). The 2-family rule was satisfied; the spread on the
+  mean was ≤ 1 point.
+- Sub-judgment points (probe a, b, c′, d, suite) are executed in the rubric's own probe layer (§7.1
+  is the judgment layer on top). The c′ quoted-count point scored 0 for all four haiku-high/opus runs.
+
+### 7.2 DR-v3 scores (RUBRIC-T4V3 v1, /14; proposal + conformance split per key §2)
+
+Families: 1017 (`fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017 --variant high`,
+`EVAL_ARM_CAP=0.30`) on all four runs; haiku (`github-copilot/claude-haiku-5.5`, `EVAL_ARM_CAP=0.30`)
+on the two minimax runs only. Haiku was NOT run on the sonnet runs: the panel rule (haiku never
+scores claude-* artifacts) would make it same-family. Sonnet runs are therefore 1 family, unofficial.
+
+| Run | Haiku total | 1017 total | 1017 proposal / conformance | Mean (official) |
+|---|---|---|---|---|
+| minimax xhigh r43 | 13 | 13 | 9 / 4 | **13.0** (2 families) |
+| minimax xhigh r43b | 14 | 14 | 11 / 3 | **14.0** (2 families) |
+| sonnet high r43 | — (not run) | 14 | 10 / 4 | **14.0** (unofficial, 1 family) |
+| sonnet high r43b | — (not run) | 13 | 11 / 2 | **13.0** (unofficial, 1 family) |
+
+- Minimax cell (official): 13.5 (4 scores). Sonnet cell (unofficial): 13.5 (2 scores, 1 family).
+- Category 9 (`deletions-never-propagated`, conformance) was credited for sonnet r43 and
+  not credited for sonnet r43b (1017: "no DESIGN section / code location cited"). Haiku's haiku
+  split reported `prop/conf` with the proof bonus folded into both sides; only the totals are
+  used here.
+- Category 6 (`debounce-starvation`) was missed by minimax r43 in both families.
+- FP: 0 in every DR-v3 run.
+
+### 7.3 D-key v3 H4 folds (verified against the artifacts, not the brief)
+
+Rule: H4 credit only where the candidate's own design/report NAMES the `<=` in `is_stale`
+(snaputil.py:73) with the docstring contradiction or the verified consequence (RUBRIC-D1-v3 H4).
+
+| Cell / run | Prior | Verified H4 | Evidence | New |
+|---|---|---|---|---|
+| sonnet high p3 | 7.5 | +1 | `D-sonnet-high-p3.design.md:54` | 8.5 |
+| sonnet high p5r2 | 8.5 | +1 | `D-claude-sonnet-5-5-high-p5r2.design.md:66` (S5) | 9.5 |
+| sonnet high r91 | 7.5 | **0 (brief said +1)** | log names no `<=` (probe only) | 7.5 |
+| sonnet high r93 | 8.5 | **0 (brief said +1)** | log names no `<=` (probe only) | 8.5 |
+| sonnet high r94 | 8.5 | 0 | `<=` at log:395 is unrelated (`big>=1MB`) | 8.5 |
+| 1017 high g21 | 9 | **0 (brief said +0.5)** | design:97 says "returns True at equality", never names `<=` | 9 |
+| 1017 high g22 | 8.5 | +0.5 (prior H4 0.5 per brief) | `D-deepseek…high-g22.design.md:135` names `<=` | 9.0 |
+| qwen xhigh p5 | 7 | +1 | `D-qwen…xhigh-p5.design.md:1029` (A13) | 8 |
+| qwen xhigh p5r2 | 7.5 | 0 | no `<=` in design or report | 7.5 |
+| qwen xhigh p6 | 7 | +1 | `D-qwen…xhigh-p6.design.md:400,660` | 8 |
+| qwen xhigh p6r2 | 0 | 0 | `is_stale` "not used", no `<=` | 0 |
+| opus default p3r2b | 9.5 | +1 | `D-opus-default-p3r2b.design.md:99` | 10.5 |
+| opus default p4 | 8 | +1 | `D-opus-default-p4.design.md:47` | 9 |
+| minimax xhigh g21 | 7 | +1 | `D-minimax-m3p1-flash-xhigh-g21.design.md:94` | 8 |
+| minimax xhigh g22 | 6.5 | 0 | names `<=` (:50, :1106) but not the docstring contradiction | 6.5 |
+| sonnet-arb | — | not folded | no `sonnet-arb` artifact found in `runs/` | — |
+
+Cell effect (applied as the mean run delta on the panel D cell in grid2-scores.csv):
+
+| Cell | D before | Mean run delta | D after (strict) | Brief's figure |
+|---|---|---|---|---|
+| sonnet high | 8 | +0.4 (5 runs) | **8.4** | 8.9 (with r91, r93 credited) |
+| 1017 high | 9.56 | +0.25 (2 runs) | **9.81** | 9.25 (with g21 credited) |
+| qwen xhigh | 6.4 | +0.5 (4 runs) | **6.9** | — |
+| opus default | 8.58 | +1.0 (2 runs) | **9.58** | — |
+| minimax xhigh | 6.81 | +0.5 (2 runs) | **7.31** | — |
+
+The brief's r91/r93/g21 credits are NOT applied: the artifacts do not name the mechanism. If the owner
+rules those credits valid (a different reading of H4), the 1017 and sonnet cells change by +0.25 and
++0.4 respectively. That is an owner call; the CSV carries the strict values.
+
+## 8. Phase 4 — what is done, what is open
+
+Done: RG4 GLM panel (8 runs, 2 batches); DR-v3 2-family scores (with the same-family limit);
+H4 fold (verified); grid2-scores.csv columns `I2-RG4` and `DR-v3` added; gen-charts I-bench now reads
+`I2-RG4` (4 dots); verify-charts 167/167; LEADERBOARD.html deterministic (2 runs, same sha).
+
+Open / deviations:
+1. RUBRIC-T4V3.md: written, **not committed** (STRICT no-commit rule overrides the brief's "commit").
+2. The haiku single-scorer RG4 values (11.5, 13.5, 14, 14) are from the brief; no artifact on disk.
+3. Gate 1 and gate 2 fail on the RG4 panel (saturation + zero gap). RG4 needs a harder fixture or a
+   gate revision before any RG4 seat decision (owner call).
+4. The I-v2 chart now shows 4 RG4 dots; the 30 RG3 I2 dots no longer plot (RG3 and RG4 are never
+   compared). `verify-charts` total fell 197 → 167 for that reason, not a mismatch.
+5. Category 10 (`crash-on-transient-error`) kept as proposal (key §2, owner review requested).
+6. The "tie rule" named in the brief is not written in the repo; seat implications below assume "tie →
+   cheaper wins" and are labelled as such.

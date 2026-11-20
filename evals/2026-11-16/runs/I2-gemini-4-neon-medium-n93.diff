@@ -1,0 +1,298 @@
+diff -r --exclude=__pycache__ reportgen-eval-repo-i3/cache.py 2026-11-16/runs/I2-gemini-4-neon-medium-n93/cache.py
+25c25
+< REGISTRY_VERSION = "2"
+---
+> REGISTRY_VERSION = "3"
+27a28,52
+> def _parse_version(value):
+>     if isinstance(value, bool):
+>         return None
+>     if isinstance(value, int):
+>         return (value,)
+>     if isinstance(value, str):
+>         text = value.strip()
+>         if text.startswith(("v", "V")):
+>             text = text[1:]
+>         parts = text.split(".")
+>         if parts and all(p.isdigit() for p in parts):
+>             return tuple(int(p) for p in parts)
+>     return None
+> 
+> 
+> def _is_future_version(value):
+>     parsed = _parse_version(value)
+>     current = _parse_version(REGISTRY_VERSION)
+>     return parsed is not None and current is not None and parsed > current
+> 
+> 
+> def _is_version_key(key):
+>     return key == "version" or key.endswith("_version")
+> 
+> 
+44c69,70
+<     """Load the cache state; a missing file is just an empty cache."""
+---
+>     """Load the cache state; a missing file or a state written by a future
+>     schema version is treated as an empty cache."""
+48c74,85
+<         return json.load(fh)
+---
+>         data = json.load(fh)
+>     if not isinstance(data, dict):
+>         return {}
+>     for key, val in data.items():
+>         if _is_version_key(key) and _is_future_version(val):
+>             return {}
+>     for entry in data.values():
+>         if isinstance(entry, dict):
+>             for key, val in entry.items():
+>                 if _is_version_key(key) and _is_future_version(val):
+>                     return {}
+>     return data
+68c105
+<     header columns covered by the rules mapping."""
+---
+>     rules-mapped header columns with at least one non-empty cell."""
+71c108,111
+<     generated_from = sum(1 for col in header if col in rules)
+---
+>     columns = summary.get("columns", {}) if isinstance(summary, dict) else {}
+>     generated_from = sum(
+>         1 for col in header
+>         if col in rules and columns.get(col, {}).get("non_empty", 0) > 0)
+diff -r --exclude=__pycache__ reportgen-eval-repo-i3/reportgen.py 2026-11-16/runs/I2-gemini-4-neon-medium-n93/reportgen.py
+15a16
+> import html
+131c132
+<         parts.append("<h1>%s</h1>" % name)
+---
+>         parts.append("<h1>%s</h1>" % html.escape(name))
+141c142,143
+<                          % (col, stats["non_empty"], stats["distinct"], sample))
+---
+>                          % (html.escape(col), stats["non_empty"],
+>                             stats["distinct"], html.escape(sample)))
+160,162c162,168
+<         header, data_rows = load_rows(path)
+<         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+<         if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
+---
+>         if (isinstance(entry, dict)
+>                 and entry.get("digest") == digest
+>                 and entry.get("rules_fp") == rules_fp
+>                 and entry.get("registry_version") == cache.REGISTRY_VERSION
+>                 and "rows" in entry
+>                 and "generated_from" in entry
+>                 and "summary" in entry):
+166a173,174
+>             header, data_rows = load_rows(path)
+>             print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+173d180
+<             cache.save_state(pending, path=cache_path)
+174a182,186
+>     for name in sorted(results):
+>         validate_summary(results[name]["summary"])
+> 
+>     cache.save_state(pending, path=cache_path)
+> 
+181,182d192
+<     for name in sorted(results):
+<         validate_summary(results[name]["summary"])
+204,205c214,215
+<         sys.stderr.write("reportgen: warning: %s\n" % exc)
+<         return None
+---
+>         sys.stderr.write("reportgen: error: %s\n" % exc)
+>         sys.exit(1)
+diff -r --exclude=__pycache__ reportgen-eval-repo-i3/test_reportgen.py 2026-11-16/runs/I2-gemini-4-neon-medium-n93/test_reportgen.py
+133a134,309
+> class BooleanTransformTests(unittest.TestCase):
+>     def test_boolean_transform_values(self):
+>         for raw in ("yes", "YES", "Yes", "true", "TRUE", "True", " true "):
+>             val = transforms.apply("boolean", raw)
+>             self.assertIsInstance(val, float)
+>             self.assertEqual(val, 1.0)
+>         for raw in ("no", "NO", "No", "false", "FALSE", "False", " false "):
+>             val = transforms.apply("boolean", raw)
+>             self.assertIsInstance(val, float)
+>             self.assertEqual(val, 0.0)
+>         for bad in ("maybe", "1", "0", "", "y", "n"):
+>             with self.assertRaises(transforms.TransformError):
+>                 transforms.apply("boolean", bad)
+> 
+>     def test_boolean_end_to_end(self):
+>         tmp = tempfile.mkdtemp(prefix="rg3-bool-")
+>         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+>         inp = os.path.join(tmp, "in")
+>         os.makedirs(inp)
+>         with open(os.path.join(inp, "flags.csv"), "w") as fh:
+>             fh.write("id,active\n1,Yes\n2,FALSE\n3,true\n4,no\n")
+>         rules_path = os.path.join(tmp, "rules.toml")
+>         with open(rules_path, "w") as fh:
+>             fh.write('[transforms]\nactive = "boolean"\n')
+>         out = os.path.join(tmp, "out")
+>         cache_path = os.path.join(tmp, "cache", "state.json")
+>         report = reportgen.run(rules_path, inp, out, cache_path)
+>         col = report["files"]["flags.csv"]["summary"]["columns"]["active"]
+>         self.assertEqual(col["distinct"], 2)
+>         self.assertEqual(col["sample"], [0.0, 1.0])
+>         self.assertEqual(col["numeric_sum"], 1.0)
+> 
+> 
+> class CacheHygieneAndRegressionTests(unittest.TestCase):
+>     def setUp(self):
+>         self.tmp = tempfile.mkdtemp(prefix="rg3-reg-")
+>         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+>         self.inp = os.path.join(self.tmp, "in")
+>         os.makedirs(self.inp)
+>         self.out = os.path.join(self.tmp, "out")
+>         self.cache_path = os.path.join(self.tmp, "cache", "state.json")
+>         self.rules_path = os.path.join(self.tmp, "rules.toml")
+> 
+>     def _write(self, path, content):
+>         os.makedirs(os.path.dirname(path), exist_ok=True)
+>         with open(path, "w", encoding="utf-8") as fh:
+>             fh.write(content)
+> 
+>     def test_future_top_level_schema_version_resets_and_rewrites_cache(self):
+>         self._write(os.path.join(self.inp, "a.csv"), "k,v\n1,2.5\n")
+>         self._write(self.rules_path, '[transforms]\nv = "round2"\n')
+>         self._write(
+>             self.cache_path,
+>             json.dumps({"version": 99, "entries": {"a.csv": {"bad": True}}}),
+>         )
+>         report = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
+>         self.assertEqual(report["total_rows"], 1)
+>         with open(self.cache_path, "r", encoding="utf-8") as fh:
+>             state = json.load(fh)
+>         self.assertEqual(set(state), {"a.csv"})
+>         self.assertEqual(state["a.csv"]["registry_version"], cache.REGISTRY_VERSION)
+> 
+>     def test_future_entry_registry_version_resets_and_rewrites_cache(self):
+>         self._write(os.path.join(self.inp, "a.csv"), "k,v\n1,yes\n")
+>         self._write(self.rules_path, '[transforms]\nv = "boolean"\n')
+>         self._write(
+>             self.cache_path,
+>             json.dumps({"a.csv": {"registry_version": "10", "schema": "future"}}),
+>         )
+>         report = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
+>         self.assertEqual(report["total_rows"], 1)
+>         with open(self.cache_path, "r", encoding="utf-8") as fh:
+>             state = json.load(fh)
+>         self.assertEqual(state["a.csv"]["registry_version"], cache.REGISTRY_VERSION)
+> 
+>     def test_regression_transform_failure_emits_no_report_and_no_cache(self):
+>         self._write(os.path.join(self.inp, "a_good.csv"), "k,v\n1,10\n")
+>         self._write(os.path.join(self.inp, "b_bad.csv"), "k,v\n1,not-a-num\n")
+>         self._write(self.rules_path, '[transforms]\nv = "round2"\n')
+>         with self.assertRaises(reportgen.ValidationError):
+>             reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
+>         self.assertFalse(os.path.exists(os.path.join(self.out, "report.html")))
+>         self.assertFalse(os.path.exists(os.path.join(self.out, "report.json")))
+>         self.assertFalse(os.path.exists(self.cache_path))
+> 
+>     def test_regression_unhandled_transform_crash_emits_no_report_and_no_cache(self):
+>         self._write(os.path.join(self.inp, "a_good.csv"), "k,v\n1,10\n")
+>         self._write(os.path.join(self.inp, "b_crash.csv"), "k,v\n1,boom\n")
+>         self._write(self.rules_path, '[transforms]\nv = "trim"\n')
+>         orig_apply = transforms.apply
+> 
+>         def crashing_apply(name, value):
+>             if value == "boom":
+>                 raise RuntimeError("unexpected crash")
+>             return orig_apply(name, value)
+> 
+>         transforms.apply = crashing_apply
+>         try:
+>             with self.assertRaises(RuntimeError):
+>                 reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
+>         finally:
+>             transforms.apply = orig_apply
+>         self.assertFalse(os.path.exists(os.path.join(self.out, "report.html")))
+>         self.assertFalse(os.path.exists(os.path.join(self.out, "report.json")))
+>         self.assertFalse(os.path.exists(self.cache_path))
+> 
+>     def test_regression_main_exits_nonzero_on_validation_error(self):
+>         self._write(os.path.join(self.inp, "bad.csv"), "k,flag\n1,maybe\n")
+>         self._write(self.rules_path, '[transforms]\nflag = "boolean"\n')
+>         with self.assertRaises(SystemExit) as ctx:
+>             reportgen.main([
+>                 "--rules", self.rules_path,
+>                 "--input", self.inp,
+>                 "--output", self.out,
+>                 "--cache", self.cache_path,
+>             ])
+>         self.assertNotEqual(ctx.exception.code, 0)
+>         self.assertFalse(os.path.exists(os.path.join(self.out, "report.html")))
+>         self.assertFalse(os.path.exists(os.path.join(self.out, "report.json")))
+>         self.assertFalse(os.path.exists(self.cache_path))
+> 
+>     def test_regression_older_registry_version_not_reused(self):
+>         csv_path = os.path.join(self.inp, "a.csv")
+>         self._write(csv_path, "k,v\n1,5\n")
+>         self._write(self.rules_path, '[transforms]\nv = "round2"\n')
+>         rules = reportgen.load_rules(self.rules_path)
+>         stale_entry = {
+>             "digest": cache.file_digest(csv_path),
+>             "rows": 999,
+>             "generated_from": 1,
+>             "rules_fp": cache.rules_fingerprint(rules),
+>             "registry_version": "1",
+>             "summary": {"columns": {}, "skipped_rows": []},
+>         }
+>         self._write(self.cache_path, json.dumps({"a.csv": stale_entry}))
+>         report = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
+>         self.assertEqual(report["files"]["a.csv"]["rows"], 1)
+>         with open(self.cache_path, "r", encoding="utf-8") as fh:
+>             state = json.load(fh)
+>         self.assertEqual(state["a.csv"]["registry_version"], cache.REGISTRY_VERSION)
+> 
+>     def test_regression_generated_from_matches_across_cold_and_cached_runs(self):
+>         first = reportgen.run(RULES, INPUT_DIR, self.out, self.cache_path)
+>         second = reportgen.run(RULES, INPUT_DIR, self.out, self.cache_path)
+>         self.assertEqual(
+>             first["files"]["small_devices.csv"]["generated_from"], 1)
+>         self.assertEqual(
+>             second["files"]["small_devices.csv"]["generated_from"], 1)
+> 
+>     def test_regression_html_escapes_markup(self):
+>         self._write(os.path.join(self.inp, "x.csv"), "a<b>,val\n1,<script>&\n")
+>         self._write(self.rules_path, '[transforms]\nval = "trim"\n')
+>         reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
+>         with open(os.path.join(self.out, "report.html"), "r", encoding="utf-8") as fh:
+>             rendered = fh.read()
+>         self.assertNotIn("<script>", rendered)
+>         self.assertIn("&lt;script&gt;&amp;", rendered)
+>         self.assertIn("a&lt;b&gt;", rendered)
+> 
+>     def test_regression_cache_hit_skips_parsing(self):
+>         self._write(os.path.join(self.inp, "a.csv"), "k,v\n1,2\n")
+>         self._write(self.rules_path, '[transforms]\nv = "round2"\n')
+>         reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
+>         orig_load_rows = reportgen.load_rows
+> 
+>         def fail_if_called(path):
+>             raise AssertionError("load_rows should not be called on cache hit")
+> 
+>         reportgen.load_rows = fail_if_called
+>         try:
+>             report = reportgen.run(self.rules_path, self.inp, self.out, self.cache_path)
+>         finally:
+>             reportgen.load_rows = orig_load_rows
+>         self.assertEqual(report["total_rows"], 1)
+> 
+> 
+diff -r --exclude=__pycache__ reportgen-eval-repo-i3/transforms.py 2026-11-16/runs/I2-gemini-4-neon-medium-n93/transforms.py
+58a59,68
+> def boolean(value):
+>     """'yes'/'true' -> 1.0, 'no'/'false' -> 0.0 (case-insensitive)."""
+>     norm = value.strip().lower()
+>     if norm in ("yes", "true"):
+>         return 1.0
+>     if norm in ("no", "false"):
+>         return 0.0
+>     raise TransformError("not a boolean: %r" % value)
+> 
+> 
+65a76
+>     "boolean": boolean,
