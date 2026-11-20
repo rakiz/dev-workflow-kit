@@ -31,6 +31,8 @@ IV4-github-copilot-gemini-3-8-flash-medium-q51	gem38	medium	q51	scored	12	11	11.
 IV4-github-copilot-gemini-3-8-flash-medium-q52	gem38	medium	q52	scored	12	11	11.5	1	2	no	
 IV4-github-copilot-gemini-4-argon-high-q51	argon	high	q51	scored	13	11	12	2	2	yes	
 IV4-github-copilot-gemini-4-argon-high-q52	argon	high	q52	DNF							cost-cap kill (2x cap $0.30) - no final report
+IV4-github-copilot-gemini-4-argon-high-q55	argon	high	q55	scored	13	13	13	0	2	no	
+IV4-github-copilot-gemini-4-argon-high-q55b	argon	high	q55b	scored	12	13	12.5	1	2	no	
 IV4-github-copilot-gemini-4-carbon-high-q51	carbon	high	q51	scored	14	14	14	0	2	no	
 IV4-github-copilot-gemini-4-carbon-high-q52	carbon	high	q52	DNF							15-min watchdog timeout - no final report
 IV4-github-copilot-gemini-4-hydrogen-high-q51	hydrogen	high	q51	scored	13	13	13	0	2	no	

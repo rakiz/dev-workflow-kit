@@ -1,0 +1,129 @@
+[0m
+> build · gemini-4-argon
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead .
+[0m
+[0m$ [0mpython3 -m unittest test_legacy_report
+F
+======================================================================
+FAIL: test_sample_values_do_not_leak_markup (test_legacy_report.HtmlOutputTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-88082/test_legacy_report.py", line 26, in test_sample_values_do_not_leak_markup
+    self.assertNotIn("<b>", html)
+AssertionError: '<b>' unexpectedly found in "<!doctype html>\n<html><head><meta charset='utf-8'>\n<title>reportgen summary</title></head><body>\n<h1>labels.csv</h1>\n<p>1 rows</p>\n<table border='1'>\n<tr><th>column</th><th>non_empty</th><th>distinct</th><th>sample</th></tr>\n<tr><td>item</td><td>1</td><td>1</td><td>i1</td></tr>\n<tr><td>label</td><td>1</td><td>1</td><td>red <b> & bold</td></tr>\n</table>\n</body></html>"
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (failures=1)
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen
+../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-88082/test_reportgen.py:128: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-_87kixte/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-88082/test_reportgen.py:130: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-_87kixte/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..........
+----------------------------------------------------------------------
+Ran 12 tests in 0.241s
+
+OK
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+[0m→ [0mRead cache.py
+[0m→ [0mRead reportgen.py
+[0m→ [0mRead transforms.py
+[0m→ [0mRead rules.example.toml
+[0m→ [0mRead test_reportgen.py
+[0m→ [0mRead test_legacy_report.py
+[0m→ [0mRead input
+[0m→ [0mRead output
+[0m→ [0mRead input/small_devices.csv
+[0m→ [0mRead input/small_employees.csv
+[0m→ [0mRead input/small_transactions.csv
+[0m→ [0mRead input/big_transactions.csv[90m [limit=20][0m
+[0m✱ [0mGrep ",,|^,|,$"[90m in input · 3 matches[0m
+[0m→ [0mRead input/big_transactions.csv[90m [limit=40, offset=21][0m
+[0m→ [0mRead input/big_transactions.csv[90m [limit=20, offset=61][0m
+[0m
+[0m$ [0mpython3 -c '
+import tempfile, shutil, os, reportgen
+tmp = tempfile.mkdtemp()
+try:
+    r = reportgen.run("rules.example.toml", "input", os.path.join(tmp, "out"), os.path.join(tmp, "cache", "state.json"))
+    for k, v in r["files"].items():
+        print(k, "rows:", v["rows"], "gen:", v["generated_from"], "skipped:", v["summary"]["skipped_rows"])
+finally:
+    shutil.rmtree(tmp)
+'
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+big_transactions.csv rows: 12000 gen: 4 skipped: []
+small_devices.csv rows: 3 gen: 1 skipped: []
+small_employees.csv rows: 5 gen: 3 skipped: []
+small_transactions.csv rows: 4 gen: 4 skipped: []
+[0m
+[0m$ [0mpython3 -c '
+import tempfile, shutil, os, reportgen
+tmp = tempfile.mkdtemp()
+try:
+    r1 = reportgen.run("rules.example.toml", "input", os.path.join(tmp, "out"), os.path.join(tmp, "cache", "state.json"))
+    r2 = reportgen.run("rules.example.toml", "input", os.path.join(tmp, "out"), os.path.join(tmp, "cache", "state.json"))
+    print("r1 == r2:", r1 == r2)
+    for k in r1["files"]:
+        if r1["files"][k] != r2["files"][k]:
+            print("DIFF in", k, "r1:", r1["files"][k]["generated_from"], "r2:", r2["files"][k]["generated_from"])
+finally:
+    shutil.rmtree(tmp)
+'
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+r1 == r2: False
+DIFF in small_devices.csv r1: 1 r2: 2
+[0m
+[0m$ [0mpython3 -c '
+import reportgen, transforms
+h, rows = reportgen.load_rows("input/big_transactions.csv")
+amounts = [transforms.apply("currency_amount", r[2]) for r in rows]
+print("total rows:", len(amounts), "distinct amounts:", len(set(amounts)))
+'
+total rows: 12000 distinct amounts: 5000
+[0m
+[0m→ [0mRead input/big_transactions.csv[90m [limit=20, offset=4995][0m
+[0m✱ [0mGrep "generated_from"[90m in . · 7 matches[0m
+[91m[1mError: [0mCannot connect to API: ECONNRESET: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()
+./run-eval-v4.sh: line 174: 93274 Terminated: 15          sleep 300
+warn: no assistant text found for session eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-argon-high-q54 — no-report marker written (DNF re-run signal)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-88082 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-argon-high-q54 above)

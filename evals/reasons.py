@@ -66,7 +66,7 @@ REASONS = {
         "kimi-medium": "RG4 11.0 (2 runs, 2 families) at $0.15-0.20/task.",
         "qwen-medium": "RG4 13.5 (2 runs, 2 families) at $0.30-0.68/task - ties haiku-high and opus; 2-20x their cost.",
         "haiku-xhigh": "3.89 official (panel, single valid run) - the panel reads the xhigh run as weak.",
-        "argon-high": "RG4 12* (q51 only: q52 cost-cap DNF; the two families split 13 vs 11) at $0.13-0.96/task.",
+        "argon-high": "RG4 12.5 over 3 valid runs (q51 12, q55 13, q55b 12.5; both scorer families; q52 cost-cap DNF) at $0.13-0.96/task.",
         "glm-low": "RG4 9.5 (2 runs, 1 family: haiku only - glm does not score fw-glm runs) at $0.01/task; holds orchestration (left review 11-19).",
         "haiku-low": "5.67 official at $0.02/task.",
         "fable": "5.67 official at ~$4/task - far too expensive for the score.",
@@ -82,7 +82,7 @@ REASONS = {
         "1017-medium": "RG4 12.0 (2 runs, 2 families) at $0.10/task.",
         "minimax-xhigh": "Holds strong-code. RG4 13.0 (existing 2026-11-19 runs; arm-level haiku) at $0.03/task - 0.5 below haiku-high (13.5): a tie under the 1.5 MDE, so the cheaper minimax keeps the seat; minimax SPOF accepted.",
         "hydrogen-xhigh": "2 (runs 2;2 - no-edit watchdog kills) at $0.50-0.90/task - xhigh impl is broken, effort non-monotone.",
-        "carbon-high": "RG4 14* (q51 only: q52 watchdog DNF) at $0.15-0.23/task - top RG4 score on one run only; under-measured, hollow dot. Within the 1.5 MDE of haiku-high and opus (13.5 each): under the tie rule the cheaper arm wins.",
+        "carbon-high": "RG4 14* (q51 only; q52 watchdog DNF; q53 not run) at $0.15-0.23/task - top RG4 score on one run only; I2: 7 DNFs total (watchdog + no-report) at caps up to $2.00/run - economically unmeasurable; the 14* stays ceiling-censored single-run, hollow dot. Within the 1.5 MDE of haiku-high and opus (13.5 each): under the tie rule the cheaper arm wins.",
     },
     "Design writing": {
         "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder.",

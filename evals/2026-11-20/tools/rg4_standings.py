@@ -63,12 +63,17 @@ def main():
         # "~" suffix = one scorer family only (D6 marker; mirrored in grid2-scores.csv I2-RG4 + the chart label)
         one_fam = not (fam["glm"] and fam["haiku"])
         pm = ("DNF" if mean is None else (f"{mean}~" if one_fam else mean))
+        # "*" = single valid run (hollow dot; same convention as grid2-scores.csv)
+        if mean is not None and len(runmeans) == 1:
+            pm = f"{pm}*"
         out.append(dict(model=m, effort=e, valid_runs=len(runmeans), dnf=";".join(a["dnf"]),
                         q51_glm=cell(q["q51"], 0), q51_haiku=cell(q["q51"], 1),
                         q52_glm=cell(q["q52"], 0), q52_haiku=cell(q["q52"], 1),
                         panel_mean=pm, spread=spread if spread is not None else "",
                         divergent=("yes" if div else "no") if (fam["glm"] and fam["haiku"]) else "n/a (1 family)",
-                        families=nfam, source="2026-11-20 RG4 full (q51/q52)" + (" + D1 re-runs (q53/q53b)" if any(t.startswith("q53") for t in a["runs"]) else "")))
+                        families=nfam, source="2026-11-20 RG4 full (q51/q52)" + (" + D1 re-runs (q53/q53b)" if any(t.startswith("q53") for t in a["runs"]) else "")
+                        + (" + argon q55/q55b (2026-11-20 closure)" if (m, e) == ("argon", "high") and any(t.startswith("q55") for t in a["runs"]) else "")
+                        + (" - I2: 7 DNFs total (watchdog + no-report) at caps up to $2.00/run, economically unmeasurable; ceiling-censored single run" if (m, e) == ("carbon", "high") else "")))
     for m, e, runs, hv, pub in EXISTING:
         readings = [g for _, g in runs] + [hv]
         glm_mean = statistics.mean([g for _, g in runs])
