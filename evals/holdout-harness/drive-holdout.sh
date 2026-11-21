@@ -3,12 +3,15 @@
 #   drive-holdout.sh --self-check            preflight (no live call) + campaign file + run-campaign --self-check
 #   drive-holdout.sh --self-check-stub       same, with ONE zero-cost stub arm (no model call; exercises admission)
 #   drive-holdout.sh --launch-mandatory      preflight --live, then launch the mandatory block   (owner go only)
+#   optional 2nd arg --prices-accepted: accept an ai-gateway-misc price drift vs the last launch (run-campaign gate)
 # Default is --self-check. Campaign files go to evals-keys/holdout-campaigns/ (private, with run logs).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 EVALS="$(cd "$HERE/.." && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
 MODE="${1:---self-check}"
+PA="${2:-}"
+if [ -n "$PA" ] && [ "$PA" != --prices-accepted ]; then echo "usage: drive-holdout.sh [mode] [--prices-accepted]" >&2; exit 2; fi
 DATE="$(date +%F)"
 SUFFIX="${HOLDOUT_CAMPAIGN_SUFFIX:-}"   # relaunch id (arms are single-use: a new suffix means new titles)
 OUT="$REPO/evals-keys/holdout-campaigns"; mkdir -p "$OUT"
@@ -62,13 +65,13 @@ case "$MODE" in
     fi
     "$HERE/preflight.sh" && HOLDOUT_PREFLIGHT_OK=1 || { echo "preflight FAILED: no arm may run (§5.5)" >&2; exit 1; }
     if [ "$MODE" = --self-check ]; then prepare_route; fi
-    python3 -B "$EVALS/run-campaign.py" "$F" --self-check
+    python3 -B "$EVALS/run-campaign.py" "$F" --self-check $PA
     ;;
   --launch-mandatory)
     F="$OUT/holdout-$DATE$SUFFIX.json"; write_campaign "$F" mandatory
     prepare_route
     "$HERE/preflight.sh" --live || { echo "preflight --live FAILED: campaign aborted (§5.5)" >&2; exit 1; }
-    HOLDOUT_PREFLIGHT_OK=1 python3 -B "$EVALS/run-campaign.py" "$F"
+    HOLDOUT_PREFLIGHT_OK=1 python3 -B "$EVALS/run-campaign.py" "$F" $PA
     ;;
   *) echo "usage: drive-holdout.sh [--self-check|--self-check-stub|--launch-mandatory]" >&2; exit 2 ;;
 esac

@@ -25,8 +25,8 @@ Means per the two-run rule; (runs) listed; DNF/null runs marked.
 | sonnet-5.5 high | — | 9 (8,10) | .40 | 7 (6.5, 7.5*) | .79–1.26 | — | — |
 | terra medium | — | 7.5 (8,7) | .11 | 4 (4,4) | .14 | — | — |
 | qwen xhigh | — | 5.3 (6,7,2,6) | ~.95 | 4.7 (0,5,6,7.5) | ~1.19 | — | — |
-| hydrogen high | PARTIAL/PASS | 4.5* (7; 2=null) | .08–.65 | 6 (7,5) | .27–.43 | 2/3+2, 2/3+1, 1–2 FP | **−1, 2** |
-| hydrogen medium | PARTIAL ×2 | 5 (5,5) | .32 | 3.5* (7; 0=null) | .09–.19 | 3/3+1, 3/3+2, 1–2 FP | 4, 5 |
+| hydrogen high | PARTIAL/PASS | 4.5* (7; 2=null) | .08–.65 | 6 (7,5) | .27–.43 | 2/3+2, 2/3+1, 1–2 FP (superseded 11-21: the current IR record reads FP 0.7/0.5 from a later campaign — different run sets, see LEADERBOARD tooltips) | **−1, 2** |
+| hydrogen medium | PARTIAL ×2 | 5 (5,5) | .32 | 3.5* (7; 0=null) | .09–.19 | 3/3+1, 3/3+2, 1–2 FP (superseded 11-21: the current IR record reads FP 0.7/0.5 from a later campaign — different run sets, see LEADERBOARD tooltips) | 4, 5 |
 | haiku default | 6/10 (10-07) | 6 (6,6) | .023 | 5 (5,5) | .018 | 3/3 0FP (floor) | — |
 | glm-5.3-flash high | **PASS** (10-16) | 5.5 (6,5) | .03 | 0 (all efforts) | .03 | 3/3+2 2FP high | — |
 | glm-5.3-flash low | PARTIAL (10-14) | — | — | 1 (low/med/high ≤1) | .011 | 3/3+2 0FP (single) | — |

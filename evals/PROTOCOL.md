@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | O | Orchestration: grounded plan, pipeline agents, verifiable criteria, red-baseline trap | `synccli-eval-repo` (2-commit history recreated) | `run-eval-v5.sh T1` | **/8**: baseline 2 + grounding 2 + agents 2 + criteria 2 − 3/hallucination (v2 rubric; runs scored PASS/PARTIAL/FAIL before 11-16 are re-scored from logs; lost texts are RE-RUN, never left categorical) |
 | IR | Impl review: 3 seeded defects + bonus − FPs | `synccli-eval-repo` | `run-eval-v5.sh T3` | n/3 (+2 max bonus) |
-| DR2 | Design review (bench v2) | `synccli-eval-repo-v2` | `run-eval-v5.sh T4V2` | /14 |
+| DR2 | Design review (bench v2 → v3 T4V3) | `synccli-eval-repo-v2` | `run-eval-v5.sh T4V3` | /14 — v2 (T4V2) cells remain attached to v2, never compared across versions (§2 rule 3) |
 | I2 | Impl, bench v3 (4 seeded defects + regression tests) | `reportgen-eval-repo-i3` | `run-eval-v4.sh IV2` | /14 |
 | D | Design authoring, bench v3 (4 execution-revealed hazards in snaputil.py) | `syncfeat-brief-d1` | `run-eval-v4.sh D1` | /11 |
 

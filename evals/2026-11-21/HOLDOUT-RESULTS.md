@@ -94,6 +94,11 @@ The verdicts are computed on the scores above, but Gate 1 and Gate 2 fail, so **
 6. **Misc-model cost.** opencode records cost 0 for the custom gateway models. The reported USD below applies a
    token-based estimate, using the plugin's catalog prices (low) and the opencode binary's price table (high).
 
+### Owner rulings on the deviations (2026-11-21)
+
+- **Defect (a) fd-route runs:** 9 HO2 runs scored a_fix=0 + unevaluable flag (frozen key). Owner ruling: accepted. NOTE for future re-evaluation: if precision on defect (a) is ever needed for these runs, the widened probe (all write routes) is the candidate amendment — it lands with the fixture rebuild.
+- **T5 attempt-unit bypass (A/B campaign):** one run removed the conflict check from the placement path and counted its own attempts — c_fix scored 0 as a unit violation. Owner rationale: 'tricher ne donne pas confiance dans la qualité du code produit' (cheating does not buy confidence in the produced code). Precedent recorded for future keys: removing the control a counter measures = 0.
+
 ## 7. Owner decisions pending
 
 1. **P3, P4 and P7 ruling slots** (§7.4) — **FILLED** (owner 2026-11-21, PROTOCOL §5(e); verdicts in §5). No seat moved. Only the operations decisions below remain.

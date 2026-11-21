@@ -135,6 +135,7 @@ class FakeProc:
     pid = 1
     def wait(self, timeout=None): return 0
 launches = []
+REAL_POPEN = subprocess.Popen   # section 6 restores it: this patch is process-wide
 rc_mod.subprocess.Popen = lambda cmd, **k: (launches.append(cmd), FakeProc())[1]
 job = {"idx": 1, "arm": {"bench": "HO2", "model": "m", "cap": 0.1}, "attempt": 1}
 logd = os.path.join(T, "logs"); os.makedirs(logd)
@@ -142,7 +143,7 @@ logd = os.path.join(T, "logs"); os.makedirs(logd)
 
 def reset(spent=0.0):
     launches.clear(); rc_mod.STATE.update(stop=False, reserved=0.0, procs=set())
-    rc_mod.TMPBASE = tempfile.mkdtemp(dir=T); rc_mod.campaign_spend = lambda s, t0, _v=spent: _v
+    rc_mod.TMPBASE = tempfile.mkdtemp(dir=T); rc_mod.spend_parts = lambda s, t0, _v=spent: (_v, 0.0)
 
 
 reset(); rc_mod.run_with_rerun(spec, job, 0, os.path.join(logd, "a.txt"), logd)
@@ -167,6 +168,7 @@ def mk_db(path, rows):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     c = sqlite3.connect(path)
     c.execute("CREATE TABLE session (id TEXT, title TEXT, cost REAL, parent_id TEXT, time_created INTEGER)")
+    c.execute("CREATE TABLE message (id TEXT, session_id TEXT, time_created INTEGER, time_updated INTEGER, data TEXT)")
     c.executemany("INSERT INTO session VALUES (?,?,?,?,?)", rows); c.commit(); c.close()
 t_arm = f"eval-{tdate}-HO2-SP1-arm-x-a1"
 t0 = int(time.time() * 1000) - 60000
@@ -183,10 +185,88 @@ try:
 except (sqlite3.Error, OSError):
     unreadable = None
 os.chmod(os.path.dirname(os.path.dirname(rc_mod.arm_db(t_arm))), 0o755)
-rc_mod.campaign_spend = lambda s, t0_: (_ for _ in ()).throw(sqlite3.OperationalError("unreadable"))
+rc_mod.spend_parts = lambda s, t0_: (_ for _ in ()).throw(sqlite3.OperationalError("unreadable"))
 launches.clear(); rc_mod.STATE.update(stop=False, reserved=0.0, procs=set())
 st = rc_mod.run_arm(spec, job, t0, os.path.join(logd, "f.txt"), logd)
 check(not launches and st.startswith("STOP-SPEND-UNREADABLE"), "unreadable spend refuses admission (fail closed), nothing launched")
+# 6. ai-gateway-misc pricing (owner ruling 11-21): zero-cost rows priced from tokens; fail-closed fetch; drift gate
+subprocess.Popen = REAL_POPEN
+rc_p = load(os.path.join(EVALS, "run-campaign.py"), "rc_price")
+rc_p.TMPBASE = tempfile.mkdtemp(dir=T); rc_p.DB = os.path.join(T, "price-global.db")
+GLM = "ai-gateway-misc/fw-glm-5.3-flash"
+PR = {"input": 0.1221, "output": 0.407, "cache_read": 0.02442, "cache_write": 0.0}
+mk_db(rc_p.DB, [])
+pdate = time.strftime("%Y-%m-%d")
+p_title = f"eval-{pdate}-HO2-SP1-p-a1"
+p_t0 = int(time.time() * 1000) - 60000
+p_spec = {"id": "p", "date": pdate, "budget_usd": 15.0, "parallelism": 1, "timeout_default": 900,
+          "benches": {"HO2": {"runner": "run-eval-v6.sh", "task": "HO2", "title_token": "HO2-SP1"}},
+          "arms": [{"bench": "HO2", "model": GLM, "variant": "high", "cap": 0.1, "attempts": 1}]}
+def misc_msg(cost, model="fw-glm-5.3-flash", inp=0, out=0, cread=0):
+    return json.dumps({"role": "assistant", "providerID": "ai-gateway-misc", "modelID": model, "cost": cost,
+                       "tokens": {"input": inp, "output": out, "reasoning": 0, "cache": {"read": cread, "write": 0}}})
+def mk_arm_db(path, sessions, messages):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    c = sqlite3.connect(path)
+    c.execute("CREATE TABLE session (id TEXT, title TEXT, cost REAL, parent_id TEXT, time_created INTEGER)")
+    c.execute("CREATE TABLE message (id TEXT, session_id TEXT, time_created INTEGER, time_updated INTEGER, data TEXT)")
+    c.executemany("INSERT INTO session VALUES (?,?,?,?,?)", sessions)
+    c.executemany("INSERT INTO message VALUES (?,?,?,?,?)", messages); c.commit(); c.close()
+# arm DB: s1 zero-cost (priced: 1M in, 0.5M out, 2M cache-read); m2 carries a RECORDED cost (0.5, kept as recorded, not re-priced);
+# child c1 zero-cost (1M in). Expected estimate = 0.1221 + 0.407*0.5 + 0.02442*2 + 0.1221 = 0.49654
+mk_arm_db(os.path.join(rc_p.TMPBASE, "holdout-xdg", p_title, "opencode", "opencode.db"),
+          [("s1", p_title, 0.5, None, p_t0 + 1000), ("c1", "child", 0.0, "s1", p_t0 + 2000)],
+          [("m1", "s1", p_t0 + 1001, p_t0 + 1001, misc_msg(0, inp=1000000, out=500000, cread=2000000)),
+           ("m2", "s1", p_t0 + 1002, p_t0 + 1002, misc_msg(0.5, inp=1000000)),
+           ("m3", "c1", p_t0 + 2001, p_t0 + 2001, misc_msg(0, inp=1000000))])
+rc_p.PRICES.clear(); rc_p.PRICES.update({GLM: PR})
+rec, est = rc_p.per_arm_spend(p_spec, p_t0)
+check(abs(est - 0.49654) < 1e-9, f"zero-cost misc rows priced from tokens (estimate {est:.5f}, expected 0.49654); recorded-cost message not re-priced")
+check(abs(rec - 0.5) < 1e-9, f"DB-recorded cost stays separate (recorded {rec:.4f})")
+check(abs(rc_p.campaign_spend(p_spec, p_t0) - 0.99654) < 1e-9, "campaign spend (admission) = recorded + estimated")
+txt = rc_p.spend_text((rec, est))
+check("(estimated)" in txt and "estimated_misc=0.4965" in txt and "recorded=0.5000" in txt, "status text labels the misc estimate separately")
+rc_p.PRICES.clear()
+try:
+    rc_p.campaign_spend(p_spec, p_t0); unpriced = False
+except rc_p.CampaignError:
+    unpriced = True
+check(unpriced, "unpriced misc model in scope refuses (fail closed), never silently 0")
+rc_p.PRICES.update({GLM: PR})
+# catalog fetch failure -> fail-closed refusal (real subprocess that exits 3)
+fail_stem = os.path.join(T, "fetchfail")
+rc_p.CATALOG_CMD = [sys.executable, "-c", "import sys; sys.stderr.write('catalog down'); sys.exit(3)"]
+out_buf = []
+try:
+    rc_p.price_gate(p_spec, fail_stem, False); refused = False
+except rc_p.CampaignError as e:
+    refused = "fetch failed" in str(e) or "catalog" in str(e)
+check(refused, "catalog fetch failure refuses the launch (fail closed) with a warning")
+# drift: a fake catalog printing the opencode --verbose format; last launch recorded a different input price
+cat_text = ("ai-gateway-misc/fw-glm-5.3-flash\n" + json.dumps({"id": "fw-glm-5.3-flash", "cost": {
+    "input": 0.1221, "output": 0.407, "cache": {"read": 0.02442, "write": 0}}}, indent=2) + "\n"
+    "ai-gateway-misc/other-model\n" + json.dumps({"id": "other-model", "cost": {"input": 9, "output": 9, "cache": {"read": 0, "write": 0}}}, indent=2) + "\n")
+fake = os.path.join(T, "fake_catalog.py")
+open(fake, "w").write("import sys\nsys.stdout.write(" + repr(cat_text) + ")\n")
+rc_p.CATALOG_CMD = [sys.executable, fake]
+parsed = rc_p.parse_misc_catalog(cat_text)
+check(parsed[GLM] == PR and "ai-gateway-misc/other-model" in parsed, "catalog parse: per-MTok prices, cache read/write, all ai-gateway-misc ids")
+drift_stem = os.path.join(T, "drift-camp")
+rc_p.write_price_state(drift_stem + rc_p.PRICE_STATE_SUFFIX, {GLM: dict(PR, input=0.22)}, "2026-11-20T00:00:00Z")
+try:
+    rc_p.price_gate(p_spec, drift_stem, False); drifted = False
+except rc_p.CampaignError as e:
+    drifted = "drifted" in str(e) and "--prices-accepted" in str(e)
+check(drifted, "price drift vs last launch refuses without --prices-accepted")
+check(rc_p.load_price_state(drift_stem + rc_p.PRICE_STATE_SUFFIX)["models"][GLM]["input"] == 0.22, "a refused gate writes no state (last launch prices kept)")
+prices, _ = rc_p.price_gate(p_spec, drift_stem, True)
+check(prices[GLM]["input"] == 0.1221, "drift accepted with --prices-accepted: the fresh prices are used")
+rc_p.write_price_state(drift_stem + rc_p.PRICE_STATE_SUFFIX, prices, "2026-11-21T00:00:00Z")
+prices, _ = rc_p.price_gate(p_spec, drift_stem, False)
+check(prices[GLM] == PR, "no drift vs the recorded launch: passes without the flag")
+nomisc = dict(p_spec, arms=[{"bench": "HO2", "model": "github-copilot/claude-haiku-5.5", "cap": 0.1}])
+rc_p.CATALOG_CMD = [sys.executable, "-c", "import sys; sys.exit(9)"]
+check(rc_p.price_gate(nomisc, drift_stem, False) == ({}, None), "no misc arm: no catalog fetch, freshness not applicable")
 shutil.rmtree(T, ignore_errors=True)
 print("HARNESS-SELFTEST " + ("PASS" if not FAILS else f"FAIL ({len(FAILS)})"))
 sys.exit(1 if FAILS else 0)
