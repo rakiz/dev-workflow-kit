@@ -78,9 +78,10 @@ The verdicts are computed on the scores above, but Gate 1 and Gate 2 fail, so **
 1. **Arbiter overspend.** Both arbiter sessions hit the 2× kill (cap $0.28) and were killed, but spend continued after the
    kill signal: $0.56 in the HO2 session (killed at 2×) and $0.83 in the HOD session. The arbiter total is **$1.77**
    against a spec worst case of $0.56. No arbiter reading was produced.
-2. **Probe unevaluable on one write route.** Nine HO2 runs wrote the plan through a file descriptor (a temporary
-   file created by the stdlib). The frozen probe classifies that injection target as "other", so the item is
-   unevaluable and scores 0 with a flag (§1 of the key). After applying that rule, every panel reading agrees with the
+2. **Probe unevaluable on one write route.** **Five** HO2 runs (corrected 2026-11-21: the earlier "nine"
+   miscounted the a_fix zeros; a_fix scored **13/18** runs) wrote the plan through a file descriptor (a
+   temporary file created by the stdlib). The frozen probe classifies that injection target as "other", so the
+   item is unevaluable and scores 0 with a flag (§1 of the key). After applying that rule, every panel reading agrees with the
    operator except one (item 3). The probe was **not**
    amended, because scores exist and the spec voids the pre-registration on any post-score change. This is an owner
    decision (§7).
@@ -293,3 +294,102 @@ is moved on the strength of it.
 
 No seat moves. There is no gate flip with the real readings, so there is nothing to record against the fixture beyond the
 three unknown-reading thresholds above. Nothing is moved on their account.
+
+## Completion of the repair (owner 2026-11-21, uncapped; PARTIAL, handover)
+
+**Status: P1 and P3 done and recorded; P2, P4, P5 open (handover, see §6). No verdict is final yet.**
+
+### 1. Repair campaign (SP2/US2): what was found
+
+- **Staged deletions (P0).** `evals-keys` had 105 unstaged worktree deletions, not staged as first reported. 26 were
+  `ho2-ref-a/`, `ho2-ref-b/`, `us1-repaired/` (v1 refs), intended by commit 2269a22: each has a byte-identical copy under
+  `archive/*-v1/` (26/26 SAME, checked by blob hash) and v2 replacements exist. Resolved as a commit (`177e116`).
+  79 were tracked `__pycache__` artifacts in the audit trail; no commit intended their removal, so they were restored.
+- **The v2 campaign (`holdout-mandatory-2026-11-21-v2`) had no cap-killed arms.** Its log shows 8 attempts, the
+  last one a DNF rerun interrupted at 14:50. The driver died there. Its 7 final reports were captured into the temp
+  dir, and that dir (`holdout-work/`, `holdout-xdg/`) no longer exists (not found anywhere on disk; no v2 sessions
+  in the global opencode DB). **The v2 readings cannot be scored: they were lost, not cap-killed.** The "$0.28–0.35
+  cap-kill" premise of the brief does not match this record (the $0.28–0.35 figures belong to arbiter sessions).
+- **Re-run (v3).** `holdout-mandatory-2026-11-21-v3`: 18 jobs, EVAL_ARM_CAP=5.00 per arm (kill at 2x = $10),
+  EVAL_TIMEOUT_SECS=3600, campaign budget $30. Driver change: `drive-holdout.sh` now accepts `HOLDOUT_ARM_CAP`,
+  `HOLDOUT_TIMEOUT`, `HOLDOUT_BUDGET` (defaults unchanged). Self-check then live preflight PASS (A6, A8 live).
+- **v3 completion (verified from the report files, not the `ok` status lines).** 17 of 18 jobs produced a
+  `final-report.md`. Minimax HO2 attempt a3 has no report after its rerun (a3-rr): DNF.
+
+| Bench | Arm | Attempts with report | Notes |
+|---|---|---|---|
+| HO2 SP2 | claude-haiku-5.5 (default) | a1, a2, a3, a4 (4) | |
+| HO2 SP2 | fw-glm-5.3-flash (high) | a1, a2, a3, a4 (4) | |
+| HO2 SP2 | minimax-m3p1-flash (xhigh) | a1, a2-rr, a4 (3) | a2 original DNF, rerun ok; a3 DNF after rerun |
+| HOD US2 | claude-haiku-5.5 (medium) | a1, a2, a3, a4 (4) | |
+| HOD US2 | deepseek-v4p1-flash-1017 (high) | a1, a2 (2) | |
+
+Total: **17 complete runs, 1 DNF**. Scoring of these 17 is NOT done (see §6).
+
+### 2. Cost of completing: the uncapped ledger (USD)
+
+| Component | Cost | Source |
+|---|---|---|
+| v3 campaign, 18 jobs incl. 2 DNF reruns (recorded in opencode DB) | $2.6743 | `holdout-campaigns/holdout-2026-11-21-v3.status.txt` (final line) |
+| v3 campaign, misc estimate (ai-gateway-misc, token x catalog price) | $0.2057 (estimated) | same |
+| **v3 campaign total** | **$2.8800** | |
+| P3 arbiter re-runs, 3 sessions (cap $1.50 each) | $1.6815 ($0.6286 + $0.5481 + $0.5048) | `arb1/<id>-p3/RUN.txt` |
+| Earlier arbiter spend (recorded, 11 divergent runs, prior sections) | $5.28 | prior section |
+| **Arbiter total** | **$6.96** | exceeds the $5.50 ceiling set in the earlier section; the owner ruling for P3 (cap $1.50) authorised the extra |
+| Campaign-2 arms / panel / first-attempt (from §8 above) | $3.85 (recorded) | §8 |
+
+Scoring cost (panel readings for the 17 v3 runs) is **not yet spent**; it is the one component still open.
+
+**Expected cost per reading (for the next fixture).** Measured from the status-file deltas (20 attempt lines, which
+include the 2 reruns; they sum to $2.88): median $0.044 per attempt, mean $0.144, maximum $0.97 (HO2 minimax a1, 9.6 min).
+The wall-clock of the whole campaign was about 2 h 5 min at parallelism 1 (16:08 to 18:11); the slowest single arm
+took 28 minutes (HO2 glm a4). Note the arm cost is dominated by the few long, expensive attempts, not the median. An arbiter reading
+costs $0.50–0.63 at the session cap that is actually used. Budget a full repair block of ~18 arms at ~$3, and
+a 2-family panel plus arbiter for it at ~$1–2 more. The v2 loss shows that the dominant risk is not cost: it is
+losing the work directory (the final reports lived only in the temp dir).
+
+### 3. Arbiter triangulation, complete (P3)
+
+All **11** divergent campaign-2 runs now have an advisory arbiter reading. The 3 previously unavailable runs were re-run
+at session cap $1.50 (all 3 wrote readings; none killed):
+
+| Run | Bench | Arm | Official mean | Arbiter | Triangulated |
+|---|---|---|---|---|---|
+| b707bcb2 | HO2 | haiku-high | 8.50 | 8 | 8.33 |
+| c08a2116 | HOD | haiku-medium | 9.50 | 8 | 9.00 |
+| cc8251fb | HOD | 1017-high | 9.00 | 6 | 8.00 |
+
+**Gates and pairs with all 11 readings** (scorer = v1, the scorer those readings were made with): HO2 Gate 1 FAIL, HO2
+Gate 2 FAIL, HOD Gate 1 FAIL, HOD Gate 2 FAIL; P1, P2, P5 CONFIRM-TIE; P3, P4, P7 owner slots. **No flip.** The
+recomputation reproduces every arbiter value in the earlier table exactly (12, 13, 13, 13, 9, 8, ...).
+
+**A false flip was caught and not reported.** Running `arbiter_final.py` against the repair's v2 `score.py` produced
+"HO2 Gate 1 PASS" and arbiter values of 4–7. Cause: the repair commit (2269a22) replaced `score.py` with the v2
+vocabulary (SP2/US2), and campaign-2 readings are SP1-era. Fix: the v1 scorer is kept as `holdout-scoring/score_v1.py`
+(verbatim from e07534f) and `arbiter_final.py` imports it. Its `load_probes`/`ho2_det` call signatures were also
+broken (they did not match the v2 scorer), which is now resolved by the v1 import.
+
+### 4. Gates on the repair (SP2/US2): not yet re-evaluated
+
+The v3 readings are not scored, so the repair gates (HO2 and HOD) are **not known**. The spec's dry-sim predicted a
+Gate-1 PASS; that is a prediction, not a result. This is the open item.
+
+### 5. Blocking issues for the scoring step (why P2 is not complete here)
+
+- `blind.py` refuses to overwrite `holdout-campaigns/blinded/` (campaign-2 set) and expects 18 runs.
+- `build-batch.py` runs `shutil.rmtree` on `holdout-scoring/batches/`, which holds the campaign-2 panel evidence.
+  Running it as-is would destroy that evidence. It must be parametrised (output dir, blinded dir, sealed map) first.
+- `score.py` writes fixed `scores-readings.tsv`/`scores-runs.tsv` (campaign-2 outputs). The v3 scoring needs its own outputs.
+- Operator probe run for the 17 v3 runs (`holdout-probes/ho2/run-all.sh`) is needed for deterministic items; it has not been run.
+- The two-family panel (glm + second family per the pairing table) for 17 runs: not run.
+
+### 6. Handover (not closed; the next session must not repeat the lost-work mistake)
+
+1. Parametrise `blind.py`, `build-batch.py`, `score.py` for a second blinded set (v3), outputs into new dirs.
+2. Run the operator probes on each of the 17 v3 runs; write `cross/ho2-probes-v3.tsv` (and HOD equivalent if needed).
+3. Run the two-family panel per the pairing table; then `score.py` and `report.py` on the v3 set.
+4. Recompute the repair gates; update §4 above and the verdict.
+5. Commit everything; push is owner-only.
+
+**Not closed:** the v3 gates and any verdict flip are unknown until steps 1–4 are done. This section supersedes nothing
+above; the campaign-2 verdict in §4–§5 stands, with the complete arbiter table.

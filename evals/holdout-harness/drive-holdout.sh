@@ -37,7 +37,18 @@ else:
         {"bench": "HOD", "model": "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017", "variant": "high", "cap": 0.40, "attempts": 2, "timeout": 900},
     ]
     cid, budget = "holdout-mandatory-" + date + suffix, 10.00
-doc = {"id": cid, "date": date, "budget_usd": budget, "parallelism": 1, "timeout_default": 900,
+    # uncapped completion (owner 2026-11-21): opt-in overrides; defaults above are the repair-block caps
+    import os
+    if os.environ.get("HOLDOUT_ARM_CAP"):
+        for a in arms:
+            a["cap"] = float(os.environ["HOLDOUT_ARM_CAP"])
+    if os.environ.get("HOLDOUT_TIMEOUT"):
+        for a in arms:
+            a["timeout"] = int(os.environ["HOLDOUT_TIMEOUT"])
+    if os.environ.get("HOLDOUT_BUDGET"):
+        budget = float(os.environ["HOLDOUT_BUDGET"])
+doc = {"id": cid, "date": date, "budget_usd": budget, "parallelism": 1,
+       "timeout_default": int(os.environ.get("HOLDOUT_TIMEOUT", "900")) if mode != "stub" else 900,
        "benches": benches, "arms": arms}
 json.dump(doc, open(path, "w"), indent=2)
 print("wrote", path)
