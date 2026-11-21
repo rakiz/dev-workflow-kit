@@ -1524,7 +1524,7 @@ is not tripped (anchor 7.00 / ≤ 7.0), so the sharpening is not over-hard.
 |---|---|
 | M1 | (a1) matches by **reason** (NAME/SHAPE), never the printed name; primitives enumerated (open/io/pathlib/os.write/fdopen/tempfile/json); partial-write wrapper; `INJECTED 0 ⇒ unevaluable` kept (§4.1, key §1) |
 | M2 | `counter == 0 ⇒ 0 + flag` at the definition site + self-report cross-check; the SP1 precedent cited as **DECIDED** (owner 2026-11-21) (§14.3, key §3) |
-| M3 | §3.1/§3.2/§4.2 demoted to family/class level; instance text only in the keys; token literals `SP2-J90217`, `US2-COLLIDE-7f3a` added to `holdout-tokens.txt` |
+| M3 | §3.1/§3.2/§4.2 demoted to family/class level; instance text only in the keys; the v2 probe token literals (private, defined only in `evals-keys/holdout-tokens.txt`) added |
 | M4 | the dry simulation above; no cut needed; stop before build |
 | M5 | §11/§5.2/§5.3/title codes re-pointed to SP2/US2 (`HO2-SP2`, `HOD-US2`); the v2 scorer rewrite tasked in §14.3 |
 | M6 | `jobs_large`/`jobs_wide` empty `machine`; `jobs_small` keeps ≥ 2 preference-fillup jobs (spec §3.1, key §0) |
@@ -1537,4 +1537,5 @@ is not tripped (anchor 7.00 / ≤ 7.0), so the sharpening is not over-hard.
 | m6 | US1→US2 naming |
 | m7 | §11's arbiter promise **superseded** for the repair (§14.3) |
 | m8 | v2 token/ban literals added |
+| L1 | §14.5 M3 row, §5.2 | hygiene fix (builder, 2026-11-21): the two v2 token literals were spelled out in this public row, so the §5.2 leak grep (whose scope includes this file) hit the spec itself. The literals are private (they live in `evals-keys/holdout-tokens.txt` and in the private probes); the row now names the token file instead. No contract change: the token set, the grep scope and the freeze scope are unchanged. |
 | m9 | repair title codes (`ab-`-style token per §2) |

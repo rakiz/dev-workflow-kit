@@ -20,10 +20,10 @@ TIMEOUT_SECS="${EVAL_TIMEOUT_SECS:-900}"
 [ "${HOLDOUT_PREFLIGHT_OK:-0}" = 1 ] || { echo "error: HOLDOUT_PREFLIGHT_OK=1 required (run preflight.sh first; fail closed)" >&2; exit 1; }
 EVAL_ARM_CAP_NUM="$EVAL_ARM_CAP"
 case $TASK in
-  HO2) FIXTURE="$EVAL_DIR/heldout-impl-sp1"; CODE=HO2; FIXCODE=SP1
+  HO2) FIXTURE="$EVAL_DIR/heldout-impl-sp2"; CODE=HO2; FIXCODE=SP2
        PROMPT="Work in this repo copy alone — no subagents, no delegation. Read GOAL.md and do what it asks: implement the requested feature in this repo copy, fix any defects you find with the smallest change that keeps the suite green and the stated invariants holding, add a regression test per fixed defect, and state in your final report any trade-off the brief leaves open, with the choice you made and the cost it accepts. Do not refactor; do not touch unrelated tests." ;;
-  HOD) FIXTURE="$EVAL_DIR/heldout-design-us1"; CODE=HOD; FIXCODE=US1
-       PROMPT="Work in this repo copy alone — no subagents, no delegation. Read BRIEF.md and write the design it asks for to DESIGN-us1.md in this repo copy." ;;
+  HOD) FIXTURE="$EVAL_DIR/heldout-design-us2"; CODE=HOD; FIXCODE=US2
+       PROMPT="Work in this repo copy alone — no subagents, no delegation. Read BRIEF.md and write the design it asks for to DESIGN-us2.md in this repo copy." ;;
   *) echo "unknown task: $TASK (expected HO2 or HOD)" >&2; exit 1 ;;
 esac
 TAG="$(echo "$MODEL" | tr '/. ' '---')${VARIANT:+-$VARIANT}${RUN_TAG:+-$RUN_TAG}"

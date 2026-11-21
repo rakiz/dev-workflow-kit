@@ -40,7 +40,7 @@ HOSTS=(api.invalid.example api.test.invalid)
 "$HERE/holdout-ca.sh" "$CAMP" "${HOSTS[@]}" >/dev/null || { say FAIL "setup: campaign CA"; exit 1; }
 "$HERE/holdout-ca.sh" "$UPCA" upstream-ca api.test.invalid >/dev/null || { say FAIL "setup: upstream CA"; exit 1; }
 export HOLDOUT_CAMP_DIR="$CAMP"
-"$HERE/holdout-arm.sh" prepare "$ARM" "$REPO/dev-workflow-kit/evals/heldout-impl-sp1" "$PORT" >/dev/null || { say FAIL "setup: arm prepare failed"; exit 1; }
+"$HERE/holdout-arm.sh" prepare "$ARM" "$REPO/dev-workflow-kit/evals/heldout-impl-sp2" "$PORT" >/dev/null || { say FAIL "setup: arm prepare failed"; exit 1; }
 eval "$("$HERE/holdout-arm.sh" paths "$ARM")"
 trap 'cleanup' EXIT
 
@@ -76,9 +76,9 @@ if ! X /bin/cat "$KEY" >/dev/null 2>&1 && /bin/cat "$KEY" >/dev/null 2>&1; then
 else say FAIL "A3 answer key readable inside sandbox, or control missing"; fi
 
 # 4. private reference-fixed tree unreadable inside the sandbox (M12)
-REF="$REPO/evals-keys/ho2-ref-a/planio.py"
+REF="$REPO/evals-keys/ho2-ref-a-v2/planio.py"
 if ! X /bin/cat "$REF" >/dev/null 2>&1 && /bin/cat "$REF" >/dev/null 2>&1; then
-  say PASS "A4 ho2-ref-a/planio.py unreadable inside sandbox"
+  say PASS "A4 ho2-ref-a-v2/planio.py unreadable inside sandbox"
 else say FAIL "A4 reference tree readable inside sandbox, or control missing"; fi
 
 # 5. host auth store and the campaign CA key unreadable inside; the arm's OWN auth.json copy is present (owner amendment)
@@ -125,7 +125,7 @@ if [ "$LIVE" = 1 ]; then
   sleep 1
   if ! kill -0 "$LIVE_PROXY_PID" 2>/dev/null; then say FAIL "setup: live proxy refused to start: $(cat "$ARM_TMP/proxy-live.err")"; exit 1; fi
   ARMLIVE="$ARM-LIVE"
-  "$HERE/holdout-arm.sh" prepare "$ARMLIVE" "$REPO/dev-workflow-kit/evals/heldout-impl-sp1" "$LIVE_PORT" >/dev/null \
+  "$HERE/holdout-arm.sh" prepare "$ARMLIVE" "$REPO/dev-workflow-kit/evals/heldout-impl-sp2" "$LIVE_PORT" >/dev/null \
     || { say FAIL "setup: live arm prepare failed"; exit 1; }
   eval "$("$HERE/holdout-arm.sh" paths "$ARMLIVE")"
   X2() { "$HERE/holdout-arm.sh" exec "$ARMLIVE" -- "$@"; }

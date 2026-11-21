@@ -9,8 +9,8 @@ export ARM_MODEL="github-copilot/sbtest"
 TMPBASE="$(cd "${TMPDIR:-/tmp}" && pwd -P)"; TMPBASE="${TMPBASE%/}"
 export HOLDOUT_CAMP_DIR="$TMPBASE/holdout-camp-sbtest-$$"
 "$HERE/holdout-ca.sh" "$HOLDOUT_CAMP_DIR" api.fireworks.ai >/dev/null
-"$HERE/holdout-arm.sh" prepare "$A" "$REPO/dev-workflow-kit/evals/heldout-impl-sp1" 18766 >/dev/null
-"$HERE/holdout-arm.sh" prepare "$B" "$REPO/dev-workflow-kit/evals/heldout-impl-sp1" 18767 >/dev/null
+"$HERE/holdout-arm.sh" prepare "$A" "$REPO/dev-workflow-kit/evals/heldout-impl-sp2" 18766 >/dev/null
+"$HERE/holdout-arm.sh" prepare "$B" "$REPO/dev-workflow-kit/evals/heldout-impl-sp2" 18767 >/dev/null
 eval "$("$HERE/holdout-arm.sh" paths "$A")"; B_WORK="$(dirname "$ARM_WORK")/$B"
 B_DATA="$(dirname "$ARM_DATA")/$B"
 echo sibling-secret > "$B_DATA/opencode/opencode.db"   # control: the file must exist and be readable outside
@@ -31,7 +31,7 @@ expect_deny "private key HOD"               "$REPO/evals-keys/HOLDOUT-KEY-HOD.md
 expect_deny "reference-fixed tree (M12)"    "$REPO/evals-keys/ho2-ref-a/planio.py"
 expect_deny "reference-fixed tree B"        "$REPO/evals-keys/ho2-ref-b/planio.py"
 expect_deny "repaired US1 tree (M12)"       "$REPO/evals-keys/us1-repaired/chunkstore.py"
-expect_deny "source fixture location"       "$REPO/dev-workflow-kit/evals/heldout-impl-sp1/plan.py"
+expect_deny "source fixture location"       "$REPO/dev-workflow-kit/evals/heldout-impl-sp2/plan.py"
 expect_deny "global opencode DB"            "$HOME/.local/share/opencode/opencode.db"
 expect_deny "host credential auth.json (M10)" "$HOME/.local/share/opencode/auth.json"
 expect_deny "global opencode config"        "$HOME/.config/opencode/opencode.jsonc"

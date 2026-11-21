@@ -117,12 +117,12 @@ os.chmod(os.path.join(camp, "ca.key"), 0o600)
 rc_mod = load(os.path.join(EVALS, "run-campaign.py"), "rc")
 rc_mod.TMPBASE = tempfile.mkdtemp(dir=T)
 tdate = time.strftime("%Y-%m-%d")
-title = f"eval-{tdate}-HO2-SP1-x-holdout-test-a1"
+title = f"eval-{tdate}-HO2-SP2-x-holdout-test-a1"
 os.makedirs(os.path.join(rc_mod.TMPBASE, "holdout-tmp", title))
 json.dump({"bytes_up": 10, "bytes_down": rc_mod.HOLDOUT_CAMPAIGN_BYTE_CAP + 1, "requests": 1},
           open(os.path.join(rc_mod.TMPBASE, "holdout-tmp", title, "proxy.json"), "w"))
 spec = {"id": "t", "date": tdate, "budget_usd": 15.0, "parallelism": 1, "timeout_default": 900,
-        "benches": {"HO2": {"runner": "run-eval-v6.sh", "task": "HO2", "title_token": "HO2-SP1"},
+        "benches": {"HO2": {"runner": "run-eval-v6.sh", "task": "HO2", "title_token": "HO2-SP2"},
                     "V4": {"runner": "run-eval-v4.sh", "task": "IV4", "title_token": "IV2-RG4"}}, "arms": []}
 rc_mod.campaign_spend = lambda s, t0: 0.0
 rc_mod.STATE.update(stop=False, reserved=0.0, procs=set())
@@ -170,14 +170,14 @@ def mk_db(path, rows):
     c.execute("CREATE TABLE session (id TEXT, title TEXT, cost REAL, parent_id TEXT, time_created INTEGER)")
     c.execute("CREATE TABLE message (id TEXT, session_id TEXT, time_created INTEGER, time_updated INTEGER, data TEXT)")
     c.executemany("INSERT INTO session VALUES (?,?,?,?,?)", rows); c.commit(); c.close()
-t_arm = f"eval-{tdate}-HO2-SP1-arm-x-a1"
+t_arm = f"eval-{tdate}-HO2-SP2-arm-x-a1"
 t0 = int(time.time() * 1000) - 60000
 mk_db(os.path.join(rc_mod.TMPBASE, "holdout-xdg", t_arm, "opencode", "opencode.db"),
       [("s1", t_arm, 0.30, None, t0 + 1000), ("s2", "child", 0.10, "s1", t0 + 2000), ("old", t_arm, 9.0, None, t0 - 5000)])
 mk_db(rc_mod.DB, [])                                   # global DB exists and is empty: held-out sessions never go there
 check(rc_mod.count_sessions(t_arm, t0, True, tdate) == 1, "held-out exact-title check reads the ARM DB (1 session, not the global DB)")
 check(rc_mod.count_sessions(t_arm, t0, False, tdate) == 1, "held-out date-pattern check counts the arm DB's eval-titled sessions since t0 (child titles are not eval-)")
-check(rc_mod.count_sessions(f"eval-{tdate}-HO2-SP1-absent-a1", t0, True, tdate) == 0, "missing arm DB counts as 0 (fail closed)")
+check(rc_mod.count_sessions(f"eval-{tdate}-HO2-SP2-absent-a1", t0, True, tdate) == 0, "missing arm DB counts as 0 (fail closed)")
 check(abs(rc_mod.campaign_spend(spec, t0) - 0.40) < 1e-9, "campaign spend sums the arm DB (0.30 + child 0.10), excludes pre-t0 sessions")
 os.chmod(os.path.dirname(os.path.dirname(rc_mod.arm_db(t_arm))), 0o000)
 try:
@@ -197,10 +197,10 @@ GLM = "ai-gateway-misc/fw-glm-5.3-flash"
 PR = {"input": 0.1221, "output": 0.407, "cache_read": 0.02442, "cache_write": 0.0}
 mk_db(rc_p.DB, [])
 pdate = time.strftime("%Y-%m-%d")
-p_title = f"eval-{pdate}-HO2-SP1-p-a1"
+p_title = f"eval-{pdate}-HO2-SP2-p-a1"
 p_t0 = int(time.time() * 1000) - 60000
 p_spec = {"id": "p", "date": pdate, "budget_usd": 15.0, "parallelism": 1, "timeout_default": 900,
-          "benches": {"HO2": {"runner": "run-eval-v6.sh", "task": "HO2", "title_token": "HO2-SP1"}},
+          "benches": {"HO2": {"runner": "run-eval-v6.sh", "task": "HO2", "title_token": "HO2-SP2"}},
           "arms": [{"bench": "HO2", "model": GLM, "variant": "high", "cap": 0.1, "attempts": 1}]}
 def misc_msg(cost, model="fw-glm-5.3-flash", inp=0, out=0, cread=0):
     return json.dumps({"role": "assistant", "providerID": "ai-gateway-misc", "modelID": model, "cost": cost,
