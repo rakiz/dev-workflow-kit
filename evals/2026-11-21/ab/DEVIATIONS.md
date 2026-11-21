@@ -1,0 +1,11 @@
+# DEVIATIONS (AB-SPEC §6 m3)
+- BUILD: the start repos, required tests and mutant were built by the orchestrator session (the spec's builder role), not by a cheap-code instance. Recorded per the owner's explicit BUILDER authorisation.
+- T2 arm A: the spec names `one fix` without naming the agent; the fix uses the producer agent (cheap-mech).
+- grok-4.7 (spec m4 replacement) is absent from the catalog (grok-4.6 exists); only used if a neon/qwen replacement is needed.
+- A T5 attempt 1: the T5 implementation stage ran only the minor-path fix after a `major` review (routing bug in the driver: the T5 implementation did not reuse the T1/T3/T4 code route). Attempt 1 is archived (cells-archive/A-T5-attempt1) and is NOT scored. A-T5 is re-run from the start tree with the corrected route, under the same caps. Recorded per AB-SPEC §2 (route) and §6 (ledger).
+- BUNDLE: REVIEW*.md (review scaffolding) and the session logs are excluded from the blind bundle's tree/ (process artefacts, not deliverables; conservative for blinding). Recorded per AB-SPEC §3 (bundle = delivered tree).
+- ADJUDICATION: both adjudicator sessions and the reconciliation round ran inside the holdout sandbox (keys and id-map outside it), not as bare sessions. Conservative for blinding; no effect on the frozen prompt or the order arrays.
+- SCORING PROCESS (found and fixed before any verdict): the first executed-test pass invoked unittest by file path as a module name, so every hidden test failed to import and was read as a pass. Fixed to run the test file directly and to refuse any run without a test count. The adjudicator sheets were unaffected and agree with the corrected executed results.
+- NOVELTY: the 5 new names added to holdout-ban.txt match the task trees themselves; the novelty check was run with the pre-extension list (0 hits). The word `broken` in T5's brief was reworded before the freeze (ban list item 4).
+- RECONCILIATION: one round on the single cell flagged for `clean` (kappa before reconciliation -0.034). Both raters agreed after the round; agreed values applied. Recorded per AB-SPEC §3.
+- SPEND ESTIMATE: the driver priced the misc-model arm (deepseek) at the plugin catalog (low); the opencode-binary table (high) is reported alongside in the results.

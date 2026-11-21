@@ -1,0 +1,5 @@
+variable	kappa	note
+core_pass	1.0	degenerate all-agree (kappa=1 recorded)
+trap_pass	1.0	degenerate all-agree (kappa=1 recorded)
+dod	1.0	degenerate all-agree (kappa=1 recorded)
+clean	1.0	degenerate all-agree (kappa=1 recorded)

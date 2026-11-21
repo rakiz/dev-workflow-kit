@@ -1,0 +1,62 @@
+time	arm	task	session	status	rc	seconds	note
+04:36:07	A	T1	ab-A-t1	ok	0	40	impl
+04:36:32	A	T1	ab-A-t1-review1	ok	0	21	review1
+04:36:59	A	T1	ab-A-t1-fix1	ok	0	21	fix1
+04:36:59	A	T1	CELL	ok		102	delivered=True
+04:37:44	A	T2	ab-A-t2	ok	0	40	impl
+04:38:09	A	T2	ab-A-t2-review1	ok	0	21	review1
+04:38:31	A	T2	ab-A-t2-fix1	ok	0	18	fix1
+04:38:31	A	T2	CELL	ok		90	delivered=True
+04:38:58	A	T3	ab-A-t3	ok	0	21	impl
+04:39:44	A	T3	ab-A-t3-review1	ok	0	42	review1
+04:40:06	A	T3	ab-A-t3-fix1	ok	0	18	fix1
+04:40:28	A	T3	ab-A-t3-review2	ok	0	18	review2
+04:40:28	A	T3	CELL	ok		115	delivered=True
+04:40:55	A	T4	ab-A-t4	ok	0	21	impl
+04:41:20	A	T4	ab-A-t4-review1	ok	0	21	review1
+04:41:42	A	T4	ab-A-t4-fix1	ok	0	18	fix1
+04:41:42	A	T4	CELL	ok		71	delivered=True
+04:42:07	A	T5	ab-A-t5-design	ok	0	19	design
+04:42:29	A	T5	ab-A-t5-design-review	ok	0	18	design-review
+04:43:35	A	T5	ab-A-t5-design-fix	ok	0	61	design-fix
+04:44:18	A	T5	ab-A-t5	ok	0	39	impl
+04:44:43	A	T5	ab-A-t5-review1	ok	0	21	review1
+04:45:05	A	T5	ab-A-t5-fix1	ok	0	18	fix1
+04:45:05	A	T5	CELL	ok		201	delivered=True
+04:45:51	B	T1	ab-B-t1	ok	0	40	impl
+04:45:51	B	T1	CELL	ok		43	delivered=True
+04:46:36	B	T2	ab-B-t2	ok	0	40	impl
+04:46:36	B	T2	CELL	ok		43	delivered=True
+04:47:22	B	T3	ab-B-t3	ok	0	40	impl
+04:47:22	B	T3	CELL	ok		43	delivered=True
+04:48:07	B	T4	ab-B-t4	ok	0	40	impl
+04:48:07	B	T4	CELL	ok		43	delivered=True
+04:49:36	B	T5	ab-B-t5	ok	0	83	impl
+04:49:36	B	T5	CELL	ok		86	delivered=True
+04:50:21	C	T1	ab-C-t1	ok	0	40	impl
+04:50:45	C	T1	ab-C-t1-review1	ok	0	21	review1
+04:51:10	C	T1	ab-C-t1-fix1	ok	0	21	fix1
+04:51:10	C	T1	CELL	ok		93	delivered=True
+04:51:56	C	T2	ab-C-t2	ok	0	40	impl
+04:52:19	C	T2	ab-C-t2-review1	ok	0	19	review1
+04:52:41	C	T2	ab-C-t2-fix1	ok	0	18	fix1
+04:52:41	C	T2	CELL	ok		89	delivered=True
+04:53:26	C	T3	ab-C-t3	ok	0	38	impl
+04:53:49	C	T3	ab-C-t3-review1	ok	0	19	review1
+04:54:12	C	T3	ab-C-t3-fix1	ok	0	19	fix1
+04:54:12	C	T3	CELL	ok		89	delivered=True
+04:54:40	C	T4	ab-C-t4	ok	0	22	impl
+04:55:05	C	T4	ab-C-t4-review1	ok	0	21	review1
+04:55:31	C	T4	ab-C-t4-fix1	ok	0	21	fix1
+04:55:31	C	T4	CELL	ok		76	delivered=True
+04:56:41	C	T5	ab-C-t5	ok	0	62	impl
+04:57:06	C	T5	ab-C-t5-review1	ok	0	21	review1
+04:57:29	C	T5	ab-C-t5-fix1	ok	0	19	fix1
+04:57:29	C	T5	CELL	ok		116	delivered=True
+04:59:18	A	T5	ab-A-t5-design	ok	0	18	design
+04:59:40	A	T5	ab-A-t5-design-review	ok	0	18	design-review
+05:00:43	A	T5	ab-A-t5-design-fix	ok	0	60	design-fix
+05:01:27	A	T5	ab-A-t5	ok	0	40	impl
+05:02:11	A	T5	ab-A-t5-review1	ok	0	40	review1
+05:02:37	A	T5	ab-A-t5-fix1	ok	0	21	fix1
+05:02:37	A	T5	CELL	ok		220	delivered=True

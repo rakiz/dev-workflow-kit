@@ -1,0 +1,19 @@
+A T1: status=ok delivered=True spend_arm=0.0462
+A T2: status=ok delivered=True spend_arm=0.0827
+A T3: status=ok delivered=True spend_arm=0.1288
+A T4: status=ok delivered=True spend_arm=0.1604
+A T5: status=ok delivered=True spend_arm=0.2464
+ARM DONE A
+B T1: status=ok delivered=True spend_arm=0.1762
+B T2: status=ok delivered=True spend_arm=0.3516
+B T3: status=ok delivered=True spend_arm=0.5109
+B T4: status=ok delivered=True spend_arm=0.6749
+B T5: status=ok delivered=True spend_arm=0.9279
+ARM DONE B
+C T1: status=ok delivered=True spend_arm=0.5759
+C T2: status=ok delivered=True spend_arm=1.0895
+C T3: status=ok delivered=True spend_arm=1.5462
+C T4: status=ok delivered=True spend_arm=2.0114
+C T5: status=ok delivered=True spend_arm=2.5589
+ARM DONE C
+ALL ARMS DONE

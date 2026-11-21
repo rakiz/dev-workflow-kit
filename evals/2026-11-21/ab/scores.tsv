@@ -1,0 +1,16 @@
+blind_id	task	arm	test_exec	escaped	dod	clean	score	neon_test	qwen_test	neon_dod	qwen_dod	neon_clean	qwen_clean	detail	delivered
+102dcd	T2	A	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1
+1502be	T4	C	3	0	1	1	5	3	3	1	1	1	1	T4 procedure	1
+18cf4c	T4	A	3	0	1	1	5	3	3	1	1	1	1	T4 procedure	1
+238101	T5	B	0	1	0	1	1	0	0	0	0	1	1	test_02_keep_newest_by_mtime_ties_by_name	1
+2b0e43	T2	B	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1
+363b1c	T3	B	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1
+5b99c2	T2	C	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1
+75e21a	T3	C	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1
+78e152	T3	A	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1
+99d2dc	T1	B	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1
+a1230d	T4	B	3	0	1	1	5	3	3	1	1	1	1	T4 procedure	1
+a4db80	T5	C	0	1	0	1	1	0	0	0	0	1	1	test_02_keep_newest_by_mtime_ties_by_name	1
+ab2705	T1	C	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1
+c3a0ab	T5	A	0	1	0	1	1	0	0	0	0	1	1	test_03_unreadable_exit_1_partial_progress	1
+febb9f	T1	A	3	0	1	1	5	3	3	1	1	1	1	all methods ok	1

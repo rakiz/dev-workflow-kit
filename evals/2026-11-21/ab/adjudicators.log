@@ -1,0 +1,5 @@
+./run-adj.sh: line 30: 53873 Terminated: 15          python3 -B "$HARN/holdout-proxy.py" --port "$PORT" --allow "$HOST" --campaign-dir "$CAMP" --metrics "$ARM_TMP/proxy.json" --cap-bytes "${HOLDOUT_BYTE_CAP:-400000000}" > /dev/null 2> "$ARM_TMP/proxy.err"
+WROTE adj-neon
+./run-adj.sh: line 30: 54978 Terminated: 15          python3 -B "$HARN/holdout-proxy.py" --port "$PORT" --allow "$HOST" --campaign-dir "$CAMP" --metrics "$ARM_TMP/proxy.json" --cap-bytes "${HOLDOUT_BYTE_CAP:-400000000}" > /dev/null 2> "$ARM_TMP/proxy.err"
+WROTE adj-qwen
+ADJUDICATION DONE
