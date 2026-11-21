@@ -48,11 +48,9 @@ kill -0 "$PROXY_PID" 2>/dev/null || { echo "error: proxy refused to start (fail 
 export PROXY_PORT="$PORT"
 
 kill_arm() {
-  pkill -TERM -P "$OPENCODE_PID" 2>/dev/null || true
-  kill -TERM "$OPENCODE_PID" 2>/dev/null || true
-  sleep 5
-  pkill -KILL -P "$OPENCODE_PID" 2>/dev/null || true
-  kill -KILL "$OPENCODE_PID" 2>/dev/null || true
+  # tree kill (holdout-harness/kill-tree.sh): every descendant, TERM then KILL, verified (fix for the one-level kill)
+  source "$HARNESS/kill-tree.sh"
+  kill_tree "$OPENCODE_PID" 3 >/dev/null
 }
 
 "$HARNESS/holdout-arm.sh" exec "$TITLE" -- opencode run --dir "$ARM_WORK" --model "$MODEL" \
