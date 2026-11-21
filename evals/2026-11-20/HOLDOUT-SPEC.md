@@ -1,6 +1,6 @@
 # HOLDOUT-SPEC — Étape 2 held-out fixtures (pre-registration)
 
-**Spec v4 (2026-11-21) — pre-launch. Keys FROZEN v1 (2026-11-21).**
+**Spec v5 (2026-11-21) — owner slots filled 2026-11-21, no contract change. Keys FROZEN v1 (2026-11-21).**
 Nothing in this file is a result. The fixtures are built and both answer keys
 are frozen (`evals-keys/HOLDOUT-KEY-MANIFEST.tsv`); **no held-out arm has
 run**. Post-freeze changes to the keys are rubric amendments: owner ruling +
@@ -8,7 +8,8 @@ fresh fixture hash + a new key version, and the pre-registration is void if any
 such change lands after scores exist. **v4 records the M10-A1 amendment
 (credential route, §13.1), made pre-launch; the keys are unchanged by it.**
 Version note: v1 = pre-registration (2026-11-20); v2 = review change set;
-v3 = integration round; v4 = this stamp (M10-A1).
+v3 = integration round; v4 = the M10-A1 stamp; v5 = owner slots filled
+2026-11-21, no contract change.
 
 - **Author of this spec (R1): strong-design rung, model family deepseek.**
   R1 does **not** interpret the results (PROTOCOL §7: the fixture author is
@@ -977,36 +978,40 @@ that rung*.
 | P8 | HOD | sonnet-high | 1017-high | strong-design-alternative (phase 2) | C ahead 1.41 (8.4 vs 9.81) > 1.04 → **REFUTE outside the band; seat does not move** — sonnet is the fresh-family valve and 1017 already holds strong-design — **owner confirms** | Nothing on family (sonnet is the fresh valve); the seat exists for family diversity, not for the score |
 | P9 | HOD | opus | 1017-high | alt2 / deep design leg (phase 2) | C ahead 0.23 (9.58 vs 9.81) → tie → **see the P3 ruling** (terminal rung, either bench) | opus may not hold strong-design; the terminal rung's same-family exception applies |
 
-**Owner-ruling slots — deliberately EMPTY (I1).** These three pairs end in a
-*ladder collapse* (one model holding two seats) and are reserved to the owner;
-they are not statistical decisions:
+**Owner-ruling slots — RULED (I1; owner 2026-11-21).** These three pairs end
+in a *ladder collapse* (one model holding two seats) and are reserved to the
+owner; they are not statistical decisions. All three are now ruled under the
+new PROTOCOL §5(e) collapse exemption; no seat moves.
 
-> **P3 — the owner must answer (one question, two branches; the slot stays
-> EMPTY until the owner marks one):** on a held-out tie between opus (holder of
-> the terminal `deep` / `strong-code-alternative2` rung) and its challenger,
-> does the ratified 2026-11-20 tie rule apply **as written** — "the cheapest
-> arm inside the MDE band wins the seat" — so a tie can move the terminal rung
-> to the cheaper arm; or is the terminal rung **exempt**, so a tie leaves opus
-> in place by default?
+> **P3 — RULED (owner 2026-11-21): option B, terminal rung exempt, opus stays
+> (Δ +3.50, band 10.33).** The question was: on a held-out tie between opus
+> (holder of the terminal `deep` / `strong-code-alternative2` rung) and its
+> challenger, does the ratified 2026-11-20 tie rule apply **as written** —
+> "the cheapest arm inside the MDE band wins the seat" — so a tie can move the
+> terminal rung to the cheaper arm; or is the terminal rung **exempt**, so a
+> tie leaves opus in place by default?
 >
 > [ ] **A — rule applies as written**: a tie inside the band moves the
 >     terminal seat to the cheaper eligible arm.
-> [ ] **B — terminal rung exempt**: a tie does not move the seat; opus stays
+> [x] **B — terminal rung exempt**: a tie does not move the seat; opus stays
 >     until a challenger is ahead **outside** the band.
 >
-> Until one branch is marked, P3 is not a pre-registered decision and any P3
-> outcome is reported as "undecided by design".
+> **P4 — RULED (owner 2026-11-21): option B, dsflash keeps cheap-mech +
+> explore (collapse refused: $0.009/task delta does not buy the
+> family-diversity loss; Δ −1.50, band 8.95).** (cheap-mech / explore, HO2):
+> [ ] a tie moves the seat to haiku-default (absorbing cheap-mech + explore)
+> [x] the seats stay split — one model may not hold the bulk-mech and explore
+> rungs together
 >
-> **P4 ruling** (cheap-mech / explore, HO2): [ ] a tie moves the seat to
-> haiku-default (absorbing cheap-mech + explore)   [ ] the seats stay split —
-> one model may not hold the bulk-mech and explore rungs together
->
-> **P7 ruling** (strong-code-alternative, HO2): [ ] the tie rule moves the
-> alternative onto minimax-xhigh (absorbing strong-code + alternative)   [ ]
-> the alternative stays a separate rung
+> **P7 — RULED (owner 2026-11-21): option B, haiku-high keeps
+> strong-code-alternative (an alternative rung must be a different family from
+> the rung it backs; Δ −0.88, band 8.95).** (strong-code-alternative, HO2):
+> [ ] the tie rule moves the alternative onto minimax-xhigh (absorbing
+> strong-code + alternative) [x] the alternative stays a separate rung
 
-Until a slot is filled, its pair is **not a pre-registered decision**; any
-outcome on it is reported as "undecided by design".
+All three slots are filled; each pair is now a pre-registered decision read
+under PROTOCOL §5(e). No seat moved on the held-out — the benches stay
+ceiling-censored regardless (§4).
 
 **Owner confirms** (P5, P8): a REFUTE on those pairs does not move the seat by
 construction (the ladder-collapse / family-valve reading of rule 7); the owner
@@ -1164,8 +1169,8 @@ result.
 10. **1017's price drift** — its run cost moved between grids ($0.065 to
     $0.184 across bench/effort cells); the arm cap absorbs it, but the cost
     table's mean is from the D bench (n=2).
-11. **The owner's P3 ruling** — the slot is empty by design (§7.4); the
-    campaign reports P3 as undecided until it is filled.
+11. **The owner's P3 ruling — RESOLVED (owner 2026-11-21).** The slot is
+    filled (§7.4): option B, terminal rung exempt, opus stays. No seat moved.
 
 ---
 
@@ -1296,7 +1301,7 @@ so these are pre-freeze amendments; they are recorded here and in the keys.
 | OPEN-7 | **Ratified.** `PLAN-CANON` = canonical `assign()` placements (rows sorted by `(start, job)`, keys sorted, compact separators), compared as a hash, never raw file bytes. |
 | OPEN-8 | **Ratified into the keys.** Probe (a) keeps the `TARGET` field and asserts it is plan-like; probe (d) uses the real id **J031** with an exit-safe `ID-COUNT` (no non-zero-exit leak); probe (c) prints `PLAN-CANON`. |
 | OPEN-10 | **Ratified.** The `run-campaign.py` admission change is global (see §5.6): strictly more conservative, no scoring effect, legacy campaigns may stop earlier and must say so. |
-| FREEZE | **Both keys frozen v1 on 2026-11-21**; sha256 recorded in `evals-keys/HOLDOUT-KEY-MANIFEST.tsv`. The P3 slot stays empty (the question text is above in §7.4). |
+| FREEZE | **Both keys frozen v1 on 2026-11-21**; sha256 recorded in `evals-keys/HOLDOUT-KEY-MANIFEST.tsv`. The P3 slot was filled by the owner 2026-11-21 (option B, terminal rung exempt; question text and ruling in §7.4). |
 | M10-A1 | **Amendment, 2026-11-21, pre-launch** — credential route: INJECTION → **PASS-THROUGH + METERING**. Supersedes the §5.5 credential paragraph and the §5.6 auth bullet (both amended in place). Full text: §13.1. Keys unchanged. |
 
 ### 13.1 Amendment M10-A1 (2026-11-21, pre-launch): credential route
@@ -1341,5 +1346,6 @@ here rather than claimed closed.
 `HOLDOUT-KEY-HOD.md` are untouched by this amendment and keep their v1 freeze
 hashes (`ce92e6a1cea67f6f40db0ce2d0e5975971ea2726ef266e1f3c772b6e7e962515`,
 `a331268264b2e7d757f4d149505c525c869687044161b502dfbf2738ab67fa2f`); the key
-manifest needs no rewrite; no fixture hash changes. The spec is stamped **v4**
-at this amendment; the next change of any kind is v5.
+manifest needs no rewrite; no fixture hash changes. The spec was stamped **v4**
+at that amendment; **v5** stamps the owner-slot filling (2026-11-21, no
+contract change).

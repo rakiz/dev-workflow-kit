@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for the eval machinery. Every new
 > session MUST read it before touching `LEADERBOARD.html`, the runners, or
-> launching runs. Last amended: 2026-11-20 (Étape 5 noise fold, §5(e)/§5(b); findings-vs-FP chain step, §3/§6).
+> launching runs. Last amended: 2026-11-21 (collapse exemption, §5(e); Étape 5 noise fold, §5(e)/§5(b); findings-vs-FP chain step, §3/§6).
 
 ## 1. The five decision benches
 
@@ -166,6 +166,15 @@ argued after the fact.
   point difference reads.
 - **Tie rule (ratified 2026-11-20).** Eligibility = two scorer families + ≥2
   valid runs; the cheapest arm inside the MDE band wins the seat.
+- **Collapse exemption (owner ruling 2026-11-21, from the held-out P3/P4/P7
+  slots).** The tie rule arbitrates between eligible CANDIDATES; it never
+  collapses a rung onto a model that already holds a rung on the same ladder.
+  Three cases: (i) a TERMINAL rung (deep) is exempt — its purpose is maximal
+  capability, not price; (ii) an ALTERNATIVE rung must stay a different family
+  from the rung it backs up — a same-family fallback is not a fallback; (iii) a
+  collapse for a price delta below one cent per task is refused when it removes
+  family diversity from a tier. A tie that would collapse is reported as
+  "collapse-exempt (owner 2026-11-21)" instead of moving the seat.
 
 **Étape 5 result (2026-11-20) — run-to-run noise and operative gates.**
 

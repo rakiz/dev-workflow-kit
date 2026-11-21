@@ -55,17 +55,19 @@ Both floors pass (the benches are not too hard), but both fail Gate 1 (the top a
 
 ## 5. Pair verdicts (§7.4 Step 2–3; band = max(prior, C(n_anchor)·sd_anchor·√(1/n_H + 1/n_C)))
 
+The three owner-slot rulings (P3, P4, P7) are recorded under the new PROTOCOL §5(e) collapse exemption (owner 2026-11-21). **NO seat moved on the held-out** — the benches stay ceiling-censored regardless.
+
 Priors: HO2 4.80, HOD 1.04. C(4) = 4.16. Anchor sd: HO2 2.48, HOD 0.75.
 
 | Pair | Holder vs challenger | Δ (H−C) | Band | Verdict (reported; not a seat decision) | Seat effect |
 |---|---|---|---|---|---|
 | P1 | haiku-default vs glm-high (cheap-code) | +2.13 | 7.31 | CONFIRM-TIE (holder stays; cheaper arm is the holder) | none |
 | P2 | minimax-xhigh vs haiku-high (strong-code) | +0.88 | 8.95 | CONFIRM-TIE (minimax is cheaper; lineage-legal) | none |
-| P3 | opus vs haiku-high (deep/alt2) | +3.50 | 10.33 | **Owner slot: undecided by design** | none |
-| P4 | dsflash vs haiku-default (cheap-mech/explore) | −1.50 | 8.95 | **Owner slot: undecided by design** (inside band; challenger ahead) | none |
+| P3 | opus vs haiku-high (deep/alt2) | +3.50 | 10.33 | **RULED — option B, terminal rung exempt, opus stays (owner 2026-11-21; Δ +3.50, band 10.33).** | none |
+| P4 | dsflash vs haiku-default (cheap-mech/explore) | −1.50 | 8.95 | **RULED — option B, dsflash keeps cheap-mech + explore (collapse refused: $0.009/task delta does not buy the family-diversity loss; owner 2026-11-21; Δ −1.50, band 8.95).** | none |
 | P5 | haiku-medium vs 1017-high (cheap-design) | +1.75 | 2.70 | CONFIRM-TIE; the pre-registered REFUTE was not reached | none (owner confirms) |
 | P6 | 1017-high vs opus (phase 2) | — | — | not run (phase 2 is out of this campaign) | — |
-| P7 | haiku-high vs minimax-xhigh (strong-code-alt) | −0.88 | 8.95 | **Owner slot: undecided by design** (inside band; challenger ahead) | none |
+| P7 | haiku-high vs minimax-xhigh (strong-code-alt) | −0.88 | 8.95 | **RULED — option B, haiku-high keeps strong-code-alternative (an alternative rung must be a different family from the rung it backs; owner 2026-11-21; Δ −0.88, band 8.95).** | none |
 | P8 | sonnet vs 1017-high (phase 2) | — | — | not run | — |
 | P9 | opus vs 1017-high (phase 2) | — | — | not run | — |
 
@@ -94,7 +96,7 @@ The verdicts are computed on the scores above, but Gate 1 and Gate 2 fail, so **
 
 ## 7. Owner decisions pending
 
-1. **P3, P4 and P7 ruling slots** (§7.4). The numbers are in §5. No seat moves until these are filled.
+1. **P3, P4 and P7 ruling slots** (§7.4) — **FILLED** (owner 2026-11-21, PROTOCOL §5(e); verdicts in §5). No seat moved. Only the operations decisions below remain.
 2. **Gate failure.** Both benches are ceiling-censored (§4). The RG4 lesson applies: rebuild the fixtures before any further seat decision.
 3. **Divergent runs.** 11 runs diverge by ≥ 2.0 and have no arbiter reading. The divergent runs cluster on the pair arms
    (haiku-default, haiku-high, opus, haiku-medium, 1017-high). Any straddling verdict goes to the owner.
