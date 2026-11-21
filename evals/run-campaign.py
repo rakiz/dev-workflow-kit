@@ -52,7 +52,7 @@ KILL_GRACE = 5
 TOP_KEYS = {"id", "date", "budget_usd", "parallelism", "timeout_default", "benches", "arms"}
 BENCH_KEYS = {"runner", "task", "title_token"}
 ARM_KEYS = {"bench", "model", "variant", "cap", "attempts", "timeout"}
-RUNNERS = {"run-eval-v4.sh", "run-eval-v5.sh"}
+RUNNERS = {"run-eval-v4.sh", "run-eval-v5.sh", "run-eval-v6.sh"}
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 MODEL_RE = re.compile(r"^[A-Za-z0-9_./-]+$")
@@ -60,7 +60,10 @@ VARIANT_RE = re.compile(r"^[A-Za-z0-9._-]*$")
 TOKEN_RE = re.compile(r"^[A-Za-z0-9-]+$")
 
 LOCK = threading.Lock()
-STATE = {"stop": False, "reserved": 0.0}
+STATE = {"stop": False, "reserved": 0.0, "procs": set()}
+# HOLDOUT-SPEC §5.6: per-arm opencode data dirs (XDG_DATA_HOME) live under this root
+TMPBASE = os.path.realpath(os.environ.get("TMPDIR", "/tmp")).rstrip("/")
+HOLDOUT_TITLE_RE = re.compile(r"-(HO2|HOD)-")
 
 SPEND_Q = (
     "SELECT COALESCE(SUM(cost),0) FROM session WHERE time_created >= ? AND ("
@@ -85,18 +88,99 @@ def db_query(q, args=()):
         con.close()
 
 
+def arm_db(title):
+    """Per-arm opencode DB for a held-out title (HOLDOUT-SPEC §5.6), else the global DB."""
+    if HOLDOUT_TITLE_RE.search(title):
+        return os.path.join(TMPBASE, "holdout-xdg", title, "opencode", "opencode.db")
+    return DB
+
+
+def db_query_at(path, q, args=()):
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=30)
+    try:
+        return con.execute(q, args).fetchall()
+    finally:
+        con.close()
+
+
+def per_arm_spend(spec, t0):
+    """Sum cost of every per-arm held-out DB created for this campaign (sessions since t0)."""
+    root = os.path.join(TMPBASE, "holdout-xdg")
+    if not os.path.isdir(root):
+        return 0.0
+    total = 0.0
+    for title in os.listdir(root):
+        if not title.startswith(f"eval-{spec['date']}-"):
+            continue
+        path = os.path.join(root, title, "opencode", "opencode.db")
+        if os.path.isfile(path):
+            total += float(db_query_at(path, "SELECT COALESCE(SUM(cost),0) FROM session WHERE time_created >= ?", (t0,))[0][0])
+    return total
+
+
 def campaign_spend(spec, t0):
     eval_pat = f"eval-{spec['date']}%"
-    return float(db_query(SPEND_Q, (t0, eval_pat, t0, eval_pat))[0][0])
+    return float(db_query(SPEND_Q, (t0, eval_pat, t0, eval_pat))[0][0]) + per_arm_spend(spec, t0)
 
 
 def exact_spend(title):
-    return float(db_query(EXACT_Q, (title, title))[0][0])
+    path = arm_db(title)
+    return float(db_query_at(path, EXACT_Q, (title, title))[0][0])
 
 
-def title_for(spec, arm, attempt):
+HOLDOUT_BYTE_CAP = int(os.environ.get("HOLDOUT_BYTE_CAP", "200000000"))            # per arm (proxy --cap-bytes)
+HOLDOUT_CAMPAIGN_BYTE_CAP = int(os.environ.get("HOLDOUT_CAMPAIGN_BYTE_CAP", "2000000000"))
+
+
+def meter_bytes(title):
+    """Egress bytes metered by the arm's proxy (owner amendment: the meter is the egress budget)."""
+    path = os.path.join(TMPBASE, "holdout-tmp", title, "proxy.json")
+    try:
+        m = json.load(open(path))
+        return int(m.get("bytes_up", 0)) + int(m.get("bytes_down", 0))
+    except (OSError, ValueError):
+        return 0
+
+
+def campaign_meter_bytes(spec):
+    root = os.path.join(TMPBASE, "holdout-tmp")
+    if not os.path.isdir(root):
+        return 0
+    return sum(meter_bytes(t) for t in os.listdir(root) if t.startswith(f"eval-{spec['date']}-"))
+
+
+def poller_once(spec, t0, hb_path):
+    """One campaign kill-poller cycle (HOLDOUT-SPEC §5.6 #3): refresh heartbeat, stop on overspend."""
+    try:
+        spent = campaign_spend(spec, t0)
+    except sqlite3.Error:
+        spent = None
+    with open(hb_path, "w") as f:
+        f.write(f"{int(time.time())} spent={spent}\n")
+    over_meter = campaign_meter_bytes(spec) > HOLDOUT_CAMPAIGN_BYTE_CAP
+    if (spent is not None and spent > float(spec["budget_usd"])) or over_meter:
+        with LOCK:
+            STATE["stop"] = True
+            procs = list(STATE["procs"])
+        for proc in procs:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        return True
+    return False
+
+
+def poller_loop(spec, t0, hb_path, interval, done):
+    """Campaign-level kill poller (30 s by default); a heartbeat is written every cycle."""
+    while not done.wait(interval):
+        if poller_once(spec, t0, hb_path):
+            return
+
+
+def title_for(spec, arm, attempt, rr=False):
     bench = spec["benches"][arm["bench"]]
-    tag = f"{spec['id']}-a{attempt}"
+    tag = f"{spec['id']}-a{attempt}" + ("-rr" if rr else "")
     model = re.sub(r"[/. ]", "-", arm["model"])
     variant = arm.get("variant", "")
     tok = "-".join(p for p in [model, variant, tag] if p)
@@ -213,7 +297,7 @@ def status_line(path, job, status, spend):
 
 def run_arm(spec, job, t0, status_path, logdir):
     arm, k = job["arm"], job["attempt"]
-    title, tag = title_for(spec, arm, k)
+    title, tag = title_for(spec, arm, k, rr=job.get("rr", False))
     cap = float(arm["cap"])
     timeout = int(arm.get("timeout", spec["timeout_default"]))
     bench = spec["benches"][arm["bench"]]
@@ -225,11 +309,11 @@ def run_arm(spec, job, t0, status_path, logdir):
             admitted, reason = False, "SKIP-STOPPED"
         else:
             spent = campaign_spend(spec, t0)
-            if spent + STATE["reserved"] + cap > float(spec["budget_usd"]):
+            if spent + STATE["reserved"] + 2 * cap > float(spec["budget_usd"]):
                 STATE["stop"] = True
                 admitted, reason = False, "STOP-BUDGET"
             else:
-                STATE["reserved"] += cap
+                STATE["reserved"] += 2 * cap
                 admitted, reason = True, None
     if not admitted:
         status_line(status_path, job, reason, campaign_spend(spec, t0) if reason == "STOP-BUDGET" else 0.0)
@@ -259,7 +343,12 @@ def run_arm(spec, job, t0, status_path, logdir):
             if c > 2 * cap:
                 kill_group("costcap-driver")
                 return
+            if HOLDOUT_TITLE_RE.search(title) and meter_bytes(title) > HOLDOUT_BYTE_CAP:
+                kill_group("meter-driver")
+                return
 
+    with LOCK:
+        STATE["procs"].add(proc)
     threading.Thread(target=poller, daemon=True).start()
     try:
         rc = proc.wait(timeout=timeout + 300)  # runner watchdog fires first; this is the backstop
@@ -267,10 +356,14 @@ def run_arm(spec, job, t0, status_path, logdir):
         kill_group("timeout-driver")
         rc = proc.wait()
     finally:
+        with LOCK:
+            STATE["procs"].discard(proc)
         done.set()
         with LOCK:
-            STATE["reserved"] -= cap
-    if flags.get("costcap-driver"):
+            STATE["reserved"] -= 2 * cap
+    if flags.get("meter-driver"):
+        status = "meter-driver"
+    elif flags.get("costcap-driver"):
         status = "costcap-driver"
     elif flags.get("timeout-driver"):
         status = "timeout-driver"
@@ -283,6 +376,25 @@ def run_arm(spec, job, t0, status_path, logdir):
     else:
         status = f"rc{rc}"
     status_line(status_path, job, status, campaign_spend(spec, t0))
+    return status
+
+
+def is_dnf(spec, job, status):
+    """HOLDOUT-SPEC §7.3: a run without final-report.md is a DNF (also any kill/timeout/nonzero exit)."""
+    if spec["benches"][job["arm"]["bench"]]["runner"] != "run-eval-v6.sh":
+        return False          # DNF re-runs are for held-out benches only (OPEN-16)
+    if status != "ok":
+        return True
+    title, _ = title_for(spec, job["arm"], job["attempt"], rr=job.get("rr", False))
+    report = os.path.join(TMPBASE, "holdout-work", title, "final-report.md")
+    return not os.path.isfile(report)
+
+
+def run_with_rerun(spec, job, t0, status_path, logdir):
+    """One DNF arm gets exactly ONE re-run (-rr title), admitted by the normal budget rule (§7.3)."""
+    status = run_arm(spec, job, t0, status_path, logdir)
+    if status not in ("STOP-BUDGET", "SKIP-STOPPED") and not job.get("rr") and is_dnf(spec, job, status):
+        status = run_arm(spec, dict(job, rr=True), t0, status_path, logdir)
     return status
 
 
@@ -302,9 +414,22 @@ def self_check(spec, jobs):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("campaign")
+    ap.add_argument("campaign", nargs="?")
     ap.add_argument("--self-check", action="store_true", help="validate the campaign + runners + DB; do not launch")
+    ap.add_argument("--poller-selftest", action="store_true", help="prove the campaign kill poller writes a heartbeat; no launch")
     args = ap.parse_args()
+    if not args.poller_selftest and not args.campaign:
+        ap.error("the campaign file is required")
+    if args.poller_selftest:
+        import tempfile
+        hb = os.path.join(tempfile.mkdtemp(), "hb")
+        done = threading.Event()
+        spec = {"date": time.strftime("%Y-%m-%d"), "budget_usd": 1e9}
+        threading.Timer(1.0, done.set).start()
+        poller_loop(spec, int(time.time() * 1000), hb, 0.2, done)
+        ok = os.path.isfile(hb) and os.path.getsize(hb) > 0
+        print("POLLER-HEARTBEAT " + ("OK" if ok else "MISSING"))
+        return 0 if ok else 1
     try:
         spec = load_spec(args.campaign)
         jobs = build_jobs(spec)
@@ -317,6 +442,10 @@ def main():
         logdir = stem + ".logs"
         os.makedirs(logdir, exist_ok=True)
         t0 = int(time.time() * 1000)
+        # campaign-level kill poller (HOLDOUT-SPEC §5.6 #3): backstop for a dead per-arm poller
+        poll_done = threading.Event()
+        threading.Thread(target=poller_loop, daemon=True,
+                         args=(spec, t0, stem + ".poller.hb", POLL_SECS, poll_done)).start()
         with open(status_path, "a") as f:
             f.write(f"# campaign {spec['id']} date={spec['date']} budget_usd={spec['budget_usd']:.2f} "
                     f"start_ms={t0} jobs={len(jobs)}\n")
@@ -334,7 +463,8 @@ def main():
                         f"ABORT-no-session(exact={n_exact},pattern={n_pat})", campaign_spend(spec, t0))
         else:
             with ThreadPoolExecutor(max_workers=spec["parallelism"]) as ex:
-                list(ex.map(lambda j: run_arm(spec, j, t0, status_path, logdir), jobs[1:]))
+                list(ex.map(lambda j: run_with_rerun(spec, j, t0, status_path, logdir), jobs[1:]))
+        poll_done.set()
         final = campaign_spend(spec, t0)
         with LOCK:
             print(f"CAMPAIGN DONE id={spec['id']} spent={final:.4f} budget_usd={spec['budget_usd']:.2f}", flush=True)

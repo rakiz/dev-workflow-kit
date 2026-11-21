@@ -1,10 +1,14 @@
 # HOLDOUT-SPEC — Étape 2 held-out fixtures (pre-registration)
 
-**Status: DRAFT FOR CRITIQUE — not frozen, no fixture built, no arm run.**
-Nothing in this file is a result. It is the contract that must be frozen
-(key hashes recorded) **before** the first held-out arm runs. Post-freeze
-changes are rubric amendments: owner ruling + a fresh fixture hash, and the
-pre-registration is void if any change lands after scores exist.
+**Spec v4 (2026-11-21) — pre-launch. Keys FROZEN v1 (2026-11-21).**
+Nothing in this file is a result. The fixtures are built and both answer keys
+are frozen (`evals-keys/HOLDOUT-KEY-MANIFEST.tsv`); **no held-out arm has
+run**. Post-freeze changes to the keys are rubric amendments: owner ruling +
+fresh fixture hash + a new key version, and the pre-registration is void if any
+such change lands after scores exist. **v4 records the M10-A1 amendment
+(credential route, §13.1), made pre-launch; the keys are unchanged by it.**
+Version note: v1 = pre-registration (2026-11-20); v2 = review change set;
+v3 = integration round; v4 = this stamp (M10-A1).
 
 - **Author of this spec (R1): strong-design rung, model family deepseek.**
   R1 does **not** interpret the results (PROTOCOL §7: the fixture author is
@@ -405,10 +409,18 @@ copied.
    code and prose.
 5. The names HO2/SP1/HOD/US1 in any *other* fixture (cross-contamination).
 
-Fixture size class (M-d): **impl 350–600 code lines; design 180–300**. The
-diff between the pristine and reference-fixed trees must be ≤ 120 changed
-lines (a small, plausible repair — otherwise the fixture telegraphs a
-rewrite).
+Fixture size class (M-d, amended by **OPEN-3** at build close-out): the guide
+is **impl 350–600 / design 180–300 code lines**. The built fixtures measured
+**SP1 188 / US1 158** and are **accepted as-is** — no filler was added,
+because difficulty here is defect/hazard subtlety, not LOC (author ruling,
+2026-11-21). Consequence stated: a smaller fixture is faster to read whole, so
+the discrimination risk is real; it is guarded by (a) the interaction defects
+and the measurement axis, (b) Gate 1's ratio test (80 % of max), which does not
+depend on LOC, and (c) the pre-registered rule that a Gate-1 failure on a
+held-out is repaired by **sharpening or adding a defect, never by padding
+LOC**. The measured LOC is recorded in each key's fixture-inventory section
+(and those keys are hashed by the freeze manifest). The pristine↔fixed diff
+stays ≤ 120 changed lines.
 
 <!-- MINOR 3: grep forms with --exclude-dir and -I; three roots (repo, SP1, US1) -->
 ### 5.2 Leak grep (before =freeze, after =results, and before any re-use)
@@ -469,8 +481,10 @@ shasum -a 256 /tmp/ho2.files /tmp/us1.files /tmp/refs.files \
 Tree hash command (same method as `BENCH-V3-DESIGN.md` §3.6): the per-file
 lines above, piped to `shasum -a 256`. Recompute after every edit and after the
 campaign; a mismatch invalidates the campaign (a fixture edited mid-campaign is
-not the pre-registered one). **No hash value exists until the freeze** — this
-section is the procedure and the table, not recorded values.
+not the pre-registered one). **No hash value existed until the freeze**: the
+fixture hashes were recorded in `evals/2026-11-20/HOLDOUT-MANIFEST.tsv` and the
+key hashes in `evals-keys/HOLDOUT-KEY-MANIFEST.tsv` at freeze (2026-11-21,
+keys v1).
 
 ### 5.4 Single use + rotation
 
@@ -518,17 +532,37 @@ arm cannot read another's work dir, config, DB or output):
   global opencode data dir, and the host credential file (M10);
 - network-outbound: **only** `127.0.0.1:<proxy-port>`; everything else denied.
 
-**Credential route (review M10).** `auth.json` is **not** present in any
-sandbox-readable path and is not copied into the per-arm data dir. The local
-CONNECT allowlist proxy is the only holder of the credential and attaches it
-to the upstream provider connection; it also **meters** the arm (requests and
-tokens counted, a per-arm cap enforced) so a candidate that drives the model
-channel cannot exceed the arm cap through it. The sandbox is what makes the
-proxy non-bypassable (direct IP connects fail). The exact injection mechanism
-(proxy-side TLS termination with a per-campaign CA trusted only inside the
-sandbox, or provider-key injection at the proxy) is a builder-verified choice
-(§10, open item 2); the invariant is fixed: **no credential file is readable
-from inside the sandbox, and every provider byte is metered.**
+**Credential route (review M10, AMENDED pre-launch by M10-A1 — §13.1).**
+INJECTION is replaced by **PASS-THROUGH + METERING**. The arm runs with its own
+**per-arm copy** of the auth store (copied from the global store before launch,
+mode 600, inside the arm's allow-list), and the provider request passes
+through with that credential. This is required because the Copilot OAuth
+refreshes **inside opencode's own plugin** (a static injection breaks the
+refresh), `sandbox-exec` cannot express per-process file ACLs, and the exposure
+being defended against was already the operating baseline (400+ unisolated runs
+to date).
+
+The M10 invariant, as amended:
+
+> **no NON-allowlisted egress; every egress byte/request metered per arm; the
+> arm's auth store is a per-arm copy (readable by the arm by design — residual
+> risk ACCEPTED and recorded: abuse is detectable via the meter + absent from
+> the DB roll-up); the credential never crosses to another arm's allowlist.**
+
+The proxy remains the **allowlist + meter** (not a credential holder): it
+permits only the provider hostnames, counts requests and tokens per arm, and
+enforces the per-arm cap. "Absent from the DB roll-up" is the detector logic:
+out-of-band use of the arm's own credential would not appear as opencode
+session spend, so the **meter**, reconciled against the DB roll-up, is what
+surfaces it. **Residual risk, stated honestly:** an arm could in principle use
+its own credential out-of-band. It is **accepted rather than eliminated**
+because (a) the brief never mentions credentials and the fixture gives no
+reason to touch them, (b) the meter surfaces an egress/request anomaly, (c) the
+DB roll-up reconciles opencode-side spend against the meter, and (d) the
+campaign kill poller enforces the cap on the meter. The per-arm copy stays
+inside its arm's allow-list; no other arm's sandbox includes it, and the
+proxy's allow-list is bound to that arm's credential — **the credential never
+crosses to another arm's allowlist.**
 
 **Preflight assertions — the campaign aborts unless all pass** (one cheap
 model call, ~$0.001, counted in the budget):
@@ -541,10 +575,13 @@ model call, ~$0.001, counted in the budget):
 4. `cat ~/code_projects/IA-tooling/evals-keys/ho2-ref-a/planio.py` inside the
    sandbox exits non-zero (M12: the reference fixes are private and
    unreadable).
-5. `cat ~/.local/share/opencode/auth.json` inside the sandbox exits non-zero
-   and `ls <per-arm data dir>` shows no `auth.json` (M10).
+5. The **per-arm** auth store exists, is mode 600, and is a copy (not a
+   symlink) of the global store; the **global** `~/.local/share/opencode/auth.json`
+   is unreadable inside the sandbox; **another arm's** store is unreadable
+   inside this arm's sandbox (M10-A1).
 6. A trivial `opencode run` with the per-arm data dir completes (exit 0, DB
-   written, message captured) **and** the proxy's metered count increased.
+   written, message captured), the provider call passes through the allowlisted
+   proxy, and the **meter's request count increased** for this arm (M10-A1).
 7. The per-arm cost poller **and** the campaign-level kill poller prove
    liveness (each writes a heartbeat at least once before the arm's first
    minute; MINOR 6) — a dead poller aborts the arm.
@@ -561,7 +598,9 @@ with its own data dir:
 - `XDG_DATA_HOME=<tmp>/holdout-xdg/<title>/` (opencode honours
   `XDG_DATA_HOME`; verified in the 1.19.5 binary's bundled code, **not yet
   exercised end-to-end** — preflight assertion 6 covers it);
-- **no `auth.json` in it** (M10: the proxy holds the credential);
+- **per-arm auth store**: a copy of the global `auth.json` (mode 600, not a
+  symlink), readable by the arm **by design** (M10-A1); never shared with or
+  visible to another arm;
 - the cost poller, the watchdog's DB reads and the final-report capture all
   query `<that dir>/opencode/opencode.db`;
 - `run-campaign.py` computes the same path from the title it builds, so
@@ -600,6 +639,14 @@ instructions.
 Per-arm timeouts (pre-registered, review M13): **≥ 1800 s** for sonnet and
 opus on HOD; **≥ 900 s** for every other arm (the v4 default). A deviation is
 recorded and treated as a protocol deviation, not a silent choice.
+
+**Scope of the admission change (OPEN-10, ratified 2026-11-21).** The
+`spend + 2×cap ≤ budget` rule in `run-campaign.py` is **global**: it applies to
+v4/v5 campaigns too. Ratified because the new rule is **strictly more
+conservative** — it can only refuse arms the old rule admitted, never admit one
+the old rule refused. It changes no score and no past result; the only
+consequence is that a legacy campaign under the same budget may stop earlier,
+and that must be recorded in its status file when it is re-run.
 
 The runner script is a **new** `run-eval-v6.sh` (plus a small
 `run-campaign.py` change): v4/v5 are frozen records of earlier campaigns
@@ -934,9 +981,21 @@ that rung*.
 *ladder collapse* (one model holding two seats) and are reserved to the owner;
 they are not statistical decisions:
 
-> **P3 ruling** (deep / alt2, HO2): [ ] the price rule applies to the terminal
-> `deep` rung as written   [ ] a terminal rung is exempt — a tie does not move
-> the seat
+> **P3 — the owner must answer (one question, two branches; the slot stays
+> EMPTY until the owner marks one):** on a held-out tie between opus (holder of
+> the terminal `deep` / `strong-code-alternative2` rung) and its challenger,
+> does the ratified 2026-11-20 tie rule apply **as written** — "the cheapest
+> arm inside the MDE band wins the seat" — so a tie can move the terminal rung
+> to the cheaper arm; or is the terminal rung **exempt**, so a tie leaves opus
+> in place by default?
+>
+> [ ] **A — rule applies as written**: a tie inside the band moves the
+>     terminal seat to the cheaper eligible arm.
+> [ ] **B — terminal rung exempt**: a tie does not move the seat; opus stays
+>     until a challenger is ahead **outside** the band.
+>
+> Until one branch is marked, P3 is not a pre-registered decision and any P3
+> outcome is reported as "undecided by design".
 >
 > **P4 ruling** (cheap-mech / explore, HO2): [ ] a tie moves the seat to
 > haiku-default (absorbing cheap-mech + explore)   [ ] the seats stay split —
@@ -1055,6 +1114,7 @@ ratified price rule governs — never a ranking.**
 | The key under-specifies a probe | the builder guesses | R2 critique + R4 key review before freeze; any post-freeze change voids the pre-registration |
 | The DB redirection breaks cost accounting | caps inert | preflight assertion **6** (M-e) + the driver's admission rule; fail-closed |
 | A candidate reads the private key | the held-out is void | filesystem isolation + preflight assertion 3 + leak grep after the campaign; a hit voids the campaign |
+| An arm uses its **own** credential out-of-band | un-metered spend / potential abuse | residual risk **accepted and recorded** (M10-A1, §13.1): meter anomaly + DB roll-up reconciliation + kill poller on the meter |
 | Cost overrun | budget blown | per-arm caps (kill at 2×), admission at `spend + 2×cap`, campaign-level kill poller, no third DNF attempt |
 | A divergent run straddles a seat verdict | the verdict is not decidable | flagged divergent, reported, **owner rules** — never an arbiter-averaged verdict (§5.7) |
 
@@ -1074,12 +1134,12 @@ result.
    `XDG_DATA_HOME` (strings dump, 2026-11-20) and creates
    `<data>/opencode/*`; not yet exercised with a real model call. Preflight
    assertion 6 is the test.
-2. **The credential-injection mechanism at the proxy** (proxy-side TLS
-   termination with a per-campaign CA, or provider-key injection at the proxy)
-   is not settled here. The invariant is settled (§5.5/M10): no credential
-   file readable inside the sandbox and every provider byte metered. The
-   builder picks the mechanism that passes preflight assertions 5–6 and records
-   it; if neither passes, the campaign halts.
+2. **Credential route — RESOLVED pre-launch (M10-A1, §13.1).** Pass-through +
+   metering; **no injection** (the Copilot OAuth refreshes inside opencode's
+   own plugin, and `sandbox-exec` cannot do per-process file ACLs). The former
+   open item (TLS-termination with a per-campaign CA vs provider-key injection)
+   is closed — neither is used. What remains is the verified end-to-end check
+   (preflight assertions 5–6) and the accepted residual risk recorded in §13.1.
 3. **`sandbox-exec` profile semantics on this macOS build** (deny precedence,
    `network-outbound` host/port syntax, exact-path allow lists). Not tested
    here. If the mechanism is unavailable, the campaign halts (§5.5).
@@ -1178,7 +1238,7 @@ the mechanical index a verifier can diff against.
 | M7 | §7.4 Step 0 | ratified tie rule verbatim + P3 slot |
 | M8 | §7.4 P7 | haiku-high vs minimax-xhigh pair |
 | M9 | §5.5 | per-arm allow-lists |
-| M10 | §5.5/§5.6 | no readable auth; proxy injection + metering |
+| M10 | §5.5/§5.6/§13.1 | per-arm auth copy + allowlist + meter; **injection dropped by M10-A1 (2026-11-21)** |
 | M11 | §5.6 | per-arm opencode.json exact |
 | M12 | §5.3/§5.5 | ref trees private + assertion 4 |
 | M13 | §5.6/§7.2 | 2×cap admission, kill poller, opus cap, timeouts |
@@ -1219,3 +1279,67 @@ the mechanical index a verifier can diff against.
 | M-l | §2.1 | gate-language sentence corrected |
 | M-m | §7.4 | family offsets + P5 mix |
 | M-n | §5.5 | fixture copy outside the sandbox |
+
+---
+
+## 13. Build close-out rulings (author, 2026-11-21, pre-freeze)
+
+The builder's OPEN-FOR-AUTHOR list, ruled by R1 (the author). No scores exist,
+so these are pre-freeze amendments; they are recorded here and in the keys.
+
+| Open | Ruling |
+|---|---|
+| OPEN-2 | **Amended.** HO2 probe (d) pristine expectation is now `exit=0`, `ARTEFACTS-INTACT *or* CHANGED` (**informational — not in the pass contract**), `UNASSIGNED-ABSENT`, ID count 0. Discrimination rests on exit code + the unplaceable-ID count (observed pristine: ID 0; ref-A: exit 1 + ID 1; ref-B: PRESENT + ID 1 + PARTIAL True). The fixed-tree contracts are unchanged. |
+| OPEN-3 | **Accepted with annotation** (see §5.1): SP1 188 / US1 158 code lines vs the 350–600 / 180–300 guide; difficulty is subtlety, not LOC; a Gate-1 failure is repaired by sharpening/adding a defect, never by padding. |
+| OPEN-5 | **Ratified.** H3's seam is `uploader.upload_with_retry(path, store_root, manifest_path, transport=None, attempts=3)` — `transport` is a **keyword argument** (default `None`) with a duck-typed `put(entry) -> None` that may raise `uploader.TransientError`. |
+| OPEN-6 | **Ratified.** H1 discriminates on **address stability + chunk-file count**, not on storage format; both the pristine and the repaired tree store raw bytes. The key's repair description is amended. |
+| OPEN-7 | **Ratified.** `PLAN-CANON` = canonical `assign()` placements (rows sorted by `(start, job)`, keys sorted, compact separators), compared as a hash, never raw file bytes. |
+| OPEN-8 | **Ratified into the keys.** Probe (a) keeps the `TARGET` field and asserts it is plan-like; probe (d) uses the real id **J031** with an exit-safe `ID-COUNT` (no non-zero-exit leak); probe (c) prints `PLAN-CANON`. |
+| OPEN-10 | **Ratified.** The `run-campaign.py` admission change is global (see §5.6): strictly more conservative, no scoring effect, legacy campaigns may stop earlier and must say so. |
+| FREEZE | **Both keys frozen v1 on 2026-11-21**; sha256 recorded in `evals-keys/HOLDOUT-KEY-MANIFEST.tsv`. The P3 slot stays empty (the question text is above in §7.4). |
+| M10-A1 | **Amendment, 2026-11-21, pre-launch** — credential route: INJECTION → **PASS-THROUGH + METERING**. Supersedes the §5.5 credential paragraph and the §5.6 auth bullet (both amended in place). Full text: §13.1. Keys unchanged. |
+
+### 13.1 Amendment M10-A1 (2026-11-21, pre-launch): credential route
+
+**Status: applied.** Supersedes the "Credential route (review M10)" paragraph
+in §5.5 and the auth bullet in §5.6 (both now carry the amended text).
+**Route changed: INJECTION → PASS-THROUGH + METERING.**
+
+**Why it changed.** The Copilot OAuth refreshes **inside opencode's own
+plugin**; a static credential injection breaks the refresh. `sandbox-exec`
+cannot express per-process file ACLs. And the credential-exposure risk being
+defended against was **already the operating baseline**: 400+ unisolated runs
+to date.
+
+**The amended M10 invariant (verbatim):**
+
+> no NON-allowlisted egress; every egress byte/request metered per arm; the
+> arm's auth store is a per-arm copy (readable by the arm by design — residual
+> risk ACCEPTED and recorded: abuse is detectable via the meter + absent from
+> the DB roll-up); the credential never crosses to another arm's allowlist.
+
+**Clause reading.** *No non-allowlisted egress* — the proxy permits only the
+provider hostnames and the sandbox denies direct connects. *Metered per arm* —
+requests and tokens are counted per arm and the per-arm cap is enforced on
+that meter. *Per-arm auth copy* — the store is copied before launch, mode 600,
+inside the arm's allow-list; readable by the arm **by design**, and never
+shared across arms. *Abuse detectable via the meter + absent from the DB
+roll-up* — out-of-band use of the arm's own credential would not appear as
+opencode session spend, so the meter (reconciled against the DB roll-up) is
+the detector. *Never crosses to another arm's allowlist* — no other arm's
+sandbox includes this arm's store, and the proxy's allow-list is bound to that
+arm's credential.
+
+**Residual risk (accepted, recorded).** An arm could in principle use its own
+credential out-of-band. Mitigations: the brief never mentions credentials; the
+meter surfaces an egress/request anomaly; the DB roll-up reconciles
+opencode-side spend; the campaign kill poller enforces the cap on the meter.
+The residual exposure was already the pre-campaign baseline and is recorded
+here rather than claimed closed.
+
+**Freeze consequence: NONE for the keys.** `HOLDOUT-KEY-HO2.md` and
+`HOLDOUT-KEY-HOD.md` are untouched by this amendment and keep their v1 freeze
+hashes (`ce92e6a1cea67f6f40db0ce2d0e5975971ea2726ef266e1f3c772b6e7e962515`,
+`a331268264b2e7d757f4d149505c525c869687044161b502dfbf2738ab67fa2f`); the key
+manifest needs no rewrite; no fixture hash changes. The spec is stamped **v4**
+at this amendment; the next change of any kind is v5.

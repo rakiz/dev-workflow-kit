@@ -1,0 +1,39 @@
+; holdout candidate-arm sandbox (HOLDOUT-SPEC §5.5). Default-deny; per-arm allow-lists.
+; Placeholders are filled by holdout-arm.sh (realpath values only).
+; SBPL: later rules take precedence, so the explicit denies come after the allows.
+(version 1)
+(deny default)
+(allow process*)
+(allow sysctl-read)
+(allow mach-lookup)
+(allow signal (target self))
+
+; read: system roots, and this arm's own directories only
+(allow file-read*
+  (subpath "/usr") (subpath "/bin") (subpath "/sbin")
+  (subpath "/opt/homebrew") (subpath "/System") (subpath "/Library")
+  (subpath "/private/etc") (subpath "/dev")
+  (literal "/") (literal "/private") (literal "/private/var") (literal "/private/tmp")
+  (subpath "{{ARM_TMP}}") (subpath "{{ARM_WORK}}") (subpath "{{ARM_DATA}}") (subpath "{{ARM_CFG}}")
+  (subpath "{{ARM_HOME}}"))
+
+; read+write: this arm's work dir, data dir; config dir ONLY where opencode
+; insists on writing at startup (the auto-.gitignore) — the config file itself
+; (permission rails) stays read-only; its own tmp and home
+(allow file-write*
+  (subpath "{{ARM_WORK}}") (subpath "{{ARM_DATA}}")
+  (literal "{{ARM_CFG}}/opencode/.gitignore")
+  (subpath "{{ARM_TMP}}") (subpath "{{ARM_HOME}}")
+  (literal "/dev/null") (literal "/dev/tty"))
+
+; network-outbound: only the local CONNECT proxy (the credential holder, metered)
+(allow network-outbound (remote ip "localhost:{{PROXY_PORT}}"))
+(allow network-outbound (literal "/private/var/run/mDNSResponder"))
+
+; explicit denies (after the allows): private trees, global opencode state, host credentials
+(deny file-read* file-write*
+  (subpath "{{REPO}}")
+  (subpath "{{CAMP_DIR}}")
+  (subpath "{{GLOBAL_OPENCODE_DATA}}")
+  (subpath "{{GLOBAL_OPENCODE_CONFIG}}")
+  (subpath "{{HOST_AUTH}}"))

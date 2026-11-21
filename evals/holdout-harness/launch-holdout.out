@@ -1,0 +1,16 @@
+wrote /Users/sebastien.mendez/code_projects/IA-tooling/evals-keys/holdout-campaigns/holdout-2026-11-21.json
+campaign CA ready: /Users/sebastien.mendez/.local/state/holdout-campaigns/holdout-mandatory-2026-11-21
+PASS A1 curl https://example.com denied inside sandbox (control: reachable outside)
+PASS A2 global opencode.db unreadable inside sandbox (control: readable outside)
+PASS A3 HOLDOUT-KEY-HO2.md unreadable inside sandbox
+PASS A4 ho2-ref-a/planio.py unreadable inside sandbox
+PASS A5 host auth.json and campaign CA key unreadable inside sandbox; arm's own auth.json copy present
+FAIL A6 live run rc=1 metered=0
+PASS A7a per-arm poller heartbeat written
+PASS A7b campaign-level kill poller heartbeat (run-campaign.py --poller-selftest)
+PASS A8s pass-through: non-allowlisted host 403 and metered denied; allowlisted host got the client's auth as-is (AUTH-OK), meter +requests +bytes
+PASS A8 live: ai-gateway.corp.mongodb.com reached through interception; http=502; system trust rc=60
+PREFLIGHT FAILED fails=1 live=1
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/holdout-harness/preflight.sh: line 21: 99489 Terminated: 15          python3 -B "$HERE/holdout-stub-upstream.py" --port "$UP_PORT" --cert "$UPCA/api.test.invalid.pem" --key "$UPCA/api.test.invalid.key" --header Authorization --expect "Bearer BOGUS-IN-ARM" > /dev/null 2>&1
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/holdout-harness/preflight.sh: line 21: 99491 Terminated: 15          python3 -B "$HERE/holdout-proxy.py" --port "$PORT" --allow "$ALLOW" --campaign-dir "$CAMP" --metrics "$ARM_TMP/proxy.json" --cap-bytes 100000000 --upstream-override "api.test.invalid=127.0.0.1:$UP_PORT" --upstream-ca "$UPCA/ca.pem" > /dev/null 2> "$ARM_TMP/proxy.err"
+preflight --live FAILED: campaign aborted (§5.5)
