@@ -118,6 +118,28 @@ def per_arm_spend(spec, t0):
     return total
 
 
+def count_sessions(title, t0, exact, date):
+    """Sessions since t0 for the exact title (or the date pattern) in the DB the arm actually writes to.
+    Fail closed: an unreadable/missing DB counts as 0, which makes the first-attempt check abort."""
+    path = arm_db(title)
+    if exact:
+        q, args = "SELECT COUNT(*) FROM session WHERE time_created >= ? AND title = ?", (t0, title)
+    else:
+        q, args = "SELECT COUNT(*) FROM session WHERE time_created >= ? AND title LIKE ?", (t0, f"eval-{date}%")
+    try:
+        return int(db_query_at(path, q, args)[0][0])
+    except sqlite3.Error:
+        return 0
+
+
+def safe_spend(spec, t0):
+    """Status-line spend: NaN (printed as 'unreadable') instead of crashing the driver mid-campaign."""
+    try:
+        return campaign_spend(spec, t0)
+    except (sqlite3.Error, OSError):
+        return float("nan")
+
+
 def campaign_spend(spec, t0):
     eval_pat = f"eval-{spec['date']}%"
     return float(db_query(SPEND_Q, (t0, eval_pat, t0, eval_pat))[0][0]) + per_arm_spend(spec, t0)
@@ -308,8 +330,14 @@ def run_arm(spec, job, t0, status_path, logdir):
         if STATE["stop"]:
             admitted, reason = False, "SKIP-STOPPED"
         else:
-            spent = campaign_spend(spec, t0)
-            if spent + STATE["reserved"] + 2 * cap > float(spec["budget_usd"]):
+            try:
+                spent = campaign_spend(spec, t0)
+            except (sqlite3.Error, OSError) as e:
+                STATE["stop"] = True
+                admitted, reason, spent = False, f"STOP-SPEND-UNREADABLE({type(e).__name__})", None
+            if spent is None:
+                pass
+            elif spent + STATE["reserved"] + 2 * cap > float(spec["budget_usd"]):
                 STATE["stop"] = True
                 admitted, reason = False, "STOP-BUDGET"
             else:
@@ -375,7 +403,7 @@ def run_arm(spec, job, t0, status_path, logdir):
         status = "timeout"
     else:
         status = f"rc{rc}"
-    status_line(status_path, job, status, campaign_spend(spec, t0))
+    status_line(status_path, job, status, safe_spend(spec, t0))
     return status
 
 
@@ -453,19 +481,19 @@ def main():
         first = jobs[0]
         run_arm(spec, first, t0, status_path, logdir)
         title0, _ = title_for(spec, first["arm"], first["attempt"])
-        n_exact = db_query("SELECT COUNT(*) FROM session WHERE time_created >= ? AND title = ?", (t0, title0))[0][0]
-        n_pat = db_query("SELECT COUNT(*) FROM session WHERE time_created >= ? AND title LIKE ?",
-                         (t0, f"eval-{spec['date']}%"))[0][0]
+        # held-out titles are counted in the arm's own DB (the one the arm writes); legacy in the global DB
+        n_exact = count_sessions(title0, t0, True, spec["date"])
+        n_pat = count_sessions(title0, t0, False, spec["date"])
         if n_exact == 0 or n_pat == 0:
             with LOCK:
                 STATE["stop"] = True
             status_line(status_path, {"idx": 0, "arm": {"bench": "-", "model": "-", "variant": ""}, "attempt": 0},
-                        f"ABORT-no-session(exact={n_exact},pattern={n_pat})", campaign_spend(spec, t0))
+                        f"ABORT-no-session(exact={n_exact},pattern={n_pat})", safe_spend(spec, t0))
         else:
             with ThreadPoolExecutor(max_workers=spec["parallelism"]) as ex:
                 list(ex.map(lambda j: run_with_rerun(spec, j, t0, status_path, logdir), jobs[1:]))
         poll_done.set()
-        final = campaign_spend(spec, t0)
+        final = safe_spend(spec, t0)
         with LOCK:
             print(f"CAMPAIGN DONE id={spec['id']} spent={final:.4f} budget_usd={spec['budget_usd']:.2f}", flush=True)
         with open(status_path, "a") as f:

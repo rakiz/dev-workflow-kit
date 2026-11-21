@@ -158,6 +158,35 @@ reset(spent=12.0); rc_mod.run_with_rerun(spec, job, 0, os.path.join(logd, "d.txt
 check(len(launches) == 2, "admission: spend 12.0 + 2*0.1 <= 15 admits the arm and its one re-run")
 reset(spent=14.9); st = rc_mod.run_arm(spec, job, 0, os.path.join(logd, "e.txt"), logd)
 check(not launches and st == "STOP-BUDGET", "admission: spend 14.9 + 2*0.1 > 15 refused, nothing launched")
+# 5. per-arm DB accounting (owner fix): held-out titles are counted and costed in the ARM's own DB
+import sqlite3
+rc_mod = load(os.path.join(EVALS, "run-campaign.py"), "rc_fresh")   # section 4 stubbed campaign_spend: reload
+rc_mod.TMPBASE = tempfile.mkdtemp(dir=T)
+rc_mod.DB = os.path.join(T, "global.db")
+def mk_db(path, rows):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    c = sqlite3.connect(path)
+    c.execute("CREATE TABLE session (id TEXT, title TEXT, cost REAL, parent_id TEXT, time_created INTEGER)")
+    c.executemany("INSERT INTO session VALUES (?,?,?,?,?)", rows); c.commit(); c.close()
+t_arm = f"eval-{tdate}-HO2-SP1-arm-x-a1"
+t0 = int(time.time() * 1000) - 60000
+mk_db(os.path.join(rc_mod.TMPBASE, "holdout-xdg", t_arm, "opencode", "opencode.db"),
+      [("s1", t_arm, 0.30, None, t0 + 1000), ("s2", "child", 0.10, "s1", t0 + 2000), ("old", t_arm, 9.0, None, t0 - 5000)])
+mk_db(rc_mod.DB, [])                                   # global DB exists and is empty: held-out sessions never go there
+check(rc_mod.count_sessions(t_arm, t0, True, tdate) == 1, "held-out exact-title check reads the ARM DB (1 session, not the global DB)")
+check(rc_mod.count_sessions(t_arm, t0, False, tdate) == 1, "held-out date-pattern check counts the arm DB's eval-titled sessions since t0 (child titles are not eval-)")
+check(rc_mod.count_sessions(f"eval-{tdate}-HO2-SP1-absent-a1", t0, True, tdate) == 0, "missing arm DB counts as 0 (fail closed)")
+check(abs(rc_mod.campaign_spend(spec, t0) - 0.40) < 1e-9, "campaign spend sums the arm DB (0.30 + child 0.10), excludes pre-t0 sessions")
+os.chmod(os.path.dirname(os.path.dirname(rc_mod.arm_db(t_arm))), 0o000)
+try:
+    unreadable = rc_mod.campaign_spend(spec, t0)
+except (sqlite3.Error, OSError):
+    unreadable = None
+os.chmod(os.path.dirname(os.path.dirname(rc_mod.arm_db(t_arm))), 0o755)
+rc_mod.campaign_spend = lambda s, t0_: (_ for _ in ()).throw(sqlite3.OperationalError("unreadable"))
+launches.clear(); rc_mod.STATE.update(stop=False, reserved=0.0, procs=set())
+st = rc_mod.run_arm(spec, job, t0, os.path.join(logd, "f.txt"), logd)
+check(not launches and st.startswith("STOP-SPEND-UNREADABLE"), "unreadable spend refuses admission (fail closed), nothing launched")
 shutil.rmtree(T, ignore_errors=True)
 print("HARNESS-SELFTEST " + ("PASS" if not FAILS else f"FAIL ({len(FAILS)})"))
 sys.exit(1 if FAILS else 0)
