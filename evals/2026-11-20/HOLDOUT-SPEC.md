@@ -1,15 +1,14 @@
 # HOLDOUT-SPEC — Étape 2 held-out fixtures (pre-registration)
 
-**Spec v5 (2026-11-21) — owner slots filled 2026-11-21, no contract change. Keys FROZEN v1 (2026-11-21).**
-Nothing in this file is a result. The fixtures are built and both answer keys
-are frozen (`evals-keys/HOLDOUT-KEY-MANIFEST.tsv`); **no held-out arm has
-run**. Post-freeze changes to the keys are rubric amendments: owner ruling +
-fresh fixture hash + a new key version, and the pre-registration is void if any
-such change lands after scores exist. **v4 records the M10-A1 amendment
-(credential route, §13.1), made pre-launch; the keys are unchanged by it.**
-Version note: v1 = pre-registration (2026-11-20); v2 = review change set;
-v3 = integration round; v4 = the M10-A1 stamp; v5 = owner slots filled
-2026-11-21, no contract change.
+**Spec v7 (2026-11-21) — repair review fixes + dry simulation. Keys v2 DRAFTS
+(v1 frozen, archived).** v6 = the repair pre-registration; v5 = owner slots
+filled; v4 = the M10-A1 amendment; v1–v3 = the pre-registration and the two
+review rounds. The
+mandatory campaign ran (`2026-11-21/HOLDOUT-RESULTS.md`): both benches failed
+Gate 1 and Gate 2, so **SP1 and US1 are SPENT** (§5.4) and their frozen v1 keys
+are archived. This version pre-registers the Gate-1 repair — sharpened fixtures
+**SP2 / US2** (§3.1/§3.2), v2-draft keys (re-frozen only after the rebuild) and
+the repair campaign deltas (§14). Nothing in this file is a result.
 
 - **Author of this spec (R1): strong-design rung, model family deepseek.**
   R1 does **not** interpret the results (PROTOCOL §7: the fixture author is
@@ -143,71 +142,76 @@ different mechanism from D1's four (`RUBRIC-D1-v3.md` H1–H4).
 
 ## 3. Fixture designs
 
-### 3.1 HO2 — `evals/heldout-impl-sp1/` (fixture code **SP1**, task code **HO2**)
+### 3.1 HO2 v2 — `evals/heldout-impl-sp2/` (fixture code **SP2**, task code **HO2-SP2**)
 
-Size class: reportgen-i4 is 9 files / ~500 code lines. SP1: **3 Python
-modules** (`plan.py`, `planio.py`, `cli.py`) + 2 test files + `GOAL.md` + 5 data
-files, ~520 code lines (M-c).
+**Supersedes the SP1 block (§14; v6). SP1 is SPENT** — one campaign, ceiling-
+censored (`HOLDOUT-RESULTS.md` §4), and its instances are now public evidence.
+The domain, the 4 shape families and the 14-point scale are kept; the defect
+*mechanisms* are deepened to sub-shapes SP1 never taught.
 
-<!-- MINOR 15: data/jobs_test40.csv is part of this inventory and the c_test input -->
+Size class: the same 3 modules (`plan.py`, `planio.py`, `cli.py`) + 2 test files
++ `GOAL.md` + 8 data files, ~200 code lines (the OPEN-3 smaller class is kept;
+difficulty is subtlety, not LOC).
+
 | File | Responsibility |
 |---|---|
-| `plan.py` | job/machine model and the assignment logic (deterministic: no randomness, no wall-clock, fixed tie-break) |
-| `planio.py` | plan, timetable, index and summary I/O |
-| `cli.py` | CLI entry point; exit codes per the policy the candidate chooses |
-| `test_plan.py` | baseline suite (green on the pristine tree) |
-| `test_legacy_plan.py` | one **pre-existing failing test** — report-only, *not* in the scoring path, fix-only-if-asked (RG4 rule carried over) |
+| `plan.py` | job/machine model + assignment (deterministic: no randomness, no wall-clock, fixed tie-break) |
+| `planio.py` | plan, timetable, index, summary I/O |
+| `cli.py` | entry point; exit codes per the chosen policy |
+| `test_plan.py` / `test_legacy_plan.py` | baseline suite (green) / one red test (report-only, never scored) |
 | `GOAL.md` | the brief (§3.3) |
-| `data/machines.csv`, `data/jobs_small.csv`, `data/jobs_partial.csv`, `data/jobs_test40.csv`, `data/jobs_large.csv` | fixed inputs; the 40-job and large files are committed, never generated at run time |
+| `data/` | 8 fixed inputs, committed; `jobs_large.csv` and `jobs_wide.csv` carry an **empty `machine` column**; `jobs_small.csv` keeps **≥ 2 jobs whose preferred machine fills up**; `runstate` is tool-created, not shipped |
 
-No `.git`, no flaw-flagging comments, no `TODO`, no file names that hint at a
-defect. The pristine tree must run the suite green and `cli.py` must complete
-on the shipped small input.
+No `.git`, no `TODO`/`FIXME`, no hinted file names. The pristine suite is green
+and `cli.py` completes on the small input.
 
-#### The four seeded defects — **shape families only**
+#### The four seeded defects — **shape families only** (instances in the v2 key)
 
-The instance-level design (locations, mechanisms, probe inputs, expected
-pristine/fixed outputs) lives **only** in `evals-keys/HOLDOUT-KEY-HO2.md`
-(review M1). The public record carries the families:
+The public record carries the families and the point structure; the instance
+design (locations, mechanisms, probe inputs, expected values) lives only in
+`evals-keys/HOLDOUT-KEY-HO2.md` (review M1/M3). Each family keeps the SP1
+sub-shape count where it changed the budget:
 
-- **(a) spec-vs-code contradiction** — a documented guarantee the code does
-  not provide; the docstring is bait only and the fix is graded on behaviour
-  (the probe never reads the prose).
-- **(b) cross-file state consistency** — two artefacts of the same run
-  disagree on a derived quantity, invisibly to the shipped suite.
-- **(c) measurement-forcing performance hazard** — the cost grows with the
-  input; the GOAL states a measured acceptance and the report must carry the
-  counts.
-- **(d) fix-shape ambiguity** — two defensible policies, each with an explicit
-  pre-registered end state (the F2 lesson: `PROTOCOL.md` §5(d), F2).
+- **(a) spec-vs-code contradiction** — **two graded instances** (fix 0/1/2 + one
+  test point).
+- **(b) cross-file state consistency** — one instance (fix + test).
+- **(c) measurement-forcing performance hazard** — one instance, accepted on
+  **both** shipped inputs (fix 0/2 + test + quote).
+- **(d) fix-shape ambiguity** — one instance over **two failure classes**
+  (fix + test); the GOAL's two-row table is the grading contract.
 
 **Deliberately NOT seeded:** any check-then-act lockfile pattern; any defect
-whose probe needs concurrency, a clock or randomness; any defect a grep for
-`TODO`/`FIXME` finds; any defect already published in the public corpus
-(`BENCH-V3-DESIGN.md` §3.2 rationale carried over).
+needing concurrency, a clock or randomness; any defect a `TODO` grep finds; any
+defect already published in the public corpus; **any defect whose instance the
+SP1 campaign taught the 24 candidate runs** (the repair adds mechanisms, never
+constants).
 
-### 3.2 HOD — `evals/heldout-design-us1/` (fixture code **US1**, task code **HOD**)
+### 3.2 HOD v2 — `evals/heldout-design-us2/` (fixture code **US2**, task code **HOD-US2**)
+
+**Supersedes the US1 block (§14; v6). US1 is SPENT** (ceiling-censored: best
+9.13/11, `HOLDOUT-RESULTS.md` §4; its hazards are public evidence). Same
+substrate domain, same 4 hazard classes, same 11-point scale; each hazard is
+**deepened with a second-order consequence** the SP1 campaign never taught.
 
 | File | Responsibility |
 |---|---|
-| `chunkstore.py` | content-addressed chunk store: chunk id, store/get, chunk iteration, read-back by recorded metadata, orphan GC |
-| `uploader.py` | single-shot upload, retry wrapper, remote manifest append |
-| `test_chunkstore.py` | green suite over **happy paths only** — it does not exercise the hazard surfaces |
+| `chunkstore.py` | chunk id/store/get/iteration/read-back, orphan GC, **a manifest keyed by object name only** |
+| `uploader.py` | single-shot upload, retry wrapper, manifest append, **the per-upload id list** |
+| `test_chunkstore.py` | green suite over happy paths only |
 | `BRIEF.md` | the brief (§3.4) — no hazard hint |
 
-The substrate is shipped code the design must build on. The four hazards are
-true of it, invisible to its green suite, and deterministic to probe; each
-maps to a different taxonomy category and to a *different mechanism* from
-D1's four. Instance-level identity, probe inputs and expected values live
-**only** in `evals-keys/HOLDOUT-KEY-HOD.md` (review M1).
-
-Hazard classes (class names only; instances and mechanisms private):
+Hazard classes (class names only; instances and mechanisms in the v2 key):
 **(H1)** address/dedupe stability; **(H2)** round-trip boundary correctness;
 **(H3)** idempotency of a retried partial failure; **(H4)** resource-bound
-honesty (a *claimed* bound). Each is true of the shipped substrate, is
-invisible to its green suite, is deterministic to probe, and maps to a
-different taxonomy category and a different mechanism from D1's four. All four
-are *handled in the design*, not fixed in code.
+honesty (a *claimed* bound). Each is true of the shipped substrate, invisible to
+its green suite, deterministic to probe, and **two-part** — a first-order and a
+second-order consequence, both required (half credit for one). The v2 key holds
+the instance of both parts; the public text never names them.
+
+**Credit sharpening (scale unchanged, M = 11, Gate 1 ≤ 8.8):** Part A keeps 8
+categories ÷2 = 4, but a category now requires a **counterfactual** alongside
+the integration point (a mechanism description alone earns 0.5). Part H stays
+4 × 1 with the two-part rule. Part B stays 0–3.
 
 ### 3.3 `GOAL.md` for HO2 (build to this text; it names no defect)
 
@@ -224,16 +228,20 @@ The builder writes exactly this brief, filling only the data-file names:
 >
 > - A job appears at most once in a plan, and no machine is ever over its
 >   shift length.
-> - On `data/jobs_large.csv`, the number of placement attempts must be at
->   most 8 per job. Measure it (count the attempts your run performs) and
->   report the pristine and fixed counts in your final report, with the
->   commands you used.
+> - On **both** `data/jobs_large.csv` and `data/jobs_wide.csv`, the number of
+>   placement attempts must be at most 8 per job. Measure it on both (count
+>   the attempts your run performs) and report the pristine and fixed counts
+>   in your final report, with the commands you used.
 > - Some jobs cannot be placed. Pick one policy and make every artefact
 >   consistent with it:
 >
 > | Situation | Policy A — fail-fast | Policy B — partial with report |
 > |---|---|---|
 > | ≥ 1 job unschedulable | exit 1; `plan.json`, the timetable, `index.json` and `summary.json` (if present) byte-identical to the previous good run; offending job ids on stderr; no `unassigned.txt` | exit 0; `plan.json` holds every schedulable job; `out/unassigned.txt` lists the unschedulable ids; `summary.json` has `"partial": true`; index loads equal the plan |
+> | an input file cannot be read | exit 1; the same artefacts byte-identical; the file path on stderr; no `unreadable.txt` | exit 0; schedulable inputs planned; `out/unreadable.txt` lists the path; `summary.json` `"partial": true`; index loads equal the plan |
+>
+> One policy covers **both** situations; the end state must be consistent with
+> the chosen policy for each.
 >
 > Before changing anything, run both shipped suites and record the result in
 > your final report — for each, the exact command and its observed output, as
@@ -345,21 +353,21 @@ must hold) are key content; their existence is public (review M3/M5).
 
 | Slot | Probe class |
 |---|---|
-| (a) | injected serialization/write failure on the save path |
-| (b) | two-artefact comparison of the same run |
-| (c) | operation count vs a pristine baseline on the shipped large input |
+| (a) | injected failure on **every write primitive**, matched by reason (target name or plan shape), never by a printed name; partial write then raise; **INJECTED 0 ⇒ unevaluable (0 + flag)**; plus a **pair-state** comparison |
+| (b) | two-artefact comparison on a **cold run and a warm run** (two-run diff) |
+| (c) | operation count vs a pristine baseline on **both** shipped inputs (narrow + wide machine sets) |
 | (c-quote) | executed-evidence check of the counts quoted in the report |
-| (d) | branch probe of the stated policy's pre-registered end state |
+| (d) | branch probe of the stated policy on **two failure classes** (unschedulable job, unreadable input) |
 | tests | own-tests-on-pristine (RG4 pattern: extract before overlay) |
 
 ### 4.2 HOD — probe classes per hazard
 
 | Slot | Probe class |
 |---|---|
-| H1 | address-stability check (M-a) |
-| H2 | round-trip length/content check |
-| H3 | injected lost-acknowledgement |
-| H4 | resource-bound measurement (a counted proxy, never RSS) |
+| H1 | address-stability check (first and second order) |
+| H2 | round-trip length/content check (first and second order) |
+| H3 | injected lost-acknowledgement (first and second order) |
+| H4 | resource-bound measurement (a counted proxy, never RSS; both orders) |
 
 `fixed` in the keys means the **reference repair of the substrate**, used only
 to prove the hazard is real and the probe discriminates; candidates are not
@@ -437,7 +445,7 @@ LC_ALL=C grep -rnIF --exclude-dir=.git --exclude-dir=__pycache__ \
   --exclude='*.pyc' --exclude='.DS_Store' -f "$TK" dev-workflow-kit/ || echo ZERO-HITS
 LC_ALL=C grep -rnIF --exclude-dir=.git --exclude-dir=__pycache__ \
   --exclude='*.pyc' --exclude='.DS_Store' -f "$BAN" \
-  dev-workflow-kit/evals/heldout-impl-sp1 dev-workflow-kit/evals/heldout-design-us1 \
+  dev-workflow-kit/evals/heldout-impl-sp2 dev-workflow-kit/evals/heldout-design-us2 \
   || echo ZERO-HITS
 ```
 
@@ -461,9 +469,9 @@ H() { find "$@" -type f \
         -not -path '*/out/*' -not -path '*/cache/*' \
         -not -name '.DS_Store' \
       | LC_ALL=C sort | xargs shasum -a 256; }
-H dev-workflow-kit/evals/heldout-impl-sp1/ > /tmp/ho2.files
-H dev-workflow-kit/evals/heldout-design-us1/ > /tmp/us1.files
-H evals-keys/ho2-ref-a/ evals-keys/ho2-ref-b/ evals-keys/us1-repaired/ > /tmp/refs.files
+H dev-workflow-kit/evals/heldout-impl-sp2/ > /tmp/ho2.files
+H dev-workflow-kit/evals/heldout-design-us2/ > /tmp/us2.files
+H evals-keys/ho2-ref-a-v2/ evals-keys/ho2-ref-b-v2/ evals-keys/us2-repaired/ > /tmp/refs.files
 shasum -a 256 /tmp/ho2.files /tmp/us1.files /tmp/refs.files \
   evals-keys/HOLDOUT-KEY-HO2.md evals-keys/HOLDOUT-KEY-HOD.md \
   evals-keys/holdout-tokens.txt evals-keys/holdout-ban.txt \
@@ -472,10 +480,10 @@ shasum -a 256 /tmp/ho2.files /tmp/us1.files /tmp/refs.files \
 
 | Artefact | Location | Manifest |
 |---|---|---|
-| SP1 tree (per-file + tree hash) | public `evals/heldout-impl-sp1/` | `HOLDOUT-MANIFEST.tsv` (public, hashes only) |
-| US1 tree (per-file + tree hash) | public `evals/heldout-design-us1/` | `HOLDOUT-MANIFEST.tsv` |
+| SP2 tree (per-file + tree hash) | public `evals/heldout-impl-sp2/` | `HOLDOUT-MANIFEST.tsv` (public, hashes only) |
+| US2 tree (per-file + tree hash) | public `evals/heldout-design-us2/` | `HOLDOUT-MANIFEST.tsv` |
 | HO2 key, HOD key | private `evals-keys/` | `HOLDOUT-KEY-MANIFEST.tsv` (private) |
-| ref-A, ref-B, US1-repaired | private `evals-keys/ho2-ref-*/`, `evals-keys/us1-repaired/` | `HOLDOUT-KEY-MANIFEST.tsv` |
+| ref-A-v2, ref-B-v2, US2-repaired | private `evals-keys/ho2-ref-*-v2/`, `us2-repaired/` | `HOLDOUT-KEY-MANIFEST.tsv` |
 | tokens, ban list, config template | private `evals-keys/` | `HOLDOUT-KEY-MANIFEST.tsv` |
 | spent archive (post-campaign only) | private `evals-keys/holdout-spent/<code>/` | `HOLDOUT-KEY-MANIFEST.tsv` + public `SPENT <date>` marker |
 
@@ -489,7 +497,11 @@ keys v1).
 
 ### 5.4 Single use + rotation
 
-- **Single use:** SP1 and US1 are used by exactly one campaign (this one).
+- **Single use:** SP1 and US1 are used by exactly one campaign (the
+  2026-11-21 campaign, closed ceiling-censored). **Both are SPENT**; their
+  frozen v1 keys are archived at `evals-keys/archive/HOLDOUT-KEY-{HO2,HOD}-v1.md`
+  (hashes unchanged, recorded in the key manifest). The repair (§14) uses
+  **SP2 / US2** with v2-draft keys, re-frozen only after the rebuild.
 - **Post-campaign location (review MINOR 4):** at closure the two fixture
   directories are **removed from the public tree** and archived in the private
   repo as `evals-keys/holdout-spent/<code>/`; the public tree keeps only the
@@ -1178,15 +1190,15 @@ result.
 
 1. **R2 critique** this spec (different family from R1). Apply only
    corrections that do not change the construct; record them.
-2. **R3 build `evals/heldout-impl-sp1/`** to §3.1 + §3.3, using
-   `evals-keys/HOLDOUT-KEY-HO2.md` (draft) as the defect contract. Run
+2. **R3 build `evals/heldout-impl-sp2/`** to §3.1 + §3.3, using
+   `evals-keys/HOLDOUT-KEY-HO2.md` (v2 draft) as the defect contract. Run
    `python3 -m unittest test_plan` (green) and `python3 cli.py` on the small
    input; confirm `test_legacy_plan.py` fails with exactly one failure.
-3. **R3 build `evals/heldout-design-us1/`** to §3.2 + §3.4, using
-   `evals-keys/HOLDOUT-KEY-HOD.md` (draft). Confirm the suite is green and
+3. **R3 build `evals/heldout-design-us2/`** to §3.2 + §3.4, using
+   `evals-keys/HOLDOUT-KEY-HOD.md` (v2 draft). Confirm the suite is green and
    that every hazard is invisible to it.
 4. **R3 build the reference-fixed trees in the PRIVATE repo** (M12):
-   `evals-keys/ho2-ref-a/`, `evals-keys/ho2-ref-b/`, `evals-keys/us1-repaired/`
+   `evals-keys/ho2-ref-a-v2/`, `evals-keys/ho2-ref-b-v2/`, `evals-keys/us2-repaired/`
    — small diffs (≤ 120 lines each) — and run every probe ×3 on pristine and
    fixed (§4). Fill the observed numbers into the key drafts; a defect whose
    probe is not stable ×3 is replaced before freeze.
@@ -1194,7 +1206,8 @@ result.
    one lint script (`evals-keys/holdout-lint.sh`), including the hash
    exclusions of §5.3. Zero hits, both directions.
 6. **R3 build `run-eval-v6.sh`** (new file; copy v4's cap/watchdog/report
-   machinery) with: new task codes `HO2`/`HOD`, fixture codes `SP1`/`US1`,
+   machinery) with: new task codes `HO2`/`HOD`, fixture codes **`SP2`/`US2`**
+   (titles `HO2-SP2` / `HOD-US2`),
    the per-arm data dir **without** a credential file (§5.6/M10), the per-arm
    minimal `opencode.json` (§5.6/M11), the proxy + metering, per-arm allow-list
    isolation + the seven preflight assertions (§5.5), the per-arm poller
@@ -1215,8 +1228,9 @@ result.
     close on any §7.5 stop condition.
 11. **R7 score** in blinded dirs, **batch per bench per family** (§5.8),
     2 families, self-family excluded; divergent runs get one arbiter reading
-    (M14/I4); **R8** rules on verdict-straddling divergences and on FPs
-    (advisory only, I6); scores lock; unseal the ID map.
+    (M14/I4) — **superseded for the repair by §14.3: no arbiter** (the
+    2026-11-21 cost/verdict record); **R8** rules on verdict-straddling
+    divergences and on FPs (advisory only, I6); scores lock; unseal the ID map.
 12. **Step 1 validity check** (§7.4) → if valid and the phase-2 condition
     holds, launch phase 2; else close the campaign.
 13. **R9 interpret** (not R1): write the results, the bands, the per-pair
@@ -1349,3 +1363,178 @@ hashes (`ce92e6a1cea67f6f40db0ce2d0e5975971ea2726ef266e1f3c772b6e7e962515`,
 manifest needs no rewrite; no fixture hash changes. The spec was stamped **v4**
 at that amendment; **v5** stamps the owner-slot filling (2026-11-21, no
 contract change).
+
+---
+
+## 14. Repair pre-registration (v6, 2026-11-21) — Gate-1 rebuild
+
+**Trigger.** The mandatory campaign failed Gate 1 on both benches (HO2 best
+11.25/14 vs ≤11; HOD best 9.13/11 vs ≤8.8) and Gate 2 on both
+(`HOLDOUT-RESULTS.md` §4). The pre-registered repair rule applies: sharpen the
+fixtures, never pad LOC. SP1/US1 are SPENT; SP2/US2 replace them.
+
+### 14.1 Autopsy (before touching anything)
+
+Per-item distribution over the 48 official readings (6 batch scorer files,
+`evals-keys/holdout-scoring/batches/*/scores.tsv`):
+
+| Bench | Universally earned (≥90% of readings) | Partial / hard | Reading |
+|---|---|---|---|
+| HO2 | `suite_green` 100%, `b_fix` 100%, `d_fix` 100%, `policy` 100% (32 B + 4 A), `c_fix` mean 0.89 (16 readings at 2), `baseline_recorded` 100% | `a_fix` 69% (fd-route unevaluable zeros), `a_test` 39%, `b_test` 28%, `d_test` 36%, `c_test` 11%, `c_quote` 28% | ≈ 7 of 14 points are compliance/defect-fix mass earned by nearly all; the residual spread is **test-writing + quote discipline**, not defect discovery |
+| HOD | `A1–A8` **12/12 each** (4/4 after ÷2), `H2–H4` 12/12, `H1` 11/12 (one 0.5) | `B1` 17%, `B2` 83%, `B3` 83%, FP 5/12 | **8 of 11 points (A + H) are saturated**; only the exec-proof bonus and FP discriminate |
+
+**Corrections to the campaign record (minor 1/2).** The fd-route artefact hit
+**5** HO2 runs, not 9 (a_fix **13/18** runs scored; 5 both-zero readings); this
+amends `HOLDOUT-RESULTS.md` §6.2 and the v2 key. The eight-route probe gap is
+what the v2 §4.1 class closes.
+
+**Mechanical causes.**
+1. **Shallow defect axes on HO2.** Two of four defects (`b`, `d`) were fixed by
+   every arm and `c` was fixed by most: the shapes were discoverable from the
+   two artefacts / the named policy / a single measurement. The bench then
+   ranked on report discipline, not reading, which is why the top sat at 11.25.
+2. **HOD's point budget was mostly checklist.** Part A (4) + Part H (4) = 8/11
+   earned by every arm: the 158-line substrate let a whole-file read name every
+   hazard, and the Part-A grounding bar (cite a function) was met by all. Only
+   3 points (B) plus FP could vary.
+3. **Probe/rubric generosity at the boundary.** The HO2 `a` probe knew only the
+   `json.dump` route (the v1 fd-route runs scored 0 as unevaluable — a probe
+   artifact, not a defect), and the free points (`suite`, `baseline`, `policy`)
+   paid compliance. On HOD, each hazard earned its point on the first-order
+   naming alone, with no second-order consequence required.
+
+### 14.2 Sharpening (families only; instances in the v2 key drafts)
+
+- **HO2 (SP2):** (a) two graded instances; (b) one instance; (c) one instance
+  accepted on both shipped inputs; (d) one instance over two failure classes.
+  Budget: suite 2→1, (a) 2→3, net **14** (Gate 1 ≤ 11 unchanged).
+- **HOD (US2):** each hazard is **two-part** (first-order + second-order
+  consequence, both required); Part A requires the **counterfactual**. Scale
+  **11** unchanged (Gate 1 ≤ 8.8); the credit bar, not the weights, is raised.
+- Instance-level detail (locations, mechanisms, literals, expected values) is
+  key content only; the public text is family level (review M3).
+- **Not reused:** every SP1/US1 instance is public evidence from 24 candidate
+  runs; the new defects are new mechanisms (no constant tweaks). Determinism
+  and probeability are unchanged (no clock, concurrency, randomness).
+
+### 14.3 Repair campaign (deltas only; all other machinery unchanged)
+
+**M7 decision: opus-HO2 is DROPPED** — it defends no pair the reduced set
+re-tests (P3 needs haiku-high, not run), and the Gate-1 canary role passes to
+the n=4 arms. That removes $1.018 of expected cost and the largest cap.
+
+| Bench | Arm | Runs | Mean $/run | Arm cost | Repair cap/run (kill at 2×) |
+|---|---|---|---|---|---|
+| HO2-SP2 | haiku-5.5 default (anchor) | 4 | 0.0267 | $0.107 | $0.06 (kill 0.12) |
+| HO2-SP2 | fw-glm-5.3-flash high | 4 | 0.0289 | $0.116 | $0.06 (kill 0.12) |
+| HO2-SP2 | minimax-m3p1 xhigh | 4 | 0.0896 | $0.358 | $0.20 (kill 0.40) |
+| HOD-US2 | haiku-5.5 medium (anchor) | 4 | 0.0312 | $0.125 | $0.08 (kill 0.16) |
+| HOD-US2 | deepseek-v4p1-flash-1017 high | 2 | 0.1836 | $0.367 | $0.40 (kill 0.80) |
+| **Runs** | | **18** | | **$1.073** | Σ worst 2× = **$4.80** |
+
+- **Scoring:** the same 2-family pairing (6 batch sessions, §5.8 caps):
+  ≈ 36 readings, expected **$0.47** (the 2026-11-21 panel measured
+  $0.013/reading). Preflight $0.01. **Expected total ≈ $1.55** (range
+  $1.3–2.2); **hard cap $10.00** (admission `spend + 2×cap ≤ 10`; runs worst
+  **$4.80** + panel worst **$4.80** + preflight 0.05 = **$9.65 ≤ $10**); DNF
+  re-runs from the reserve, one per cell.
+
+- **Scorer rewrite (v2 vocabulary, tasked):** the scorer prompt and
+  `score.py` are rewritten for the v2 items — `COLD`/`WARM` equality, the
+  `NARROW`/`WIDE` count pair, the dual `PLAN-CANON` hashes, the `INJECTED 0 ⇒
+  unevaluable` rule, and the `counter == 0 ⇒ 0 + flag` rule (M1/M2). The
+  rewrite lands with the rebuild; it is not scored by the v1 sheet.
+- **Counter rule (M2, pre-registered):** the (c) probe counts at the
+  **definition site** of the conflict test, and a **zero count means 0 + scorer
+  flag** (an optimiser that removes the measured control earns nothing) —
+  the owner DECIDED precedent stands (`HOLDOUT-RESULTS.md` §6.4, 2026-11-21:
+  "removing the control a counter measures = 0"), not pending. The scorer
+  cross-checks the tool's self-reported attempt count against the probe's.
+- **No arbiter (exemption, recorded):** the 2026-11-21 campaign spent $5.28 on
+  8 advisory readings and no verdict changed (`HOLDOUT-RESULTS.md`, final
+  arbiter section). The repair records divergence (≥ 2.0) without an arbiter
+  reading; a straddling divergence goes to the owner. This is a pre-registered
+  deviation from §5.7, justified by the measured cost.
+- **Gates, blinding, band, pairs — unchanged.** Gate 1 (≤11 / ≤8.8), Gate 2
+  (≥ max(3, 2·sd_anchor)), the blinded 2-family panel, the 2×2 orders and the
+  κ rule are as in §7.4/§5.7/§3. Bands: `max(prior, C(4)·sd_anchor·√(1/n_H+1/n_C))`
+  with the same priors (4.80 / 1.04) and the repair's own anchor sds.
+- **Pairs covered by the reduced arm set:** P1 (haiku-default vs glm-high) and
+  P5 (haiku-medium vs 1017-high). **Not re-tested:** P2/P3/P4/P7 (their
+  challenger arms are not run) — they stay as recorded (owner-ruled or
+  unmeasured); the repair's purpose is Gate-1 validity, not pair replication.
+- **Status at freeze:** the keys are **v2 DRAFTS** (not frozen); the builder
+  rebuilds SP2/US2, re-runs the probe battery ×3 and the ban/leak greps, then
+  the keys are re-frozen as **v2** with new hashes. The v1 keys stay archived;
+  their hashes in `HOLDOUT-KEY-MANIFEST.tsv` are re-pointed to the archive
+  copies. A Gate-1 failure again closes SP2/US2 and escalates to a v3 rebuild
+  (never a re-threshold).
+
+### 14.4 Dry simulation (M4, pre-build; spend $0.155)
+
+**Method.** (i) **Mechanical replay ($0):** the 18 archived HO2 run trees were
+copied and re-probed under the v2 probe classes — the widened all-primitive
+a1 probe, the a2 pair probe, the two-input c probe (a wide 16-machine input
+synthesized exactly to the key's spec), and the two-row d probe (non-root
+asserted). (ii) **Judgment re-score:** the two opus runs (the archived best
+arm) were re-scored by two fresh family sessions (glm high, minimax medium)
+under the v2 judgment rules; the other 16 runs' judgment items are carried from
+the archived two-family blind readings (same reports, same definitions; the v2
+rules change no judgment item except c_quote, which is mechanically 0 for
+archived reports). Spend: **$0.155** (smoke $0.005 + re-score $0.150), within
+the $2 envelope.
+
+**Key replay findings.** a1: every archived run is now evaluable; 17/18 pass
+(one truncates the target). a2: **0/18** pair-intact (every archived save is
+sequential). b: not simulatable on SP1 trees (no run-state); carried from v1
+and flagged. c: the wide input exposes the machine-count growth — the best
+fixed runs go 98→2 140 (2.1/job, pass) or 414→11 143 (11.1/job, fail); the
+unfixed stay at 1 353 633 (1 353/job); one run removed the measured control
+(counter 0) → 0 + flag (M2). d: 0/18 handle the unreadable row (all traceback).
+c_quote: 0/18 quote both inputs.
+
+**Predicted v2 totals (per arm, readings mean / max):**
+
+| Arm | mean | max |
+|---|---|---|
+| haiku-default (repair anchor) | 7.00 | 10.00 |
+| minimax-xhigh | 6.38 | 8.00 |
+| glm-high | 4.88 | 5.00 |
+| (opus — not run in the repair) | 10.00 | 11.00 |
+
+**Iteration log.** Iteration 1 = the v2 rubric above. Predicted best of the
+**repair's arms** = haiku-default **7.00** (max reading 10); the all-archived
+best (opus, not run) = **10.00** (max 11). Both **≤ 11** ⇒ **Gate 1 passes**
+for HO2; no free-mass cut applied (a cut would push the anchor toward the floor
+without evidence it is needed). **HOD:** the archived designs cannot earn the
+US2 second-order consequences by construction; under the v2 credit rules
+(A counterfactual 0.5 each → 2, H two-part 0.5 each → 2, B 2–3) the best is
+**≤ 7.0 ≤ 8.8** ⇒ Gate 1 passes. Stop; the build proceeds.
+
+**Limitation, stated.** The prediction is the *same archived deliverables* under
+the v2 rules; the archived deliverables cannot earn the new items (a2, d row 2,
+c_quote both, US2's second order), so the prediction is a **lower bound**. The
+rebuild's Gate 1 on fresh runs is the real test; a fresh run that earns all the
+new items can reach the scale maximum. The floor check (anchor ≤ 3/14, ≤ 2.5/11)
+is not tripped (anchor 7.00 / ≤ 7.0), so the sharpening is not over-hard.
+
+### 14.5 Repair-review fixes folded (M1–M7, m1–m9)
+
+| ID | Fix |
+|---|---|
+| M1 | (a1) matches by **reason** (NAME/SHAPE), never the printed name; primitives enumerated (open/io/pathlib/os.write/fdopen/tempfile/json); partial-write wrapper; `INJECTED 0 ⇒ unevaluable` kept (§4.1, key §1) |
+| M2 | `counter == 0 ⇒ 0 + flag` at the definition site + self-report cross-check; the SP1 precedent cited as **DECIDED** (owner 2026-11-21) (§14.3, key §3) |
+| M3 | §3.1/§3.2/§4.2 demoted to family/class level; instance text only in the keys; token literals `SP2-J90217`, `US2-COLLIDE-7f3a` added to `holdout-tokens.txt` |
+| M4 | the dry simulation above; no cut needed; stop before build |
+| M5 | §11/§5.2/§5.3/title codes re-pointed to SP2/US2 (`HO2-SP2`, `HOD-US2`); the v2 scorer rewrite tasked in §14.3 |
+| M6 | `jobs_large`/`jobs_wide` empty `machine`; `jobs_small` keeps ≥ 2 preference-fillup jobs (spec §3.1, key §0) |
+| M7 | opus-HO2 dropped (defends no re-tested pair; canary = n=4 arms); caps per run; hard cap **$10** (runs worst $4.80 + panel worst $4.80 + preflight $0.05 = $9.65) |
+| m1 | fd count **5** (not 9) everywhere; `HOLDOUT-RESULTS.md` §6.2 corrected |
+| m2 | a_fix **13/18** in the autopsy |
+| m3 | H3 counts **raw manifest lines**, not a parsed dict |
+| m4 | HOD second orders are execution-revealed via **Part-B** (command + output) |
+| m5 | the unreadable probe asserts **non-root** |
+| m6 | US1→US2 naming |
+| m7 | §11's arbiter promise **superseded** for the repair (§14.3) |
+| m8 | v2 token/ban literals added |
+| m9 | repair title codes (`ab-`-style token per §2) |
