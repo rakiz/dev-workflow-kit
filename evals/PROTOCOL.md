@@ -11,7 +11,7 @@
 | O | Orchestration: grounded plan, pipeline agents, verifiable criteria, red-baseline trap | `synccli-eval-repo` (2-commit history recreated) | `run-eval-v5.sh T1` | **/8**: baseline 2 + grounding 2 + agents 2 + criteria 2 − 3/hallucination (v2 rubric; runs scored PASS/PARTIAL/FAIL before 11-16 are re-scored from logs; lost texts are RE-RUN, never left categorical) |
 | IR | Impl review: 3 seeded defects + bonus − FPs | `synccli-eval-repo` | `run-eval-v5.sh T3` | n/3 (+2 max bonus) |
 | DR2 | Design review (bench v2 → v3 T4V3) | `synccli-eval-repo-v2` | `run-eval-v5.sh T4V3` | /14 — v2 (T4V2) cells remain attached to v2, never compared across versions (§2 rule 3) |
-| I2 | Impl, bench v3 (4 seeded defects + regression tests) | `reportgen-eval-repo-i3` | `run-eval-v4.sh IV2` | /14 |
+| I2 | Impl, bench v3 (4 seeded defects + regression tests) | `reportgen-eval-repo-i4` (RG4; `reportgen-eval-repo-i3` during RG3) | `run-eval-v4.sh IV2` | /14 |
 | D | Design authoring, bench v3 (4 execution-revealed hazards in snaputil.py) | `syncfeat-brief-d1` | `run-eval-v4.sh D1` | /11 |
 
 Retired benches (never decide a seat): I-v1 (T2), DR-v1 (T4), I-v2/RG2 (superseded by RG3 same day).
@@ -21,8 +21,9 @@ O-bench evidence rule: the deliverable (the plan) lives in the campaign
 never deleted, only compressed.
 
 Private answer keys live in the SEPARATE local repo `../evals-keys/`
-(RUBRIC-IV2-RG3.md, RUBRIC-D1-v2.md) — never in this public repo; grep for
-leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
+(current: RUBRIC-IV2-RG4.md, RUBRIC-D1-v3.md; the v3-era names RUBRIC-IV2-RG3.md,
+RUBRIC-D1-v2.md are superseded, kept as trace — BENCH-V3-DESIGN.md:340, :353) —
+never in this public repo; grep for leakage before campaigns (§3.8 of BENCH-V3-DESIGN.md).
 
 ## 2. Measurement rules (frozen — consistency beats cleverness)
 
@@ -159,8 +160,9 @@ argued after the fact.
   scorer disagreement, not run-to-run noise, and cannot stand in for the
   MDE. Étape 5 must measure the run-to-run noise and pre-register the MDE.
   Until then the 1.5 pt gate is not applied to D, DR2, O or IR, whose MDEs are
-  unmeasured. (Étape 5 result below: the I2 gate stands; D now has a measured
-  MDE; O, IR and DR2 remain without an operative MDE.)
+  unmeasured.
+  (Étape 5 result below: the I2 gate stands; D now has a measured
+  MDE; O, IR and DR2 remain without an operative MDE.) Naming: this "Gate 2" is the decision-gap check above; the held-out spec's "Gate 2" is a different bench-screen check (gap ≥ max(3, 2 × sd_anchor), HOLDOUT-SPEC §2.1 and §7.4). Likewise this "Gate 1" is the ceiling rule above (14/14 = censoring), whereas the held-out spec's "Gate 1" is a low-score screen (score ≤ 80% of max, ≤11/14 — HOLDOUT-SPEC §2.1 and §7.4).
 - **MDE note (Étape 5).** Every cell is annotated with its n (valid runs).
   A gap below the bench's MDE is **not a ranking**: it is a tie, whatever the
   point difference reads.
@@ -194,7 +196,15 @@ argued after the fact.
   - **I2-RG4 (/14):** the ratified **1.5 pt gate STANDS**. Measured run-to-run
     spread is 2 pts (11.5, 11.5, 13.5, 13.5; sd 1.16; bimodal, the defect-b
     regression test present in 2/4 runs), so 1.5 likely underestimates the true
-    noise. Re-measure before any seat decision that hinges on a 1.5-2.0 gap.
+    noise. Re-measure before any seat decision that hinges on a gap in
+    (1.5, 4.80] — extended from the 1.5-2.0 range by the band prior below.
+    *Reconciliation (scope):* 4.80 is the measured MDE(n=2) for I2-RG4 (`mde_n2`,
+    combined sd 1.155, `evals/2026-11-20/noise-mde.tsv`), carried as the band
+    prior **by the held-out HO2 campaign only** (HOLDOUT-SPEC §1, §7.4). It does
+    not replace this section's operative I2 MDE, which **remains 1.5 pt** until
+    I2-RG4 noise is re-measured. Gate 2 still decides tie vs non-tie (gap < 1.5 =
+    tie); a gap in [1.5, 4.80] passes Gate 2 but must be re-measured before a seat
+    decision hinges on it.
   - **O (/8):** **no operative gate at n=4.** Measured spread (4.5, 2.5, 8, 6;
     sd 2.33, range 5.5) is about the /8 scale, so O cannot separate
     haiku-class models until re-measured with more runs. Any O seat decision

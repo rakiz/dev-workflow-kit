@@ -29,9 +29,10 @@ release.
   - `synccli-eval-repo-v2/` → `SYNC2` → DR-v2
   - `reportgen-eval-repo-i2/` → `RG2` → I-v2 (**SUPERSEDED, git history
     only** — retired 2026-11-17; the current I2 fixture is
-    `reportgen-eval-repo-i3/`, code RG3)
+    `reportgen-eval-repo-i4/`, code RG4; `reportgen-eval-repo-i3/` during RG3)
   - `syncfeat-brief-d1/` → `D1` → D
-- `2026-11-01/` — **the current report** (`RESULTS.md`): first bench-v2
+- `2026-11-01/` — **bench-v2 campaign report** (`RESULTS.md`, historical —
+  the current detail page is `2026-11-16/RESULTS.md`, see EVALS.md): first bench-v2
   campaign — the four v1-T4-perfect models scored on `synccli-eval-repo-v2`
   (qwen3p8-2p4t `xhigh` 10/14, 1017 `medium` 9/14, M3.1 `medium` 9/14,
   terra `medium` 8/14; zero proofs-by-execution anywhere). Calibration
@@ -52,7 +53,8 @@ release.
   by `run-eval-v5.sh`), where it first recreates the 2-commit history (baseline
   "Initial synccli", then the seeded-defect review commit that added
   `incremental.py`) so T3's `git show HEAD` has a real commit to review.
-- `2026-10-16/` — **the current report** (`RESULTS.md`): the muse-spark full
+- `2026-10-16/` — **muse-spark grid report** (`RESULTS.md`, historical; its
+  rows are also in `../EVALS.md`): the muse-spark full
   grid (16 arms, 4 tasks × 4 efforts, Fireworks model released 10-15),
   organized by test category. Standalone — no older report needed. Verdict:
   no rung won for muse-spark; roster unchanged.
@@ -89,7 +91,9 @@ Pipeline stages: **D** design authoring, **DR** design-review, **I** impl,
 **Answer keys `RUBRIC-IV2.md` and `RUBRIC-D1.md` are PRIVATE PERMANENTLY**
 (owner decision 2026-11-12) — this breaks the DR-v2 public-rubric precedent:
 the distinctive-string leakage check may not assume eventual publication of
-past benches.
+past benches. Versioned names (clarification): the generations in use are
+`RUBRIC-IV2-RG4.md` and `RUBRIC-D1-v3.md` (BENCH-V3-DESIGN.md:340, :353); the
+earlier `RUBRIC-IV2-RG3.md` and `RUBRIC-D1-v2.md` (PROTOCOL.md §1) are historical.
 
 **RG4 = a calibration bench by design (built public); the held-out rule lives in PROTOCOL §5.** The RG4 fixture (`reportgen-eval-repo-i4/`) ships public as discoverable substrate; its defect specifics stay out of the docs and live in the private key.
 
@@ -115,10 +119,10 @@ bench it was decided on.
 ## To evaluate a new model (checklist)
 
 1. `roster/models.json`: note the current models and their role.
-2. Run the matrix: the 4 tasks for the new model at **every effort level it
+2. Run the matrix: the 5 benches for the new model at **every effort level it
    exposes** (not just the classic `low`/`medium`/`high` — newer models expose
    `xhigh`/`max`; effort drives the appetite for tools, `low` skips reading
-   code) + the 4 tasks of the incumbent model to replace. The default/no-
+   code) + the 5 benches of the incumbent model to replace. The default/no-
    variant run also counts as a data point — record it as such.
 3. Verify T2 objectively (`python3 -m unittest` in the copy), score T3/T4
    against the lists above, judge T1 (grounding + trap detection).

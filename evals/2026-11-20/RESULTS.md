@@ -33,7 +33,7 @@ Rubric: `evals-keys/RUBRIC-IV2-RG4.md` (private, v1, reachable max 14). Pristine
 - **Total** = RUBRIC §0 formula, computed by `tools/rg4_fold.py` (asserts every judgment field is 0/1 or an integer; floor 0). Fold is deterministic (re-run gives identical TSV).
 - **Self-family rule:** GLM never scores `fw-glm-*`; haiku never scores `claude-*`. So the 4 fw-glm runs and the 2 sonnet runs have **one family only**. No existing RG4 single-scorer pass for these exists on disk, so they keep one reading (gap stated in §3).
 - **Divergent flag:** a run is divergent when its two family readings differ by ≥2; an arm is divergent if any of its runs is, or its family arm-means differ by ≥2.
-- **Tie rule and MDE (used in §4):** the repo does not contain a written tie rule (RESULTS 2026-11-19 §8.6 says the same). This section uses **MDE = 1.5 points** (the gate-2 minimum gap) and: an arm within 1.5 of the top *eligible* score is a tie, and the **cheapest tied arm wins**. Eligible = two families and ≥2 valid runs. **Owner must ratify this rule.**
+- **Tie rule and MDE (used in §4):** the repo does not contain a written tie rule (RESULTS 2026-11-19 §8.6 says the same). This section uses **MDE = 1.5 points** (the gate-2 minimum gap) and: an arm within 1.5 of the top *eligible* score is a tie, and the **cheapest tied arm wins**. Eligible = two families and ≥2 valid runs. **Owner must ratify this rule.** [Correction 2026-11-22: the tie rule was ratified 2026-11-20 and is now written at evals/PROTOCOL.md:169-170 as "the cheapest arm inside the MDE band wins the seat"; the pre-ratification wording "cheapest tied arm wins" above is superseded.]
 
 ## 3. Standings (RG4 full grid, /14)
 
@@ -88,7 +88,7 @@ Robustness check: counting carbon-high (14, single run) as eligible moves the to
 
 - **Gate 1 — anti-saturation: FAIL.** Top eligible 13.5 = 96% of 14 (raw top 14 = carbon-high, one run). Many arms score 13–14.
 - **Gate 2 — pair gap: FAIL.** haiku-high vs opus = 0.0; no pair reaches 3. Variance is not formally measured; observed run-to-run arm gaps reach 2.5.
-- RG4 is still saturated. The 2026-11-19 record said the same (RESULTS §7.1, §8.3). **Any seat decision needs a harder fixture or a gate revision — owner call.**
+- RG4 is still saturated. The 2026-11-19 record said the same (RESULTS §7.1, §8.3). **Any seat decision needs a harder fixture or a gate revision — owner call.** [Cross-ref 2026-11-22: the held-out campaign later derived a measured I2-RG4 MDE(n=2) of 4.80 as its band prior (evals/2026-11-20/HOLDOUT-SPEC.md §1/§7.4); the 1.5 gate remains the operative seat-decision threshold — reconciliation recorded in evals/PROTOCOL.md §5(e).]
 
 ## 6. Artifacts (this section)
 
@@ -131,7 +131,7 @@ Robustness check: counting carbon-high (14, single run) as eligible moves the to
 - Fold: `tools/rg4_fold.py` tag regex accepts `q53`/`q53b`; the fold is deterministic (2 runs identical). Standings: `tools/rg4_standings.py` (now emits the `~` marker and the D1 source note) — regenerated.
 - DNF rule: the qwen re-runs did not DNF again; no third attempt.
 
-**D2 — tie rule.** The sentence was NOT in PROTOCOL §5 before this batch (§5(e) had only the 1.5 pt gate). Added as §5(f): "Tie rule (ratified 2026-11-20). Eligibility = two scorer families + ≥2 valid runs; the cheapest arm inside the MDE band wins the seat."
+**D2 — tie rule.** The sentence was NOT in PROTOCOL §5 before this batch (§5(e) had only the 1.5 pt gate). Added as §5(f): "Tie rule (ratified 2026-11-20). Eligibility = two scorer families + ≥2 valid runs; the cheapest arm inside the MDE band wins the seat." [Correction 2026-11-22: ratified under §5(e), not §5(f) — evals/PROTOCOL.md:169.]
 
 **D3 — leakage scrub.** Scrubbed: `evals/2026-11-19/RESULTS.md` (probe values, the policy-A wording with exit specifics, the table `gen=2` / `exit1` cells, the leakage-ID line), this file (§2 deterministic line, §7 item 3), `evals/2026-11-13/NIGHT-REPORT.md` (one probe value). Added the calibration note to `evals/README.md` and to `2026-11-19/RESULTS.md`: "RG4 = a calibration bench by design (built public); the held-out rule lives in PROTOCOL §5."
 Grep of `*.md` for the four RG4 defect IDs and the distinctive probe tokens (held in the private key; not restated here): **0 hits** outside `runs/` and `logs/`.

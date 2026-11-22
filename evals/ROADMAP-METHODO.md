@@ -1,4 +1,4 @@
-# PLAN MÉTHODO V2 — version complète (7 findings + 4 étapes), à reviewer
+# PLAN MÉTHODO V2 — version complète (7 findings + 6 étapes), à reviewer
 
 ## Source : la revue externe (13 pages, snapshot bab0034) + les amendements de la design-review strong
 
@@ -47,7 +47,7 @@
 
 ---
 
-## LES 4 ÉTAPES (ordre de dépendance validé par 2 revues)
+## LES 6 ÉTAPES (0 à 5 ; ordre de dépendance validé par 2 revues)
 
 | # | Étape | Contenu | Coût |
 |---|---|---|---|
@@ -56,6 +56,7 @@
 | 2 | **Held-out** | Fixtures frais : spec construct pré-enregistrée, auteur ≠ interprète, §3.8 (probes ×3 + leak grep + hash), single-use, réseau isolé, clés jamais publiques avant la clôture de la campagne qui décide. | soirée + les runs |
 | 3 | **Aveugle + large** | Scoreurs en dirs isolés (candidate-only, strip vendor, IDs randomisés, déscellage après lock) ; mesure du biais résiduel (blind vs unblind sur un échantillon) ; 2-3 fixtures par bench de tailles différentes ; règle de siège pré-enregistrée (ex : 1er sur ≥2/3). | runs de la campagne |
 | 4 | **ROI workflow** | A/B à 3 bras : pipeline cheap-first vs sonnet-seul vs sonnet+1 revue. Adjudicateur aveugle + checklist pré-enregistrée ; défauts échappés, taux de livraison, latence, coût total HUMAIN inclus ; 5 tâches smoke d'abord. | campagne dédiée |
+| 5 | **Stats (noise / MDE)** | Pre-registered MDE per bench, n per cell (valid runs), gap < noise = tie (not a ranking). Measured results live in PROTOCOL §5(e): D 1.0 pt; I2 1.5 pt gate stands (the 4.80 MDE(n=2) is the held-out HO2 band prior only, not the I2 noise MDE: see PROTOCOL §5(e) reconciliation note); O no operative gate at n=4; IR and DR2 unmeasured. | done 2026-11-20 |
 
 ## Les conditions de revisite qui déclenchent chaque étape
 - Étape 0 : maintenant (le bug harness + la fuite).
@@ -63,3 +64,14 @@
 - Étape 2 : construite à l'étape 1 (le held-out = la version propre de RG4/DR-v3).
 - Étape 3 : quand une décision de siège reposera sur < 1,5 pt d'écart.
 - Étape 4 : quand le roster est stable OU à la prochaine sortie majeure de modèles.
+- Étape 5 : refaire la mesure à chaque nouveau bench / avant toute décision de siège dans la bande 1,5–2,0 pt (done 2026-11-20 ; re-measure on new bench generations).
+
+## Nuances from the review not carried verbatim (parked — address when relevant)
+
+These are sub-points of the original external review that are absent from the mapping above. They are parked here so they are not lost, and can be addressed when the occasion arises.
+
+1. **F3** — the review asked for feature correctness, defect repair, tests and reporting to be DISPLAYED as separate dimensions; the roadmap keeps a composite score with c′ winnable or re-weighted ≤1 instead.
+2. **F7 / Étape 4** — "family diversity is a hypothesis to test through joint error patterns, not a guarantee": this joint-error-pattern test is absent from Étape 4 — natural home: the Étape 3 seat rule or the Étape 5 stats.
+3. **Étape 3** — the review said "a manageable set of real tasks across several repositories, sizes, and difficulty levels"; the roadmap only carries varied sizes, not multi-repo. Also missing: "resolve disagreements at the component level".
+4. **F1** — the caveat that selecting a model's best effort overestimates how well the selection transfers is not carried explicitly (only partially covered by F7's seats ≠ capability docs, PROTOCOL §5(c)).
+5. **F6** — the review asked for an explicit policy for retries and delegated labor; delegated children are already rolled up (PROTOCOL §2 r.4), but the retry policy remains unstated in the per-bench derivation.

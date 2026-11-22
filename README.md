@@ -1,18 +1,14 @@
 # dev-workflow-kit
 
-**TL;DR — this repo ships three things:**
+**TL;DR — this repo contains three things:**
 
-1. **A dev workflow with file-based memory** (`workflow/skill/` + [workflow/agent/](workflow/agent/) + [init.sh](init.sh)) — tasks live in plain files (TODO.md → INPROGRESS.md → CHANGELOG.md), every implementation pass is reviewed (commit-time, mandatory), designs are written before code; pre-commit hook + conventions templates ship with. Installed per-project by [init.sh](init.sh) (everything copied, never symlinked), or session-wide with `--global`. See [workflow/skill/dev-workflow/SKILL.md](workflow/skill/dev-workflow/SKILL.md).
-2. **An optimized model roster** ([roster/models.json](roster/models.json) + [roster/MODELS.md](roster/MODELS.md)) — every seat (orchestration, cheap/strong code, design, and their review gates) held by the best model for its price on our own benches, with the routing rules (who reviews whom: always cross-family) and documented fallbacks. See [roster/MODELS.md](roster/MODELS.md) for the seat-by-seat why.
-3. **The model-evaluation machinery** ([evals/](evals/)) — 5 decision benches (orchestration /8, code review /3+bonus, design review /14, implementation /14, design writing /11), scored by a multi-family panel (no family scores its own runs), with the honest limits: they measure verification discipline on small fixtures, not long-horizon generative ability (that slice is too expensive to bench — see the "What these benches measure" section in the HTML).
+1. **A reusable dev-workflow kit with file-based memory** for [opencode](https://opencode.ai) projects (AI agents + CLI). It ships five generic agents (impl, review, explore, design-review, deep), a task-management skill (TODO.md → INPROGRESS.md → CHANGELOG.md), a configurable pre-commit hook, conventions templates and starter files. Every implementation pass is reviewed at commit time (mandatory), and designs are written before code. The skill is [workflow/skill/dev-workflow/SKILL.md](workflow/skill/dev-workflow/SKILL.md); the agents are in [workflow/agent/](workflow/agent/). Adoption: `git clone` + [init.sh](init.sh), run per project. Each project keeps its own `dev-workflow.json` and diverges freely. Everything is copied, never symlinked. `--global` additionally installs a session-level agent roster ([Global roster](#global-roster)).
+2. **A model roster** ([roster/models.json](roster/models.json) + [roster/MODELS.md](roster/MODELS.md)). It assigns a model (and reasoning variant) to every seat: orchestration, cheap and strong code, design, and their review gates. Each seat holds the best model for its price on the kit's own benches. Routing rules say who reviews whom; reviews are always cross-family. Each seat has documented fallbacks. The seat-by-seat rationale is in [MODELS.md](roster/MODELS.md). Cheap models do the bulk of the work, expensive models only escalate, and quality is recovered through cross-lineage review.
+3. **The model-evaluation machinery** ([evals/](evals/)). Five decision benches: orchestration (/8), code review (/3 + bonus), design review (/14), implementation (/14), design writing (/11). They are scored by a multi-family panel; no family scores its own runs. Limitation: the benches measure verification discipline on small fixtures, not long-horizon generative ability, which is too expensive to bench (see the "What these benches measure" section of the HTML leaderboard linked below).
 
 - **Rendered leaderboard (roster + charts + rationale):** https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html
 - **Bench methodology:** [evals/PROTOCOL.md](evals/PROTOCOL.md) (the contract) + [evals/BENCH-V3-DESIGN.md](evals/BENCH-V3-DESIGN.md) (the bench specs)
 - **The numbers:** [evals/2026-11-16/grid2-scores.csv](evals/2026-11-16/grid2-scores.csv) (per-cell official panel means) → [grid2-run-scores.tsv](evals/2026-11-16/grid2-run-scores.tsv) (per-run) → [runs/](evals/2026-11-16/runs/) (deliverables)
-
-Reusable development workflow kit for [opencode](https://opencode.ai) projects (AI agents + CLI): generic agents (impl / review / explore / design-review / deep), a task-management skill (TODO → INPROGRESS → CHANGELOG), a configurable pre-commit hook and starter files. A `--global` mode additionally installs a session-level agent roster (see [Global roster](#global-roster)). The economics: cheap models do the bulk of the work, expensive ones only escalate, and quality is recovered by cross-lineage review.
-
-A project adopts the kit via `git clone` + [init.sh](init.sh). Each project keeps its own config (`dev-workflow.json`) and diverges freely: everything is **copied**, never symlinked.
 
 ## Releasing (kit maintainers)
 
@@ -124,10 +120,10 @@ dev-workflow-kit/
 ├── evals/LEADERBOARD.html   # the roster + charts, rendered: https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html
 ├── VERSION                  # kit version (single line)
 ├── evals/                   # model-eval protocol, results and raw outputs — see evals/README.md
-│   ├── README.md            #   protocol, the 4 tasks, scoring checklist
-│   ├── run-eval.sh          #   (superseded, git history only — retired 2026-11-17; current runners: run-eval-v4/v5.sh)
+│   ├── README.md            #   protocol, the 5 benches, scoring checklist
+│   ├── run-eval.sh          #   (superseded, git history only — retired 2026-11-17; current runners: run-eval-v4/v5.sh; run-eval-v6.sh drives the held-out campaigns)
 │   ├── synccli-eval-repo/   #   test fixture (seeded defects), shipped as plain files
-│   └── 2026-09-29/          #   results (RESULTS.md) + archived outputs
+│   └── (dated dirs before 2026-10-14 were folded into EVALS.md and removed — see evals/README.md; 2026-09-29 held RESULTS.md + archived outputs)
 ├── docs/                      # improvement plan + design-review material
 ├── .gitignore               # local scratch files (Python caches, .DS_Store)
 └── LICENSE                  # MIT
