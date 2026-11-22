@@ -305,6 +305,9 @@ Construct-level only. No key value, probe output or defect identity is reproduce
 ### 1. Repair campaign (SP2/US2): the v3 readings
 
 - Campaign `holdout-mandatory-2026-11-21-v3`: 18 jobs, EVAL_ARM_CAP=5.00/arm, EVAL_TIMEOUT_SECS=3600.
+- **Budget deviation.** The campaign status file records `budget_usd=30.00`. The pre-registered hard cap is
+  **$10.00** (HOLDOUT-SPEC §14.3, admission `spend + 2×cap ≤ 10`). The run used the $30.00 value, so this is a deviation
+  from §14.3, not a pass. Actual spend was **$2.88** (status file `spent`; $2.67 provider-recorded), under the $10.00 cap.
 - **17 complete runs, 1 DNF** (minimax HO2 a3, no report after its rerun). The v2 campaign's readings were lost (section 2
   of the prior revision of this section, kept in git history); v3 is the only repair reading set.
 - Blinded set `evals-keys/holdout-campaigns/blinded-v3/` (17 runs, leak lint 0 hits) and sealed map
@@ -322,7 +325,7 @@ Harness fixes that made this possible (campaign-2 evidence untouched; checked by
 - `score.py --campaign v3`, `report.py --campaign v3` write suffixed outputs (`scores-*-v3.tsv`, `arms-v3.tsv`, `pairs-v3.tsv`, `gates-v3.tsv`).
 - `run-scorer.sh` honours `SCORER_CAMPAIGN` (batch subtree, session title) and `SCORER_ATTEMPT`.
 - `build-batch.py` now copies `prompts/PROMPT-<bench>.md` for v3. The campaign-2 fixtures carry the frozen-v1 prompt
-  (it differs from `prompts/PROMPT-*.md`); v3 must not use it. (The v3 HO2 sessions ran on a fixture without PROMPT.md at first; they were fixed before the HO2 runs, so only HOD was refused for the arm-dir reason.)
+  (it differs from `prompts/PROMPT-*.md`); v3 must not use it. (The first v3 HOD session attempts ran on a fixture without PROMPT.md and were refused; the HO2 sessions were not affected. See the refused-session bullet below.)
 - Three v3 HOD sessions were refused on the first try: the arm dirs existed from the first failed attempt (a missing
   PROMPT.md, which the fix above resolves). They were rerun with `SCORER_ATTEMPT=r2`; the failed attempts stay in `panel-log.tsv`.
 
@@ -353,12 +356,13 @@ below -> no signal" (SPEC section 7.4 Step 1). No pair is confirmed or refuted b
 repair arm at 7.00 (haiku-default), versus 11 as the limit. Real result: Gate 1 PASS, but the best arm is minimax-xhigh
 at 8.67, and the anchor is 6.75 (prediction 7.00). The prediction's Gate-1 call held; its magnitude for the top arm did not
 (the dry sim predicted minimax-xhigh 6.38; the real mean is 8.67). The honest reading is that the bench
-now sits BELOW the ceiling for the strongest arm and still does not separate the arms (Gate 2). HOD Gate 1 passes only by
+now sits BELOW the ceiling for the strongest arm, and Gate 2 still fails for the pre-registered pairs. HOD Gate 1 passes only by
 0.05 (8.75 vs 8.8): on a 2-run arm, that margin is inside the noise and must not be read as a clean pass.
 
 **Consequence.** SP2/US2 are not valid seat instruments. The repair does not restore a seat decision; it removes the
-ceiling problem on HO2 but not the discrimination problem. A next fixture must add arms that spread (the pairs P1/P5 sit
-at 0.4-0.75 pts, far under the 3-pt screen).
+ceiling problem on HO2. The pre-registered pairs still do not separate (P1 and P5 sit at 0.4-0.75 pts, under the 3-pt
+screen). Correction: the c item does separate the HO2 arms (minimax-xhigh 3/3, haiku-default 2/4, glm-high 0/4 runs at
+c_fix=2); see §6 and §8. A next fixture must add arms that spread.
 
 ### 5. Pair verdicts (report.py, computed)
 
@@ -376,11 +380,19 @@ both arms present. These are reported for transparency; the bench is INVALID, so
 
 - The probe battery is run by `holdout-scoring/run-ho2-probes.py --campaign v3` on scratch copies of the blinded runs
   (3 rounds, 0 unstable). Pristine constants re-measured this session: NARROW 6295, WIDE 31864 attempts, PLAN-CANON hashes
-  reproduce (`probe-c.py` on the pristine tree; exit 0). The grader's `c_fix` is 0 for all 17 runs: the runs cut the attempt
-  count (e.g. 681 narrow / 1000 wide) but change the plan placements, so PLAN-CANON fails. This is the rubric working as
-  written; it is recorded, not re-graded.
-- The four runs with an identical profile (glm arm, all 6/6) are a rubric effect (`c_fix` 0 everywhere, `policy` and
-  the deterministic items all earned), not a scorer collapse.
+  reproduce (`probe-c.py` on the pristine tree; exit 0).
+- **Correction to the earlier claim ("c_fix is 0 for all 17 runs / no signal").** That claim is false. Verified with
+  `score.ho2_det` on `cross/ho2-probes-v3.tsv` (11 HO2 runs):
+  - **c_fix = 2 on 5 of 11 HO2 runs:** 15fde426, 4aafaf9b, 845667e9, 64881d00, 96e864d3. Each is inside both attempt
+    bounds (≤ 8/job) and matches both PLAN-CANON hashes.
+  - **c_fix = 0 on the other 6, for two different reasons:**
+    - Fails the wide-attempt bound: 0daf3130 (wide 31744/1000; it also fails PLAN-CANON) and 10c7bf2d (wide 31864/1000,
+      PLAN-CANON passes).
+    - Fails PLAN-CANON (the attempt count is in bound, the placements changed): 149f0d7f, 2d8aff97, 918a4195, c383bff1.
+  - **Arm impact:** minimax-xhigh 3/3 runs at c_fix=2; haiku-default 2/4; glm-high 0/4. The c item is the driver of the
+    arm separation (glm-high is also the arm at 6.00 with all four runs at 6). The c_fix value is recorded, not re-graded.
+- The four glm-high runs (0daf3130, 2d8aff97, 918a4195, c383bff1) all score 6/6 with c_fix 0. This is the rubric applied as
+  written (PLAN-CANON or the wide bound fails), not a scorer collapse.
 
 ### 7. COMPLETION COST LEDGER (USD, the owner's headline)
 
@@ -405,14 +417,19 @@ readings alone. The arbiter was the largest single item ($6.96). The v3 scoring 
 
 ### 8. Lesson for the next fixture budget (measured)
 
-- Per attempt (the 20 status-file deltas, which include the 2 reruns; they sum to $2.674): **median $0.033**, mean $0.134,
-  max $0.97. The handover's earlier median of $0.044 is not reproduced by these deltas; $0.033 is the figure to plan with.
-- **The real cost per COMPLETE reading is about $0.16** (v3 readings $2.88 / 17 complete runs = $0.169), and **about $0.56
+- Per attempt (the 20 status-file deltas, which include the 2 reruns): **median $0.044 on the spent basis** (the
+  status-file `spent` deltas; they sum to $2.88), mean $0.144, max $0.97. On the provider-recorded basis (`recorded`
+  deltas; they sum to $2.674) the median is **$0.033**, mean $0.134. The recorded median is lower because 3 of the 20
+  recorded deltas are exactly $0.00 (the provider booked no cost on those attempts while `spent` shows $0.0423, $0.0622 and
+  $0.0645 for them). **Plan on the spent basis: $0.044 per attempt.**
+- **The real cost per COMPLETE reading is about $0.16** (v3 readings $2.88 / 17 complete runs = $0.169), and **about $0.59
   per COMPLETE RUN when the arbiter and scoring are added** ($10.06 / 17 = $0.59). The per-attempt median understates
   this: a complete reading needs roughly 1-4 attempts plus the DNF/reruns, and the mean is pulled up by the few expensive
   attempts (minimax, GLM long runs).
 - An arbiter reading costs $0.50-0.63 at its session cap. An arbiter on EVERY divergent run is the largest line of the
   whole budget, and it bought no verdict change in this campaign (section 3 of the arbiter table: no flip).
+- The c item drives the HO2 arm separation (see §6): c_fix 2 on 5 of 11 HO2 runs: 3 minimax-xhigh (of 3) and
+  2 haiku-default (of 4). A fixture that wants the arms to spread needs this item, and it must be read with its two bounds.
 - Budget rule for the next fixture: **budget about $0.6 per complete run for the arm and scoring, not $0.04**, and do not
   buy an arbiter on a fixture whose gates already fail before scoring. Keep a cap of ~$15 for a 18-run block including
   reruns.
