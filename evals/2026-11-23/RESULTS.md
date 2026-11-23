@@ -87,3 +87,24 @@ Reading:
 | Blind panel: glm batch + minimax (r1/r2 killed, r4 killed, r5 done) | ~0.35 |
 | carbon scoring panel (glm + minimax) | ~0.10 |
 | **Total** | **~$2.45** |
+
+## 5. Roster change applied + O-bench saturation status
+
+- **Orchestration seat: glm-5.3-flash `high` → `max`** (owner 2026-11-23). The max arm
+  (this session) posts **8/8 unanimous** (minimax 8 + sonnet 8, no divergence, hall=0 —
+  red baseline pinned) at **$0.007/task = the cost of high** ($0.005). The 7→8 gap is
+  under the O noise band (no operative MDE at n=4): a free upgrade on a tie, NOT a
+  quality claim. Session config now pins `variant: max` explicitly (NB: the build agent
+  carried NO variant line — it was already running at the server default, which for GLM
+  IS max; the pin makes the config truthful). Folded: SEATS map, #roster row,
+  roster/MODELS.md seat text, reasons.py why-texts. verify-charts 196/196.
+- **O-bench saturation (recorded, no rebuild yet)**: the 7-8 band now holds ~15 cells
+  across generations; the top cannot be separated within noise. The red-baseline trap
+  still catches (mai 0, muse-xhigh invents a green baseline, fable 6) and the tie rule
+  (price) still decides seats — so no rebuild NOW. **O-v2 rebuild triggers
+  (pre-registered here):** (a) a challenger claims the O seat inside the 8-band at a
+  comparable price (the tie rule could no longer separate); (b) the red-baseline trap
+  stops catching tested models; (c) any future campaign needing a top-band ranking.
+  Bench-generation ledger: T4→DR-v2 (11-01) and I2→I2-RG4 (11-20) rebuilt; IR's ceiling
+  is handled by the bonus axis; O is the third bench showing a limit, the first whose
+  own seat decision sits in the noise.
