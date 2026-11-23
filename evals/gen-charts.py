@@ -40,7 +40,7 @@ FULLIDS = {
 # glm-low left review (documented fallback reviewer for deepseek/gemini-produced
 # work); hydrogen-high holds no seat.
 SEATS = {
-    ("glm", "high"): [("orchestration", "O")],
+    ("glm", "max"): [("orchestration", "O")],
     ("haiku", "default"): [("cheap-code", "I2-RG4")],
     ("haiku", "medium"): [("cheap-design", "D")],
     ("haiku", "high"): [("strong-code-alternative", "I2-RG4")],
