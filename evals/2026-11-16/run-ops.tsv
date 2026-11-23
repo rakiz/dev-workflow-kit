@@ -30,6 +30,7 @@ eval-2026-11-13-D-D1-ai-gateway-misc-fw-glm-5-3-flash-low-p4	2026-11-13	D	glm	lo
 eval-2026-11-13-D-D1-ai-gateway-misc-fw-glm-5-3-flash-medium-p3	2026-11-13	D	glm	medium	p3	scored	-3.0	1	0.0120	tsv	57	38766	189008	5648	858	234280
 eval-2026-11-18-D-D1-github-copilot-gpt-6-2-sol-high-s621	2026-11-18	D	gpt-6.2-sol	high	s621	completed		1	0.1895	db	126	33857	196506	6727	1793	238883
 eval-2026-11-18-D-D1-github-copilot-gpt-6-2-sol-high-s622	2026-11-18	D	gpt-6.2-sol	high	s622	completed		1	0.1778	db	123	33063	157362	6040	1906	198371
+eval-2026-11-23-D-D1-github-copilot-grok-4-7-grok-confirm-a1	2026-11-23	D	grok	default	a1	completed		1	0.3338	db	535	68296	168576	10419	8399	255690
 eval-2026-11-13-D-D1-github-copilot-claude-haiku-5-5-default-p3	2026-11-13	D	haiku	default	p3	scored	5.0	1	0.0176	tsv	109	16	283753	8482	5596	359293
 eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-g1	2026-11-16	D	haiku	default	g1	completed		1	0.0229	tsv	148	22	437951	13771	6567	525191
 eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-g2	2026-11-16	D	haiku	default	g2	completed		1	0.0186	tsv	106	16	284058	10508	5403	362595
@@ -126,6 +127,9 @@ eval-2026-11-16-T4V2-ai-gateway-misc-fw-glm-5-3-flash-low-g21	2026-11-16	DR2	glm
 eval-2026-11-16-T4V2-ai-gateway-misc-fw-glm-5-3-flash-low-g22	2026-11-16	DR2	glm	low	g22	scored	6.0	1	0.0025	tsv	13	7734	47936	627	416	56713
 eval-2026-11-18-T4V2-github-copilot-gpt-6-2-sol-high-s621	2026-11-18	DR2	gpt-6.2-sol	high	s621	completed		1	0.0918	db	97	52689	114637	3707	7458	178491
 eval-2026-11-18-T4V2-github-copilot-gpt-6-2-sol-high-s622	2026-11-18	DR2	gpt-6.2-sol	high	s622	completed		1	0.0938	db	121	60826	174306	4733	8478	248343
+eval-2026-11-20-T4V2-github-copilot-grok-4-7-catchup-grok-2026-11-20-a1	2026-11-20	DR2	grok	default	a1	completed		1	0.2370	db	232	60026	86400	1067	11228	158721
+eval-2026-11-20-T4V2-github-copilot-grok-4-7-catchup-grok-2026-11-20-a2	2026-11-20	DR2	grok	default	a2	completed		1	0.1481	db	83	32006	112896	1170	3429	149501
+eval-2026-11-23-T4V2-github-copilot-grok-4-7-grok-confirm-a1	2026-11-23	DR2	grok	default	a1	completed		1	0.1487	db	92	30477	114432	960	4123	149992
 eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-g1	2026-11-16	DR2	haiku	default	g1	scored	5.0	1	0.0079	tsv	21	8	82822	1722	1677	129485
 eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-g2	2026-11-16	DR2	haiku	default	g2	scored	5.0	1	0.0074	tsv	18	6	41335	1638	1470	87617
 eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1	2026-11-20	DR2	haiku	default	a1	completed		1	0.0077	db	18	8	82126	1559	1428	128033
@@ -283,6 +287,7 @@ eval-2026-11-20-IV2-RG4-ai-gateway-misc-fw-glm-5-3-flash-high-q51	2026-11-20	I2-
 eval-2026-11-20-IV2-RG4-ai-gateway-misc-fw-glm-5-3-flash-high-q52	2026-11-20	I2-RG4	glm	high	q52	scored	12.0	1	0.0295	db	103	49088	737596	6884	6724	800292
 eval-2026-11-20-IV2-RG4-ai-gateway-misc-fw-glm-5-3-flash-low-q51	2026-11-20	I2-RG4	glm	low	q51	scored	10.0	1	0.0244	db	69	42777	653084	4892	3150	703903
 eval-2026-11-20-IV2-RG4-ai-gateway-misc-fw-glm-5-3-flash-low-q52	2026-11-20	I2-RG4	glm	low	q52	scored	9.0	1	0.0303	db	74	44610	879524	6097	2302	932533
+eval-2026-11-23-IV2-RG4-github-copilot-grok-4-7-grok-confirm-a1	2026-11-23	I2-RG4	grok	default	a1	completed		1	0.3101	db	64	42382	368768	6775	57	417982
 eval-2026-11-19-IV2-RG4-github-copilot-claude-haiku-5-5-r41	2026-11-19	I2-RG4	haiku	default	r41	scored	11.0	1	0.0273	db	104	26	668577	12336	9950	766446
 eval-2026-11-19-IV2-RG4-github-copilot-claude-haiku-5-5-r42	2026-11-19	I2-RG4	haiku	default	r42	scored	13.0	1	0.0261	db	100	26	654672	12865	8232	748133
 eval-2026-11-20-IV2-RG4-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1	2026-11-20	I2-RG4	haiku	default	a1	completed		1	0.0241	db	77	28	675518	9349	7252	764593
@@ -341,6 +346,9 @@ eval-2026-11-16-T3-ai-gateway-misc-fw-glm-5-3-flash-low-g21	2026-11-16	IR	glm	lo
 eval-2026-11-16-T3-ai-gateway-misc-fw-glm-5-3-flash-low-g22	2026-11-16	IR	glm	low	g22	scored	2.0	1	0.0046	tsv	22	12768	99584	589	953	113894
 eval-2026-11-18-T3-github-copilot-gpt-6-2-sol-high-s621	2026-11-18	IR	gpt-6.2-sol	high	s621	completed		1	0.0923	db	66	42100	118642	2402	4895	168039
 eval-2026-11-18-T3-github-copilot-gpt-6-2-sol-high-s622	2026-11-18	IR	gpt-6.2-sol	high	s622	completed		1	0.0938	db	27	28710	100892	746	452	130800
+eval-2026-11-20-T3-github-copilot-grok-4-7-catchup-grok-2026-11-20-a1	2026-11-20	IR	grok	default	a1	completed		1	0.1806	db	833	28800	120832	854	9574	160060
+eval-2026-11-20-T3-github-copilot-grok-4-7-catchup-grok-2026-11-20-a2	2026-11-20	IR	grok	default	a2	completed		1	0.1499	db	22	57521	58368	574	373	116836
+eval-2026-11-23-T3-github-copilot-grok-4-7-grok-confirm-a1	2026-11-23	IR	grok	default	a1	completed		1	0.1862	db	206	30198	85888	555	13252	129893
 eval-2026-11-16-T3-github-copilot-claude-haiku-5-5-g1	2026-11-16	IR	haiku	default	g1	scored	4.0	1	0.0064	tsv	12	6	41383	643	778	84929
 eval-2026-11-16-T3-github-copilot-claude-haiku-5-5-g2	2026-11-16	IR	haiku	default	g2	scored	5.0	1	0.0066	tsv	13	6	41374	873	876	85238
 eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1	2026-11-20	IR	haiku	default	a1	completed		1	0.0064	db	11	6	41028	709	731	84284
@@ -415,6 +423,7 @@ eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax2c	2026-11-23	O	gl
 eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax3	2026-11-23	O	glm	max	glmmax3	scored	7.0	1	0.0056	db	32	14161	98664	1617	2018	116460
 eval-2026-11-18-T1-github-copilot-gpt-6-2-sol-high-s621	2026-11-18	O	gpt-6.2-sol	high	s621	completed		1	0.0895	db	26	26548	96234	1164	189	124135
 eval-2026-11-18-T1-github-copilot-gpt-6-2-sol-high-s622	2026-11-18	O	gpt-6.2-sol	high	s622	completed		1	0.0859	db	23	26505	69721	1164	99	97489
+eval-2026-11-23-T1-github-copilot-grok-4-7-grok-confirm-a1	2026-11-23	O	grok	default	a1	completed		1	0.1566	db	96	31308	115456	1457	4583	152804
 eval-2026-11-16-T1-github-copilot-claude-haiku-5-5-g1	2026-11-16	O	haiku	default	g1	superseded		0	0.0097	tsv	30	10	126327	3599	1657	177859
 eval-2026-11-16-T1-github-copilot-claude-haiku-5-5-g2	2026-11-16	O	haiku	default	g2	superseded		0	0.0098	tsv	31	10	126397	2960	2442	178181
 eval-2026-11-17-T1-github-copilot-claude-haiku-5-5-o21	2026-11-17	O	haiku	default	o21	scored	7.0	1	0.0097	tsv	31	10	126475	2878	2334	178147

@@ -1,0 +1,7 @@
+# campaign grok-confirm date=2026-11-23 budget_usd=5.00 start_ms=1795466348451 jobs=5
+21:40:45 001 O/github-copilot/grok-4.7/-/a1 ok spent=0.1566 recorded=0.1566 estimated_misc=0.0000 (estimated)
+21:44:12 002 IR/github-copilot/grok-4.7/-/a1 ok spent=0.3428 recorded=0.3428 estimated_misc=0.0000 (estimated)
+21:45:45 003 DR2/github-copilot/grok-4.7/-/a1 ok spent=0.4914 recorded=0.4914 estimated_misc=0.0000 (estimated)
+21:46:49 004 I2-RG4/github-copilot/grok-4.7/-/a1 ok spent=0.8016 recorded=0.8016 estimated_misc=0.0000 (estimated)
+21:55:45 005 D/github-copilot/grok-4.7/-/a1 ok spent=1.1354 recorded=1.1354 estimated_misc=0.0000 (estimated)
+# done spent=1.1354 recorded=1.1354 estimated_misc=0.0000 (estimated) budget_usd=5.00

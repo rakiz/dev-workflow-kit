@@ -1,0 +1,65 @@
+[0m
+> build · grok-4.7
+[0m
+[0m✱ [0mGlob "GOAL.md"[90m 1 match[0m
+I'll read GOAL.md and README.md first, then produce a text-only execution plan.
+[0m✱ [0mGlob "README.md"[90m 1 match[0m
+[0m✱ [0mGlob "**/*.{md,json,toml}"[90m 3 matches[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+[0m→ [0mRead DESIGN.md
+I'll scan the repo layout so the plan names real files, not guesses.
+[0m✱ [0mGlob "**/*"[90m 6 matches[0m
+[0m✱ [0mGrep "def sync|argparse|dry.run|json"[90m 14 matches[0m
+[0m→ [0mRead synccli.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead incremental.py
+## Execution plan — `--json` + `--dry-run` UX
+
+Scope is GOAL.md only. Do not implement DESIGN.md (`syncd`). Do not change `sync()`'s signature or return type. No new dependencies. Do not edit `incremental.py`, README, or DESIGN.md.
+
+### Task 1 — Map contract and baseline
+- **Agent:** explore
+- **Objective:** Confirm how stdout, exit codes, and `sync()` interact today, and whether the suite is already red.
+- **Files:** read-only — `synccli.py`, `test_synccli.py`, `incremental.py`
+- **Risks:** `collect_stale` skips index 0 while its test expects the first item; a red baseline must not be "fixed" in this work. `copy_file` swallows `OSError`, so `sync()`'s list is "selected", not "bytes landed".
+- **Acceptance:** Report lists callers of `sync` (only `main` and tests), current stdout (one relative path per line), exit 0, dry-run returns early without copy or manifest, and the result of `python3 -m unittest -v` (pass/fail per test).
+
+### Task 2 — Lock the JSON contract
+- **Agent:** design-review
+- **Objective:** Accept or amend this contract before any edit.
+- **Files:** none
+- **Contract to review:**
+  - `--json` is `store_true` on `main`'s parser only.
+  - `copied` is exactly the list `sync()` returns. With `--dry-run`, that is the would-copy list. No second code path.
+  - `skipped` is `len(scan_files(src)) - len(copied)` (source files not selected). Not copy failures. Not a `sync()` return-value change.
+  - `src` / `dst` are the argv strings, not `abspath`.
+  - JSON mode: one `print(json.dumps(...))` to stdout, keys `copied`, `skipped`, `src`, `dst`, one line, `ensure_ascii=False`. No other stdout. Trailing newline from `print` is allowed. Human mode stays the path-per-line loop.
+  - Exit code unchanged (`main` returns 0; argparse still exits 2 on stderr).
+- **Risks:** `skipped` is unspecified in GOAL; a wrong definition fails tests written against another reading. A second `scan_files` can disagree if the tree changes mid-run (accepted for a one-shot CLI).
+- **Acceptance:** Written verdict: accept, or a replacement definition of `skipped` and stdout that still keeps `sync()` stable. Impl must not start before this verdict.
+
+### Task 3 — Implement flag and tests
+- **Agent:** impl
+- **Objective:** Add `--json` in `main` per the accepted contract, and unit-test the shape and dry-run interplay.
+- **Files:** modify `synccli.py` (`main` only), `test_synccli.py` (new tests only).
+- **Risks:** Printing paths and then JSON; changing `sync()`; writing the manifest on dry-run; hard-coding `/` in path asserts (`os.path.join`).
+- **Acceptance:** `python3 -m unittest -v` — new tests pass, and they assert all of: stdout is one JSON object (`json.loads`); keys `copied`, `skipped`, `src`, `dst` with `skipped` an int; `--json --dry-run` lists the would-copy paths and creates neither the file nor `.sync_manifest.json`; human mode is still one path per line; `main()` still returns 0. Pre-existing failures from Task 1 stay untouched.
+
+### Task 4 — Review the diff
+- **Agent:** review
+- **Objective:** Check the diff against GOAL and the Task 2 verdict.
+- **Files:** read-only — `synccli.py`, `test_synccli.py`
+- **Risks:** Signature drift, extra stdout, dry-run side effects, tests that only check keys and not dry-run filesystem.
+- **Acceptance:** Verdict with findings tagged minor or major. Pass means no major findings and the Task 3 command criteria hold.
+
+### Task 5 — Fix review findings (only if Task 4 is not clean)
+- **Agent:** impl, then review again
+- **Objective:** Apply minor findings only. A major finding stops the plan for a new design-review pass; do not widen scope.
+- **Files:** same as Task 3, only lines the review named.
+- **Risks:** Drive-by edits to `collect_stale` or `incremental.py`.
+- **Acceptance:** Named findings gone; `python3 -m unittest -v` still meets Task 3; second review reports no majors.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 48791 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 48792 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-48762/final-report.md (session eval-2026-11-23-T1-github-copilot-grok-4-7-grok-confirm-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-48762 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-23-T1-github-copilot-grok-4-7-grok-confirm-a1)

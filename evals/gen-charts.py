@@ -25,6 +25,7 @@ FULLIDS = {
     "hydrogen": "github-copilot/gemini-4-hydrogen",
     "gem38": "github-copilot/gemini-3.8-flash",
     "glm": "ai-gateway-misc/fw-glm-5.3-flash",
+    "grok": "github-copilot/grok-4.7",
     "dsflash": "ai-gateway-misc/fw-deepseek-v4.1-flash",
     "1017": "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017",
     "minimax": "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash",

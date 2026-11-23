@@ -127,3 +127,25 @@ Reading:
   run-ops.tsv (regenerated, 486 runs), reasons.py, roster/MODELS.md, EVALS.md,
   LEADERBOARD.html. **No further O runs planned — the next O evaluation trigger is the
   GLM-5.4 catchup (watch item §3) or another model release, not more O arm repetitions.**
+
+## 6. grok-confirm campaign — grok-4.7 measured, rung vacated
+
+grok-4.7 probed AVAILABLE again on github-copilot (was 404 since 11-16), so the
+strong-design-review-alternative2 revisit condition fired. Full catchup grid
+(`grok-confirm-2026-11-23.json`, default effort, 1 valid run per bench, all arms
+delivered first try, $1.14): O 8 (unanimous, ceiling-censored) · IR 3.5 (3/3, 0 FP)
+· DR2 7.5 (glm 9 / minimax 6 — one-FP dispute; 9 categories + 0 executed proofs
+common ground) · I2-RG4 8 (unanimous, identical breakdowns) · D 1.5 (honesty 0 both
+families). Scored by the standing 2-family panel glm-high + minimax (no grok-family
+scorer exists), panel spend ~$0.43 incl. one minimax D re-run (r2 killed by the
+driver timeout mid-probe; the known minimax invented-path bug — mendes/mendez —
+recurred and was contained with the verbatim-path instruction, RESULTS §2 lesson).
+
+**Verdict: rung NOT earned** — DR2 7.5 < argon-high 9.5 (the alternative holder),
+and grok is dominated on price at sonnet-class cost ($0.15-0.33/task for mid-tier
+scores). `strong-design-review-alternative2` is vacated (no holder; argon-high
+remains the only measured alternative). Folded: grid2-run-scores.tsv (+5),
+grid2-scores.csv (grok,default row), run-ops.tsv (495 runs), MODELS.md rung cell,
+EVALS.md grok row, COMPARATORS.md watch item, LEADERBOARD regenerated
+(verify-charts 200/200 dots, 87/87 tooltips). build-ops/gen-charts: grok added to
+the title-parser and FULLIDS maps.

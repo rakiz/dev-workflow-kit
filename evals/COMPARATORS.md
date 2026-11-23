@@ -90,6 +90,12 @@ Source: https://openai.com/index/introducing-gpt-6-2-astra-sol
   listing (ai-gateway-misc/grok-4.7, subsidized price) was NOT confirmed: absent from the local
   catalog after a cache refresh, and two probes returned server errors. IR 2.5 (n=2), DR2 9.0
   (n=2, 2 families). Both below their seats. Cost/task $0.17 IR, $0.19 DR2 (6x the DR2 seat).
+  **FULL grid 2026-11-23 (grok-confirm campaign, default effort, 1 valid run/bench, 2-family
+  panel glm+minimax)**: O 8 (unanimous, ceiling-censored) $0.16/task; IR 3.5 (3/3, 0 FP) $0.19;
+  DR2 7.5 (glm 9 / minimax 6 — one-FP dispute; 9 cats, 0 proofs) $0.15; I2-RG4 8 (unanimous)
+  $0.31; D 1.5 (honesty 0 both) $0.33. **Rung verdict: strong-design-review-alternative2 NOT
+  earned** (DR2 7.5 < argon-high 9.5; dominated on price at sonnet-class cost) — rung vacated,
+  tested-and-kept-out. Mid-tier everywhere, cheap nowhere.
 - **gemini-4-neon** (github-copilot, $3/$15): O 8 (glm only, n=2), IR 2.75 (n=2), DR2 8.0 (n=1,
   a2 DNF on a silent stall). No seat. Cost/task $0.12-0.16.
 
