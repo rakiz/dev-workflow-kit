@@ -182,6 +182,11 @@ FRESH INSTALL DECISIONS (an LLM may pre-answer, else defer to the user)
 AFTER INSTALL
   - Restart the opencode session to load the new agents/skill; customize
     dev-workflow.json (e.g. test command); commit the lock file.
+  - Permission rails: the shipped agents hard-deny git push themselves
+    (subagents never push); the orchestrator session is NOT covered — add
+    the recommended block from README.md ("Permission rails") to your
+    opencode.json(c): bash "*git push*": "ask" and "*git commit*": "ask".
+    The kit never edits that file.
 
 EXAMPLES
   ./init.sh /path/to/project                  # fresh project install

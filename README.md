@@ -61,6 +61,28 @@ Known limitation: the skill does mandate a review-agent pass before any commit (
 
 `dev-workflow.json` has the same trust level as a `Makefile`, a `package.json` script or a regular git hook: its `precommit.checks[].cmd` entries are executed by the shell under your identity on every commit. **Never merge a PR that modifies `dev-workflow.json` without reviewing it carefully** — a malicious `dev-workflow.json` means arbitrary code execution at the first commit after the clone.
 
+### Permission rails (two layers)
+
+The kit's git-write protection is two-layered, and the layers are intentionally different:
+
+1. **Subagents (the 22 kit-shipped agent files) hard-`deny` push**: every `workflow/agent/*.md` and `roster/global-agent/*.md` carries `"*git push*": "deny"` (and `"*git commit*": "ask"`) in its frontmatter. A subagent never pushes — `deny` is a hard block, so an unattended background agent fails fast instead of popping an approval prompt nobody is there to answer.
+2. **The orchestrator (your session) asks**: the push/commit approval lives in YOUR opencode config — the kit never writes `opencode.json(c)`. Recommended global block (the subagent denies above only protect the pipeline; without this block the top-level session is unrestricted):
+
+```jsonc
+// ~/.config/opencode/opencode.jsonc
+{
+  "permission": {
+    "bash": {
+      "*git push*": "ask",
+      "*git commit*": "ask"
+    }
+  }
+}
+```
+
+`deny` hard-blocks an action with no prompt; `ask` surfaces an approval you grant per call. Use `ask` at the orchestrator level, `deny` on the subagents. Edit the block by hand — kit installs and `--update` runs never touch it.
+
+
 ## Prerequisites
 
 - `git`
