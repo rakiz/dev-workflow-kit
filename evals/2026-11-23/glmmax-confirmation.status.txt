@@ -1,0 +1,62 @@
+# glm-5.3-flash max on O — stability confirmation runs (launched 2026-11-23)
+
+Purpose: 2 confirmation runs of the O seat arm (glm-5.3-flash max, seat moved
+2026-11-23 on a single 8/8 run — see RESULTS.md §5). Read as a DELIVERY-
+STABILITY test, not a quality confirmation (8/8 is ceiling-censored; the seat
+rests on tie + price). Method: `run-eval-v5.sh T1 ai-gateway-misc/fw-glm-5.3-flash
+max <tag>`, EVAL_TIER=cheap, same invocation as glmmax1 (logs/ in this folder,
+final reports preserved alongside as .final-report.md).
+
+## Status: DELIVERED + SCORED — 2/2 runs scored by the standing panel
+
+| Run | minimax | sonnet | mean | notes |
+|---|---|---|---|---|
+| glmmax1 (round 1) | 8 | 8 | 8.0 | (round 1, RESULTS.md §5) |
+| glmmax2c | 7 | 7 | 7.0 | unanimous; P1 = Task 4 waives re-review after the optional fix |
+| glmmax3 | 8 | 7 | 7.5 | 1-pt R divergence: minimax credits the explicit verify-at-HEAD step (rubric's read-based-2), sonnet reads the plan as hedged |
+
+Panel: minimax-m3p1 (default) + claude-sonnet-5.5, rubric RUBRIC-O v2, /8.
+Panel spend: minimax $0.030 + sonnet $0.204 (logs + TSVs: PRIVATE repo
+`evals-keys@score-logs/2026-11-23/panel-glmmax-O/` — batch-2 files, prompt
+PROMPT-GLMMAX-O-R2.md, run snapshots under runs/).
+
+**Stability verdict: STABLE.** Delivery 3/3 at the same price (~$0.006-0.007);
+the red-baseline trap is caught in every run (no green-baseline assumption,
+hall=0 across all six scorer readings); scores stay in the 7-8 top band
+(within the O noise band, no operative MDE). The seat decision (price + tie)
+is unaffected. Ledger cell (conservative per-run panel scores 8;7;7): mean
+7.33 (n=3) — grid2-scores.csv glm,max; using per-run panel means instead
+(8;7;7.5) reads 7.5. Still ceiling-censored context. No rebuild trigger
+pulled. Next O evaluation trigger: GLM-5.4 catchup or another release —
+no more O arm repetitions.
+
+| Run | Tag | Outcome | Cost |
+|---|---|---|---|
+| 1 | glmmax2c | delivered, final report captured, red baseline detected (read-only) | $0.0073 |
+| 2 | glmmax3 | delivered, final report captured | $0.0056 |
+
+(DNF attempts glmmax2/glmmax2b below were operator error, $0; titles burned.)
+
+## Post-mortem of the DNFs (root cause: MY bug, not an outage)
+
+- Symptom: two identical 500 "Unexpected server error", sessions with ZERO
+  messages (no user prompt stored) → failure at model resolution, before any
+  LLM call.
+- Debug run with --print-logs gave the truth:
+  `ProviderModelNotFoundError: Model not found: ai-gateway-misc/fw-glm-5-3-flash.
+  Did you mean: fw-glm-5.3-flash, ...`
+- Cause: the model id was passed with DASHES (`fw-glm-5-3-flash`) — copied
+  from the session-title TAG, where the runner's `tr '/. ' '---'` converts
+  dots to dashes. The real id has DOTS (`fw-glm-5.3-flash`).
+- Red herrings ruled out along the way (all healthy): the gateway (direct
+  curl on both /openai/v1 routes + models list: glm-5.3-flash present, key
+  valid), the auth (auth.json = portal Secondary key grove_ooF1Yb…, active),
+  opencode version (1.19.6 since 11-22, unchanged), env key overrides.
+- Standing lesson for the runners: the tag-derivation `tr` makes titles
+  ambiguous with the real id — never copy a model id from a session title.
+
+## Next
+
+Score both runs with the standing 2-family panel (same as glmmax1's 8/8):
+stability verdict = do both runs also reach the ceiling / catch the
+red-baseline trap / deliver at all.

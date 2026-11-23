@@ -34,6 +34,10 @@ eval-2026-11-13-D-D1-github-copilot-claude-haiku-5-5-default-p3	2026-11-13	D	hai
 eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-g1	2026-11-16	D	haiku	default	g1	completed		1	0.0229	tsv	148	22	437951	13771	6567	525191
 eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-g2	2026-11-16	D	haiku	default	g2	completed		1	0.0186	tsv	106	16	284058	10508	5403	362595
 eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-default-p5	2026-11-16	D	haiku	default	p5	scored	5.0	1	0.0204	tsv	121	18	358689	9928	7307	441585
+eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1	2026-11-20	D	haiku	default	a1	completed		1	0.0219	db	137	16	284927	12386	8775	373735
+eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2	2026-11-20	D	haiku	default	a2	completed		1	0.0188	db	113	16	288063	9790	6327	367001
+eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3	2026-11-20	D	haiku	default	a3	completed		1	0.0159	db	81	12	179907	8470	4792	252731
+eval-2026-11-20-D-D1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4	2026-11-20	D	haiku	default	a4	completed		1	0.0197	db	154	16	286648	10082	7567	368420
 eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-high-g21	2026-11-16	D	haiku	high	g21	scored	7.0	1	0.0468	tsv	611	20	370096	16973	27553	581289
 eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-high-g22	2026-11-16	D	haiku	high	g22	scored	7.5	1	0.1224	tsv	728	40	1181842	23883	43342	1364196
 eval-2026-11-16-D-D1-github-copilot-claude-haiku-5-5-low-g21	2026-11-16	D	haiku	low	g21	scored	6.5	1	0.0210	tsv	153	18	357591	11326	7065	441550
@@ -55,6 +59,8 @@ eval-2026-11-17-D-D1-github-copilot-gemini-4-hydrogen-xhigh-g51	2026-11-17	D	hyd
 eval-2026-11-17-D-D1-github-copilot-gemini-4-hydrogen-xhigh-g52	2026-11-17	D	hydrogen	xhigh	g52	scored	7.0	1	0.6437	tsv	378	121335	621123	55343	0	797801
 eval-2026-11-17-D-D1-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g21	2026-11-17	D	kimi	medium	g21	scored	6.0	1	0.3473	tsv	440	38203	430401	7887	10593	487084
 eval-2026-11-17-D-D1-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g22	2026-11-17	D	kimi	medium	g22	scored	6.0	1	0.6356	tsv	537	59929	873011	11964	22148	967052
+eval-2026-11-22-D-D1-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	D	mai-code-2	default	a1	completed		1	0.0463	db	120	49632	214016	6458	0	270106
+eval-2026-11-22-D-D1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	D	mai-code-2-flash	default	a1	completed		1	0.0006	db	6	7755	39936	65	0	47756
 eval-2026-11-16-D-D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g21	2026-11-16	D	minimax	high	g21	DNF		0	0.0488	tsv	3043	61527	1183129	10427	26001	1281084
 eval-2026-11-16-D-D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g22	2026-11-16	D	minimax	high	g22	DNF		0	0.0533	tsv	2177	66853	1572869	12144	20695	1672561
 eval-2026-11-17-D-D1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-f41	2026-11-17	D	minimax	high	f41	scored	5.5	1	0.0568	tsv	476	77928	1236790	21386	22895	1358999
@@ -122,6 +128,10 @@ eval-2026-11-18-T4V2-github-copilot-gpt-6-2-sol-high-s621	2026-11-18	DR2	gpt-6.2
 eval-2026-11-18-T4V2-github-copilot-gpt-6-2-sol-high-s622	2026-11-18	DR2	gpt-6.2-sol	high	s622	completed		1	0.0938	db	121	60826	174306	4733	8478	248343
 eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-g1	2026-11-16	DR2	haiku	default	g1	scored	5.0	1	0.0079	tsv	21	8	82822	1722	1677	129485
 eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-g2	2026-11-16	DR2	haiku	default	g2	scored	5.0	1	0.0074	tsv	18	6	41335	1638	1470	87617
+eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1	2026-11-20	DR2	haiku	default	a1	completed		1	0.0077	db	18	8	82126	1559	1428	128033
+eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2	2026-11-20	DR2	haiku	default	a2	completed		1	0.0072	db	18	6	40962	1457	1442	86658
+eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3	2026-11-20	DR2	haiku	default	a3	completed		1	0.0078	db	19	8	82079	1680	1463	128119
+eval-2026-11-20-T4V2-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4	2026-11-20	DR2	haiku	default	a4	completed		1	0.0080	db	22	8	82087	1690	1892	128568
 eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-high-g21	2026-11-16	DR2	haiku	high	g21	scored	5.0	1	0.0113	tsv	54	8	82816	1824	8373	136283
 eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-high-g22	2026-11-16	DR2	haiku	high	g22	scored	9.0	1	0.0128	tsv	53	12	173459	2368	7230	233084
 eval-2026-11-16-T4V2-github-copilot-claude-haiku-5-5-low-g21	2026-11-16	DR2	haiku	low	g21	scored	6.0	1	0.0077	tsv	19	8	82799	1560	1280	128892
@@ -136,6 +146,8 @@ eval-2026-11-16-T4V2-github-copilot-gemini-4-hydrogen-medium-p7	2026-11-16	DR2	h
 eval-2026-11-16-T4V2-github-copilot-gemini-4-hydrogen-medium-p7r2	2026-11-16	DR2	hydrogen	medium	p7r2	scored	5.0	1	0.0490	tsv	24	14939	41595	3136	0	59670
 eval-2026-11-17-T4V2-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g21	2026-11-17	DR2	kimi	medium	g21	scored	6.0	1	0.0654	tsv	55	10597	42048	703	2881	56229
 eval-2026-11-17-T4V2-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g22	2026-11-17	DR2	kimi	medium	g22	scored	5.0	1	0.0820	tsv	116	40068	138284	5122	6751	190225
+eval-2026-11-22-T4V2-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	DR2	mai-code-2	default	a1	completed		1	0.0078	db	14	9714	62976	543	0	73233
+eval-2026-11-22-T4V2-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	DR2	mai-code-2-flash	default	a1	completed		1	0.0010	db	23	9945	62976	944	0	73865
 eval-2026-11-16-T4V2-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g21	2026-11-16	DR2	minimax	high	g21	scored	7.0	1	0.0135	tsv	133	37819	187894	2646	5635	233994
 eval-2026-11-16-T4V2-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g22	2026-11-16	DR2	minimax	high	g22	scored	8.0	1	0.0111	tsv	68	31151	84827	2607	5932	124517
 eval-2026-11-16-T4V2-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-low-g21	2026-11-16	DR2	minimax	low	g21	scored	3.0	1	0.0082	tsv	33	31307	84654	1993	1705	119659
@@ -261,6 +273,8 @@ eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-carbon-high-q51	2026-11-20	I2-RG
 eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-carbon-high-q52	2026-11-20	I2-RG4	carbon	high	q52	DNF		0	2.2942	db	1743	434482	3312752	109393	0	3856627
 eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-carbon-high-q54	2026-11-20	I2-RG4	carbon	high	q54	not-completed		0	0.6104	db	516	87622	735370	36166	0	859158
 eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-carbon-high-q54b	2026-11-20	I2-RG4	carbon	high	q54b	not-completed		0	0.9054	db	1194	186964	830378	44840	0	1062182
+eval-2026-11-23-IV2-RG4-github-copilot-gemini-4-carbon-high-q53	2026-11-23	I2-RG4	carbon	high	q53	not-completed		0	0.6363	db	586	81504	424555	43080	0	549139
+eval-2026-11-23-IV2-RG4-github-copilot-gemini-4-carbon-high-q53b	2026-11-23	I2-RG4	carbon	high	q53b	completed		1	1.3637	db	1178	159640	1904574	85395	0	2149609
 eval-2026-11-20-IV2-RG4-ai-gateway-misc-fw-deepseek-v4-1-flash-q51	2026-11-20	I2-RG4	dsflash	default	q51	scored	10.5	1	0.0326	db	158	70158	1181274	8138	16552	1276122
 eval-2026-11-20-IV2-RG4-ai-gateway-misc-fw-deepseek-v4-1-flash-q52	2026-11-20	I2-RG4	dsflash	default	q52	scored	13.0	1	0.0381	db	185	78042	1580656	11629	16573	1686900
 eval-2026-11-20-IV2-RG4-github-copilot-gemini-3-8-flash-medium-q51	2026-11-20	I2-RG4	gem38	medium	q51	scored	11.5	1	0.7658	db	517	276731	3689755	75074	0	4041560
@@ -271,6 +285,10 @@ eval-2026-11-20-IV2-RG4-ai-gateway-misc-fw-glm-5-3-flash-low-q51	2026-11-20	I2-R
 eval-2026-11-20-IV2-RG4-ai-gateway-misc-fw-glm-5-3-flash-low-q52	2026-11-20	I2-RG4	glm	low	q52	scored	9.0	1	0.0303	db	74	44610	879524	6097	2302	932533
 eval-2026-11-19-IV2-RG4-github-copilot-claude-haiku-5-5-r41	2026-11-19	I2-RG4	haiku	default	r41	scored	11.0	1	0.0273	db	104	26	668577	12336	9950	766446
 eval-2026-11-19-IV2-RG4-github-copilot-claude-haiku-5-5-r42	2026-11-19	I2-RG4	haiku	default	r42	scored	13.0	1	0.0261	db	100	26	654672	12865	8232	748133
+eval-2026-11-20-IV2-RG4-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1	2026-11-20	I2-RG4	haiku	default	a1	completed		1	0.0241	db	77	28	675518	9349	7252	764593
+eval-2026-11-20-IV2-RG4-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2	2026-11-20	I2-RG4	haiku	default	a2	completed		1	0.0275	db	100	30	777189	10194	11192	870686
+eval-2026-11-20-IV2-RG4-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3	2026-11-20	I2-RG4	haiku	default	a3	completed		1	0.0262	db	97	24	587167	12706	9355	683525
+eval-2026-11-20-IV2-RG4-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4	2026-11-20	I2-RG4	haiku	default	a4	completed		1	0.0314	db	118	30	863994	13388	12312	968602
 eval-2026-11-19-IV2-RG4-github-copilot-claude-haiku-5-5-high-r41	2026-11-19	I2-RG4	haiku	high	r41	scored	13.0	1	0.2036	db	292	72	3180240	24745	38240	3367352
 eval-2026-11-19-IV2-RG4-github-copilot-claude-haiku-5-5-high-r42	2026-11-19	I2-RG4	haiku	high	r42	scored	13.0	1	0.0885	db	659	42	1568205	18464	30718	1725314
 eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-hydrogen-high-q51	2026-11-20	I2-RG4	hydrogen	high	q51	scored	13.0	1	0.5532	db	312	99000	774630	46211	0	919841
@@ -279,6 +297,8 @@ eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-hydrogen-medium-q51	2026-11-20	I
 eval-2026-11-20-IV2-RG4-github-copilot-gemini-4-hydrogen-medium-q52	2026-11-20	I2-RG4	hydrogen	medium	q52	scored	11.0	1	0.3458	db	182	77257	590715	24746	0	692718
 eval-2026-11-20-IV2-RG4-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-q51	2026-11-20	I2-RG4	kimi	medium	q51	scored	11.0	1	0.7996	db	1036	203626	930134	8998	11636	1154394
 eval-2026-11-20-IV2-RG4-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-q52	2026-11-20	I2-RG4	kimi	medium	q52	scored	11.0	1	0.5589	db	422	65261	1116128	10970	9543	1201902
+eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	I2-RG4	mai-code-2	default	a1	completed		1	0.0637	db	130	42911	968704	7198	0	1018813
+eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	I2-RG4	mai-code-2-flash	default	a1	completed		1	0.0119	db	134	102920	934912	8136	0	1045968
 eval-2026-11-20-IV2-RG4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-low-q51	2026-11-20	I2-RG4	minimax	low	q51	scored	11.0	1	0.0405	db	162	54987	1347339	9440	10592	1422358
 eval-2026-11-20-IV2-RG4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-low-q52	2026-11-20	I2-RG4	minimax	low	q52	scored	13.0	1	0.1040	db	321	86806	4445509	15805	24627	4572747
 eval-2026-11-20-IV2-RG4-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-medium-q51	2026-11-20	I2-RG4	minimax	medium	q51	scored	11.0	1	0.0605	db	241	71702	2077051	11901	19109	2179763
@@ -312,6 +332,7 @@ eval-2026-11-17-T3-github-copilot-gpt-6-astra-g21	2026-11-17	IR	astra	default	g2
 eval-2026-11-16-T3-ai-gateway-misc-fw-deepseek-v4-1-flash-g21	2026-11-16	IR	dsflash	default	g21	scored	1.0	1	0.0070	tsv	18	30095	87650	845	1245	119835
 eval-2026-11-16-T3-ai-gateway-misc-fw-deepseek-v4-1-flash-g22	2026-11-16	IR	dsflash	default	g22	scored	2.0	1	0.0078	tsv	20	31790	116572	857	1917	151136
 eval-2026-11-17-T3-github-copilot-claude-fable-5-g21	2026-11-17	IR	fable	default	g21	scored	2.0	1	0.6885	tsv	27	6	83640	842	497	128013
+eval-2026-11-20-T3-github-copilot-claude-fable-5-2-catchup-fable-2026-11-20-a1	2026-11-20	IR	fable	default	a1	completed		1	0.4968	db	22	8	82765	1198	16	127145
 eval-2026-11-18-T3-ai-gateway-misc-fw-glm-5-3-flash-high-r91	2026-11-18	IR	glm	high	r91	completed		1	0.0050	db	29	15128	97884	575	1282	114869
 eval-2026-11-18-T3-ai-gateway-misc-fw-glm-5-3-flash-high-r92	2026-11-18	IR	glm	high	r92	completed		1	0.0071	db	30	22675	149332	674	1015	173696
 eval-2026-11-18-T3-ai-gateway-misc-fw-glm-5-3-flash-high-r93	2026-11-18	IR	glm	high	r93	completed		1	0.0058	db	56	21302	91032	673	1757	114764
@@ -322,6 +343,10 @@ eval-2026-11-18-T3-github-copilot-gpt-6-2-sol-high-s621	2026-11-18	IR	gpt-6.2-so
 eval-2026-11-18-T3-github-copilot-gpt-6-2-sol-high-s622	2026-11-18	IR	gpt-6.2-sol	high	s622	completed		1	0.0938	db	27	28710	100892	746	452	130800
 eval-2026-11-16-T3-github-copilot-claude-haiku-5-5-g1	2026-11-16	IR	haiku	default	g1	scored	4.0	1	0.0064	tsv	12	6	41383	643	778	84929
 eval-2026-11-16-T3-github-copilot-claude-haiku-5-5-g2	2026-11-16	IR	haiku	default	g2	scored	5.0	1	0.0066	tsv	13	6	41374	873	876	85238
+eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1	2026-11-20	IR	haiku	default	a1	completed		1	0.0064	db	11	6	41028	709	731	84284
+eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2	2026-11-20	IR	haiku	default	a2	completed		1	0.0064	db	11	6	41016	757	725	84298
+eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3	2026-11-20	IR	haiku	default	a3	completed		1	0.0068	db	12	8	82740	650	728	126736
+eval-2026-11-20-T3-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4	2026-11-20	IR	haiku	default	a4	completed		1	0.0063	db	11	6	41010	497	849	84320
 eval-2026-11-16-T3-github-copilot-claude-haiku-5-5-low-g1	2026-11-16	IR	haiku	low	g1	completed		1	0.0064	tsv	12	6	41374	692	818	84996
 eval-2026-11-16-T3-github-copilot-gemini-4-hydrogen-high-p7	2026-11-16	IR	hydrogen	high	p7	scored	2.0	1	0.0783	tsv	42	20801	96387	5318	0	122506
 eval-2026-11-16-T3-github-copilot-gemini-4-hydrogen-high-p7r2	2026-11-16	IR	hydrogen	high	p7r2	scored	2.0	1	0.0899	tsv	47	24748	128645	5754	0	159147
@@ -329,6 +354,8 @@ eval-2026-11-16-T3-github-copilot-gemini-4-hydrogen-medium-p7	2026-11-16	IR	hydr
 eval-2026-11-16-T3-github-copilot-gemini-4-hydrogen-medium-p7r2	2026-11-16	IR	hydrogen	medium	p7r2	scored	3.0	1	0.0569	tsv	32	17140	127259	2880	0	147279
 eval-2026-11-17-T3-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g21	2026-11-17	IR	kimi	medium	g21	scored	2.0	1	0.0871	tsv	136	13912	95947	960	3048	113867
 eval-2026-11-17-T3-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g22	2026-11-17	IR	kimi	medium	g22	scored	2.0	1	0.0718	tsv	142	12050	99272	846	1943	114111
+eval-2026-11-22-T3-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	IR	mai-code-2	default	a1	completed		1	0.0100	db	16	13560	63488	649	0	77697
+eval-2026-11-22-T3-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	IR	mai-code-2-flash	default	a1	completed		1	0.0218	db	131	66403	357370	5535	10202	439510
 eval-2026-11-16-T3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g21	2026-11-16	IR	minimax	high	g21	scored	3.0	1	0.0108	tsv	40	35188	180965	1802	2895	220850
 eval-2026-11-16-T3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g22	2026-11-16	IR	minimax	high	g22	scored	3.0	1	0.0107	tsv	37	33020	236307	1518	2112	272957
 eval-2026-11-16-T3-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-low-g21	2026-11-16	IR	minimax	low	g21	scored	3.0	1	0.0076	tsv	27	28762	115378	1114	1514	146768
@@ -374,18 +401,29 @@ eval-2026-11-17-T1-github-copilot-gemini-4-carbon-medium-o22	2026-11-17	O	carbon
 eval-2026-11-16-T1-ai-gateway-misc-fw-deepseek-v4-1-flash-g21	2026-11-16	O	dsflash	default	g21	scored	5.0	1	0.0075	tsv	16	33167	86096	1683	344	121290
 eval-2026-11-16-T1-ai-gateway-misc-fw-deepseek-v4-1-flash-g22	2026-11-16	O	dsflash	default	g22	scored	5.0	1	0.0079	tsv	21	31925	87298	1874	1189	122286
 eval-2026-11-17-T1-github-copilot-claude-fable-5-g21	2026-11-17	O	fable	default	g21	scored	1.0	1	0.7144	tsv	34	6	83698	1954	50	128143
+eval-2026-11-20-T1-github-copilot-claude-fable-5-2-catchup-fable-2026-11-20-a1	2026-11-20	O	fable	default	a1	completed		1	0.6258	db	48	8	83145	2580	1279	132485
 eval-2026-11-17-T1-github-copilot-fw-glm-5-3-flash-high-f41	2026-11-17	O	glm	high	f41	DNF		0	0.0000	tsv	0					
 eval-2026-11-17-T1-ai-gateway-misc-fw-glm-5-3-flash-high-g31	2026-11-17	O	glm	high	g31	scored	5.0	1	0.0067	tsv	26	23416	121280	1477	750	146923
 eval-2026-11-17-T1-ai-gateway-misc-fw-glm-5-3-flash-high-g32	2026-11-17	O	glm	high	g32	scored	6.0	1	0.0066	tsv	24	22723	120888	1438	694	145743
 eval-2026-11-17-T1-github-copilot-fw-glm-5-3-flash-low-f41	2026-11-17	O	glm	low	f41	DNF		0	0.0000	tsv	0					
 eval-2026-11-18-T1-ai-gateway-misc-fw-glm-5-3-flash-low-o41	2026-11-18	O	glm	low	o41	completed		1	0.0061	db	19	29103	82992	1225	44	113364
 eval-2026-11-18-T1-ai-gateway-misc-fw-glm-5-3-flash-low-o42	2026-11-18	O	glm	low	o42	completed		1	0.0062	db	18	29837	82944	1214	41	114036
+eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax1	2026-11-23	O	glm	max	glmmax1	scored	8.0	1	0.0070	db	28	30868	82608	1466	1517	116459
+eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax2	2026-11-23	O	glm	max	glmmax2	DNF		0	0.0000	db	0					
+eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax2b	2026-11-23	O	glm	max	glmmax2b	DNF		0	0.0000	db	0					
+eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax2c	2026-11-23	O	glm	max	glmmax2c	scored	7.0	1	0.0073	db	31	23840	121496	1523	1896	148755
+eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax3	2026-11-23	O	glm	max	glmmax3	scored	7.0	1	0.0056	db	32	14161	98664	1617	2018	116460
 eval-2026-11-18-T1-github-copilot-gpt-6-2-sol-high-s621	2026-11-18	O	gpt-6.2-sol	high	s621	completed		1	0.0895	db	26	26548	96234	1164	189	124135
 eval-2026-11-18-T1-github-copilot-gpt-6-2-sol-high-s622	2026-11-18	O	gpt-6.2-sol	high	s622	completed		1	0.0859	db	23	26505	69721	1164	99	97489
 eval-2026-11-16-T1-github-copilot-claude-haiku-5-5-g1	2026-11-16	O	haiku	default	g1	superseded		0	0.0097	tsv	30	10	126327	3599	1657	177859
 eval-2026-11-16-T1-github-copilot-claude-haiku-5-5-g2	2026-11-16	O	haiku	default	g2	superseded		0	0.0098	tsv	31	10	126397	2960	2442	178181
 eval-2026-11-17-T1-github-copilot-claude-haiku-5-5-o21	2026-11-17	O	haiku	default	o21	scored	7.0	1	0.0097	tsv	31	10	126475	2878	2334	178147
 eval-2026-11-17-T1-github-copilot-claude-haiku-5-5-o22	2026-11-17	O	haiku	default	o22	scored	6.0	1	0.0093	tsv	28	10	126466	2648	1786	177324
+eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a1	2026-11-20	O	haiku	default	a1	completed		1	0.0110	db	35	10222	100900	4417	1225	160121
+eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-smoke-o-haiku-a1	2026-11-20	O	haiku	default	a1	completed		1	0.0104	db	28	10476	100132	3651	570	158081
+eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a2	2026-11-20	O	haiku	default	a2	completed		1	0.0096	db	30	10	125292	3020	2114	176461
+eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a3	2026-11-20	O	haiku	default	a3	completed		1	0.0094	db	28	10	125244	3022	1746	175930
+eval-2026-11-20-T1-github-copilot-claude-haiku-5-5-noise-haiku-2026-11-20-a4	2026-11-20	O	haiku	default	a4	completed		1	0.0104	db	30	8022	93826	4089	1100	150362
 eval-2026-11-17-T1-github-copilot-claude-haiku-5-5-high-o21	2026-11-17	O	haiku	high	o21	scored	7.0	1	0.0104	tsv	308	12	176789	2944	2140	230298
 eval-2026-11-17-T1-github-copilot-claude-haiku-5-5-high-o22	2026-11-17	O	haiku	high	o22	DNF		0	0.0068	tsv	10	8	83743	740	434	128047
 eval-2026-11-16-T1-github-copilot-claude-haiku-5-5-low-g1	2026-11-16	O	haiku	low	g1	superseded		0	0.0070	tsv	16	6	41427	2425	202	86373
@@ -408,6 +446,8 @@ eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g
 eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-g22	2026-11-17	O	kimi	medium	g22	scored	4.0	1	0.0335	tsv	242	678	51488	1093	1090	54349
 eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-o21	2026-11-17	O	kimi	medium	o21	scored	5.0	1	0.1043	tsv	72	28289	52241	1389	2340	84259
 eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-kimi-k3p1-pro-medium-o22	2026-11-17	O	kimi	medium	o22	scored	4.0	1	0.0756	tsv	27	26524	25741	1066	672	54003
+eval-2026-11-22-T1-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	O	mai-code-2	default	a1	completed		1	0.0147	db	17	24671	23552	717	0	48940
+eval-2026-11-22-T1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	O	mai-code-2-flash	default	a1	completed		1	0.0015	db	14	25171	23040	641	0	48852
 eval-2026-11-16-T1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g21	2026-11-16	O	minimax	high	g21	scored	7.0	1	0.0125	tsv	58	34905	217683	3171	3522	259281
 eval-2026-11-16-T1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-g22	2026-11-16	O	minimax	high	g22	scored	2.0	1	0.0106	tsv	58	30998	117854	3875	3060	155787
 eval-2026-11-17-T1-fireworks-ai-accounts-fireworks-models-minimax-m3p1-flash-high-o21	2026-11-17	O	minimax	high	o21	scored	7.0	1	0.0109	tsv	68	32590	118377	3854	3254	158075
@@ -445,16 +485,3 @@ eval-2026-11-17-T1-github-copilot-gpt-6-1-terra-medium-o21	2026-11-17	O	terra	me
 eval-2026-11-17-T1-github-copilot-gpt-6-1-terra-medium-o22	2026-11-17	O	terra	medium	o22	scored	5.0	1	0.0462	tsv	36	27100	96673	1197	297	125267
 eval-2026-11-17-T1-github-copilot-gpt-6-1-terra-xhigh-o21	2026-11-17	O	terra	xhigh	o21	scored	5.0	1	0.0441	tsv	30	26711	69960	1082	371	98124
 eval-2026-11-17-T1-github-copilot-gpt-6-1-terra-xhigh-o22	2026-11-17	O	terra	xhigh	o22	scored	5.0	1	0.0454	tsv	34	27098	70359	1149	455	99061
-eval-2026-11-22-T1-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	O	mai-code-2	default	a1	scored	0	1	0.0147	db	16.648	24671	23552	717	0	48940
-eval-2026-11-22-T3-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	IR	mai-code-2	default	a1	scored	2.5	1	0.01	db	15.52	13560	63488	649	0	77697
-eval-2026-11-22-T4V2-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	DR2	mai-code-2	default	a1	scored	6	1	0.0078	db	14.379	9714	62976	543	0	73233
-eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	I2-RG4	mai-code-2	default	a1	scored	9.5	1	0.0637	db	129.563	42911	968704	7198	0	1018813
-eval-2026-11-22-D-D1-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	D	mai-code-2	default	a1	scored	5	1	0.0463	db	119.732	49632	214016	6458	0	270106
-eval-2026-11-22-T1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	O	mai-code-2-flash	default	a1	scored	5	1	0.0015	db	13.792	25171	23040	641	0	48852
-eval-2026-11-22-T3-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	IR	mai-code-2-flash	default	a1	scored	2	1	0.0218	db	130.959	66403	357370	5535	10202	439510
-eval-2026-11-22-T4V2-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	DR2	mai-code-2-flash	default	a1	scored	6.5	1	0.001	db	23.169	9945	62976	944	0	73865
-eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	I2-RG4	mai-code-2-flash	default	a1	scored	9	1	0.0119	db	133.806	102920	934912	8136	0	1045968
-eval-2026-11-22-D-D1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	D	mai-code-2-flash	default	a1	completed		1	0.0006	db	6.01	7755	39936	65	0	47756
-eval-2026-11-23-IV2-RG4-github-copilot-gemini-4-carbon-high-q53	2026-11-23	I2-RG4	carbon	high	q53	not-completed		0	0.6363	db	586.194	81504	424555	43080	0	549139
-eval-2026-11-23-IV2-RG4-github-copilot-gemini-4-carbon-high-q53b	2026-11-23	I2-RG4	carbon	high	q53b	scored	14	1	1.3637	db	961.362	159640	1904574	85395	0	2149609
-eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax1	2026-11-23	O	glm	max	glmmax1	scored	8	1	0.007	db	28.099	30868	82608	1466	1517	116459

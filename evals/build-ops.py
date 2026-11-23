@@ -31,7 +31,7 @@ MODEL_KEYS=[  # (substring in title, run-scores model key); order matters
  ("minimax-m3p1-flash","minimax"),("qwen3p8","qwen"),("muse-spark","muse"),("kimi-k3p1","kimi"),
  ("mai-code-2-flash","mai-code-2-flash"),("mai-code-2","mai-code-2"),
 ]
-EFFORTS={"low","medium","high","xhigh"}
+EFFORTS={"low","medium","high","xhigh","max"}
 def parse(title):
     m=re.match(r"eval-(\d{4}-\d{2}-\d{2})-(.+)$", title)
     if not m: return None

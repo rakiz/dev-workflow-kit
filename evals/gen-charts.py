@@ -58,7 +58,7 @@ SEATS = {
 # bench charts: (REASONS key, title, y-max, CSV column, y-axis label, ref line)
 BENCHES = [
     ("Orchestration",
-     "Orchestration (O, /8): sonnet-high plans best (8); glm keeps the seat on price (7 at $0.005 - 20x cheaper than the top scorers)",
+     "Orchestration (O, /8): sonnet-high plans best (8); glm-max holds the seat on price (7.33 n=3, stability x3 confirmed, at $0.007 - 20x cheaper than the top scorers)",
      8, "O8", "score on this bench", None, "O"),
     ("Design writing",
      "Design writing (D, /11): 1017-high best (9.81 at $0.12), opus 9.58 at 12x the cost; glm and gem38 cannot write designs",
@@ -705,7 +705,7 @@ def build_and_write():
     blocks.append('<h3>Why the best-and-cheaper model is not always the seat</h3>')
     blocks.append('<p class="note"><strong>Tie rule (ratified 2026-11-20).</strong> Eligibility = two scorer families + &ge;2 valid runs; the cheapest arm inside the MDE band wins the seat.</p>')
     blocks.append('''<table class="matrix"><thead><tr><th>Seat</th><th>Best-and-cheaper candidate</th><th>Why it is not the seat</th></tr></thead><tbody>
-<tr><td>orchestration</td><td>haiku-medium (7.5 at $0.01) / sonnet-high (8 at $0.10)</td><td>glm-high (7/8 · $0.005) — the highest-volume seat: haiku-medium scores 7.5 at 2x, sonnet-high 8 at 20x; the price rule wins at this volume. Revisit if glm O &lt; 5.</td></tr>
+<tr><td>orchestration</td><td>haiku-medium (7.5 at $0.01) / sonnet-high (8 at $0.10)</td><td>glm-max (7.33/8 n=3 · $0.007 — stability x3 confirmed 2026-11-23) — the highest-volume seat: haiku-medium scores 7.5 at 2x, sonnet-high 8 at 20x; the price rule wins at this volume. Revisit if glm O &lt; 5.</td></tr>
 <tr><td>cheap-design-review</td><td>qwen-xhigh (10 at ~$1.07, one valid run)</td><td>minimax holds it twice over: medium effort holds this rung (8.0 at $0.04, on price - qwen-medium posts 8.6 at 8x the cost), xhigh holds strong-design-review (11.25 with 4 executed proofs) — a same-family effort escalation the owner accepted. Minimax is critique-only: its design authoring collapses across runs (two DNFs, false claim).</td></tr>
 <tr><td>strong-design-review</td><td>carbon-high (10 at $0.15-0.23, one valid run)</td><td>minimax-xhigh holds the rung on the complete grid: 11.25/14 with 4 executed proofs at $0.03 — the best DR2 measured. 1017 medium measures 4.75 on the official panel.</td></tr>
 <tr><td>strong-design</td><td>opus (9.58 at ~$1.39)</td><td>1017-high holds it (9.81 at $0.12) - rank-1 D measured, 1/12 of opus's price; opus keeps alt2/terminal.</td></tr>

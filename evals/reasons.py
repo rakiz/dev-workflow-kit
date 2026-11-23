@@ -34,7 +34,7 @@ REASONS = {
         "qwen-xhigh": "6.75 official at ~$1.07/task - the most expensive O measured; no seat at that price.",
         "qwen-low": "2 on one run - hallucinated the baseline (10-14).",
         "glm-high": "Fallback citation now (seat moved to max). 7 official (3 runs: 7;5;6 + panel confirmation) at $0.005/task - kept on price; revisit if glm O < 5 or haiku loses a seat (haiku-medium posts 7.5).",
-        "glm-max": "Holds orchestration (owner 2026-11-23): 8/8 unanimous (minimax 8 + sonnet 8, no divergence, hall=0 - red baseline pinned) at $0.007/task = the cost of high; the 7->8 gap is under the O noise band - a free upgrade on a tie, and the vendor-default + vendor-recommended coding effort.",
+        "glm-max": "Holds orchestration (owner 2026-11-23). Stability confirmed x3 same day (runs 8;7;7 conservative panel scores, means 8;7;7.5, hall=0 all six readings, red baseline caught every run, delivery 3/3 at $0.0056-0.0073/task) - still a tie-band seat on price + vendor-default effort, not a quality claim (ceiling-censored). Next O evaluation trigger: GLM-5.4 catchup or another release, not more O runs.",
         "glm-low": "5 confirmed on 3 runs (5;5;5) at $0.005/task - stable, baseline discipline 0, zero hallucination.",
         "dsflash": "Holds cheap-mech/explore. 5.67 official at $0.008/task - enough planning for those rungs.",
         "dsflash-low": "5 on one run at $0.008/task.",

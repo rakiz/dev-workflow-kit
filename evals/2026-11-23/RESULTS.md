@@ -114,3 +114,16 @@ Reading:
   Bench-generation ledger: T4→DR-v2 (11-01) and I2→I2-RG4 (11-20) rebuilt; IR's ceiling
   is handled by the bonus axis; O is the third bench showing a limit, the first whose
   own seat decision sits in the noise.
+- **O seat stability confirmed ×3 (same-day follow-up, glmmax-confirmation runs)**: the
+  single-run 8/8 above was re-run twice (`glmmax2c`, `glmmax3`) and scored by the
+  standing 2-family panel (minimax + sonnet; glm self-family excluded): runs
+  8;7;7 conservative panel scores (per-run means 8;7;7.5 — 2c unanimous 7, 3 carries a
+  1-pt R divergence: minimax credits the explicit verify-at-HEAD step, sonnet reads the
+  plan as hedged), hall=0 across all six scorer readings, red baseline caught in every
+  run, delivery 3/3 at $0.0056-0.0073/task (panel spend $0.23). Two DNF attempts
+  (glmmax2/2b, $0) were operator error (model id dashes-vs-dots copied from a session
+  title) — post-mortem + lesson in `glmmax-confirmation.status.txt`. Folded:
+  grid2-run-scores.tsv (5 rows), grid2-scores.csv (glm,max O8 → 7.33, n=3),
+  run-ops.tsv (regenerated, 486 runs), reasons.py, roster/MODELS.md, EVALS.md,
+  LEADERBOARD.html. **No further O runs planned — the next O evaluation trigger is the
+  GLM-5.4 catchup (watch item §3) or another model release, not more O arm repetitions.**

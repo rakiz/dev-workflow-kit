@@ -1,0 +1,11 @@
+[91m[1mError: [0m{
+  "name": "UnknownError",
+  "data": {
+    "message": "Unexpected server error. Check server logs for details.",
+    "ref": "err_83e0374b"
+  }
+}
+./run-eval-v5.sh: line 109: 81237 Terminated: 15          sleep 300
+./run-eval-v5.sh: line 118: 81238 Terminated: 15          sleep "$TIMEOUT_SECS"
+warn: no assistant text found for session eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax2b — no-report marker written (DNF re-run signal)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-81208 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-23-T1-ai-gateway-misc-fw-glm-5-3-flash-max-glmmax2b)
