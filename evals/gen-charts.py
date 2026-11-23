@@ -417,7 +417,7 @@ def svg(title, ymax, pts, bench, ylabel="score on this bench", ref=None):
         col = "#1d4ed8" if here else "#9ca3af"
         # full model id (provider/model) + effort for the tooltip
         base, eff = name, "default"
-        for e in ("default", "low", "medium", "high", "xhigh"):
+        for e in ("default", "low", "medium", "high", "xhigh", "max"):
             if name.endswith("-" + e):
                 base, eff = name[: -(len(e) + 1)], e
                 break

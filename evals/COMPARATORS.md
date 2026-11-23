@@ -164,3 +164,23 @@ low/high/max (+ none for DS), no medium.
   high; max is the vendor-recommended coding level and costs cents on this bench; (b)
   GLM-5.4 (see above) ships with max-recommended coding by default — its catchup campaign
   should run the default (= max) arm as-is, not force high.
+
+### 2026-11-23 — Artificial Analysis cross-check (our 5 analyzed models, II v5.0.1)
+
+Per-model AA data (pages fetched 2026-11-23; II = Intelligence Index v5.0.1, their
+$/task is on THEIR 9-eval index, not ours):
+
+| Model (effort) | AA II | AA $/task | AA default effort | Our verdict cross-checked |
+|---|---|---|---|---|
+| GLM-5.3-flash (max) | 28 | $0.58 | **max** | agrees: "above average, well priced, never top" = our cheap-bulk screening (11-12); our O seat 7/8 at high, ~$0.015/task here |
+| GLM-5.3 (max) | 32 | $5.01 | max | agrees with never adopting: 4 II pts over the flash for 9x the $/task |
+| haiku 5.5 | max 36 · xhigh 35 · **high 30** · medium 25 · low 19 | $0.41 (max) | **medium** | matches our rung gaps: cheap-code at default (=medium, I2-RG4 11.75) vs strong-code-alternative at high (13.5) — AA's +5 II medium→high mirrors our +1.75 |
+| opus 5.5 | max 59 · xhigh 57 · high 52 · **medium 48 (default)** · low 35 | $10-26 | medium | our deep seat runs at DEFAULT = medium (II 48): the terminal rung leaves 11 AA pts on the table at max — but AA max costs $26/task on their index; a deep-at-max re-arm is a possible future watch item, not justified by any current seat gap |
+| DS V4.1 Flash 1017 (max 33, **high 29 = default**) | $0.60 | high | agrees with our seats at high (strong-design 9.81, review-alt 3.62); AA max = +4 II — but MaxxBench documents 1017-at-max as the worst trust profile (grader-guessing + sandbox-bypass, see above), so the +4 stays untested here on purpose |
+
+**Verdict: AA's ordering and price-effort structure agree with every rung decision on
+record** (cheap flash as bulk, haiku's two rungs, 1017 at high, opus as deep). Two
+nuances now recorded: (a) the deep seat is measured at opus-medium (the API default) —
+its "maximal capability" claim is relative to OUR benches, not to the model's ceiling;
+(b) AA confirms vendor default effort max for GLM — our glm-max O arm (this session)
+tests exactly that.

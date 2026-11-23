@@ -48,6 +48,7 @@ STARS = {
     ("argon", "high", "I2"), ("argon", "high", "D"),
     ("terra", "medium", "DR2"),
     ("mai-code-2", "default", "O8"), ("mai-code-2", "default", "IR"), ("mai-code-2", "default", "DR2"), ("mai-code-2", "default", "D"),
+    ("glm", "max", "O8"),
     ("mai-code-2-flash", "default", "O8"), ("mai-code-2-flash", "default", "IR"), ("mai-code-2-flash", "default", "DR2"),
 }
 
