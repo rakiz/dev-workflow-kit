@@ -152,6 +152,12 @@ bench it was decided on.
     never stale. Re-read the campaign's `RESULTS.md` + new `EVALS.md` rows
     and regenerate the affected points/panels (self-contained HTML, no JS,
     family colors per `roster/models.json` `family_hint`; list non-plotted cells).
+    **If the campaign moved a seat (any `models.json`/`MODELS.md` change):
+    re-run `./init.sh --global --update` on every machine that runs the kit —
+    the deployed `~/.config/opencode/agent/*.md` are COPIES injected at sync
+    time, not links; a skipped sync leaves them on the old roster and agents
+    silently run the wrong model** (2026-11-23 lesson: a week-stale deploy
+    answered "glm high" for a seat that had been haiku since 11-17).
  8. **Bench v2 (live since 2026-11-01 — policy decided 2026-10-23)**: T4
     (and T3 depth)
     are saturating — 1017 swept T4 10/10 at all efforts, M3.1 averages

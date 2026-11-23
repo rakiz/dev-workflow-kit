@@ -75,6 +75,9 @@ never in this public repo; grep for leakage before campaigns (§3.8 of BENCH-V3-
   logs gzipped in place. **No `raw/` trees, ever** — run dirs are extracted
   into `runs/` at extraction time and never committed as raw trees; retired
   raw trees (`2026-11-16/raw/`, `2026-11-12/raw*`) are git history only.
+  Closing a campaign that moved a seat also means: `./init.sh --global
+  --update` on every machine running the kit (deployed agents are injected
+  copies, never links — a skipped sync leaves them on the old roster).
 - Ops layer is part of the standard regeneration: `build-ops.py` -> `2026-11-16/run-ops.tsv` (cost, delivery, latency and tokens per run, keyed DB reads), then `extract-fp-findings.py` -> `<DAY>/fp-findings.tsv` (per-run findings and false-positive counts of the IR/DR2 scorer panel; numeric counts + log:line evidence only, never rubric text), then `gen-charts.py` (score charts, `#ops`, roster ops column) and `build-matrix.py`; `verify-charts.py` must pass.
 - `extract-fp-findings.py` reads the PRIVATE repo (`../../evals-keys/score-logs/<date>/panel/`), so it only runs where that repo is present; the TSV it writes is the public artifact (numbers + `file:line` evidence) and is regenerated from the private logs, never copied from them. A missing TSV degrades the charts to the note-derived FP only (no crash).
 - Costs via session titles `eval-<date>-*` (parent + children roll-up,
