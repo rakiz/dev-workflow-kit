@@ -106,3 +106,20 @@ Source: https://openai.com/index/introducing-gpt-6-2-astra-sol
   cheapest per-task measurements on the grid (DR2 $0.001/task) — still below every seat.
   The IR run delegated its review to a minimax-m3p1-flash xhigh child; cost
   delegation-inclusive. No seat; roster unchanged (owner validation pending).
+
+### 2026-11-23 — vendor announcement watch: GLM-5.4
+
+- **GLM-5.4** (z.ai blog, announced 2026-11-23, "Toward Generalized Coding with Our First
+  Loop Transformer"): first looped-architecture production model — 28 middle layers of the
+  GLM-5 base (750B scale) run for 2 weight-shared iterations, per-token per-iteration
+  gates, cross-loop KV sharing + sliding window (an extra loop costs one window, not a
+  full cache). Vendor claims: coding + vision gains over 5.3, generalization beyond
+  code, "more generous usage quotas"; admitted limitation: over-long "marathon thinking"
+  loops. Bigger model already teased.
+- **ACTION (watch item): run the catchup campaign on GLM-5.4 the moment a gateway
+  exposes it.** Not available as of 2026-11-23: ai-gateway-misc lists only fw-glm-5.2 /
+  5.3 / 5.3-flash, github-copilot lists no GLM. Candidate for the orchestration seat
+  (glm-5.3-flash high holds O 7/8) and the cheap bulk rungs if a flash derivative ships.
+  Same benches as the mai catchup (O/IR/DR2/I2-RG4/D), same 2-family panel; note the
+  self-family scorer rule — glm cannot score glm-5.4, so the panel needs a substitute
+  family for that arm.
