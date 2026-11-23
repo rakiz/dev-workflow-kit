@@ -1,0 +1,45 @@
+[0m
+> build · mai-code-2-flash
+[0m
+[0m→ [0mRead GOAL.md
+[0m→ [0mRead README.md
+## Execution Plan
+
+1. **Trace existing CLI and sync behavior**
+   - Objective: Identify argument parsing, `sync()` implementation, output handling, and test conventions.
+   - Files: `synccli.py`, `test_synccli.py`, any package entry module.
+   - Agent: **explore**
+   - Risks: Changing human output or the `sync()` signature; overlooking internal callers.
+   - Acceptance: Documented call flow and the exact locations for flags, JSON serialization, and tests.
+
+2. **Design the JSON/dry-run contract**
+   - Objective: Define the smallest compatible implementation, including copied/skipped semantics and stdout isolation.
+   - Files to modify: None yet; implementation plan only.
+   - Agent: **design-review**
+   - Risks: Ambiguous `skipped` behavior or test assumptions; unexpected diagnostic output in JSON mode.
+   - Acceptance: Plan preserves `sync()` signature, human output, exit codes, and Python 3.10 stdlib compatibility.
+
+3. **Implement CLI flags and JSON output**
+   - Objective: Add `--json` and ensure `--dry-run` reports would-be copies through the existing sync flow.
+   - Files: CLI module(s) and `synccli.py`, likely argument parsing and result collection.
+   - Agent: **impl**
+   - Risks: Accidental extra stdout; JSON escaping or shape mismatch; breaking existing callers.
+   - Acceptance: JSON mode emits exactly one valid object with all required keys; human mode remains unchanged.
+
+4. **Add JSON shape and dry-run tests**
+   - Objective: Add unit coverage for valid JSON, required keys, and dry-run copied semantics.
+   - Files: `test_synccli.py`
+   - Agent: **impl**
+   - Risks: Tests depend on unstable formatting or capture output from unrelated code.
+   - Acceptance: Tests verify stdout parses successfully, contains `copied`, `skipped`, `src`, and `dst`, and dry-run lists rather than copies files.
+
+5. **Review implementation and tests**
+   - Objective: Detect compatibility regressions, missing cases, and acceptance-criterion gaps.
+   - Files: Modified CLI modules and `test_synccli.py`
+   - Agent: **review**
+   - Risks: Hidden output, signature changes, or tests passing only in one environment.
+   - Acceptance: Review confirms stable `sync()` signature, unchanged human behavior, JSON-only stdout, and passing unittest suite.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 31339 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 31340 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-31306/final-report.md (session eval-2026-11-22-T1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-31306 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-22-T1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1)

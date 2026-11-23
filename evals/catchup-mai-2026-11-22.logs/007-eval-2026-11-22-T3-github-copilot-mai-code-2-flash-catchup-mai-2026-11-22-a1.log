@@ -1,0 +1,14 @@
+[0m
+> build · mai-code-2-flash
+[0m
+[0m• [0mReview latest commit[90m Cheap-Review Agent[0m
+[0m✓ [0mReview latest commit[90m Cheap-Review Agent[0m
+- **Major** — `incremental.py:23-24`: `copy_many()` reports every destination as successful even if `copy_file()` fails, allowing corrupted or missing files to be marked synced and merged into the manifest.
+- **Major** — `incremental.py:10`: `filter_excluded()` uses a mutable default list, leaking excluded paths across calls and causing incorrect or unbounded filtering.
+- **Minor** — `incremental.py:38`: `merge_manifest()` assumes every existing entry has an `"mtime"` key and crashes on older or malformed manifests.
+- **Minor** — `incremental.py:11-15`: `filter_excluded()` misleadingly returns excluded paths rather than the filtered/kept paths implied by its name and API contract.
+- **Minor** — `incremental.py:14`: exclusion only checks the first path component, so nested `__pycache__` directories are not excluded.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 31526 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 31527 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-31499/final-report.md (session eval-2026-11-22-T3-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-31499 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-22-T3-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1)

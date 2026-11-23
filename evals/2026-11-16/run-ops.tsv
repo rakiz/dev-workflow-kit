@@ -445,3 +445,13 @@ eval-2026-11-17-T1-github-copilot-gpt-6-1-terra-medium-o21	2026-11-17	O	terra	me
 eval-2026-11-17-T1-github-copilot-gpt-6-1-terra-medium-o22	2026-11-17	O	terra	medium	o22	scored	5.0	1	0.0462	tsv	36	27100	96673	1197	297	125267
 eval-2026-11-17-T1-github-copilot-gpt-6-1-terra-xhigh-o21	2026-11-17	O	terra	xhigh	o21	scored	5.0	1	0.0441	tsv	30	26711	69960	1082	371	98124
 eval-2026-11-17-T1-github-copilot-gpt-6-1-terra-xhigh-o22	2026-11-17	O	terra	xhigh	o22	scored	5.0	1	0.0454	tsv	34	27098	70359	1149	455	99061
+eval-2026-11-22-T1-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	O	mai-code-2	default	a1	scored	0	1	0.0147	db	16.648	24671	23552	717	0	48940
+eval-2026-11-22-T3-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	IR	mai-code-2	default	a1	scored	2.5	1	0.01	db	15.52	13560	63488	649	0	77697
+eval-2026-11-22-T4V2-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	DR2	mai-code-2	default	a1	scored	6	1	0.0078	db	14.379	9714	62976	543	0	73233
+eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	I2-RG4	mai-code-2	default	a1	scored	9.5	1	0.0637	db	129.563	42911	968704	7198	0	1018813
+eval-2026-11-22-D-D1-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1	2026-11-22	D	mai-code-2	default	a1	scored	5	1	0.0463	db	119.732	49632	214016	6458	0	270106
+eval-2026-11-22-T1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	O	mai-code-2-flash	default	a1	scored	5	1	0.0015	db	13.792	25171	23040	641	0	48852
+eval-2026-11-22-T3-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	IR	mai-code-2-flash	default	a1	scored	2	1	0.0218	db	130.959	66403	357370	5535	10202	439510
+eval-2026-11-22-T4V2-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	DR2	mai-code-2-flash	default	a1	scored	6.5	1	0.001	db	23.169	9945	62976	944	0	73865
+eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	I2-RG4	mai-code-2-flash	default	a1	scored	9	1	0.0119	db	133.806	102920	934912	8136	0	1045968
+eval-2026-11-22-D-D1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	D	mai-code-2-flash	default	a1	completed		1	0.0006	db	6.01	7755	39936	65	0	47756

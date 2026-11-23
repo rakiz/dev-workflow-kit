@@ -1,0 +1,783 @@
+[0m
+> build · mai-code-2-flash
+[0m
+[0m→ [0mRead GOAL.md
+[0m✱ [0mGlob "**/{package.json,CMakeLists.txt,Makefile,pyproject.toml,Cargo.toml,go.mod}"[90m in . · 0 matches[0m
+[0m✱ [0mGlob "*"[90m in . · 12 matches[0m
+I’ll run the two suites before edits and capture exact baseline output, then inspect the implementation and tests.
+[0m
+[0m$ [0mpython3 -m unittest test_legacy_report
+F
+======================================================================
+FAIL: test_sample_values_do_not_leak_markup (test_legacy_report.HtmlOutputTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_legacy_report.py", line 26, in test_sample_values_do_not_leak_markup
+    self.assertNotIn("<b>", html)
+AssertionError: '<b>' unexpectedly found in "<!doctype html>\n<html><head><meta charset='utf-8'>\n<title>reportgen summary</title></head><body>\n<h1>labels.csv</h1>\n<p>1 rows</p>\n<table border='1'>\n<tr><th>column</th><th>non_empty</th><th>distinct</th><th>sample</th></tr>\n<tr><td>item</td><td>1</td><td>1</td><td>i1</td></tr>\n<tr><td>label</td><td>1</td><td>1</td><td>red <b> & bold</td></tr>\n</table>\n</body></html>"
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (failures=1)
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen
+../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:128: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-m82cgset/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:130: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-m82cgset/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..........
+----------------------------------------------------------------------
+Ran 12 tests in 0.218s
+
+OK
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+Baseline recorded: `test_reportgen` passes 12 tests; `test_legacy_report` fails 1 HTML escaping test. I’ll now read the relevant implementation and tests.
+[0m→ [0mRead transforms.py
+[0m→ [0mRead cache.py
+[0m→ [0mRead reportgen.py
+[0m→ [0mRead test_legacy_report.py
+[0m→ [0mRead test_reportgen.py[90m [offset=1, limit=260][0m
+I found likely defects beyond the two features: HTML is unescaped, rules are reread per CSV, cache writes happen mid-run, entry reuse omits registry version, and failures/uncaught crashes are not transactionally handled. I’ll add only targeted regressions and fixes for these invariants.
+[0m
+[0m$ [0mgit status --short 2>/dev/null || true; sed -n '1,160p' rules.example.toml
+# Column transforms applied while summarizing the input CSVs.
+# Column names not listed here pass through unchanged.
+# Other tables are reserved for future report options.
+
+[transforms]
+tx_id = "trim"
+merchant = "lower"
+amount = "currency_amount"
+date = "date_iso"
+emp_id = "trim"
+name = "trim"
+salary = "round2"
+device_id = "trim"
+status = "upper"
+[0m
+Before editing, I’m defining the transaction boundary: load rules once, process entirely in memory, and validate every summary before touching reports or cache. Then a failure leaves existing bytes unchanged.
+[0m✗ [0mRead README.md failed[90m [offset=1, limit=40][0m
+[91m[1mError: [0mFile not found: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/README.md
+I’ll implement in existing modules and add targeted tests to `test_reportgen.py`; the HTML escaping test already serves as one regression for its defect.
+[0m
+[0m← [0mEdit transforms.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/transforms.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/transforms.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/transforms.py
+@@ -44,8 +44,18 @@
+     except ValueError:
+         raise TransformError("not a number: %r" % value)
+ 
+ 
++def boolean(value):
++    """Convert affirmative and negative boolean forms to 1.0 and 0.0."""
++    normalized = value.strip().lower()
++    if normalized in ("yes", "true"):
++        return 1.0
++    if normalized in ("no", "false"):
++        return 0.0
++    raise TransformError("not a boolean: %r" % value)
++
++
+ def date_iso(value):
+     """'MM/DD/YYYY' -> 'YYYY-MM-DD'."""
+     parts = value.strip().split("/")
+     if len(parts) != 3 or len(parts[2]) != 4:
+
+[0m
+[0m← [0mEdit transforms.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/transforms.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/transforms.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/transforms.py
+@@ -71,8 +71,9 @@
+     "upper": upper,
+     "lower": lower,
+     "currency_amount": currency_amount,
+     "round2": round2,
++    "boolean": boolean,
+     "date_iso": date_iso,
+ }
+ 
+ 
+
+[0m
+[0m← [0mEdit cache.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/cache.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/cache.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/cache.py
+@@ -21,9 +21,9 @@
+ import os
+ 
+ DEFAULT_CACHE_PATH = os.path.join("cache", "state.json")
+ 
+-REGISTRY_VERSION = "2"
++REGISTRY_VERSION = "3"
+ 
+ 
+ def file_digest(path):
+     """sha256 of the file bytes (streamed, constant memory)."""
+
+[0m
+The boolean transform and a new registry stamp are in place. Next I’m fixing cache-version parsing and the HTML escaping/transaction mechanics.
+[0m← [0mEdit cache.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/cache.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/cache.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/cache.py
+@@ -40,13 +40,28 @@
+     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+ 
+ 
+ def load_state(path=DEFAULT_CACHE_PATH):
+-    """Load the cache state; a missing file is just an empty cache."""
++    """Load a current cache state; missing or newer schemas are empty."""
+     if not os.path.exists(path):
+         return {}
+-    with open(path, "r", encoding="utf-8") as fh:
+-        return json.load(fh)
++    try:
++        with open(path, "r", encoding="utf-8") as fh:
++            state = json.load(fh)
++    except (OSError, json.JSONDecodeError):
++        return {}
++    if not isinstance(state, dict):
++        return {}
++    for entry in state.values():
++        if not isinstance(entry, dict):
++            continue
++        version = entry.get("registry_version")
++        try:
++            if int(version) > int(REGISTRY_VERSION):
++                return {}
++        except (TypeError, ValueError):
++            continue
++    return state
+ 
+ 
+ def save_state(entries, path=DEFAULT_CACHE_PATH):
+     """Merge `entries` into the state file, keeping entries for inputs the
+
+[0m
+For a future-state file, this treats it as empty and will save rewritten entries; malformed JSON is also empty rather than crashing.
+[0m✗ [0mEdit /private/var/folders/k0/m1pgz3y90k34xd8h1b4tabla4tdkqw0000gp/T/bench-v3-33487/reportgen.py failed
+[91m[1mError: [0mFile /private/var/folders/k0/m1pgz3y90k34xd8h1b4tabla4tdkqw0000gp/T/bench-v3-33487/reportgen.py not found
+I hit a path typo in an edit attempt; no file was changed by that attempt. I’ll apply the report fixes against the actual path.
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+@@ -15,8 +15,9 @@
+ import csv
+ import json
+ import os
+ import sys
++from html import escape
+ 
+ import cache
+ import transforms
+ 
+
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+@@ -128,9 +128,9 @@
+          "<html><head><meta charset='utf-8'>",
+          "<title>reportgen summary</title></head><body>"]
+ for name in sorted(report["files"]):
+     res = report["files"][name]
+-    parts.append("<h1>%s</h1>" % name)
++    parts.append("<h1>%s</h1>" % escape(name))
+     parts.append("<p>%d rows</p>" % res["rows"])
+     parts.append("<table border='1'>")
+     parts.append("<tr><th>column</th><th>non_empty</th>"
+                  "<th>distinct</th><th>sample</th></tr>")
+
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+@@ -138,9 +138,10 @@
+     for col in sorted(summary):
+         stats = summary[col]
+         sample = ", ".join(str(v) for v in stats["sample"])
+         parts.append("<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td></tr>"
+-                     % (col, stats["non_empty"], stats["distinct"], sample))
++                     % (escape(col), stats["non_empty"], stats["distinct"],
++                        escape(sample)))
+     parts.append("</table>")
+ parts.append("</body></html>")
+ return "\n".join(parts)
+ 
+
+[0m
+I’m replacing `run` now because it currently writes cache entries and HTML before all validation completes. The replacement will keep old outputs/cache on every failure and rewrite cache only after success.
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+@@ -148,21 +148,23 @@
+ 
+ def run(rules_path, input_dir, output_dir, cache_path):
+     """Run one full pass over the input directory and write the report."""
+     state = cache.load_state(cache_path)
++    rules = load_rules(rules_path)
++    rules_fp = cache.rules_fingerprint(rules)
+ 
+     names = sorted(n for n in os.listdir(input_dir) if n.endswith(".csv"))
+     results = {}
+     pending = {}
+     for name in names:
+-        rules = load_rules(rules_path)
+-        rules_fp = cache.rules_fingerprint(rules)
+         path = os.path.join(input_dir, name)
+         digest = cache.file_digest(path)
+         entry = state.get(name)
+         header, data_rows = load_rows(path)
+         print("reportgen: %s: parsed %d rows" % (name, len(data_rows)))
+-        if entry and entry["digest"] == digest and entry.get("rules_fp") == rules_fp:
++        if (entry and entry.get("digest") == digest
++                and entry.get("rules_fp") == rules_fp
++                and entry.get("registry_version") == cache.REGISTRY_VERSION):
+             results[name] = {"digest": digest, "rows": entry["rows"],
+                              "generated_from": entry["generated_from"],
+                              "summary": entry["summary"]}
+         else:
+@@ -171,21 +173,27 @@
+                              "generated_from": generated_from(header, data_rows, rules),
+                              "summary": summary}
+             pending[name] = cache.make_entry(path, digest, len(data_rows),
+                                              summary, rules, rules_fp)
+-            cache.save_state(pending, path=cache_path)
+ 
+     report = {"rules": rules_path,
+               "total_rows": sum(r["rows"] for r in results.values()),
+               "files": results}
+-    os.makedirs(output_dir, exist_ok=True)
+-    with open(os.path.join(output_dir, "report.html"), "w", encoding="utf-8") as fh:
+-        fh.write(render_html(report))
+     for name in sorted(results):
+         validate_summary(results[name]["summary"])
+-    with open(os.path.join(output_dir, "report.json"), "w", encoding="utf-8") as fh:
++
++    os.makedirs(output_dir, exist_ok=True)
++    html_tmp = os.path.join(output_dir, "report.html.tmp")
++    json_tmp = os.path.join(output_dir, "report.json.tmp")
++    with open(html_tmp, "w", encoding="utf-8") as fh:
++        fh.write(render_html(report))
++    with open(json_tmp, "w", encoding="utf-8") as fh:
+         json.dump(report, fh, indent=2, sort_keys=True)
+         fh.write("\n")
++    os.replace(html_tmp, os.path.join(output_dir, "report.html"))
++    os.replace(json_tmp, os.path.join(output_dir, "report.json"))
++    if pending:
++        cache.save_state(pending, path=cache_path)
+     return report
+ 
+ 
+ def main(argv=None):
+
+[0m
+The success path is now staged. However, uncaught transform exceptions can occur in `summarize_file` only via unexpected types/crashes, and cache/report writes themselves can partially fail. I’ll harden `main` exit and run catches to preserve previous files, then add defect regressions.
+[0m✗ [0mEdit reportgen.py failed
+[91m[1mError: [0mNo changes to apply: oldString and newString are identical.
+I’m updating `main` to return exit status 1 for validation, unknown-rule, and unexpected failures, rather than silently succeeding or printing a traceback.
+[0m
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+@@ -208,12 +208,17 @@
+     parser.add_argument("--cache", default=cache.DEFAULT_CACHE_PATH,
+                         help="path of the cache state file")
+     args = parser.parse_args(argv)
+     try:
+-        return run(args.rules, args.input, args.output, args.cache)
+-    except ValidationError as exc:
++        result = run(args.rules, args.input, args.output, args.cache)
++        return 0 if result is not None else 1
++    except (ValidationError, transforms.TransformError, ValueError, OSError,
++            csv.Error, json.JSONDecodeError) as exc:
+         sys.stderr.write("reportgen: warning: %s\n" % exc)
+-        return None
++        return 1
++    except Exception as exc:
++        sys.stderr.write("reportgen: warning: unexpected failure: %s\n" % exc)
++        return 1
+ 
+ 
+ if __name__ == "__main__":
+     main()
+
+[0m
+I’ll add regressions for boolean values, future cache, rules read count, HTML escaping, and failure byte preservation. This is the smallest test coverage needed for the defects found.
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+@@ -36,8 +36,16 @@
+     self.assertEqual(transforms.apply("date_iso", "01/15/2026"), "2026-01-15")
+     with self.assertRaises(transforms.TransformError):
+         transforms.apply("date_iso", "2026-01-15")
+ 
++def test_boolean(self):
++    for value in ("yes", "YES", "true", "True"):
++        self.assertEqual(transforms.apply("boolean", value), 1.0)
++    for value in ("no", "NO", "false", "False"):
++        self.assertEqual(transforms.apply("boolean", value), 0.0)
++    with self.assertRaises(transforms.TransformError):
++        transforms.apply("boolean", "maybe")
++
+ def test_unknown_transform_name(self):
+     with self.assertRaises(transforms.TransformError):
+         transforms.apply("nope", "x")
+ 
+
+[0m
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+@@ -137,7 +137,17 @@
+         self.run_tool()
+         after = json.load(open(self.cache_path))
+         self.assertEqual(before, after)
+ 
++    def test_future_cache_is_ignored_and_rewritten(self):
++        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
++        with open(self.cache_path, "w", encoding="utf-8") as fh:
++            json.dump({"future.csv": {"registry_version": "999", "digest": "x"}}, fh)
++        report = self.run_tool()
++        self.assertEqual(report["total_rows"], 12012)
++        state = cache.load_state(self.cache_path)
++        for entry in state.values():
++            self.assertEqual(entry["registry_version"], cache.REGISTRY_VERSION)
+ 
++
+ if __name__ == "__main__":
+     unittest.main()
+
+[0m
+I’ve covered the direct boolean and future-schema cases. I’ll now add one end-to-end boolean test and a run-level transactional/one-read test before running the suites.
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+@@ -90,8 +90,20 @@
+     dev = report["files"]["small_devices.csv"]["summary"]["columns"]
+     self.assertEqual(dev["device_id"]["distinct"], 3)
+     self.assertTrue(os.path.exists(os.path.join(self.out, "report.html")))
+ 
++def test_boolean_transform_end_to_end(self):
++    inp = os.path.join(self.tmp, "in")
++    os.makedirs(inp)
++    with open(os.path.join(inp, "flags.csv"), "w") as fh:
++        fh.write("flag\nyes\nFALSE\nTrue\nno\n")
++    rules_path = os.path.join(self.tmp, "rules.toml")
++    with open(rules_path, "w") as fh:
++        fh.write('[transforms]\nflag = "boolean"\n')
++    report = self.run_tool(rules=rules_path, input_dir=inp)
++    stats = report["files"]["flags.csv"]["summary"]
++    self.assertEqual(stats["columns"]["flag"]["numeric_sum"], 2.0)
++
+ def test_temp_input_end_to_end(self):
+     inp = os.path.join(self.tmp, "in")
+     os.makedirs(inp)
+     with open(os.path.join(inp, "t.csv"), "w") as fh:
+
+[0m
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+@@ -132,8 +132,43 @@
+     self.assertFalse(os.path.exists(os.path.dirname(self.cache_path)))
+     self.run_tool()
+     self.assertTrue(os.path.exists(self.cache_path))
+ 
++def test_rules_read_once_per_run(self):
++    original = reportgen.load_rules
++    count = [0]
++    def counted(path):
++        count[0] += 1
++        return original(path)
++    reportgen.load_rules = counted
++    try:
++        self.run_tool()
++    finally:
++        reportgen.load_rules = original
++    self.assertEqual(count[0], 1)
++
++def test_failed_transform_preserves_outputs_and_cache(self):
++    inp = os.path.join(self.tmp, "in")
++    os.makedirs(inp)
++    with open(os.path.join(inp, "bad.csv"), "w") as fh:
++        fh.write("flag\nyes\nmaybe\n")
++    rules_path = os.path.join(self.tmp, "rules.toml")
++    with open(rules_path, "w") as fh:
++        fh.write('[transforms]\nflag = "boolean"\n')
++    os.makedirs(self.out)
++    report_path = os.path.join(self.out, "report.json")
++    html_path = os.path.join(self.out, "report.html")
++    for path in (report_path, html_path):
++        with open(path, "wb") as fh:
++            fh.write(b"previous-good")
++    os.makedirs(os.path.dirname(self.cache_path))
++    with open(self.cache_path, "wb") as fh:
++        fh.write(b"previous-cache")
++    reportgen.run(rules_path, inp, self.out, self.cache_path)
++    self.assertEqual(open(report_path, "rb").read(), b"previous-good")
++    self.assertEqual(open(html_path, "rb").read(), b"previous-good")
++    self.assertEqual(open(self.cache_path, "rb").read(), b"previous-cache")
++
+ def test_cache_state_written_on_first_run(self):
+     self.run_tool()
+     state = cache.load_state(self.cache_path)
+     self.assertEqual(set(state), {
+
+[0m
+The first implementation pass is complete; I’m running the baseline suite and legacy suite, plus the shipped CLI.
+[0m$ [0mpython3 -m unittest test_legacy_report
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+OK
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 reportgen.py --rules rules.example.toml
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen
+.E.../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:183: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-cjlcmq0e/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:185: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-cjlcmq0e/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.F..........
+======================================================================
+ERROR: test_failed_transform_preserves_outputs_and_cache (test_reportgen.CacheTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py", line 166, in test_failed_transform_preserves_outputs_and_cache
+    reportgen.run(rules_path, inp, self.out, self.cache_path)
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py", line 182, in run
+    validate_summary(results[name]["summary"])
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py", line 120, in validate_summary
+    raise ValidationError(
+reportgen.ValidationError: 1 cell(s) failed their transform (first: row 3, column flag)
+
+======================================================================
+FAIL: test_boolean_transform_end_to_end (test_reportgen.EndToEndTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py", line 104, in test_boolean_transform_end_to_end
+    self.assertEqual(stats["columns"]["flag"]["numeric_sum"], 2.0)
+AssertionError: 1.0 != 2.0
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.326s
+
+FAILED (failures=1, errors=1)
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: bad.csv: parsed 2 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: flags.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+Two test issues remain: the boolean fixture sum is 1.0 (yes+true=2, but `FALSE` and `no`; wait no should 0, so sum 2). It shows 1.0 likely set floats collapses 1.0 + 1.0 via set distinct then numeric_sum sums distinct values, existing design. Test should assert sample/sum semantics? Numeric_sum intentionally sum distinct values, so 1.0. The error test should assert raise. Fix tests and rerun.
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+@@ -100,9 +100,9 @@
+     with open(rules_path, "w") as fh:
+         fh.write('[transforms]\nflag = "boolean"\n')
+     report = self.run_tool(rules=rules_path, input_dir=inp)
+     stats = report["files"]["flags.csv"]["summary"]
+-    self.assertEqual(stats["columns"]["flag"]["numeric_sum"], 2.0)
++    self.assertEqual(stats["columns"]["flag"]["numeric_sum"], 1.0)
+ 
+ def test_temp_input_end_to_end(self):
+     inp = os.path.join(self.tmp, "in")
+     os.makedirs(inp)
+
+[0m
+[0m← [0mEdit test_reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py
+@@ -162,9 +162,10 @@
+         fh.write(b"previous-good")
+ os.makedirs(os.path.dirname(self.cache_path))
+ with open(self.cache_path, "wb") as fh:
+     fh.write(b"previous-cache")
+-reportgen.run(rules_path, inp, self.out, self.cache_path)
++with self.assertRaises(reportgen.ValidationError):
++    reportgen.run(rules_path, inp, self.out, self.cache_path)
+ self.assertEqual(open(report_path, "rb").read(), b"previous-good")
+ self.assertEqual(open(html_path, "rb").read(), b"previous-good")
+ self.assertEqual(open(self.cache_path, "rb").read(), b"previous-cache")
+ 
+
+[0m
+I adjusted the end-to-end assertions to match the existing distinct-value numeric aggregation and made the failure test expect `ValidationError`. Running both suites and a failure CLI check now.
+[0m$ [0mtmp=$(mktemp -d); mkdir "$tmp/in" "$tmp/out"; printf 'flag\nyes\nmaybe\n' > "$tmp/in/bad.csv"; printf '[transforms]\nflag = "boolean"\n' > "$tmp/rules.toml"; printf 'old-report-json' > "$tmp/out/report.json"; printf 'old-report-html' > "$tmp/out/report.html"; mkdir "$tmp/cache"; printf 'old-cache' > "$tmp/cache/state.json"; python3 reportgen.py --rules "$tmp/rules.toml" --input "$tmp/in" --output "$tmp/out" --cache "$tmp/cache/state.json"; status=$?; printf 'status=%s\njson=' "$status"; cat "$tmp/out/report.json"; printf '\nhtml='; cat "$tmp/out/report.html"; printf '\ncache='; cat "$tmp/cache/state.json"; rm -rf "$tmp"
+reportgen: warning: 1 cell(s) failed their transform (first: row 3, column flag)
+reportgen: bad.csv: parsed 2 rows
+zsh:1: read-only variable: status
+[0m
+[0m$ [0mpython3 -m unittest test_legacy_report
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+OK
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen
+./private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:168: ResourceWarning: unclosed file <_io.BufferedReader name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-co_o534r/out/report.json'>
+  self.assertEqual(open(report_path, "rb").read(), b"previous-good")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:169: ResourceWarning: unclosed file <_io.BufferedReader name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-co_o534r/out/report.html'>
+  self.assertEqual(open(html_path, "rb").read(), b"previous-good")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:170: ResourceWarning: unclosed file <_io.BufferedReader name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-co_o534r/cache/state.json'>
+  self.assertEqual(open(self.cache_path, "rb").read(), b"previous-cache")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:184: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-mm2zl9v8/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:186: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-mm2zl9v8/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+............
+----------------------------------------------------------------------
+Ran 17 tests in 0.331s
+
+OK
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: bad.csv: parsed 2 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: flags.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+The suites pass. The shell failure check used `status`, a zsh read-only special variable, so I’ll rerun that check with `rc` to verify exit 1 and byte preservation exactly.
+[0m$ [0mtmp=$(mktemp -d); mkdir "$tmp/in" "$tmp/out"; printf 'flag\nyes\nmaybe\n' > "$tmp/in/bad.csv"; printf '[transforms]\nflag = "boolean"\n' > "$tmp/rules.toml"; printf 'old-report-json' > "$tmp/out/report.json"; printf 'old-report-html' > "$tmp/out/report.html"; mkdir "$tmp/cache"; printf 'old-cache' > "$tmp/cache/state.json"; python3 reportgen.py --rules "$tmp/rules.toml" --input "$tmp/in" --output "$tmp/out" --cache "$tmp/cache/state.json"; rc=$?; printf 'rc=%s\njson=' "$rc"; cat "$tmp/out/report.json"; printf '\nhtml='; cat "$tmp/out/report.html"; printf '\ncache='; cat "$tmp/cache/state.json"; rm -rf "$tmp"
+reportgen: warning: 1 cell(s) failed their transform (first: row 3, column flag)
+reportgen: bad.csv: parsed 2 rows
+rc=0
+json=old-report-json
+html=old-report-html
+cache=old-cache
+[0m
+I found a CLI exit defect: `main` returns 1 for `ValidationError`, but `run` call in `if __name__` does not use `sys.exit(main())`, so Python exits 0. I’ll fix that and rerun the CLI check.
+[0m← [0mEdit reportgen.py
+Index: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+===================================================================
+--- /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
++++ /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/reportgen.py
+@@ -220,5 +220,5 @@
+         return 1
+ 
+ 
+ if __name__ == "__main__":
+-    main()
++    sys.exit(main())
+
+[0m
+[0m$ [0mpython3 -m unittest test_legacy_report
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+OK
+reportgen: labels.csv: parsed 1 rows
+[0m
+[0m$ [0mtmp=$(mktemp -d); mkdir "$tmp/in" "$tmp/out"; printf 'flag\nyes\nmaybe\n' > "$tmp/in/bad.csv"; printf '[transforms]\nflag = "boolean"\n' > "$tmp/rules.toml"; printf 'old-report-json' > "$tmp/out/report.json"; printf 'old-report-html' > "$tmp/out/report.html"; mkdir "$tmp/cache"; printf 'old-cache' > "$tmp/cache/state.json"; python3 reportgen.py --rules "$tmp/rules.toml" --input "$tmp/in" --output "$tmp/out" --cache "$tmp/cache/state.json"; rc=$?; printf 'rc=%s\njson=' "$rc"; cat "$tmp/out/report.json"; printf '\nhtml='; cat "$tmp/out/report.html"; printf '\ncache='; cat "$tmp/cache/state.json"; rm -rf "$tmp"
+reportgen: warning: 1 cell(s) failed their transform (first: row 3, column flag)
+reportgen: bad.csv: parsed 2 rows
+rc=1
+json=old-report-json
+html=old-report-html
+cache=old-cache
+[0m
+[0m$ [0mpython3 -m unittest test_reportgen
+./private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:168: ResourceWarning: unclosed file <_io.BufferedReader name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-pih5q3os/out/report.json'>
+  self.assertEqual(open(report_path, "rb").read(), b"previous-good")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:169: ResourceWarning: unclosed file <_io.BufferedReader name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-pih5q3os/out/report.html'>
+  self.assertEqual(open(html_path, "rb").read(), b"previous-good")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:170: ResourceWarning: unclosed file <_io.BufferedReader name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-pih5q3os/cache/state.json'>
+  self.assertEqual(open(self.cache_path, "rb").read(), b"previous-cache")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..../private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:184: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-uwz5kc_e/cache/state.json' mode='r' encoding='UTF-8'>
+  before = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/bench-v3-33487/test_reportgen.py:186: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T/rg3-cache-uwz5kc_e/cache/state.json' mode='r' encoding='UTF-8'>
+  after = json.load(open(self.cache_path))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+............
+----------------------------------------------------------------------
+Ran 17 tests in 0.325s
+
+OK
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: bad.csv: parsed 2 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: flags.csv: parsed 4 rows
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+reportgen: t.csv: parsed 2 rows
+[0m
+One final verification: inspect the diff and run the exact shipped CLI once.
+[0m$ [0mgit diff --stat 2>/dev/null || true; git diff -- reportgen.py transforms.py cache.py test_reportgen.py test_legacy_report.py 2>/dev/null || true
+(no output)
+[0m
+[0m$ [0mpython3 reportgen.py --rules rules.example.toml
+reportgen: big_transactions.csv: parsed 12000 rows
+reportgen: small_devices.csv: parsed 3 rows
+reportgen: small_employees.csv: parsed 5 rows
+reportgen: small_transactions.csv: parsed 4 rows
+[0m
+Implemented the boolean transform, future cache handling, HTML escaping, single rules read, and failure-preserving output/cache behavior.
+
+Baseline:
+- `python3 -m unittest test_reportgen` — 12 tests passed.
+- `python3 -m unittest test_legacy_report` — 1 test failed: HTML markup leakage.
+
+Final:
+- `python3 -m unittest test_reportgen` — 17 tests passed.
+- `python3 -m unittest test_legacy_report` — 1 test passed.
+- Shipped CLI completed successfully.
+- Rules file reads per run: 1.
+- Failure CLI check: exit 1; existing report and cache bytes remained unchanged.
+
+Trade-off: numeric `numeric_sum` continues to sum distinct numeric values, matching existing behavior. This deduplicates repeated booleans instead of summing every row.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 174: 33501 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 188: 33502 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-33487/final-report.md (session eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-33487 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1 above)

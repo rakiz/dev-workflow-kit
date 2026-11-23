@@ -1,0 +1,18 @@
+[0m
+> build · mai-code-2
+[0m
+I’ll read `DESIGN.md` and give a concise pre-implementation risk review.
+[0m✱ [0mGlob "**/DESIGN.md"[90m 1 match[0m
+[0m→ [0mRead DESIGN.md
+- **Manifest journal is unsafe.** Partial in-place rewrites can destroy the checkpoint; replaying journal entries without persisted truncation/checkpoint sequencing can resurrect stale copies. Use atomic temp-file + `fsync` + rename; truncate journal only after durable checkpoint.
+- **Locking violates single-instance claim.** Releasing before commit permits two daemons to race journal/manifest. Hold an OS-advisory lock for the daemon lifetime, detect stale PID files, and guard journal/manifest writes.
+- **Integrity is false.** `stat → copy → stat` cannot detect same-size writes with unchanged/coarse mtime, nor prevent a copy from reading mixed versions. Match `(stat, content)` or use stable snapshots/open handles plus `fsync`; copy via temp file and atomically rename.
+- **Debounce promises are wrong.** Per-file timers reset under continuous writes, so latency is unbounded. The drain loop can also run serially for all 500 ms arrivals, causing burst tail latency. Define max-delay behavior and use bounded concurrency/catch-up metrics.
+- **Polling/backpressure underestimates real load.** 50,000 stats per 500 ms is load/device-sensitive; output cleanup is also in scan cost, and pending data is bounded by event volume, not “one poll.” Use deadline-aware scans, measured queue bounds, and native watchers or adaptive polling.
+- **Deletion/order are destructive.** Source disappearances can be transient/incomplete; renames and cross-directory moves may create destination gaps. Reconcile with operation ordering, identity/generation, and tombstone/deletion grace.
+- **Change detection needs correction.** Whole-second mtime is incompatible with rapid writes/build bursts. Store nanoseconds plus size/inode (ideally content fingerprint for ambiguity), and version the manifest format.
+- **Observability is insufficient.** Log queue age/depth, scan/copy/commit latency, retries/errors, dropped/deferred work, and health—not just aggregate counts. Decide crash consistency, max latency, lock ownership, and manifest versioning before implementation.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 27255 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 27256 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-27242/final-report.md (session eval-2026-11-22-T4V2-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-27242 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-22-T4V2-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1)

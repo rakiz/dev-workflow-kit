@@ -7,7 +7,7 @@ CSVPATH = os.path.join(_HERE, "2026-11-16", "grid2-scores.csv")  # I2-RG4 + DR-v
 
 W, H = 1200, 540
 L, R, T, B = 80, 60, 30, 60
-X0, X1 = 0.004, 5.0   # log range in USD (fable/astra sit at ~$4/task)
+X0, X1 = 0.0005, 5.0   # log range in USD (mai-flash sits at ~$0.001/task, fable/astra at ~$4)
 Y1 = 0.0
 
 # provider-prefixed model ids for the tooltips (keys = CSV model field)
@@ -31,6 +31,8 @@ FULLIDS = {
     "qwen": "fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b",
     "muse": "fireworks-ai/accounts/fireworks/models/muse-spark-open",
     "kimi": "fireworks-ai/accounts/fireworks/models/kimi-k3p1-pro",
+    "mai-code-2": "github-copilot/mai-code-2",
+    "mai-code-2-flash": "github-copilot/mai-code-2-flash",
 }
 
 # roster final seat map: (CSV model, effort) -> [(seat name, deciding bench code)].
@@ -547,7 +549,8 @@ FAM_COLOR = {"glm": "#1a7f37", "haiku": "#b3261e", "sonnet": "#b3261e", "opus": 
              "dsflash": "#0b57d0", "1017": "#0b57d0", "minimax": "#6d28d9", "qwen": "#d97706",
              "terra": "#a16207", "sol": "#a16207", "gpt-6.2-sol": "#a16207", "astra": "#a16207",
              "argon": "#0891b2", "carbon": "#0891b2", "hydrogen": "#0891b2", "gem38": "#0891b2",
-             "muse": "#c2185b", "kimi": "#52525b"}
+             "muse": "#c2185b", "kimi": "#52525b",
+             "mai-code-2": "#e11d48", "mai-code-2-flash": "#e11d48"}
 TOKEN_PARTS = [("input", "input", "#1d4ed8"), ("cache_read", "cache read", "#93c5fd"),
                ("output", "output", "#f59e0b"), ("reasoning", "reasoning", "#a855f7")]
 

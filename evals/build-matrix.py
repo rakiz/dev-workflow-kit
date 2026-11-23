@@ -30,6 +30,8 @@ MODELS = {
     "fable": ("claude-fable-5", "#b3261e"),
     "astra": ("gpt-6-astra", "#a16207"),
     "gpt-6.2-sol": ("gpt-6.2-sol", "#a16207"),
+    "mai-code-2": ("mai-code-2", "#e11d48"),
+    "mai-code-2-flash": ("mai-code-2-flash", "#e11d48"),
 }
 def parse_fp(note, bench):
     """FP count only where the note states it for this bench (same rule as gen-charts)."""
@@ -45,6 +47,8 @@ STARS = {
     ("minimax", "high", "D"),
     ("argon", "high", "I2"), ("argon", "high", "D"),
     ("terra", "medium", "DR2"),
+    ("mai-code-2", "default", "O8"), ("mai-code-2", "default", "IR"), ("mai-code-2", "default", "DR2"), ("mai-code-2", "default", "D"),
+    ("mai-code-2-flash", "default", "O8"), ("mai-code-2-flash", "default", "IR"), ("mai-code-2-flash", "default", "DR2"),
 }
 
 def cell(v, model=None, effort=None, col=None, note=None):

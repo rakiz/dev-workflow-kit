@@ -92,3 +92,17 @@ Source: https://openai.com/index/introducing-gpt-6-2-astra-sol
   (n=2, 2 families). Both below their seats. Cost/task $0.17 IR, $0.19 DR2 (6x the DR2 seat).
 - **gemini-4-neon** (github-copilot, $3/$15): O 8 (glm only, n=2), IR 2.75 (n=2), DR2 8.0 (n=1,
   a2 DNF on a silent stall). No seat. Cost/task $0.12-0.16.
+
+### 2026-11-22 — catch-up campaign mai-code-2 (details: 2026-11-22/CATCHUP-RESULTS.md)
+
+- **mai-code-2** (github-copilot, $1/$5 per MTok): MEASURED, single run per bench (n=1,
+  default effort only — no effort ladder exposed), 2-family panel. O 0 (arbitrated:
+  assumes a green baseline + cites a nonexistent package, hall confirmed 2 of 3
+  readers), IR 2.5, DR2 6.0, I2-RG4 9.5, D 5.0. Cost/task $0.008-0.064. Takes no seat —
+  every cell below its seat holder, O gap is a hallucination, not a price question.
+- **mai-code-2-flash** (github-copilot, $0.1/$0.5): MEASURED, n=1, default. O 5 (misses
+  the red baseline but grounds citations correctly), IR 2.0, DR2 6.5, I2-RG4 9.0, D DNF
+  (refused to author the design — blocked on a "docs connector" it does not need). The
+  cheapest per-task measurements on the grid (DR2 $0.001/task) — still below every seat.
+  The IR run delegated its review to a minimax-m3p1-flash xhigh child; cost
+  delegation-inclusive. No seat; roster unchanged (owner validation pending).

@@ -1,0 +1,94 @@
+[0m
+> build · mai-code-2
+[0m
+I’ll read the brief, inspect only this repo copy as needed, and write `DESIGN-d1.md` directly.
+[0m→ [0mSkill "docs"
+No docs connector is available, so I’m proceeding with the local Markdown deliverable.
+[0m→ [0mRead BRIEF.md
+[0m✱ [0mGlob "*"[90m in . · 4 matches[0m
+[0m✱ [0mGlob "**/AGENTS.md"[90m in . · 0 matches[0m
+[0m✗ [0mRead /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkvw0000gp/T/bench-v3-30693/synccli.py failed
+[91m[1mError: [0mFile not found: /private/var/folders/k0/m1pgz3y90k34xd8h1b4tdkvw0000gp/T/bench-v3-30693/synccli.py
+[0m→ [0mRead snaputil.py
+[0m→ [0mRead test_synccli.py
+[0m→ [0mRead synccli.py
+I’ve identified the existing scan, manifest, copy, and retention contracts; I’m checking their runtime behavior now to ground the performance budget and recovery design.
+[0m
+[0m$ [0mpython3 -m unittest -v
+test_first_item_stale_is_included (test_synccli.TestCollectStale) ... ok
+test_fresh_items_skipped (test_synccli.TestCollectStale) ... ok
+test_seen_is_respected (test_synccli.TestCollectStale) ... ok
+test_scan_sorted_relative (test_synccli.TestScanFiles) ... ok
+test_second_sync_is_noop (test_synccli.TestSync) ... ok
+test_sync_copies_and_writes_manifest (test_synccli.TestSync) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+[0m
+[0m$ [0mpython3 - <<'PY'
+import os, tempfile, time, json, synccli
+
+def bench(files, mb):
+    with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dst:
+        chunk = b'x' * (64 * 1024)
+        for i in range(files):
+            p = os.path.join(src, f'f{i:06d}')
+            with open(p, 'wb') as f:
+                remaining = mb * 1024 * 1024 // files
+                for _ in range(remaining // len(chunk)):
+                    f.write(chunk)
+        start = time.perf_counter(); copied = synccli.sync(src, dst); elapsed = time.perf_counter()-start
+        size = sum(os.stat(os.path.join(src,x)).st_size for x in copied)
+        print(json.dumps({'files':files,'bytes':size,'sync_seconds':round(elapsed,4),'MiB_s':round(size/elapsed/1048576,1)}))
+bench(10000, 64)
+PY
+{"files": 10000, "bytes": 0, "sync_seconds": 2.344, "MiB_s": 0.0}
+[0m
+The benchmark exposed `copy_file`’s silent-failure/default behavior in this environment, so I’m rerunning a smaller measured copy baseline and will budget conservatively with the explicitly observed per-file overhead.
+[0m$ [0mpython3 - <<'PY'
+import os, tempfile, time, json, synccli
+for files in (1000, 5000):
+    with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dst:
+        payload = b'x' * 65536
+        for i in range(files):
+            with open(os.path.join(src, f'f{i:06d}'), 'wb') as f:
+                f.write(payload)
+        start = time.perf_counter(); copied = synccli.sync(src, dst); elapsed = time.perf_counter()-start
+        dst_bytes = sum(os.stat(os.path.join(dst,x)).st_size for x in copied)
+        print(json.dumps({'files':files,'copied':len(copied),'bytes':dst_bytes,'seconds':round(elapsed,4),'us_per_file':round(elapsed*1e6/files,1),'MiB_s_copy':round(dst_bytes/elapsed/1048576,1)}))
+PY
+{"files": 1000, "copied": 1000, "bytes": 65536000, "seconds": 0.2895, "us_per_file": 289.5, "MiB_s_copy": 215.9}
+{"files": 5000, "copied": 5000, "bytes": 327680000, "seconds": 1.3595, "us_per_file": 271.9, "MiB_s_copy": 229.9}
+[0m
+I’m writing the design now, with immutable snapshot publication, crash recovery, explicit source-loss semantics, retention leases, incremental linking, and concrete asymptotic and measured bounds.
+[0m← [0mWrite DESIGN-d1.md
+Wrote file successfully.
+[0m
+I’m doing a final consistency pass for grounding, required edge cases, and Markdown integrity.
+[0m→ [0mRead DESIGN-d1.md
+[0m
+[0m$ [0mgit diff --check -- DESIGN-d1.md 2>/dev/null || true; python3 - <<'PY'
+from pathlib import Path
+p=Path('DESIGN-d1.md')
+s=p.read_text()
+print('bytes', len(s.encode()), 'lines', len(s.splitlines()))
+for term in ['synccli.py:10-19','synccli.py:62-70','snaputil.py:23-36','90 seconds','omission','lease','corrupt','1 GiB']:
+ print(term, term in s)
+PY
+bytes 21373 lines 141
+synccli.py:10-19 True
+synccli.py:62-70 True
+snaputil.py:23-36 True
+90 seconds True
+omission True
+lease True
+corrupt True
+1 GiB True
+[0m
+Created `DESIGN-d1.md` in the repo copy. Existing tests pass: 6/6.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 174: 30707 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 188: 30708 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-30693/final-report.md (session eval-2026-11-22-D-D1-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-30693 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-22-D-D1-github-copilot-mai-code-2-catchup-mai-2026-11-22-a1 above)

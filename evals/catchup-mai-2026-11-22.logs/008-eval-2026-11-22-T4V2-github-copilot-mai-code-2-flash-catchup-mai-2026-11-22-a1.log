@@ -1,0 +1,39 @@
+[0m
+> build · mai-code-2-flash
+[0m
+[0m✱ [0mGlob "**/DESIGN.md"[90m in . · 1 match[0m
+I’m loading the design-review workflow, then I’ll assess the document without making changes.
+[0m→ [0mSkill "docs"
+[0m→ [0mRead DESIGN.md[90m [limit=2000][0m
+I’ve read the design. It has several load and correctness flaws; I’m prioritizing those that can corrupt destination state or prevent recovery.
+- **mtime-only detection is unsafe.** Whole-second mtime and size can miss edits, especially build tools that rewrite identical-sized files rapidly. Use nanosecond mtime plus ctime/ inode, or a robust hash strategy for changed candidates.
+
+- **The “never truncated” claim is false.** Re-stat/requeue only catches changes during copy through coarse metadata; it does not guarantee a stable source snapshot. Copy while continuously written can still yield a mixed/truncated file and briefly expose it to readers.
+
+- **The 500 ms scan is not bounded headroom.** “Measured under 100 ms” is neither worst-case nor load-safe. Network/distributed filesystems, cold caches, deep trees, permissions, and build bursts can make it much slower; it blocks all debounce/reconcile work and overlap is not prevented.
+
+- **The pending set is not bounded under burst load.** It grows for new/debounced changes and retries while copying, potentially retaining every changed file for a continuously busy build. No queue bound or eviction policy is specified.
+
+- **Crash recovery can replay stale or incorrect journal entries.** Plain append plus replay is not transactional. Torn writes, duplicate/corrupt records, partial final entries, and replay after destination deletion/rename are unresolved.
+
+- **Journal replay order does not establish final destination state.** Replaying copy completion events may restore file contents but not metadata, deletions, directories, renames, permissions, or final order across names. It may also replay a file after the source has changed again.
+
+- **Lock scope creates split-brain despite the design.** The lock is released before manifest commit, so two daemons can overlap: one copying while another scans/copies. “Merge cleanly” is an assertion, not a concurrency model.
+
+- **PID lockfiles are insecure and not durable ownership proofs.** Stale PIDs, PID reuse, and crashes can block startup; lock acquisition needs kernel-level locking or atomic exclusive creation with liveness checking.
+
+- **Debounce latency is unbounded.** A continuously changing file restarts quiet-period timers indefinitely, directly contradicting “at most 200 ms.”
+
+- **Every full scan diff is O(files) and unbounded on state size.** The pending set, manifest, journal, and scan cost are all per-file; at 50k they may be acceptable, but build bursts and journaling are linear writes with no backpressure or pacing.
+
+- **The manifest is not crash-safe.** Plain rewrite can leave it empty/partial. Rebuilding entirely from journal is not guaranteed if old journal files grow indefinitely or if events are not fsynced.
+
+- **The stated latency metrics are invalid.** Logging commit duration does not measure queue age or end-to-end sync latency. A “few changes” assumption is not enough to catch falling behind.
+
+- **Source/destination overlap and symlinks need explicit handling.** Polling `dst` underneath `src`, symlink cycles, symlinks-to-files, and special files can cause recursion, loops, or unintended copies. Permissions and partial directories also need a policy.
+
+**Decisions to change first:** choose an event-backed watcher with a portable poll fallback, switch to an atomic copy protocol (temporary file plus fsync/rename), introduce a stable snapshot/key using inode/ctime/ns-mtime or hashing, and define a single recovery transaction format with kernel lock ownership. Add bounded queues and a real observed lag metric before implementing.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 109: 32823 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v5.sh: line 118: 32824 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-32810/final-report.md (session eval-2026-11-22-T4V2-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-legacy-32810 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-22-T4V2-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1)

@@ -1,0 +1,12 @@
+# campaign catchup-mai-2026-11-22 date=2026-11-22 budget_usd=25.00 start_ms=1795374714576 jobs=10
+20:12:12 001 O/github-copilot/mai-code-2/-/a1 ok spent=0.0147 recorded=0.0147 estimated_misc=0.0000 (estimated)
+20:12:28 002 IR/github-copilot/mai-code-2/-/a1 ok spent=0.0247 recorded=0.0247 estimated_misc=0.0000 (estimated)
+20:12:43 003 DR2/github-copilot/mai-code-2/-/a1 ok spent=0.0325 recorded=0.0325 estimated_misc=0.0000 (estimated)
+20:14:54 004 I2-RG4/github-copilot/mai-code-2/-/a1 ok spent=0.0962 recorded=0.0962 estimated_misc=0.0000 (estimated)
+20:16:54 005 D/github-copilot/mai-code-2/-/a1 ok spent=0.1425 recorded=0.1425 estimated_misc=0.0000 (estimated)
+20:17:09 006 O/github-copilot/mai-code-2-flash/-/a1 ok spent=0.1440 recorded=0.1440 estimated_misc=0.0000 (estimated)
+20:19:21 007 IR/github-copilot/mai-code-2-flash/-/a1 ok spent=0.1658 recorded=0.1658 estimated_misc=0.0000 (estimated)
+20:19:45 008 DR2/github-copilot/mai-code-2-flash/-/a1 ok spent=0.1669 recorded=0.1669 estimated_misc=0.0000 (estimated)
+20:21:59 009 I2-RG4/github-copilot/mai-code-2-flash/-/a1 ok spent=0.1787 recorded=0.1787 estimated_misc=0.0000 (estimated)
+20:22:06 010 D/github-copilot/mai-code-2-flash/-/a1 ok spent=0.1793 recorded=0.1793 estimated_misc=0.0000 (estimated)
+# done spent=0.1793 recorded=0.1793 estimated_misc=0.0000 (estimated) budget_usd=25.00

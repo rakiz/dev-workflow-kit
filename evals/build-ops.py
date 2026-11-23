@@ -29,6 +29,7 @@ MODEL_KEYS=[  # (substring in title, run-scores model key); order matters
  ("gemini-4-argon","argon"),("gemini-4-carbon","carbon"),("gemini-4-hydrogen","hydrogen"),("gemini-3-8-flash","gem38"),
  ("glm-5-3-flash","glm"),("deepseek-v4-1-flash","dsflash"),("deepseek-v4p1-flash","dsflash"),
  ("minimax-m3p1-flash","minimax"),("qwen3p8","qwen"),("muse-spark","muse"),("kimi-k3p1","kimi"),
+ ("mai-code-2-flash","mai-code-2-flash"),("mai-code-2","mai-code-2"),
 ]
 EFFORTS={"low","medium","high","xhigh"}
 def parse(title):

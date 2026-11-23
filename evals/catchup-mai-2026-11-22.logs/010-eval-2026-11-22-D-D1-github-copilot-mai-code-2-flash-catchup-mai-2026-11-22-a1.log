@@ -1,0 +1,9 @@
+[0m
+> build · mai-code-2-flash
+[0m
+[0m→ [0mSkill "docs"
+I can’t access the required docs connector in this session, so I’m unable to read `BRIEF.md` or create `DESIGN-d1.md`.
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 174: 35455 Terminated: 15          sleep 300
+/Users/sebastien.mendez/code_projects/IA-tooling/dev-workflow-kit/evals/run-eval-v4.sh: line 188: 35456 Terminated: 15          sleep "$TIMEOUT_SECS"
+final report captured: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-35437/final-report.md (session eval-2026-11-22-D-D1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1)
+run dir: /var/folders/k0/m1pgz3y90k34xd8h1b4tdkqw0000gp/T//bench-v3-35437 (cost/tokens: sqlite3 ~/.local/share/opencode/opencode.db, session title eval-2026-11-22-D-D1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1 above)

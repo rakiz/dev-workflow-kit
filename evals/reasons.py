@@ -46,6 +46,8 @@ REASONS = {
         "kimi-medium": "5.19 official (panel) at $0.18/task - still the weakest O cluster.",
         "kimi-high": "5.12 official at $0.18/task - misses the red baseline on its own runs.",
         "fable": "6 official (panel) at ~$4/task - the price keeps it out.",
+        "mai-code-2": "O arbitrated to 0 — assumes a green baseline (red-baseline miss) and cites a nonexistent package (2 of 3 readers agree); every other cell below its seat holder; n=1.",
+        "mai-code-2-flash": "under every seat holder on every bench (O 5/8, IR 2, DR2 6.5, I2-RG4 9); D DNF — the model refused to author the design; IR run delegated its review to a minimax child; n=1.",
     },
     "Implementation": {
         "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
@@ -83,6 +85,8 @@ REASONS = {
         "minimax-xhigh": "Holds strong-code. RG4 13.0 (existing 2026-11-19 runs; arm-level haiku) at $0.03/task - 0.5 below haiku-high (13.5): a tie under the 1.5 MDE, so the cheaper minimax keeps the seat; minimax SPOF accepted.",
         "hydrogen-xhigh": "2 (runs 2;2 - no-edit watchdog kills) at $0.50-0.90/task - xhigh impl is broken, effort non-monotone.",
         "carbon-high": "RG4 14* (q51 only; q52 watchdog DNF; q53 not run) at $0.15-0.23/task - top RG4 score on one run only; I2: 7 DNFs total (watchdog + no-report) at caps up to $2.00/run - economically unmeasurable; the 14* stays ceiling-censored single-run, hollow dot. Within the 1.5 MDE of haiku-high and opus (13.5 each): under the tie rule the cheaper arm wins.",
+        "mai-code-2": "O arbitrated to 0 — assumes a green baseline (red-baseline miss) and cites a nonexistent package (2 of 3 readers agree); every other cell below its seat holder; n=1.",
+        "mai-code-2-flash": "under every seat holder on every bench (O 5/8, IR 2, DR2 6.5, I2-RG4 9); D DNF — the model refused to author the design; IR run delegated its review to a minimax child; n=1.",
     },
     "Design writing": {
         "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
@@ -120,6 +124,7 @@ REASONS = {
         "glm-low": "2.38 official at $0.01/task - asserts shipped helpers' false contracts, never executes proofs; cannot write designs.",
         "minimax-high": "7.38 official (panel) at $0.05/task.",
         "hydrogen-xhigh": "6.19 official at $0.50-0.90/task - solid but does not threaten 1017-high (9.81) at 5-8x the cost.",
+        "mai-code-2": "O arbitrated to 0 — assumes a green baseline (red-baseline miss) and cites a nonexistent package (2 of 3 readers agree); every other cell below its seat holder; n=1.",
     },
     "Design review": {
         "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder.",
@@ -155,6 +160,8 @@ REASONS = {
         "hydrogen-medium": "5.0 official at $0.09-0.29/task.",
         "hydrogen-high": "3.3 official (panel, single valid run) - weak, argues from DESIGN.md more than proofs; argon holds the rung.",
         "opus": "0/14 - two false positives; the worst DR2 measured (panel single-score unofficial).",
+        "mai-code-2": "O arbitrated to 0 — assumes a green baseline (red-baseline miss) and cites a nonexistent package (2 of 3 readers agree); every other cell below its seat holder; n=1.",
+        "mai-code-2-flash": "under every seat holder on every bench (O 5/8, IR 2, DR2 6.5, I2-RG4 9); D DNF — the model refused to author the design; IR run delegated its review to a minimax child; n=1.",
     },
     "Code review": {
         "gpt-6.2-sol-high": "external claim (FrontierCode) collapses again - far from every seat holder. misses the deletion-purge defect in both runs.",
@@ -186,5 +193,7 @@ REASONS = {
         "dsflash": "2.2 official - the only model clearly below the 3-4.5 pack.",
         "qwen-medium": "2 official at $0.30-0.68/task.",
         "fable": "3 official (own runs 2/3) at ~$4/task.",
+        "mai-code-2": "O arbitrated to 0 — assumes a green baseline (red-baseline miss) and cites a nonexistent package (2 of 3 readers agree); every other cell below its seat holder; n=1.",
+        "mai-code-2-flash": "under every seat holder on every bench (O 5/8, IR 2, DR2 6.5, I2-RG4 9); D DNF — the model refused to author the design; IR run delegated its review to a minimax child; n=1.",
     },
 }

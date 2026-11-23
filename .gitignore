@@ -4,3 +4,4 @@ __pycache__/
 
 # Temporary working docs (untrack until real project docs are written)
 docs/
+evals/*.poller.hb
