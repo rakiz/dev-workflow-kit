@@ -103,7 +103,7 @@ The verdicts are computed on the scores above, but Gate 1 and Gate 2 fail, so **
 ## 7. Owner decisions pending
 
 1. **P3, P4 and P7 ruling slots** (§7.4) — **FILLED** (owner 2026-11-21, PROTOCOL §5(e); verdicts in §5). No seat moved. Only the operations decisions below remain.
-2. **Gate failure.** Both benches are ceiling-censored (§4). The RG4 lesson applies: rebuild the fixtures before any further seat decision.
+2. **Gate failure.** Both benches are ceiling-censored (§4). The RG4 lesson applies: rebuild the fixtures before any further seat decision. **Owner-confirmed as a STANDING GATE (2026-11-23): no fixture rebuild is scheduled; it is only triggered by an actual seat-decision need.**
 3. **Divergent runs.** 11 runs diverge by ≥ 2.0 and have no arbiter reading. The divergent runs cluster on the pair arms
    (haiku-default, haiku-high, opus, haiku-medium, 1017-high). Any straddling verdict goes to the owner.
 4. **Probe amendment versus the frozen key** for the file-descriptor write route (§6.2): accept the current scoring,

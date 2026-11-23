@@ -67,7 +67,7 @@ BENCHES = [
      "Design review (DR-v2, /14): minimax-xhigh posts 11.25 with 4 executed proofs and takes the strong rung; opus scores 0 (2 FPs)",
      14, "DR2", "score on this bench", None, "DR-v2"),
     ("Implementation",
-     "Implementation (I-v2 RG4 full set, /14; tie rule: gaps under the 1.5 MDE are ties and the cheaper model wins): carbon-high 14* (1 run) leads; qwen-medium, haiku-high, opus 13.5; minimax-xhigh 13.0 at $0.03",
+     "Implementation (I-v2 RG4 full set, /14; tie rule: gaps under the 1.5 MDE are ties and the cheaper model wins): carbon-high 14 (2 runs) leads; qwen-medium, haiku-high, opus 13.5; minimax-xhigh 13.0 at $0.03",
      14, "I2-RG4", "score on this bench", None, "I2-RG4"),
     ("Code review",
      "Code review (IR, /3+bonus): the 3 seeded defects stop separating at 3 - the bonus axis ranks the top crowd (3.0-4.35); the bottom cluster (2.0-2.5) misses a seeded defect",

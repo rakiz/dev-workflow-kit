@@ -105,7 +105,7 @@ Source: https://openai.com/index/introducing-gpt-6-2-astra-sol
   (refused to author the design — blocked on a "docs connector" it does not need). The
   cheapest per-task measurements on the grid (DR2 $0.001/task) — still below every seat.
   The IR run delegated its review to a minimax-m3p1-flash xhigh child; cost
-  delegation-inclusive. No seat; roster unchanged (owner validation pending).
+  delegation-inclusive. No seat; **roster unchanged (owner-confirmed 2026-11-23)**.
 
 ### 2026-11-23 — vendor announcement watch: GLM-5.4
 
@@ -123,3 +123,44 @@ Source: https://openai.com/index/introducing-gpt-6-2-astra-sol
   Same benches as the mai catchup (O/IR/DR2/I2-RG4/D), same 2-family panel; note the
   self-family scorer rule — glm cannot score glm-5.4, so the panel needs a substitute
   family for that arm.
+
+### 2026-11-23 — MaxxBench (unlap.ai) + DS/GLM effort-level semantics
+
+**Source added**: MaxxBench — <https://unlap.ai/maxxbench/> (research: /research/why-maxxbench/,
+2026-10-20, updated 2026-11-06). 89 DeepSWE tasks with the REQUIREMENTS MUTATED (naming,
+formats, boundaries; median +17 lines on the reference patch). Measures task adaptation
+under a familiar exam: "benchmaxxing" detection. Machine-readable data browser exists
+(maxxbench.unlap.ai/data/); no bulk JSON found.
+
+- **Alignment with our benches (strong)**: their dominant failure mode — the model
+  understands the new requirement, then bets against it ("the hidden tests probably want
+  the original behavior") — is the SAME honesty construct as our O red-baseline trap
+  (assume green, don't run the tests). GLM-5.3: 40.3% of failed attempts are
+  grader-guessing; GLM-5.3 Flash 27.5%; Claude Opus 5.5 16.7% (100% of runs speculate
+  about hidden tests but rarely obeys the guess). Their "reward hacking on self-reported
+  metrics" task (7/13 models) matches our I2 "measurement-forcing" probes.
+- **Our models on their grid** (MaxxBench vs DeepSWE baseline, vendor effort): GLM-5.3
+  Flash max 55.1 vs 63.4 (-8.3pp); DeepSeek V4.1 Flash 1017 max 59.0 vs 77.0 (-18.0);
+  DeepSeek V4.1 Flash max 55.6 vs 74.2 (-18.6); haiku 5.5 max 59.8 vs 59.9 (-0.1 — the
+  most stable config measured); sonnet 5.5 max 66.9 vs 71.0; opus 5.5 max 76.4 vs 74.2
+  (+2.2 — only config above its baseline).
+- **Effort caveat on their numbers**: DS/GLM rows ran at MAX; per the gateway semantics
+  below, max is the vendor-recommended coding effort for GLM — and our grid runs these
+  models at high (never max). Not comparable 1:1 to our cells.
+
+**Effort-level semantics (owner-provided, 2026-11-23 — verified against the gateway
+catalog the same day)**: DS and GLM expose ONLY low/high/max ("medium" is rounded up to
+high server-side); DS additionally accepts arbitrary 1-100 (named levels = 50/75/100).
+GLM DEFAULTS to max and recommends max for coding; DS defaults to high. The
+ai-gateway-misc catalog confirms: fw-glm-5.3-flash and fw-deepseek-v4.1-flash list
+low/high/max (+ none for DS), no medium.
+
+- **Grid label correction (records, not re-runs)**: every grid arm labeled `medium` on a
+  glm or DS model (e.g. glm medium, 1017 medium rows) actually ran at HIGH server-side —
+  they are high-effort points with their own sampling noise, not distinct effort cells.
+  No seat was decided on a glm/DS medium arm (glm seat = high; dsflash = default; 1017 =
+  high), so no seat decision is invalidated.
+- **Watch items**: (a) GLM-5.3-flash `max` arm on O — the seat holder scores 7/8 at
+  high; max is the vendor-recommended coding level and costs cents on this bench; (b)
+  GLM-5.4 (see above) ships with max-recommended coding by default — its catchup campaign
+  should run the default (= max) arm as-is, not force high.

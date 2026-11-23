@@ -101,10 +101,10 @@ seat holder. Price does not save it (§7).
 ## 7. Seat changes
 
 - **Applied: NONE.**
-- **Proposal: NONE takes a seat.** Every measured cell is below its bench's seat holder;
+- **Confirmed by owner 2026-11-23: NONE takes a seat, roster unchanged.** Every measured cell is below its bench's seat holder;
   no cell is within reach of a gate (I2-RG4 gap 2.25–2.75 pts, above the 1.5 MDE, in the
   WRONG direction; O arbitrated to 0). n=1 per bench could not take a seat anyway.
-- **Roster recommendation to the owner: keep the roster unchanged; do NOT promote mai.**
+- **Roster recommendation: keep the roster unchanged; do NOT promote mai (confirmed owner 2026-11-23).**
   The flash tier is remarkable on price ($0.001–0.022/task) but its quality floor
   (red-baseline miss, below-seat everywhere, one refusal) and single-run status place it
   behind the incumbents it would have to displace. mai-code-2 (non-flash) additionally

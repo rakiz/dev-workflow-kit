@@ -455,3 +455,5 @@ eval-2026-11-22-T3-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	202
 eval-2026-11-22-T4V2-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	DR2	mai-code-2-flash	default	a1	scored	6.5	1	0.001	db	23.169	9945	62976	944	0	73865
 eval-2026-11-22-IV2-RG4-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	I2-RG4	mai-code-2-flash	default	a1	scored	9	1	0.0119	db	133.806	102920	934912	8136	0	1045968
 eval-2026-11-22-D-D1-github-copilot-mai-code-2-flash-catchup-mai-2026-11-22-a1	2026-11-22	D	mai-code-2-flash	default	a1	completed		1	0.0006	db	6.01	7755	39936	65	0	47756
+eval-2026-11-23-IV2-RG4-github-copilot-gemini-4-carbon-high-q53	2026-11-23	I2-RG4	carbon	high	q53	not-completed		0	0.6363	db	586.194	81504	424555	43080	0	549139
+eval-2026-11-23-IV2-RG4-github-copilot-gemini-4-carbon-high-q53b	2026-11-23	I2-RG4	carbon	high	q53b	scored	14	1	1.3637	db	961.362	159640	1904574	85395	0	2149609
