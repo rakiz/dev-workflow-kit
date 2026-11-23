@@ -94,7 +94,11 @@ Reading:
   (this session) posts **8/8 unanimous** (minimax 8 + sonnet 8, no divergence, hall=0 —
   red baseline pinned) at **$0.007/task = the cost of high** ($0.005). The 7→8 gap is
   under the O noise band (no operative MDE at n=4): a free upgrade on a tie, NOT a
-  quality claim. Session config now pins `variant: max` explicitly (NB: the build agent
+  quality claim. **Ceiling censorship (owner correction 2026-11-23, supersedes any
+  "best on O" reading): 8/8 is the RUBRIC MAXIMUM — every top-band O score is
+  censored, and a model worth "15" on this scale would post the same 8. The seat rests
+  on price + tie + vendor alignment only; O says NOTHING about relative quality above
+  the ceiling.** Session config now pins `variant: max` explicitly (NB: the build agent
   carried NO variant line — it was already running at the server default, which for GLM
   IS max; the pin makes the config truthful). Folded: SEATS map, #roster row,
   roster/MODELS.md seat text, reasons.py why-texts. verify-charts 196/196.
@@ -103,7 +107,9 @@ Reading:
   still catches (mai 0, muse-xhigh invents a green baseline, fable 6) and the tie rule
   (price) still decides seats — so no rebuild NOW. **O-v2 rebuild triggers
   (pre-registered here):** (a) a challenger claims the O seat inside the 8-band at a
-  comparable price (the tie rule could no longer separate); (b) the red-baseline trap
+  comparable price (the tie rule could no longer separate) — the most likely case,
+  since ALL top-band O readings are ceiling-censored at the rubric max of 8;
+  (b) the red-baseline trap
   stops catching tested models; (c) any future campaign needing a top-band ranking.
   Bench-generation ledger: T4→DR-v2 (11-01) and I2→I2-RG4 (11-20) rebuilt; IR's ceiling
   is handled by the bonus axis; O is the third bench showing a limit, the first whose
