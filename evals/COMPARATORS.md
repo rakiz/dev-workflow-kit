@@ -12,6 +12,7 @@ being tested is a known blind-spot pattern to check for.
 |---|---|---|---|
 | Cognition FrontierCode 2.0 | https://cognition.com/frontiercode | Mergeability score vs cost per rollout, per effort; changelog of added models | `curl -s https://cognition.com/data/frontier-code-2.0/data.json` — dict keyed by model name; each effort arm carries `new_score` (0-1), `cost` (USD/rollout), `flagged_rate` |
 | Artificial Analysis — Models | https://artificialanalysis.ai/models | Intelligence Index v5.0.1 (9 evals incl. FrontierCode-AA 2.0, Terminal-Bench 4.0), cost/task, speed, pricing per MTok | Page is chart-rendered; per-model pages and `/evaluations/frontiercode-2-0` exist; no public bulk JSON found as of 2026-11-12 |
+| Terminal-Bench 4.1 | https://www.tbench.ai/ | Agentic terminal-task resolution rate per model × agent harness, 95% CI, full-suite run cost | Page is table-rendered; no bulk JSON found as of 2026-11-25 |
 
 Quick FrontierCode extraction (top score + cost per model):
 
@@ -190,3 +191,85 @@ nuances now recorded: (a) the deep seat is measured at opus-medium (the API defa
 its "maximal capability" claim is relative to OUR benches, not to the model's ceiling;
 (b) AA confirms vendor default effort max for GLM — our glm-max O arm (this session)
 tests exactly that.
+
+### 2026-11-25 — Terminal-Bench 4.1 cross-check
+
+Board snapshot 2026-11-25 (54 rows; the AGENT column matters — mini-swe-agent rows
+collapse 0–27%, so cross-harness comparisons are meaningless; COST is a full-suite
+total, not $/task; efforts are vendor-recommended, not ours — e.g. GLM rows at max).
+
+**Aligned with our verdicts:**
+
+- Cheap/strong tier value-for-price: DS V4.1 Flash 1017 (#23, 38.5% @ $0.2k — among
+  the best score-per-dollar rows with a stated cost, after gpt-6.2-sol, see
+  divergence 1; our strong-design/strong-review-alternative at `high`), haiku 5.5
+  (#21, 40.0% @ $1.0k — cheap-code `default` / cheap-design `medium` /
+  strong-code-alternative `high`), GLM-5.3-Flash (#26, 37.0% @ $0.4k — no review
+  rung since 11-19; orchestration `max`).
+- GLM-5.3 non-flash (#20, 41.2% @ $2.7k): the flash sits only 4.2 pts lower (#26,
+  37.0%) at ~1/7 the cost — flash dominates on value — matches the 10-14 full-grid
+  "still dominated".
+- grok-4.7 (#22, 38.8% @ $3.7k — mid-table at half of sonnet-5.5's $7.3k board cost;
+  "sonnet-class" is our per-MTok label) — matches the 11-23 "mid-tier everywhere,
+  cheap nowhere" rung vacated.
+- Keep-outs corroborated: kimi-k3 (#32), muse-spark 1.3 (#41), ember-1 (#33),
+  gpt-6-luna (#40), nemotron 3.5 (#53, 0.3%). deepseek-v4-pro 0813 (#48, 6.7%) is a
+  different build from our dead gateway id — no bearing on the 11-16 retirement
+  (explicitly circumstantial, not a role decision), but a negative signal to fold
+  into the planned re-adoption grid. Fable split: 5.1 was the "too expensive"
+  keep-out (never measured); 5.2 at #2 (65.8% @ $16.5k) was screened 11-20 (O 8/8
+  honest on the red baseline, IR 4.0, n=1 — no seat because n=1, re-screen
+  pending): TB confirms top capability, the price gap stands.
+- Harness confound demonstrated on our own data: gemini-3.8-flash scores 7/10 T4 at
+  `high` here (9/10 at `medium`; 10-14) vs 18.2% (#37) on TB's mini-swe-agent row —
+  not effort-matched (TB ran `high`), the construct gap stands.
+
+**Divergences (recorded, investigated):**
+
+1. **The sol line inverts our terra-over-sol arbitration — and terra IS on the
+   board.** GPT-6.2 Sol #7 (61.5% @ $0.3k) and GPT-6.1 Sol #9 (60.9% @ $0.6k) both
+   rank above GPT-6.1 Terra (#15, 53.3% @ $0.9k) at lower cost. Our record: sol off
+   the roster 10-26 (terra quality-parity at ~half price), sol re-check 2/14 on
+   DR-v2 (11-12, worst ever), gpt-6.2-sol MEASURED 11-17 taking no seat (O 7/8,
+   IR 2.17, DR2 3.5, I2 6.5, D 5; 2 runs/bench). The 11-12 root cause ("terra
+   absent from their board") does NOT apply — a genuine ordering inversion on TB's
+   construct, the second consecutive sol generation crowned externally and refused
+   by our benches. Rung decisions stand (each cites its bench); this is now the
+   standing sharpest divergence.
+2. **TB's top 10 includes three models our benches rejected**: gpt-6.2-astra #6
+   (62.1% @ $1.4k; ours: I2-RG4 3.0 n=1, no seat — catchup 11-20), 6.2-sol #7
+   (grid2 11-16/17, 2 runs/bench, no seat), gemini-4-neon #8 (61.2% @ $1.9k; ours:
+   IR 2.75 / DR2 8.0, n=1–2 — catchup 11-20). Pattern, not
+   proof — n=1 cells sit inside wide noise; the cheap remedy, if one of them ever
+   contends for a live seat, is a 2nd run on the decisive benches, not a re-rank.
+   Same shape for gpt-6-astra #10 (price-rejected without a run 09-30; TB's $3.3k
+   full-suite total is not our blended $/MTok — the re-entry condition stays on
+   catalog price).
+3. **Kimi K3.1 Pro rated upward**: TB #11 (59.7% @ $1.1k) vs our 11-06 screening
+   (no rung on our v1 benches) + the 11-12 FrontierCode pull (0.196,
+   efficiency-framed). Untested on our construct since.
+4. **Carbon > Argon — third external source**: carbon #4 (64.5% @ $1.4k) vs argon
+   #14 (55.5% @ $1.1k): clear capability gap at near cost-parity, vs our
+   +45–77%/task finding (our Copilot-metered costs). Agrees with FrontierCode
+   (11-12, divergence 2) — AA has no carbon/argon pair to compare; our price
+   finding stays usage-specific and the
+   documented carbon upgrade path gains weight.
+
+**Genuinely untested on our side (blind-spot check):**
+
+- **Copilot Fusion (max)** — TB #1 (71.2% ±2.9 @ $2.0k), on a provider we already
+  use. NOT listed on github-copilot/ai-gateway (catalog checked 2026-11-25).
+  ACTION: run the catchup campaign (O/IR/DR2/I2-RG4/D, 2-family panel) the day a
+  catalog lists it.
+- **hy4** (tencent, #25, 37.9% @ $0.3k on Claude Code) — cheap-tier rival to the
+  glm-flash/deepseek-flash class; only `hy4-flash` variants are listed on our
+  fireworks catalog (checked 2026-11-25; the #25 Hy4 config itself is not) — watch
+  item only (TB costs are full-suite totals, ours are $/task; the scales don't
+  convert).
+- **muse-wonder** (#18, 47.0% @ $2.5k, untested) — watch item: outranks several of
+  our keep-outs on the board; muse-spark's rejection here was a per-task-cost
+  argument (15–19x haiku), wonder is untested on our construct.
+- Not actionable on TB: mimo v2.6, beam 1.0, the inkling family (bottom rows).
+- Seat-holders the board cannot see: minimax m3p1-flash (4 rungs here) has no
+  usable TB row — only minimax-m3 on mini-swe-agent (#47, 7.6%), different model
+  and harness; our review rungs are exactly where TB's construct is blind.

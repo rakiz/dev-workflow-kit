@@ -116,6 +116,19 @@ one), so a future DR-v3 or O-v2 needs no taxonomy rename. Scores are never
 compared across versions of the same stage. Each rung decision cites the
 bench it was decided on.
 
+## External benchmarks (reference points — never score-comparable)
+
+- [Terminal-Bench 4.1](https://www.tbench.ai/) (Stanford / Harbor /
+  Laude Institute; board snapshot 2026-11-25) — end-to-end agentic
+  terminal-task resolution rate, ranked by
+  model × agent harness. Directional cross-check and new-release screener
+  only: different construct from our stage benches, harness-dependent scores
+  (mini-swe-agent rows collapse), full-suite costs not $/task, vendor-default
+  efforts not ours — and never merged into `LEADERBOARD.html` (cross-bench
+  policy: scores are never compared across benches). Divergences and the
+  blind-spot check live in the dated log: `evals/COMPARATORS.md`
+  (2026-11-25), alongside FrontierCode 2.0 and Artificial Analysis.
+
 ## To evaluate a new model (checklist)
 
 1. `roster/models.json`: note the current models and their role.
