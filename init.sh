@@ -205,13 +205,11 @@ EOF
 #      agents, the session roster, the dev-workflow skill, every template the
 #      install/update paths name, the pre-commit hook, models.json, VERSION;
 #   2. every REL key init.sh writes into a lock file stays within the lock's
-#      project-side namespace ^(agent|skill|CONVENTIONS|RULES). REL-shaped
-#      literals are extracted from this script's own text (quoted,
-#      variable-free, .md/.json-suffixed, plus the bareword `for rel in`
-#      lists); a literal that is a label rather than a lock key is allowlisted
-#      explicitly. ANY unlisted literal outside the namespace fails the check:
-#      a new lock key outside the namespace must consciously extend this
-#      check, never silently corrupt the lock schema.
+#      project-side namespace ^(agent|skill|CONVENTIONS|RULES). The keys are
+#      read from the explicit manifest (a here-doc in self_check), not parsed
+#      out of this script: a new lock key must be added to the manifest, and
+#      a key outside the namespace fails the check, so it can never silently
+#      corrupt the lock schema.
 # Lists every failure and exits 1; prints OK and exits 0 otherwise.
 self_check() {
   local p tok errors=0
@@ -250,23 +248,24 @@ self_check() {
   _mds=("$KIT_DIR/roster/global-agent/"*.md)
   [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/roster/global-agent/*.md (no .md file)")
 
-  # 2. REL lock-key namespace check (see function header)
-  local -a allow=("dev-workflow.json")   # copy_if_absent label, not a lock key
+  # 2. REL lock-key namespace check (see function header). The keys come
+  # from the explicit manifest below — the list of lock REL keys init.sh
+  # writes — not from parsing this script's own text. A new lock key must be
+  # added here, and a key outside the namespace fails the check.
   while IFS= read -r tok; do
     [[ -n "$tok" ]] || continue
-    for p in "${allow[@]}"; do
-      [[ "$tok" == "$p" ]] && continue 2
-    done
     [[ "$tok" =~ ^(agent|skill|CONVENTIONS|RULES) ]] || bad_keys+=("$tok")
-  done < <(awk -F'"' '{for(i=2;i<=NF;i+=2) print $i}' "$KIT_DIR/init.sh" \
-           | grep -E '^([A-Za-z0-9_./-]+\.(md|json)|[A-Za-z0-9_./-]*[A-Za-z0-9_./][A-Za-z0-9])$' \
-           | grep -E '(\.(md|json)$|/)' | sort -u)
-  # the bareword `for rel in` lists feed the same lock keys
-  while IFS= read -r tok; do
-    [[ -n "$tok" ]] || continue
-    [[ "$tok" =~ ^(agent|skill|CONVENTIONS|RULES) ]] || bad_keys+=("$tok (for-rel list)")
-  done < <(sed -n 's/^.*for rel in //p' "$KIT_DIR/init.sh" \
-           | tr ' ;' '\n\n' | grep -E '^[A-Za-z0-9_./-]+\.(md|json)$' | sort -u)
+  done <<'MANIFEST'
+agent/<name>.md
+skill/dev-workflow/SKILL.md
+skill/pr-review/<file>
+CONVENTIONS.md
+RULES.md
+CONVENTIONS.cpp.md
+CONVENTIONS.cpp23.md
+CONVENTIONS.python.md
+CONVENTIONS.go.md
+MANIFEST
 
   if [[ ${#missing[@]} -gt 0 || ${#bad_keys[@]} -gt 0 ]]; then
     echo "init --self-check: FAILED" >&2
@@ -285,6 +284,17 @@ KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # The kit's model-binding source of truth (roster "who runs what"). One
 # variable so the layout moves stay single-site.
 MODELS_JSON="$KIT_DIR/roster/models.json"
+
+# INJECTED_KEYS : the frontmatter keys and comment lines init.sh injects from
+# models.json (set_agent_model, _reconcile_agent_family). This is the ONE list
+# every kit-vs-target normalization strips — _bodies_equal, _body_hash and the
+# --doctor body check — so a future injected key is added here and nowhere
+# else. _INJECTED_LINE_RE is its anchored ERE form for grep -vE.
+INJECTED_KEYS=("model:" "variant:" "# Model family:")
+_INJECTED_LINE_RE=""
+for _ik in "${INJECTED_KEYS[@]}"; do
+  _INJECTED_LINE_RE+="${_INJECTED_LINE_RE:+|}^$_ik"
+done
 
 # No arguments: print the full help document (stdout) and exit 0 — never run
 # an implicit install on the current directory by accident.
@@ -483,7 +493,7 @@ fi
 # it from models.json: installed agents legitimately differ from the kit
 # sources on those lines only.
 _bodies_equal() {
-  diff <(grep -vE '^(model|variant):|^# Model family:' "$1") <(grep -vE '^(model|variant):|^# Model family:' "$2") >/dev/null 2>&1
+  diff <(grep -vE "$_INJECTED_LINE_RE" "$1") <(grep -vE "$_INJECTED_LINE_RE" "$2") >/dev/null 2>&1
 }
 
 # copy_sync SRC DST LABEL : copy if absent; if present and identical to the
@@ -649,12 +659,30 @@ set_agent_model() {
   fi
 }
 
-# _body_hash FILE : sha256 of the file's content with its `model:`/`variant:`
-# frontmatter lines and its `# Model family:` comment line stripped — the
-# same normalization _bodies_equal applies.
+# --- Hash units (which unit covers which files) ------------------------------
+# Every lock body_sha256 and every --update comparison uses exactly one of
+# these units; the unit is chosen by the file's kind, not by the caller:
+#   unit               files                                  why
+#   _body_hash         agent/*.md (both modes), skill/        injected keys stripped
+#                      dev-workflow/SKILL.md, skill/          (INJECTED_KEYS) so a
+#                      pr-review/*                            model refresh is not drift
+#   _raw_hash          CONVENTIONS.cpp.md, CONVENTIONS.       whole file, no user-append
+#                      cpp23.md, CONVENTIONS.python.md,       zone, no injected keys
+#                      CONVENTIONS.go.md; CONVENTIONS.md /
+#                      RULES.md only when they lack the marker
+#   _rules_prefix_hash CONVENTIONS.md, RULES.md               kit prefix up to and incl.
+#                                                             `## Project rules`; the
+#                                                             project's suffix is never hashed
+#   (no hash: cmp)     pre-commit hook                        no lock entry at all; sync_hook
+#                                                             compares the files directly
+# A new file kind must pick its unit here first; the lock records only the
+# hash of the KIT source content (see the lock schema header).
+
+# _body_hash FILE : sha256 of the file's content with its injected keys
+# (INJECTED_KEYS) stripped — the same normalization _bodies_equal applies.
 # This is the "body" unit every lock baseline and --update comparison uses.
 _body_hash() {
-  grep -vE '^(model|variant):|^# Model family:' "$1" 2>/dev/null | shasum -a 256 | awk '{print $1}'
+  grep -vE "$_INJECTED_LINE_RE" "$1" 2>/dev/null | shasum -a 256 | awk '{print $1}'
 }
 
 # _fm_value FILE KEY : value of the file's `KEY: value` frontmatter line,
