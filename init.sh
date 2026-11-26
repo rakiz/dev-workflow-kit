@@ -179,6 +179,12 @@ UPDATE (--update) SEMANTICS
   - Never touches project-state files (dev-workflow.json, TODO.md, SPEC.md,
     INPROGRESS.md, CHANGELOG.md, DESIGNS.md); never overwrites a customized
     file (kit version parked as <file>.dev-workflow-kit-new); CI-safe, no prompt.
+  - Personal model choices: dev-workflow-kit.overrides.json (next to the lock)
+    wins over models.json. A hand-set model:/variant: line that differs from
+    models.json is moved there on first sight (reported), not kept as frozen.
+  - Orphans: a lock key the kit no longer ships is removed — its file copied
+    to a timestamped dev-workflow-kit-backup/ dir next to the lock first — or
+    pruned from the lock when no file is left. Only lock-proven files.
   - Respects installed components: the lock's "components" array limits
     a plain --update. Add a component with --update --only=pr-review
     (installs it, adds it to the lock). Old locks (no field): all files.
