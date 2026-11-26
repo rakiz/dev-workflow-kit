@@ -392,6 +392,7 @@ orphan messages, the retired-name scan (§5A.3) and the evals display-name map (
 inlined shared reviewer checklist (§5A.3); the MODELS.md grid table and per-role
 model lines. Prompt bodies outside markers stay hand-written. Generated output is
 committed (reviewable diffs).
+**R1 deviations (shipped, pending later phases):** the MODELS.md grid is only partly generated — the generated region is a compact per-seat / per-agent table; the rich 4-tier grid stays hand-written until the `models.json` restructure (P3, §3.3 `tier`/`function`/`description`/`next`). `roster/injected-preview.md` is generated instead of per-agent frontmatter. The `prices` section (§3.8) is committed with every rate `null` and `source: "unverified"`: no price was sourced; the recorder prints `$?` until the catchup fills them.
 
 **G9 becomes a build step:** `roster/build.sh --check` regenerates into a temp dir and
 fails on any difference; `init.sh --self-check` runs it, and `init.sh --global` refuses to
@@ -412,6 +413,7 @@ shared constant (seat 2, §5A.4) so a future injected key cannot be forgotten in
    the last kit-injected value recorded in the lock) into the overrides file, reports it,
    then injects normally; README "Updating" is rewritten accordingly. From then on a
    hand-set line in a deployed file is drift (`--doctor`).
+   **Reconciliation (R1, shipped code):** values equal to the kit default are never pinned (the code refines this rule).
 2. **Body customization in global mode** is unsupported: `--update --global` overwrites
    and keeps the previous file once as `<file>.dev-workflow-kit-prev` with a warning.
    Project-mode rules (`## Project rules` split) unchanged.

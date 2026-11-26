@@ -79,23 +79,38 @@
 #     (no user-append zone).
 #   - A file whose body matches the lock's baseline (untouched since the
 #     last sync) is auto-updated to the kit's current version; a locally
-#     customized file is NEVER overwritten — the kit's current version is
-#     parked next to it as <file>.dev-workflow-kit-new for a manual merge
-#     (warning).
+#     customized file is NEVER overwritten in project mode — the kit's current
+#     version is parked next to it as <file>.dev-workflow-kit-new for a manual
+#     merge (warning). Global mode overwrites it (see the --global bullets below).
 #   - Model/variant defaults: the effective value is the overrides file
 #     (dev-workflow-kit.overrides.json, next to the lock — personal model
 #     choices, `{ "<agent>": { "model": ..., "variant": ... } }`) when it
 #     names one, else models.json. A hand-set model:/variant: line (one that
-#     differs from the lock's last kit-injected value) is MIGRATED into the
-#     overrides file on first sight and reported; the file is then reconciled
-#     to the effective value whenever they differ (reported). Kit-injected
-#     values follow models.json as before.
-#   - Orphans: a lock key whose kit source is gone is removed (file copied to
-#     a timestamped backup dir under the lock's directory, then deleted) or
-#     pruned from the lock when no file is left. Only lock-proven files.
+#     differs from the lock's last kit-injected value, and is not the kit
+#     default) is MIGRATED into the overrides file on first sight and
+#     reported ("Migrated"). A value equal to the kit default is never
+#     pinned: it only means the lock record is stale. The file is then
+#     reconciled to the effective value whenever they differ (reported). A
+#     kit default with no variant removes the variant: line on a model
+#     migration. There is no "kept as-is" state for a hand-set value any more.
+#   - Orphans: a lock key whose kit source is gone is removed only when the
+#     lock proves kit origin: a deployed copy goes to a timestamped backup dir
+#     under the lock's directory first, then is deleted ("Removed"); a key with
+#     no file is pruned from the lock, its entry kept in lock-entries.jsonl
+#     there ("Pruned"), or reported as not archived when no backup dir exists.
+#     Out-of-pattern keys (traversal, absolute, newline) are pruned, no file
+#     touched.
+#   - Global mode (--global): a diverged roster body is overwritten with the
+#     kit's copy, the previous file kept once as <file>.dev-workflow-kit-prev
+#     (warned). A stale .dev-workflow-kit-new sibling is removed when the body
+#     equals the kit again. A body equal to the kit with an out-of-date lock
+#     baseline counts as current, and the baseline is refreshed.
+#   - --global refuses (fail-closed, install and --update) while
+#     roster/build.sh --check fails: run roster/build.sh, commit, re-run.
 #   - Never prompts: no TTY reads at all (the interactive availability menu
 #     is install-time only) — CI-safe, exits 0 unless a hard precondition
-#     fails (target not a git repo, never initialized, ...).
+#     fails (target not a git repo, never initialized, ...). --doctor is the
+#     read-only drift report (exit 0 clean, 1 drift, 2 precondition).
 #
 # --global behavior (session roster into the opencode config directory):
 #   - Installs the kit's global roster (roster/global-agent/*.md — the 16 session
