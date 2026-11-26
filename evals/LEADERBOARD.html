@@ -1535,6 +1535,9 @@
       </tr>
     </thead>
     <tbody>
+      <tr title="claude-fable-5 default — grid2 complete-data campaign (2026-11-16/17); O: hallucination -3; D: FP H3">
+        <td class="model" rowspan="1" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-fable-5</td><td>`default`</td><td class="num">6</td><td class="num">3 <span class="muted">net</span></td><td class="num">2 <span class="muted">net</span></td><td class="num">5.67</td><td class="num">2</td><td class="cost">~4</td>
+      </tr>
       <tr title="claude-haiku-5.5 default — grid2 complete-data campaign (2026-11-16/17)">
         <td class="model" rowspan="5" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-haiku-5.5</td><td>`default`</td><td class="num">7.25</td><td class="num">3.83 <span class="muted">net</span></td><td class="num">5.75 <span class="muted">net</span></td><td class="num">8.33</td><td class="num">6.92</td><td class="cost">0.02-0.03</td>
       </tr>
@@ -1550,14 +1553,14 @@
       <tr title="claude-haiku-5.5 xhigh — grid2 complete-data campaign (2026-11-16/17); I2 xhigh: 2 DNF, one valid run re-folded to 7.67; D xhigh 1 DNF then 7">
         <td>`xhigh`</td><td class="num">8</td><td class="num">3 <span class="muted">net</span></td><td class="num">7 <span class="muted">net</span></td><td class="num">7.67*</td><td class="num">7*</td><td class="cost">0.03-0.42</td>
       </tr>
-      <tr title="glm-5.3-flash low — grid2 complete-data campaign (2026-11-16/17); O stable 5.0 x3 (baseline discipline 0, zero hallucination)">
-        <td class="model" rowspan="3" style="border-bottom:2px solid #1a7f37"><span class="famdot" style="background:#1a7f37"></span>glm-5.3-flash</td><td>`low`</td><td class="num">5</td><td class="num">2.5 <span class="muted">net</span></td><td class="num">4.88 <span class="muted">net</span></td><td class="num">5.33</td><td class="num">2.38</td><td class="cost">0.01</td>
+      <tr title="claude-opus-5.5 default — grid2 complete-data campaign (2026-11-16/17); DR2 0/14: 2 FP - worst DR2 measured; H4 fold v3 +1 (p3r2b +1, p4 +1 over 2 runs)">
+        <td class="model" rowspan="1" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-opus-5.5</td><td>`default`</td><td class="num">6.56</td><td class="num">4 <span class="muted">net</span></td><td class="num">0 <span class="muted">· FP 2</span></td><td class="num">8.5</td><td class="num">9.58</td><td class="cost">0.95-1.82</td>
       </tr>
-      <tr class="alt" title="glm-5.3-flash high — grid2 complete-data campaign (2026-11-16/17); O panel mean 7 (4 scorer scores over the 3 runs 7;5;6); D: FP H3 both runs; IR 4.13 (4 runs: 4.5;2;5;5)">
-        <td>`high`</td><td class="num">7</td><td class="num">4.13 <span class="muted">net</span></td><td class="num">5.17 <span class="muted">net</span></td><td class="num">4.5</td><td class="num">1.5</td><td class="cost">0.03</td>
+      <tr title="claude-sonnet-5.5 medium — grid2 complete-data campaign (2026-11-16/17); IR 4 valid runs (5;5;4;5) - trace restored; holds strong-review">
+        <td class="model" rowspan="2" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-sonnet-5.5</td><td>`medium`</td><td class="num">5.5</td><td class="num">4.75 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09-0.10</td>
       </tr>
-      <tr title="glm-5.3-flash max — grid2 complete-data campaign (2026-11-16/17); glm-max O arm 2026-11-23 stability confirmations (3 valid runs 8;7;7 = per-run conservative panel scores; panel means 8;7;7.5, unanimity on 2c, 1-pt R divergence on 3; hall=0 across all six scorer readings; red baseline caught in every run; delivery 3/3 at $0.0056-0.0073/task + 2 operator-error DNFs $0 — model id dashes-vs-dots, never a provider issue; glm self-family excluded per policy; vendor-recommended coding effort, cost same as high; seat unchanged: price+tie)">
-        <td>`max`</td><td class="num">7.33*</td><td class="num"> <span class="muted">net</span></td><td class="num"> <span class="muted">net</span></td><td class="num"></td><td class="num"></td><td class="cost muted">skipped (effort policy)</td>
+      <tr class="alt" title="claude-sonnet-5.5 high — grid2 complete-data campaign (2026-11-16/17); D clean re-fold 8 (4 runs 7.5;DNF;8.5;8.5; watchdog 30-min needed); I2 panel mean 7.75 (4 raw runs 7;9;6;10 - c81=6, c82=10), variance 4 pts flagged; H4 fold v3 +0.4 (p3 +1, p5r2 +1 over 5 runs; r91/r93/r94 not credited)">
+        <td>`high`</td><td class="num">8</td><td class="num">4 <span class="muted">net</span></td><td class="num">7 <span class="muted">net</span></td><td class="num">7.75</td><td class="num">8.4</td><td class="cost">0.40-1.26</td>
       </tr>
       <tr title="deepseek-v4p1-flash default — grid2 complete-data campaign (2026-11-16/17)">
         <td class="model" rowspan="1" style="border-bottom:2px solid #0b57d0"><span class="famdot" style="background:#0b57d0"></span>deepseek-v4p1-flash</td><td>`default`</td><td class="num">5.67</td><td class="num">2.2 <span class="muted">net</span></td><td class="num">8.5 <span class="muted">net</span></td><td class="num">8</td><td class="num">1.2</td><td class="cost">0.03</td>
@@ -1574,38 +1577,14 @@
       <tr class="alt" title="deepseek-v4p1-flash-1017 max — grid2 complete-data campaign (2026-11-16/17); maxfill 2026-11-25 (1 valid run per bench; 2-family panel glm+minimax, no deepseek-family scorer; O 8/8 unanimous, ceiling-censored; IR 4.0 0 FP; DR2 9.0 0 FP; I2-RG4 12.0; D 9.0 unanimous 9/9; ~$0.05/task; verdict: max ~= high everywhere, no seat change)">
         <td>`max`</td><td class="num">8*</td><td class="num">4.0* <span class="muted">· FP 0</span></td><td class="num">9* <span class="muted">· FP 0</span></td><td class="num">12*</td><td class="num">9*</td><td class="cost">0.05</td>
       </tr>
-      <tr title="minimax-m3p1-flash low — grid2 complete-data campaign (2026-11-16/17); D: FP H3 both runs">
-        <td class="model" rowspan="5" style="border-bottom:2px solid #6d28d9"><span class="famdot" style="background:#6d28d9"></span>minimax-m3p1-flash</td><td>`low`</td><td class="num">5.5</td><td class="num">2.75 <span class="muted">net</span></td><td class="num">6.75 <span class="muted">net</span></td><td class="num">8</td><td class="num">2.08</td><td class="cost">0.03</td>
+      <tr title="gemini-3.8-flash low — grid2 complete-data campaign (2026-11-16/17); O single valid run">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #0891b2"><span class="famdot" style="background:#0891b2"></span>gemini-3.8-flash</td><td>`low`</td><td class="num">5*</td><td class="num">3 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.05</td>
       </tr>
-      <tr class="alt" title="minimax-m3p1-flash medium — grid2 complete-data campaign (2026-11-16/17); D mean incl. the 2/11 FP run">
-        <td>`medium`</td><td class="num">6</td><td class="num">3.38 <span class="muted">net</span></td><td class="num">8 <span class="muted">net</span></td><td class="num">7.62</td><td class="num">5.78</td><td class="cost">0.04</td>
+      <tr class="alt" title="gemini-3.8-flash medium — grid2 complete-data campaign (2026-11-16/17); O single valid run; D: FP H3 both runs">
+        <td>`medium`</td><td class="num">5*</td><td class="num">2 <span class="muted">net</span></td><td class="num">7.1 <span class="muted">net</span></td><td class="num">7.5</td><td class="num">0.75</td><td class="cost">0.04-0.09</td>
       </tr>
-      <tr title="minimax-m3p1-flash high — grid2 complete-data campaign (2026-11-16/17); D: 2 DNF then 5.5 (single valid)">
-        <td>`high`</td><td class="num">6.56</td><td class="num">3.5 <span class="muted">net</span></td><td class="num">8.25 <span class="muted">net</span></td><td class="num">6.12</td><td class="num">7.38*</td><td class="cost">0.05</td>
-      </tr>
-      <tr class="alt" title="minimax-m3p1-flash xhigh — grid2 complete-data campaign (2026-11-16/17); I2 7.04 (clean re-fold of the sonnet arbitration; runs f41=8, g51=5, m81=10); DR2 4 executed proofs (runs 9;14); H4 fold v3 +0.5 (g21 +1 over 2 runs)">
-        <td>`xhigh`</td><td class="num">6</td><td class="num">4.33 <span class="muted">net</span></td><td class="num">11.25 <span class="muted">net</span></td><td class="num">7.04</td><td class="num">7.31</td><td class="cost">0.03</td>
-      </tr>
-      <tr title="minimax-m3p1-flash max — grid2 complete-data campaign (2026-11-16/17); maxfill 2026-11-25 (1 valid run per bench; 2-family panel glm+1017, no minimax-family scorer; O 8/8 unanimous, ceiling-censored; IR 4.0 1 FP; DR2 7.5 divergent 6/9, 1 FP; I2-RG4 2.0 unanimous collapse; D 8.5 (glm 9, 1017 8) best measured; ~$0.047/task, D arm $0.149; verdict: non-monotone per bench, no seat change)">
-        <td>`max`</td><td class="num">8*</td><td class="num">4.0* <span class="muted">· FP 1</span></td><td class="num">7.5* <span class="muted">· FP 1</span></td><td class="num">2*</td><td class="num">8.5*</td><td class="cost">0.047</td>
-      </tr>
-      <tr title="qwen3p8-2p4t-a95b medium — grid2 complete-data campaign (2026-11-16/17); O panel mean 4.75; I2 clean re-fold 6.62 (1 DNF; two valid runs)">
-        <td class="model" rowspan="2" style="border-bottom:2px solid #d97706"><span class="famdot" style="background:#d97706"></span>qwen3p8-2p4t-a95b</td><td>`medium`</td><td class="num">4.75</td><td class="num">2 <span class="muted">net</span></td><td class="num">8.6 <span class="muted">net</span></td><td class="num">6.62</td><td class="num">1.2</td><td class="cost">0.30-0.68</td>
-      </tr>
-      <tr class="alt" title="qwen3p8-2p4t-a95b xhigh — grid2 complete-data campaign (2026-11-16/17); IR 4.0 (2 runs: 4;4) - misses seeded-3 both runs; single-run DR2; most expensive per task; H4 fold v3 +0.5 (p5 +1, p6 +1 over 4 runs)">
-        <td>`xhigh`</td><td class="num">6.75</td><td class="num">4.0 <span class="muted">net</span></td><td class="num">10 <span class="muted">net</span></td><td class="num">4.38</td><td class="num">6.9</td><td class="cost">0.95-1.19</td>
-      </tr>
-      <tr title="gemini-4-hydrogen low — grid2 complete-data campaign (2026-11-16/17); skipped (effort policy)">
-        <td class="model" rowspan="4" style="border-bottom:2px solid #0891b2"><span class="famdot" style="background:#0891b2"></span>gemini-4-hydrogen</td><td>`low`</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost muted">skipped (effort policy)</td>
-      </tr>
-      <tr class="alt" title="gemini-4-hydrogen medium — grid2 complete-data campaign (2026-11-16/17); O verdicts PARTIAL x2 (p8) + 5 (f41)">
-        <td>`medium`</td><td class="num">6</td><td class="num">4 <span class="muted">net</span></td><td class="num">5 <span class="muted">net</span></td><td class="num">5.88</td><td class="num">5.75</td><td class="cost">0.09-0.29</td>
-      </tr>
-      <tr title="gemini-4-hydrogen high — grid2 complete-data campaign (2026-11-16/17); O: PARTIAL/PASS (p8) + 7 (f41); DR2 refuted">
-        <td>`high`</td><td class="num">7.75</td><td class="num">3 <span class="muted">net</span></td><td class="num">3.3 <span class="muted">net</span></td><td class="num">9.5</td><td class="num">5.62</td><td class="cost">0.08-0.65</td>
-      </tr>
-      <tr class="alt" title="gemini-4-hydrogen xhigh — grid2 complete-data campaign (2026-11-16/17); I2 broken (2;2 - no edits, watchdog); D 6.75 (6.5;7)">
-        <td>`xhigh`</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num">2</td><td class="num">6.19</td><td class="cost">0.50-0.90</td>
+      <tr title="gemini-3.8-flash high — grid2 complete-data campaign (2026-11-16/17); O single valid run">
+        <td>`high`</td><td class="num">5*</td><td class="num">2 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.05</td>
       </tr>
       <tr title="gemini-4-argon low — grid2 complete-data campaign (2026-11-16/17); O single valid run">
         <td class="model" rowspan="3" style="border-bottom:2px solid #0891b2"><span class="famdot" style="background:#0891b2"></span>gemini-4-argon</td><td>`low`</td><td class="num">5*</td><td class="num">3* <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09-0.12</td>
@@ -1625,14 +1604,38 @@
       <tr title="gemini-4-carbon high — grid2 complete-data campaign (2026-11-16/17); I2 2 (one valid run; 4 costcap DNFs at the $0.60 cap); D 5.5 (single valid run, clean re-fold); strong-design-alt challenge abandoned; I2: 7 DNFs total (watchdog + no-report) at caps up to $2.00/run - economically unmeasurable; I2-RG4 2 valid runs: q51 14, q53b 14 (confirmation run 2026-11-23, $1.36; q53 killed at the $0.60 cap) - the ceiling-censorship caveat stands for the rubric gate, the 2-run mean is official">
         <td>`high`</td><td class="num">7.5</td><td class="num">2 <span class="muted">net</span></td><td class="num">10 <span class="muted">net</span></td><td class="num">2*</td><td class="num">5.5*</td><td class="cost">0.15-0.23</td>
       </tr>
-      <tr title="gemini-3.8-flash low — grid2 complete-data campaign (2026-11-16/17); O single valid run">
-        <td class="model" rowspan="3" style="border-bottom:2px solid #0891b2"><span class="famdot" style="background:#0891b2"></span>gemini-3.8-flash</td><td>`low`</td><td class="num">5*</td><td class="num">3 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.05</td>
+      <tr title="gemini-4-hydrogen low — grid2 complete-data campaign (2026-11-16/17); skipped (effort policy)">
+        <td class="model" rowspan="4" style="border-bottom:2px solid #0891b2"><span class="famdot" style="background:#0891b2"></span>gemini-4-hydrogen</td><td>`low`</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost muted">skipped (effort policy)</td>
       </tr>
-      <tr class="alt" title="gemini-3.8-flash medium — grid2 complete-data campaign (2026-11-16/17); O single valid run; D: FP H3 both runs">
-        <td>`medium`</td><td class="num">5*</td><td class="num">2 <span class="muted">net</span></td><td class="num">7.1 <span class="muted">net</span></td><td class="num">7.5</td><td class="num">0.75</td><td class="cost">0.04-0.09</td>
+      <tr class="alt" title="gemini-4-hydrogen medium — grid2 complete-data campaign (2026-11-16/17); O verdicts PARTIAL x2 (p8) + 5 (f41)">
+        <td>`medium`</td><td class="num">6</td><td class="num">4 <span class="muted">net</span></td><td class="num">5 <span class="muted">net</span></td><td class="num">5.88</td><td class="num">5.75</td><td class="cost">0.09-0.29</td>
       </tr>
-      <tr title="gemini-3.8-flash high — grid2 complete-data campaign (2026-11-16/17); O single valid run">
-        <td>`high`</td><td class="num">5*</td><td class="num">2 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.05</td>
+      <tr title="gemini-4-hydrogen high — grid2 complete-data campaign (2026-11-16/17); O: PARTIAL/PASS (p8) + 7 (f41); DR2 refuted">
+        <td>`high`</td><td class="num">7.75</td><td class="num">3 <span class="muted">net</span></td><td class="num">3.3 <span class="muted">net</span></td><td class="num">9.5</td><td class="num">5.62</td><td class="cost">0.08-0.65</td>
+      </tr>
+      <tr class="alt" title="gemini-4-hydrogen xhigh — grid2 complete-data campaign (2026-11-16/17); I2 broken (2;2 - no edits, watchdog); D 6.75 (6.5;7)">
+        <td>`xhigh`</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num">2</td><td class="num">6.19</td><td class="cost">0.50-0.90</td>
+      </tr>
+      <tr title="glm-5.3-flash low — grid2 complete-data campaign (2026-11-16/17); O stable 5.0 x3 (baseline discipline 0, zero hallucination)">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #1a7f37"><span class="famdot" style="background:#1a7f37"></span>glm-5.3-flash</td><td>`low`</td><td class="num">5</td><td class="num">2.5 <span class="muted">net</span></td><td class="num">4.88 <span class="muted">net</span></td><td class="num">5.33</td><td class="num">2.38</td><td class="cost">0.01</td>
+      </tr>
+      <tr class="alt" title="glm-5.3-flash high — grid2 complete-data campaign (2026-11-16/17); O panel mean 7 (4 scorer scores over the 3 runs 7;5;6); D: FP H3 both runs; IR 4.13 (4 runs: 4.5;2;5;5)">
+        <td>`high`</td><td class="num">7</td><td class="num">4.13 <span class="muted">net</span></td><td class="num">5.17 <span class="muted">net</span></td><td class="num">4.5</td><td class="num">1.5</td><td class="cost">0.03</td>
+      </tr>
+      <tr title="glm-5.3-flash max — grid2 complete-data campaign (2026-11-16/17); glm-max O arm 2026-11-23 stability confirmations (3 valid runs 8;7;7 = per-run conservative panel scores; panel means 8;7;7.5, unanimity on 2c, 1-pt R divergence on 3; hall=0 across all six scorer readings; red baseline caught in every run; delivery 3/3 at $0.0056-0.0073/task + 2 operator-error DNFs $0 — model id dashes-vs-dots, never a provider issue; glm self-family excluded per policy; vendor-recommended coding effort, cost same as high; seat unchanged: price+tie)">
+        <td>`max`</td><td class="num">7.33*</td><td class="num"> <span class="muted">net</span></td><td class="num"> <span class="muted">net</span></td><td class="num"></td><td class="num"></td><td class="cost muted">skipped (effort policy)</td>
+      </tr>
+      <tr title="gpt-6-astra default — grid2 complete-data campaign (2026-11-16/17); priced out (re-entry: price drop); performs at sonnet-class here">
+        <td class="model" rowspan="1" style="border-bottom:2px solid #a16207"><span class="famdot" style="background:#a16207"></span>gpt-6-astra</td><td>`default`</td><td class="num">7.4</td><td class="num">2.8 <span class="muted">net</span></td><td class="num">4.6 <span class="muted">net</span></td><td class="num">5.6</td><td class="num">6.12</td><td class="cost">~4</td>
+      </tr>
+      <tr title="gpt-6.1-sol low — grid2 complete-data campaign (2026-11-16/17)">
+        <td class="model" rowspan="3" style="border-bottom:2px solid #a16207"><span class="famdot" style="background:#a16207"></span>gpt-6.1-sol</td><td>`low`</td><td class="num">7</td><td class="num">2 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09</td>
+      </tr>
+      <tr class="alt" title="gpt-6.1-sol medium — grid2 complete-data campaign (2026-11-16/17); D clean re-fold 6.7">
+        <td>`medium`</td><td class="num">7</td><td class="num">2 <span class="muted">net</span></td><td class="num">4.5 <span class="muted">net</span></td><td class="num">5.6</td><td class="num">6.7</td><td class="cost">0.09-0.10</td>
+      </tr>
+      <tr title="gpt-6.1-sol xhigh — grid2 complete-data campaign (2026-11-16/17)">
+        <td>`xhigh`</td><td class="num">7</td><td class="num">2 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09</td>
       </tr>
       <tr title="gpt-6.1-terra low — grid2 complete-data campaign (2026-11-16/17)">
         <td class="model" rowspan="4" style="border-bottom:2px solid #a16207"><span class="famdot" style="background:#a16207"></span>gpt-6.1-terra</td><td>`low`</td><td class="num">7.4</td><td class="num">2 <span class="muted">net</span></td><td class="num">7.6 <span class="muted">net</span></td><td class="num">4.6</td><td class="num">5.12</td><td class="cost">0.05</td>
@@ -1646,17 +1649,38 @@
       <tr class="alt" title="gpt-6.1-terra xhigh — grid2 complete-data campaign (2026-11-16/17)">
         <td>`xhigh`</td><td class="num">7.4</td><td class="num">2 <span class="muted">net</span></td><td class="num">7 <span class="muted">net</span></td><td class="num">4.6</td><td class="num">5.12</td><td class="cost">0.05</td>
       </tr>
-      <tr title="gpt-6.1-sol low — grid2 complete-data campaign (2026-11-16/17)">
-        <td class="model" rowspan="3" style="border-bottom:2px solid #a16207"><span class="famdot" style="background:#a16207"></span>gpt-6.1-sol</td><td>`low`</td><td class="num">7</td><td class="num">2 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09</td>
-      </tr>
-      <tr class="alt" title="gpt-6.1-sol medium — grid2 complete-data campaign (2026-11-16/17); D clean re-fold 6.7">
-        <td>`medium`</td><td class="num">7</td><td class="num">2 <span class="muted">net</span></td><td class="num">4.5 <span class="muted">net</span></td><td class="num">5.6</td><td class="num">6.7</td><td class="cost">0.09-0.10</td>
-      </tr>
-      <tr title="gpt-6.1-sol xhigh — grid2 complete-data campaign (2026-11-16/17)">
-        <td>`xhigh`</td><td class="num">7</td><td class="num">2 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09</td>
-      </tr>
       <tr title="gpt-6.2-sol high — grid2 complete-data campaign (2026-11-16/17); first 6.2-generation model measured; challenges nothing (strong-code needs I-v2&gt;=9); honesty probe: obstacles NOT omitted, baseline never execution-established">
         <td class="model" rowspan="1" style="border-bottom:2px solid #a16207"><span class="famdot" style="background:#a16207"></span>gpt-6.2-sol</td><td>`high`</td><td class="num">7</td><td class="num">2.17 <span class="muted">net</span></td><td class="num">3.5 <span class="muted">net</span></td><td class="num">6.5</td><td class="num">5</td><td class="cost">0.10-0.60</td>
+      </tr>
+      <tr title="grok-4.7 default — grid2 complete-data campaign (2026-11-16/17); grok-confirm 2026-11-23 (1 valid run per bench; 2-family panel glm+minimax, no grok-family scorer; O 8=8;8 ceiling-censored at 20x glm cost; IR 3.5 = glm 3 + minimax 4, 3/3 defects 0FP; DR2 7.5 = glm 9 + minimax 6 — FP dispute on the lock-window category, 9 cats + 0 executed proofs common ground; I2-RG4 8 = 8;8 identical breakdowns; D 1.5 = glm 3 + minimax 0, honesty 0 both — cannot write designs; verdict: strong-design-review-alternative2 NOT earned (DR2 below argon-high 9.5), dominated on price at sonnet-class cost)">
+        <td class="model" rowspan="1" style="border-bottom:2px solid #111827"><span class="famdot" style="background:#111827"></span>grok-4.7</td><td>`default`</td><td class="num">8</td><td class="num">3.5 <span class="muted">· FP 0</span></td><td class="num">7.5 <span class="muted">net</span></td><td class="num">8</td><td class="num">1.5</td><td class="cost">0.15-0.33</td>
+      </tr>
+      <tr title="kimi-k3p1-pro medium — grid2 complete-data campaign (2026-11-16/17)">
+        <td class="model" rowspan="2" style="border-bottom:2px solid #52525b"><span class="famdot" style="background:#52525b"></span>kimi-k3p1-pro</td><td>`medium`</td><td class="num">5.19</td><td class="num">2.38 <span class="muted">net</span></td><td class="num">5.5 <span class="muted">net</span></td><td class="num">6.75</td><td class="num">6.94</td><td class="cost">0.15-0.20</td>
+      </tr>
+      <tr class="alt" title="kimi-k3p1-pro high — grid2 complete-data campaign (2026-11-16/17)">
+        <td>`high`</td><td class="num">5.12</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.16-0.19</td>
+      </tr>
+      <tr title="mai-code-2 default — grid2 complete-data campaign (2026-11-16/17); catchup-mai 2026-11-22 (1 valid run per bench; O arbitrated sonnet 0 — glm 1, minimax 4, hall confirmed by 2 of 3 readers, FP=1; IR 2.5 = glm 2 + minimax 3, FP=1 (glm) +1 cross-file bonus; DR2 6 = 6;6; I2-RG4 9.5 = glm 10 + minimax 9; D 5 = 5;5)">
+        <td class="model" rowspan="1" style="border-bottom:2px solid #e11d48"><span class="famdot" style="background:#e11d48"></span>mai-code-2</td><td>`default`</td><td class="num">0*</td><td class="num">2.5* <span class="muted">net</span></td><td class="num">6* <span class="muted">net</span></td><td class="num"></td><td class="num">5*</td><td class="cost">0.008-0.064</td>
+      </tr>
+      <tr title="mai-code-2-flash default — grid2 complete-data campaign (2026-11-16/17); catchup-mai 2026-11-22 (1 valid run per bench; O 5 = 5;5; IR 2 = 2;2; DR2 6.5 = glm 6 + minimax 7; I2-RG4 9 = glm 10 + minimax 8; D DNF — no DESIGN-d1.md, model refused citing a docs-connector blocker; IR task delegated to minimax-m3p1-flash xhigh child, cost delegation-inclusive)">
+        <td class="model" rowspan="1" style="border-bottom:2px solid #e11d48"><span class="famdot" style="background:#e11d48"></span>mai-code-2-flash</td><td>`default`</td><td class="num">5*</td><td class="num">2* <span class="muted">net</span></td><td class="num">6.5* <span class="muted">net</span></td><td class="num"></td><td class="num muted">DNF</td><td class="cost">0.001-0.022</td>
+      </tr>
+      <tr title="minimax-m3p1-flash low — grid2 complete-data campaign (2026-11-16/17); D: FP H3 both runs">
+        <td class="model" rowspan="5" style="border-bottom:2px solid #6d28d9"><span class="famdot" style="background:#6d28d9"></span>minimax-m3p1-flash</td><td>`low`</td><td class="num">5.5</td><td class="num">2.75 <span class="muted">net</span></td><td class="num">6.75 <span class="muted">net</span></td><td class="num">8</td><td class="num">2.08</td><td class="cost">0.03</td>
+      </tr>
+      <tr class="alt" title="minimax-m3p1-flash medium — grid2 complete-data campaign (2026-11-16/17); D mean incl. the 2/11 FP run">
+        <td>`medium`</td><td class="num">6</td><td class="num">3.38 <span class="muted">net</span></td><td class="num">8 <span class="muted">net</span></td><td class="num">7.62</td><td class="num">5.78</td><td class="cost">0.04</td>
+      </tr>
+      <tr title="minimax-m3p1-flash high — grid2 complete-data campaign (2026-11-16/17); D: 2 DNF then 5.5 (single valid)">
+        <td>`high`</td><td class="num">6.56</td><td class="num">3.5 <span class="muted">net</span></td><td class="num">8.25 <span class="muted">net</span></td><td class="num">6.12</td><td class="num">7.38*</td><td class="cost">0.05</td>
+      </tr>
+      <tr class="alt" title="minimax-m3p1-flash xhigh — grid2 complete-data campaign (2026-11-16/17); I2 7.04 (clean re-fold of the sonnet arbitration; runs f41=8, g51=5, m81=10); DR2 4 executed proofs (runs 9;14); H4 fold v3 +0.5 (g21 +1 over 2 runs)">
+        <td>`xhigh`</td><td class="num">6</td><td class="num">4.33 <span class="muted">net</span></td><td class="num">11.25 <span class="muted">net</span></td><td class="num">7.04</td><td class="num">7.31</td><td class="cost">0.03</td>
+      </tr>
+      <tr title="minimax-m3p1-flash max — grid2 complete-data campaign (2026-11-16/17); maxfill 2026-11-25 (1 valid run per bench; 2-family panel glm+1017, no minimax-family scorer; O 8/8 unanimous, ceiling-censored; IR 4.0 1 FP; DR2 7.5 divergent 6/9, 1 FP; I2-RG4 2.0 unanimous collapse; D 8.5 (glm 9, 1017 8) best measured; ~$0.047/task, D arm $0.149; verdict: non-monotone per bench, no seat change)">
+        <td>`max`</td><td class="num">8*</td><td class="num">4.0* <span class="muted">· FP 1</span></td><td class="num">7.5* <span class="muted">· FP 1</span></td><td class="num">2*</td><td class="num">8.5*</td><td class="cost">0.047</td>
       </tr>
       <tr title="muse-spark low — grid2 complete-data campaign (2026-11-16/17); O single valid run">
         <td class="model" rowspan="4" style="border-bottom:2px solid #c2185b"><span class="famdot" style="background:#c2185b"></span>muse-spark</td><td>`low`</td><td class="num">5*</td><td class="num">3 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09-0.11</td>
@@ -1670,35 +1694,11 @@
       <tr class="alt" title="muse-spark xhigh — grid2 complete-data campaign (2026-11-16/17); O single valid run; invents a green baseline">
         <td>`xhigh`</td><td class="num">3*</td><td class="num">3 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09-0.10</td>
       </tr>
-      <tr title="kimi-k3p1-pro medium — grid2 complete-data campaign (2026-11-16/17)">
-        <td class="model" rowspan="2" style="border-bottom:2px solid #52525b"><span class="famdot" style="background:#52525b"></span>kimi-k3p1-pro</td><td>`medium`</td><td class="num">5.19</td><td class="num">2.38 <span class="muted">net</span></td><td class="num">5.5 <span class="muted">net</span></td><td class="num">6.75</td><td class="num">6.94</td><td class="cost">0.15-0.20</td>
+      <tr title="qwen3p8-2p4t-a95b medium — grid2 complete-data campaign (2026-11-16/17); O panel mean 4.75; I2 clean re-fold 6.62 (1 DNF; two valid runs)">
+        <td class="model" rowspan="2" style="border-bottom:2px solid #d97706"><span class="famdot" style="background:#d97706"></span>qwen3p8-2p4t-a95b</td><td>`medium`</td><td class="num">4.75</td><td class="num">2 <span class="muted">net</span></td><td class="num">8.6 <span class="muted">net</span></td><td class="num">6.62</td><td class="num">1.2</td><td class="cost">0.30-0.68</td>
       </tr>
-      <tr class="alt" title="kimi-k3p1-pro high — grid2 complete-data campaign (2026-11-16/17)">
-        <td>`high`</td><td class="num">5.12</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.16-0.19</td>
-      </tr>
-      <tr title="claude-sonnet-5.5 medium — grid2 complete-data campaign (2026-11-16/17); IR 4 valid runs (5;5;4;5) - trace restored; holds strong-review">
-        <td class="model" rowspan="2" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-sonnet-5.5</td><td>`medium`</td><td class="num">5.5</td><td class="num">4.75 <span class="muted">net</span></td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="num muted">&mdash;</td><td class="cost">0.09-0.10</td>
-      </tr>
-      <tr class="alt" title="claude-sonnet-5.5 high — grid2 complete-data campaign (2026-11-16/17); D clean re-fold 8 (4 runs 7.5;DNF;8.5;8.5; watchdog 30-min needed); I2 panel mean 7.75 (4 raw runs 7;9;6;10 - c81=6, c82=10), variance 4 pts flagged; H4 fold v3 +0.4 (p3 +1, p5r2 +1 over 5 runs; r91/r93/r94 not credited)">
-        <td>`high`</td><td class="num">8</td><td class="num">4 <span class="muted">net</span></td><td class="num">7 <span class="muted">net</span></td><td class="num">7.75</td><td class="num">8.4</td><td class="cost">0.40-1.26</td>
-      </tr>
-      <tr title="claude-opus-5.5 default — grid2 complete-data campaign (2026-11-16/17); DR2 0/14: 2 FP - worst DR2 measured; H4 fold v3 +1 (p3r2b +1, p4 +1 over 2 runs)">
-        <td class="model" rowspan="1" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-opus-5.5</td><td>`default`</td><td class="num">6.56</td><td class="num">4 <span class="muted">net</span></td><td class="num">0 <span class="muted">· FP 2</span></td><td class="num">8.5</td><td class="num">9.58</td><td class="cost">0.95-1.82</td>
-      </tr>
-      <tr title="claude-fable-5 default — grid2 complete-data campaign (2026-11-16/17); O: hallucination -3; D: FP H3">
-        <td class="model" rowspan="1" style="border-bottom:2px solid #b3261e"><span class="famdot" style="background:#b3261e"></span>claude-fable-5</td><td>`default`</td><td class="num">6</td><td class="num">3 <span class="muted">net</span></td><td class="num">2 <span class="muted">net</span></td><td class="num">5.67</td><td class="num">2</td><td class="cost">~4</td>
-      </tr>
-      <tr title="gpt-6-astra default — grid2 complete-data campaign (2026-11-16/17); priced out (re-entry: price drop); performs at sonnet-class here">
-        <td class="model" rowspan="1" style="border-bottom:2px solid #a16207"><span class="famdot" style="background:#a16207"></span>gpt-6-astra</td><td>`default`</td><td class="num">7.4</td><td class="num">2.8 <span class="muted">net</span></td><td class="num">4.6 <span class="muted">net</span></td><td class="num">5.6</td><td class="num">6.12</td><td class="cost">~4</td>
-      </tr>
-      <tr title="mai-code-2 default — grid2 complete-data campaign (2026-11-16/17); catchup-mai 2026-11-22 (1 valid run per bench; O arbitrated sonnet 0 — glm 1, minimax 4, hall confirmed by 2 of 3 readers, FP=1; IR 2.5 = glm 2 + minimax 3, FP=1 (glm) +1 cross-file bonus; DR2 6 = 6;6; I2-RG4 9.5 = glm 10 + minimax 9; D 5 = 5;5)">
-        <td class="model" rowspan="1" style="border-bottom:2px solid #e11d48"><span class="famdot" style="background:#e11d48"></span>mai-code-2</td><td>`default`</td><td class="num">0*</td><td class="num">2.5* <span class="muted">net</span></td><td class="num">6* <span class="muted">net</span></td><td class="num"></td><td class="num">5*</td><td class="cost">0.008-0.064</td>
-      </tr>
-      <tr title="mai-code-2-flash default — grid2 complete-data campaign (2026-11-16/17); catchup-mai 2026-11-22 (1 valid run per bench; O 5 = 5;5; IR 2 = 2;2; DR2 6.5 = glm 6 + minimax 7; I2-RG4 9 = glm 10 + minimax 8; D DNF — no DESIGN-d1.md, model refused citing a docs-connector blocker; IR task delegated to minimax-m3p1-flash xhigh child, cost delegation-inclusive)">
-        <td class="model" rowspan="1" style="border-bottom:2px solid #e11d48"><span class="famdot" style="background:#e11d48"></span>mai-code-2-flash</td><td>`default`</td><td class="num">5*</td><td class="num">2* <span class="muted">net</span></td><td class="num">6.5* <span class="muted">net</span></td><td class="num"></td><td class="num muted">DNF</td><td class="cost">0.001-0.022</td>
-      </tr>
-      <tr title="grok-4.7 default — grid2 complete-data campaign (2026-11-16/17); grok-confirm 2026-11-23 (1 valid run per bench; 2-family panel glm+minimax, no grok-family scorer; O 8=8;8 ceiling-censored at 20x glm cost; IR 3.5 = glm 3 + minimax 4, 3/3 defects 0FP; DR2 7.5 = glm 9 + minimax 6 — FP dispute on the lock-window category, 9 cats + 0 executed proofs common ground; I2-RG4 8 = 8;8 identical breakdowns; D 1.5 = glm 3 + minimax 0, honesty 0 both — cannot write designs; verdict: strong-design-review-alternative2 NOT earned (DR2 below argon-high 9.5), dominated on price at sonnet-class cost)">
-        <td class="model" rowspan="1" style="border-bottom:2px solid #111827"><span class="famdot" style="background:#111827"></span>grok-4.7</td><td>`default`</td><td class="num">8</td><td class="num">3.5 <span class="muted">· FP 0</span></td><td class="num">7.5 <span class="muted">net</span></td><td class="num">8</td><td class="num">1.5</td><td class="cost">0.15-0.33</td>
+      <tr class="alt" title="qwen3p8-2p4t-a95b xhigh — grid2 complete-data campaign (2026-11-16/17); IR 4.0 (2 runs: 4;4) - misses seeded-3 both runs; single-run DR2; most expensive per task; H4 fold v3 +0.5 (p5 +1, p6 +1 over 4 runs)">
+        <td>`xhigh`</td><td class="num">6.75</td><td class="num">4.0 <span class="muted">net</span></td><td class="num">10 <span class="muted">net</span></td><td class="num">4.38</td><td class="num">6.9</td><td class="cost">0.95-1.19</td>
       </tr>
     </tbody>
   </table>

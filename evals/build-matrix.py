@@ -99,17 +99,15 @@ LADDER = ["default", "none", "low", "medium", "high", "xhigh", "max"]
 LADDER_IDX = {e: idx for idx, e in enumerate(LADDER)}
 
 # Group rows by model: one contiguous block per model (rowspan over all its
-# effort rows). Block order = first appearance in the CSV; efforts ordered by
-# the canonical ladder. Rows for the same model may be scattered in the CSV
-# (e.g. glm/max, 1017/max, minimax/max appended late) and are merged here.
-order = []
+# effort rows). Block order = alphabetical by the model cell text (display
+# name) used in the block header; efforts ordered by the canonical ladder.
+# Rows for the same model may be scattered in the CSV (e.g. glm/max,
+# 1017/max, minimax/max appended late) and are merged here.
 by_model = {}
 for r in data:
     m = r["model"]
-    if m not in by_model:
-        by_model[m] = []
-        order.append(m)
-    by_model[m].append(r)
+    by_model.setdefault(m, []).append(r)
+order = sorted(by_model, key=lambda m: MODELS[m][0])
 
 out = []
 for model in order:
