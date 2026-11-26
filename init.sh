@@ -82,12 +82,17 @@
 #     customized file is NEVER overwritten — the kit's current version is
 #     parked next to it as <file>.dev-workflow-kit-new for a manual merge
 #     (warning).
-#   - Model/variant defaults: refreshed to models.json's current value only
-#     when the file's model still equals the lock's recorded (kit-injected)
-#     value; a hand-set model is kept as-is (neutral note, not a warning).
-#     The `variant:` line follows the identical three-way rule — a hand-set
-#     variant is kept and not baselined, even when the model itself is
-#     refreshed.
+#   - Model/variant defaults: the effective value is the overrides file
+#     (dev-workflow-kit.overrides.json, next to the lock — personal model
+#     choices, `{ "<agent>": { "model": ..., "variant": ... } }`) when it
+#     names one, else models.json. A hand-set model:/variant: line (one that
+#     differs from the lock's last kit-injected value) is MIGRATED into the
+#     overrides file on first sight and reported; the file is then reconciled
+#     to the effective value whenever they differ (reported). Kit-injected
+#     values follow models.json as before.
+#   - Orphans: a lock key whose kit source is gone is removed (file copied to
+#     a timestamped backup dir under the lock's directory, then deleted) or
+#     pruned from the lock when no file is left. Only lock-proven files.
 #   - Never prompts: no TTY reads at all (the interactive availability menu
 #     is install-time only) — CI-safe, exits 0 unless a hard precondition
 #     fails (target not a git repo, never initialized, ...).
@@ -436,7 +441,10 @@ updated_body=()
 updated_model=()
 up_to_date=()
 manual_merge=()
-kept_model=()
+migrated=()
+removed_orphans=()
+pruned_keys=()
+BACKUP_DIR=""
 
 # Kit version: the VERSION file at the kit root is the single source of truth
 # (release gesture: bump it together with the git tag — README, "Releasing").
@@ -468,6 +476,16 @@ else
   AGENT_SRC_DIR="$KIT_DIR/workflow/agent"
   AGENT_DST_DIR="$TARGET/.opencode/agent"
   LOCK_FILE="$TARGET/.opencode/.dev-workflow-kit-lock.json"
+fi
+# Overrides file: next to the lock (global: the config directory). OVERRIDES_OK
+# drops to 0 when the file exists but is not a JSON object — then nothing is
+# read, migrated, written or reconciled until it is fixed.
+OVERRIDES_FILE="$(dirname "$LOCK_FILE")/dev-workflow-kit.overrides.json"
+OVERRIDES_OK=1
+if [[ -f "$OVERRIDES_FILE" ]] && command -v jq >/dev/null 2>&1 \
+   && ! jq -e 'type == "object"' "$OVERRIDES_FILE" >/dev/null 2>&1; then
+  OVERRIDES_OK=0
+  warnings+=("overrides file ${OVERRIDES_FILE#$TARGET/} is not a JSON object — ignored; no --update'd agent model is reconciled until it is fixed")
 fi
 
 # --with-rules is project-mode-only; say so early rather than silently
@@ -721,7 +739,37 @@ _rules_prefix_hash() {
 models_json() {
   local section="."
   [[ $GLOBAL_MODE -eq 1 ]] && section=".global"
+  # An override wins over models.json for its field. A variant override is
+  # only honored with its model: when the override names a model other than
+  # the kit's, the kit's variant does not ride along (no guessed effort).
+  if _override_has "$1" "$2"; then
+    _override_get "$1" "$2"
+    return 0
+  fi
+  if [[ "$2" == variant ]] && _override_has "$1" model; then
+    [[ "$(_override_get "$1" model)" == "$(jq -r --arg a "$1" "${section}[\$a].model // \"\"" "$MODELS_JSON" 2>/dev/null || true)" ]] || return 0
+  fi
   jq -r --arg a "$1" --arg f "$2" "${section}[\$a][\$f] // \"\"" "$MODELS_JSON" 2>/dev/null || true
+}
+
+# Overrides file access (see OVERRIDES_FILE). _override_has AGENT FIELD : true
+# when the overrides file names FIELD for AGENT; _override_get reads it;
+# _override_set writes it (atomic: temp file, then mv).
+_override_has() {
+  [[ $OVERRIDES_OK -eq 1 && -f "$OVERRIDES_FILE" ]] || return 1
+  jq -e --arg a "$1" --arg f "$2" '.[$a] | type == "object" and has($f)' "$OVERRIDES_FILE" >/dev/null 2>&1
+}
+_override_get() {
+  jq -r --arg a "$1" --arg f "$2" '.[$a][$f] // ""' "$OVERRIDES_FILE" 2>/dev/null || true
+}
+_override_set() {
+  local tmp
+  tmp="$(mktemp)" || return 1
+  if [[ -f "$OVERRIDES_FILE" ]]; then
+    jq --arg a "$1" --arg f "$2" --arg v "$3" '.[$a] = ((.[$a] // {}) + {($f): $v})' "$OVERRIDES_FILE" > "$tmp"
+  else
+    jq -n --arg a "$1" --arg f "$2" --arg v "$3" '{($a): {($f): $v}}' > "$tmp"
+  fi && mv "$tmp" "$OVERRIDES_FILE" || { rm -f "$tmp"; return 1; }
 }
 
 # _family_for_model MODEL : the family_hint of the models.json entry whose
@@ -952,6 +1000,21 @@ lock_set() {
   return 1
 }
 
+# lock_del REL : drop REL's entry from the lock (orphan pruning). No-op unless
+# lock_init succeeded; a jq failure warns, like lock_set.
+lock_del() {
+  [[ $LOCK_OK -eq 1 ]] || return 0
+  local tmp
+  tmp="$(mktemp)" || return 1
+  if jq --arg f "$1" 'del(.files[$f])' "$LOCK_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$LOCK_FILE"; then
+    LOCK_WRITTEN=1
+    return 0
+  fi
+  rm -f "$tmp"
+  warnings+=("could not drop $1 from the lock file ${LOCK_FILE#$TARGET/}")
+  return 1
+}
+
 # lock_set_components COMP... : record the run's component selection in the
 # lock's additive "components" array (schema version unchanged: a lock
 # without the field is still a valid lock — --update then treats every
@@ -1085,37 +1148,31 @@ sync_hook() {
 # CI-safe. See the header comment for the full contract.
 
 # update_agent_model DST REL AGENT : --update model/variant handling for an
-# EXISTING agent file (fresh copies inject the default directly). Per agent,
-# independent of the body outcome:
-#   - no recorded model in the lock (bootstrap: pre---update-era install) →
-#     cannot tell a user choice from a kit injection: record the file's
+# EXISTING agent file (fresh copies inject the effective default directly).
+# The effective value is the overrides file's when it names one, else
+# models.json's (see models_json). Per agent, independent of the body outcome:
+#   - no recorded model in the lock (bootstrap: pre---update-era install):
+#     cannot tell a user choice from a kit injection — record the file's
 #     CURRENT model/variant as the baseline, touch nothing;
-#   - file's model == lock's recorded model (the kit injected it, the user
-#     left it) → refresh to models.json's current default (and variant) when
-#     they changed;
-#   - file's model != lock's record → the user chose it (menu or by hand):
-#     kept as-is, neutral note. The lock is NOT updated, so the choice keeps
-#     being detected as the user's on later runs (updating the lock would let
-#     a future models.json change clobber it).
-# The `variant:` line follows the exact same three-way logic, independently:
-# a variant is user-customized when it differs from the lock's recorded
-# (kit-injected) value — kept as-is and NOT baselined, and never overwritten
-# by a refresh (not even when the model itself is refreshed). The
-# `# Model family:` line has no user state at all: _reconcile_agent_family
-# runs on EVERY path below, derived from the model actually in the file
-# (the refresh arms then re-derive it from the model they write) — so a
-# missing or stale header is fixed even when the model/variant logic
-# early-returns (bootstrap, kept model, missing models.json, no kit
-# default, unchanged model/variant); a model id with no family_hint mapping
-# loses the line.
+#   - a hand-set value (differs from the lock's last kit-injected value, and
+#     the overrides file has no value for that field yet) is MIGRATED: written
+#     to the overrides file and reported — the user's choice becomes an explicit
+#     override, and no longer counts as frozen customization;
+#   - the file is reconciled to the effective value whenever they differ
+#     (override > models.json default), reported with its reason; an emptied
+#     kit variant removes the variant line. The lock records what the file now
+#     holds, so the next run sees a kit-injected value again.
+# An unreadable overrides file (OVERRIDES_OK=0) stops the model reconciliation
+# for the agent: a hand-set value must never be overwritten because the file
+# that would protect it cannot be read. The `# Model family:` line has no user
+# state: _reconcile_agent_family runs on EVERY path below, derived from the
+# model actually in the file (the reconcile arm then re-derives it).
 update_agent_model() {
   local dst="$1" rel="$2" agent="$3"
-  local target_model target_variant lock_model kit_model kit_variant kit_family lock_variant
+  local target_model target_variant lock_model lock_variant
+  local desired_model desired_variant desired_family field cur lk reason
   target_model="$(_fm_value "$dst" model)"
   target_variant="$(_fm_value "$dst" variant)"
-  # Family reconciliation first — it must survive every early return below.
-  # Until a refresh writes another model, the model in the file is
-  # target_model, so the header follows it (the user's kept model included).
   _reconcile_agent_family "$dst" "$rel" "$target_model"
   if ! lock_has_model "$rel"; then
     # Bootstrap: no recorded model (pre---update-era install) — cannot tell a
@@ -1126,57 +1183,47 @@ update_agent_model() {
     return
   fi
   lock_model="$(lock_get "$rel" model)"
-  if [[ "$target_model" != "$lock_model" ]]; then
-    kept_model+=("$rel (model '${target_model:-<none>}' kept — differs from the last kit-injected default: user-configured)")
-    # Model/variant untouched — the user's choice stands. The family header
-    # was already reconciled above to the model actually in the file.
-    return
-  fi
-  [[ $MODELS_OK -eq 1 ]] || return
-  kit_model="$(models_json "$agent" model)"
-  kit_variant="$(models_json "$agent" variant)"
-  kit_family="$(_family_for_model "$kit_model")"
-  if [[ -z "$kit_model" ]]; then
-    return
-  fi
-  [[ -n "$kit_family" ]] || warnings+=("$rel: kit default model '$kit_model' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
-  # Three-way state of the variant — the same test the model applies against
-  # its own lock field: differing from the lock's recorded value means the
-  # user set it, so it is kept and not baselined.
   lock_variant="$(lock_get "$rel" variant)"
-  local variant_kept=0
-  [[ "$target_variant" != "$lock_variant" ]] && variant_kept=1
-  if [[ "$kit_model" != "$target_model" ]]; then
-    # Kit changed the model, the user kept the kit-injected one: refresh the
-    # model. The variant only rides along when the user hasn't customized it
-    # (an empty VARIANT argument leaves any existing `variant:` line alone —
-    # same rule as set_agent_model); a customized variant is not baselined.
-    local inject_variant="$kit_variant"
-    [[ $variant_kept -eq 1 ]] && inject_variant=""
-    if set_agent_model "$dst" "$kit_model" "$inject_variant" "$kit_family"; then
-      updated_model+=("$rel (model: $kit_model${inject_variant:+, variant: $inject_variant})")
-      lock_set "$rel" model "$kit_model"
-      [[ $variant_kept -eq 1 ]] || lock_set "$rel" variant "$kit_variant"
-    else
-      warnings+=("could not update the model of $rel")
+  if [[ $OVERRIDES_OK -eq 0 ]]; then
+    warnings+=("$rel: model/variant not reconciled — the overrides file is unreadable (see the warning above)")
+    return
+  fi
+  # Migration: a hand-set value with no override yet becomes one.
+  for field in model variant; do
+    if [[ $field == model ]]; then cur="$target_model"; lk="$lock_model"; else cur="$target_variant"; lk="$lock_variant"; fi
+    if [[ -n "$cur" && "$cur" != "$lk" ]] && ! _override_has "$agent" "$field"; then
+      if _override_set "$agent" "$field" "$cur"; then
+        migrated+=("$rel: hand-set $field '$cur' moved to $(basename "$OVERRIDES_FILE") — it now wins over models.json")
+      else
+        warnings+=("could not write the $field override for $rel — hand-set value left in place")
+        return
+      fi
+    fi
+  done
+  [[ $MODELS_OK -eq 1 ]] || return
+  desired_model="$(models_json "$agent" model)"
+  desired_variant="$(models_json "$agent" variant)"
+  [[ -n "$desired_model" ]] || return
+  if [[ "$target_model" == "$desired_model" && "$target_variant" == "$desired_variant" ]]; then
+    # Already the effective value: only the baseline may need moving.
+    if [[ "$desired_model" != "$lock_model" || "$desired_variant" != "$lock_variant" ]]; then
+      lock_set "$rel" model "$desired_model"
+      lock_set "$rel" variant "$desired_variant"
     fi
     return
   fi
-  # Model already equals models.json's default: refresh the variant alone,
-  # with the identical three-way condition — the kit's variant changed AND
-  # the user hasn't customized the file's. An emptied kit variant leaves any
-  # existing `variant:` line in place (same rule as set_agent_model) and
-  # only moves the lock baseline.
-  if [[ $variant_kept -eq 1 ]]; then
-    return
-  fi
-  if [[ "$kit_variant" != "$lock_variant" ]]; then
-    if set_agent_model "$dst" "$kit_model" "$kit_variant" "$kit_family"; then
-      lock_set "$rel" variant "$kit_variant"
-      [[ -n "$kit_variant" ]] && updated_model+=("$rel (variant: $kit_variant)")
-    else
-      warnings+=("could not update the variant of $rel")
-    fi
+  reason="models.json default"
+  _override_has "$agent" model && reason="override"
+  _override_has "$agent" variant && reason="override"
+  desired_family="$(_family_for_model "$desired_model")"
+  [[ -n "$desired_family" ]] || warnings+=("$rel: model '$desired_model' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
+  if set_agent_model "$dst" "$desired_model" "$desired_variant" "$desired_family"; then
+    [[ -n "$desired_variant" ]] || _remove_fm_line "$dst" variant
+    lock_set "$rel" model "$desired_model"
+    lock_set "$rel" variant "$desired_variant"
+    updated_model+=("$rel (${target_model:-<none>}${target_variant:+/$target_variant} → $desired_model${desired_variant:+/$desired_variant}; $reason)")
+  else
+    warnings+=("could not update the model of $rel")
   fi
 }
 
@@ -1195,6 +1242,21 @@ _park_sibling() {
   else
     manual_merge+=("$rel $reason — new kit version already at ${sibling#$TARGET/} for manual merge; not applied automatically")
   fi
+}
+
+# _diff_summary A B : compact size of the difference between two files, with
+# the injected keys stripped as in _bodies_equal — "+N/-M lines". Used for the
+# bootstrap verdict so a parked file says how far it is from the kit.
+_diff_summary() {
+  diff <(grep -vE "$_INJECTED_LINE_RE" "$1") <(grep -vE "$_INJECTED_LINE_RE" "$2") \
+    | awk '/^>/{a++} /^</{d++} END{printf "+%d/-%d lines", a+0, d+0}'
+}
+
+# _bootstrap_reason SUMMARY : the verdict for a diverged file with NO lock
+# baseline. Origin is unknown, so it is never called "customized": it is
+# parked with the diff size against the kit, for a manual decision.
+_bootstrap_reason() {
+  echo "diverged, origin unknown — no lock baseline (install from before --update?): $1 vs the kit body"
 }
 
 # update_body_3way SRC DST REL HASH_CMD : the lock-driven three-way body
@@ -1246,7 +1308,7 @@ update_body_3way() {
       BODY_CURRENT=1
       lock_set "$rel" body_sha256 "$kit_hash"
     else
-      _park_sibling "$src" "$sibling" "$rel" "differs from the kit version and no lock baseline exists (install from before --update) — assumed customized"
+      _park_sibling "$src" "$sibling" "$rel" "$(_bootstrap_reason "$(_diff_summary "$src" "$dst")")"
     fi
   fi
 }
@@ -1380,7 +1442,9 @@ update_convention_split() {
       up_to_date+=("$rel")
       lock_set "$rel" body_sha256 "$kit_hash"
     else
-      _park_sibling "$src" "$sibling" "$rel" "differs from the kit version in its kit-authored part (above '## Project rules') and no lock baseline exists (install from before --update) — assumed customized"
+      n_src="$(grep -n -m1 -E "$_RULES_MARKER" "$src" | cut -d: -f1)"
+      n_dst="$(grep -n -m1 -E "$_RULES_MARKER" "$dst" | cut -d: -f1)"
+      _park_sibling "$src" "$sibling" "$rel" "$(_bootstrap_reason "$(_diff_summary <(head -n "$n_src" "$src") <(head -n "$n_dst" "$dst")) (kit-authored part, above '## Project rules')")"
     fi
   fi
 }
@@ -1435,6 +1499,60 @@ update_pr_review() {
     rel="skill/pr-review/${f#"$KIT_DIR/workflow/skill/pr-review/"}"
     update_sync_managed "$f" "$TARGET/.opencode/$rel" "$rel" 0 ""
   done < <(find "$KIT_DIR/workflow/skill/pr-review" -type f -print0 2>/dev/null)
+}
+
+# update_orphans : --update step for files the kit no longer ships. Walks the
+# lock's agent/ and skill/ keys whose components this run syncs and looks for
+# a kit source. The lock entry is the only proof of kit origin, so nothing
+# without one is touched:
+#   - a deployed file behind an orphan key is COPIED to a timestamped backup
+#     dir under the lock's directory, then deleted, and its key dropped
+#     (reported under "Removed");
+#   - an orphan key with no deployed file is pruned (reported under "Pruned");
+#     its lock entry is kept in the backup dir as lock-entries.jsonl.
+# pr-review keys are left alone when this kit version does not ship the skill.
+update_orphans() {
+  local key src dst
+  local -a keys=()
+  [[ $LOCK_OK -eq 1 ]] || return 0
+  while IFS= read -r key; do
+    [[ -n "$key" ]] && keys+=("$key")
+  done < <(jq -r '.files | keys[]' "$LOCK_FILE" 2>/dev/null || true)
+  for key in "${keys[@]}"; do
+    case "$key" in
+      agent/*.md)
+        [[ $U_WF -eq 1 || ($GLOBAL_MODE -eq 1 && $U_ROSTER -eq 1) ]] || continue
+        src="$AGENT_SRC_DIR/${key#agent/}"
+        dst="$AGENT_DST_DIR/${key#agent/}"
+        ;;
+      skill/pr-review/*)
+        [[ $U_PR -eq 1 && -d "$KIT_DIR/workflow/skill/pr-review" ]] || continue
+        src="$KIT_DIR/workflow/skill/${key#skill/}"
+        dst="$TARGET/.opencode/$key"
+        ;;
+      skill/*)
+        [[ $U_WF -eq 1 && $GLOBAL_MODE -eq 0 ]] || continue
+        src="$KIT_DIR/workflow/skill/${key#skill/}"
+        dst="$TARGET/.opencode/$key"
+        ;;
+      *) continue ;;
+    esac
+    [[ -e "$src" ]] && continue
+    if [[ -z "$BACKUP_DIR" ]]; then
+      BACKUP_DIR="$(dirname "$LOCK_FILE")/dev-workflow-kit-backup/$(date -u +%Y%m%dT%H%M%SZ)"
+      mkdir -p "$BACKUP_DIR" || { warnings+=("could not create the backup dir $BACKUP_DIR — no orphan removed"); return 0; }
+    fi
+    if [[ -e "$dst" ]]; then
+      mkdir -p "$BACKUP_DIR/$(dirname "$key")" && cp "$dst" "$BACKUP_DIR/$key" \
+        || { warnings+=("could not back up $key — orphan left in place"); continue; }
+      rm -f "$dst" || { warnings+=("could not delete $key — orphan left in place"); continue; }
+      removed_orphans+=("$key")
+    else
+      pruned_keys+=("$key")
+    fi
+    jq -c --arg k "$key" '{key: $k, entry: .files[$k]}' "$LOCK_FILE" >> "$BACKUP_DIR/lock-entries.jsonl" 2>/dev/null
+    lock_del "$key"
+  done
 }
 
 if [[ $UPDATE -eq 1 ]]; then
@@ -1531,6 +1649,7 @@ if [[ $UPDATE -eq 1 ]]; then
       update_pr_review
     fi
   fi
+  update_orphans
 
   echo ""
   echo "=== dev-workflow-kit: update summary for $TARGET ==="
@@ -1551,9 +1670,17 @@ if [[ $UPDATE -eq 1 ]]; then
     echo "Up to date:"
     printf '  = %s\n' "${up_to_date[@]}"
   fi
-  if [[ ${#kept_model[@]} -gt 0 ]]; then
-    echo "Kept (user-configured model):"
-    printf '  = %s\n' "${kept_model[@]}"
+  if [[ ${#migrated[@]} -gt 0 ]]; then
+    echo "Migrated (hand-set model/variant moved to $(basename "$OVERRIDES_FILE")):"
+    printf '  > %s\n' "${migrated[@]}"
+  fi
+  if [[ ${#removed_orphans[@]} -gt 0 ]]; then
+    echo "Removed (kit no longer ships them; origin proven by the lock; copies in $BACKUP_DIR):"
+    printf '  - %s\n' "${removed_orphans[@]}"
+  fi
+  if [[ ${#pruned_keys[@]} -gt 0 ]]; then
+    echo "Pruned (lock keys with no kit source and no file; entries kept in $BACKUP_DIR/lock-entries.jsonl):"
+    printf '  - %s\n' "${pruned_keys[@]}"
   fi
   if [[ ${#manual_merge[@]} -gt 0 ]]; then
     echo "Needs manual merge (customization preserved):"
@@ -1567,7 +1694,7 @@ if [[ $UPDATE -eq 1 ]]; then
   # rewrote the lock (baselines, model records, bootstrap creation);
   # "already at" otherwise.
   if [[ -n "$KIT_VERSION" ]]; then
-    if [[ ${#updated_body[@]} -gt 0 || ${#updated_model[@]} -gt 0 || ${#copied[@]} -gt 0 || $LOCK_WRITTEN -eq 1 ]]; then
+    if [[ ${#updated_body[@]} -gt 0 || ${#updated_model[@]} -gt 0 || ${#copied[@]} -gt 0 || ${#removed_orphans[@]} -gt 0 || ${#migrated[@]} -gt 0 || $LOCK_WRITTEN -eq 1 ]]; then
       echo "now at v$KIT_VERSION"
     else
       echo "already at v$KIT_VERSION"
