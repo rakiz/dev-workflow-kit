@@ -134,7 +134,7 @@ def name_model(name):
     """'opus-default' -> 'opus'; 'opus' -> 'opus' (the CSV model/effort pair)."""
     if name in gc.SEATS or ("-" not in name):
         return name
-    for e in ("default", "low", "medium", "high", "xhigh"):
+    for e in ("default", "low", "medium", "high", "xhigh", "max"):
         if name.endswith("-" + e):
             return name[: -(len(e) + 1)]
     return name
@@ -143,7 +143,7 @@ def name_model(name):
 def name_effort(name):
     if name in gc.SEATS or ("-" not in name):
         return "default"
-    for e in ("default", "low", "medium", "high", "xhigh"):
+    for e in ("default", "low", "medium", "high", "xhigh", "max"):
         if name.endswith("-" + e):
             return e
     return "default"

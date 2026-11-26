@@ -1,0 +1,12 @@
+PRICE-FRESHNESS: n/a (no ai-gateway-misc arm in this campaign)
+15:08:41 001 O/fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017/max/a1 ok spent=0.0182 recorded=0.0182 estimated_misc=0.0000 (estimated)
+15:10:14 002 IR/fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017/max/a1 ok spent=0.0504 recorded=0.0504 estimated_misc=0.0000 (estimated)
+15:11:16 003 DR2/fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017/max/a1 ok spent=0.0721 recorded=0.0721 estimated_misc=0.0000 (estimated)
+15:14:48 004 I2-RG4/fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017/max/a1 ok spent=0.1520 recorded=0.1520 estimated_misc=0.0000 (estimated)
+15:22:17 005 D/fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017/max/a1 ok spent=0.2482 recorded=0.2482 estimated_misc=0.0000 (estimated)
+15:24:27 006 O/fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash/max/a1 ok spent=0.2670 recorded=0.2670 estimated_misc=0.0000 (estimated)
+15:25:59 007 IR/fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash/max/a1 ok spent=0.2825 recorded=0.2825 estimated_misc=0.0000 (estimated)
+15:40:59 008 DR2/fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash/max/a1 timeout spent=0.3138 recorded=0.3138 estimated_misc=0.0000 (estimated)
+15:45:26 009 I2-RG4/fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash/max/a1 ok spent=0.3416 recorded=0.3416 estimated_misc=0.0000 (estimated)
+16:15:26 010 D/fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash/max/a1 timeout spent=0.4466 recorded=0.4466 estimated_misc=0.0000 (estimated)
+CAMPAIGN DONE id=maxfill spent=0.4466 recorded=0.4466 estimated_misc=0.0000 (estimated) budget_usd=3.00

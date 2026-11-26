@@ -32,6 +32,10 @@ MODELS = {
     "gpt-6.2-sol": ("gpt-6.2-sol", "#a16207"),
     "mai-code-2": ("mai-code-2", "#e11d48"),
     "mai-code-2-flash": ("mai-code-2-flash", "#e11d48"),
+    # grok-4.7 was removed from roster/models.json (alternative2 rung vacated
+    # 2026-11-23); its grid2 CSV row predates that removal, so a fixed family
+    # color is used here (no roster family_hint to copy).
+    "grok": ("grok-4.7", "#111827"),
 }
 def parse_fp(note, bench):
     """FP count only where the note states it for this bench (same rule as gen-charts)."""
@@ -90,22 +94,36 @@ for raw in rows[1:]:
         raw = fixed
     data.append(dict(zip(header, raw)))
 
-out, i, n = [], 0, len(data)
-while i < n:
-    model = data[i]["model"]
-    j = i
-    while j < n and data[j]["model"] == model:
-        j += 1
+# canonical effort ladder — rows are ordered by this within each model block
+LADDER = ["default", "none", "low", "medium", "high", "xhigh", "max"]
+LADDER_IDX = {e: idx for idx, e in enumerate(LADDER)}
+
+# Group rows by model: one contiguous block per model (rowspan over all its
+# effort rows). Block order = first appearance in the CSV; efforts ordered by
+# the canonical ladder. Rows for the same model may be scattered in the CSV
+# (e.g. glm/max, 1017/max, minimax/max appended late) and are merged here.
+order = []
+by_model = {}
+for r in data:
+    m = r["model"]
+    if m not in by_model:
+        by_model[m] = []
+        order.append(m)
+    by_model[m].append(r)
+
+out = []
+for model in order:
+    mrows = sorted(by_model[model], key=lambda r: LADDER_IDX.get(r["effort"], len(LADDER)))
     disp, color = MODELS[model]
-    for k in range(i, j):
-        r = data[k]
+    cnt = len(mrows)
+    for k, r in enumerate(mrows):
         effort = r["effort"]
         note = r["notes"].strip().lstrip("-").strip()
         title = html.escape(f"{disp} {effort} — grid2 complete-data campaign (2026-11-16/17)" + (f"; {note}" if note else ""), quote=True)
-        cls = ' class="alt"' if (k - i) % 2 == 1 else ""
+        cls = ' class="alt"' if k % 2 == 1 else ""
         tds = []
-        if k == i:
-            tds.append(f'<td class="model" rowspan="{j - i}" style="border-bottom:2px solid {color}">'
+        if k == 0:
+            tds.append(f'<td class="model" rowspan="{cnt}" style="border-bottom:2px solid {color}">'
                        f'<span class="famdot" style="background:{color}"></span>{disp}</td>')
         tds.append(f"<td>`{effort}`</td>")
         for col in ("O8", "IR", "DR2", "I2", "D"):
@@ -116,7 +134,8 @@ while i < n:
                 tds.append(cell(v, model, effort, col, r["notes"]))
         tds.append(cost_cell(r["cost_per_task_est"]))
         out.append(f'      <tr{cls} title="{title}">\n        ' + "".join(tds) + "\n      </tr>")
-    i = j
+
+n = len(data)
 
 new_tbody = "<tbody>\n" + "\n".join(out) + "\n    </tbody>"
 

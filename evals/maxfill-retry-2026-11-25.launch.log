@@ -1,0 +1,4 @@
+PRICE-FRESHNESS: n/a (no ai-gateway-misc arm in this campaign)
+16:21:35 001 DR2/fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash/max/a1 ok spent=0.0229 recorded=0.0229 estimated_misc=0.0000 (estimated)
+16:21:35 002 D/fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash/max/a1 STOP-BUDGET spent=0.0229 recorded=0.0229 estimated_misc=0.0000 (estimated)
+CAMPAIGN DONE id=maxfill-retry spent=0.0229 recorded=0.0229 estimated_misc=0.0000 (estimated) budget_usd=1.00

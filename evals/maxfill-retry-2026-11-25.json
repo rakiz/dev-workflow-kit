@@ -1,0 +1,37 @@
+{
+ "id": "maxfill-retry",
+ "date": "2026-11-25",
+ "budget_usd": 1.0,
+ "parallelism": 1,
+ "timeout_default": 1800,
+ "benches": {
+  "DR2": {
+   "runner": "run-eval-v5.sh",
+   "task": "T4V2",
+   "title_token": "T4V2"
+  },
+  "D": {
+   "runner": "run-eval-v4.sh",
+   "task": "D1",
+   "title_token": "D-D1"
+  }
+ },
+ "arms": [
+  {
+   "bench": "DR2",
+   "model": "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash",
+   "variant": "max",
+   "cap": 0.10,
+   "attempts": 1,
+   "timeout": 1800
+  },
+  {
+   "bench": "D",
+   "model": "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash",
+   "variant": "max",
+   "cap": 0.50,
+   "attempts": 1,
+   "timeout": 3600
+  }
+ ]
+}

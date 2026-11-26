@@ -1,0 +1,3 @@
+# campaign maxfill-retry2 date=2026-11-25 budget_usd=1.50 start_ms=1795626922759 jobs=1
+18:34:41 001 D/fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash/max/a1 ok spent=0.1493 recorded=0.1493 estimated_misc=0.0000 (estimated)
+# done spent=0.1493 recorded=0.1493 estimated_misc=0.0000 (estimated) budget_usd=1.50

@@ -247,6 +247,8 @@ Eval 2026-10-14 addendum — gemini-4-argon `high` takes the
 9/10 average over 2 runs (10, 8) at ~$0.09/task vs s5.5's ~$0.13 — rung
 swap, one more distinct lineage in the cross-review chain.
 
+2026-11-25 maxfill: effort `max` measured (5 benches, 2-family panel) — 1017: ≈ its `high` everywhere, no re-seat; minimax: non-monotone (D 8.5/11 best measured at $0.149/task, I2-RG4 2.0/14 collapse, DR2 7.5) — seats unchanged, detail evals/2026-11-25/RESULTS.md.
+
 ### Escalation semantics
 
 Rung N+1 is invoked only when rung N failed, stalled or expressed doubt —
