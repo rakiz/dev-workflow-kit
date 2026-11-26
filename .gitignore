@@ -2,6 +2,9 @@ __pycache__/
 *.pyc
 .DS_Store
 
-# Temporary working docs (untrack until real project docs are written)
-docs/
+# Owner scratch: journal, backlog, media (private until triaged; never tracked)
+scratch/
+
+# Kit-local, untracked (owner-only command files)
 evals/*.poller.hb
+.opencode/
