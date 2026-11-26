@@ -151,6 +151,10 @@ FLAGS
                       one is never touched). Without it: auto-detected.
   --update            Sync an already-initialized target (see below).
   --global            Global mode (see above).
+  --doctor            Read-only drift report for the target (--global or a
+                      target only; writes nothing). Exit 0 clean, 1 drift:
+                      baselines, body vs kit, model/variant vs the effective
+                      value, pending siblings, orphan keys, parked hook.
   --self-check        Read-only kit integrity audit, runs alone (no install):
                       every kit-side source path this script references
                       exists, and every lock REL key stays within the
@@ -312,6 +316,7 @@ WITH_RULES=0
 UPDATE=0
 GLOBAL_MODE=0
 SELF_CHECK=0
+DOCTOR=0
 COMPANIONS_FLAG=""
 ONLY_GIVEN=0
 ONLY_COMPONENTS=()
@@ -322,6 +327,7 @@ for arg in "$@"; do
     --update) UPDATE=1 ;;
     --global) GLOBAL_MODE=1 ;;
     --self-check) SELF_CHECK=1 ;;
+    --doctor) DOCTOR=1 ;;
     --companions=on) COMPANIONS_FLAG=on ;;
     --companions=off) COMPANIONS_FLAG=off ;;
     --companions=*)
@@ -365,6 +371,15 @@ if [[ $SELF_CHECK -eq 1 ]]; then
   fi
   self_check
   exit $?
+fi
+
+# --doctor: read-only drift report, runs alone apart from --global or a target.
+if [[ $DOCTOR -eq 1 ]]; then
+  if [[ $WITH_RULES -ne 0 || $UPDATE -ne 0 || $SELF_CHECK -ne 0 \
+        || $ONLY_GIVEN -ne 0 || -n "$COMPANIONS_FLAG" ]]; then
+    echo "init: --doctor is read-only and runs alone — only --global or a target." >&2
+    exit 1
+  fi
 fi
 
 # --global is exclusive with the project mode in a single run: it takes no
@@ -420,7 +435,8 @@ done
 
 if [[ $GLOBAL_MODE -eq 1 ]]; then
   TARGET="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
-  mkdir -p "$TARGET" 2>/dev/null || { echo "init: cannot create the opencode config directory: '$TARGET'" >&2; exit 1; }
+  # --doctor is read-only: it never creates the config directory.
+  [[ $DOCTOR -eq 1 ]] || mkdir -p "$TARGET" 2>/dev/null || { echo "init: cannot create the opencode config directory: '$TARGET'" >&2; exit 1; }
   TARGET="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "init: opencode config directory not accessible: '${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}'" >&2; exit 1; }
 else
   TARGET="${positionals[0]:-$PWD}"
@@ -442,6 +458,8 @@ updated_model=()
 up_to_date=()
 manual_merge=()
 migrated=()
+DOCTOR_DRIFT=()
+DOCTOR_INFO=()
 removed_orphans=()
 pruned_keys=()
 BACKUP_DIR=""
@@ -737,8 +755,6 @@ _rules_prefix_hash() {
 # mode (--global) reads the same fields under the "global" section (the
 # session roster). Project lookups are untouched by --global.
 models_json() {
-  local section="."
-  [[ $GLOBAL_MODE -eq 1 ]] && section=".global"
   # An override wins over models.json for its field. A variant override is
   # only honored with its model: when the override names a model other than
   # the kit's, the kit's variant does not ride along (no guessed effort).
@@ -747,8 +763,17 @@ models_json() {
     return 0
   fi
   if [[ "$2" == variant ]] && _override_has "$1" model; then
-    [[ "$(_override_get "$1" model)" == "$(jq -r --arg a "$1" "${section}[\$a].model // \"\"" "$MODELS_JSON" 2>/dev/null || true)" ]] || return 0
+    [[ "$(_override_get "$1" model)" == "$(_kit_value "$1" model)" ]] || return 0
   fi
+  _kit_value "$1" "$2"
+}
+
+# _kit_value AGENT FIELD : models.json's own value, overrides ignored (""
+# when absent). Project mode reads the flat map; global mode (--global) the
+# "global" section.
+_kit_value() {
+  local section="."
+  [[ $GLOBAL_MODE -eq 1 ]] && section=".global"
   jq -r --arg a "$1" --arg f "$2" "${section}[\$a][\$f] // \"\"" "$MODELS_JSON" 2>/dev/null || true
 }
 
@@ -1154,10 +1179,12 @@ sync_hook() {
 #   - no recorded model in the lock (bootstrap: pre---update-era install):
 #     cannot tell a user choice from a kit injection — record the file's
 #     CURRENT model/variant as the baseline, touch nothing;
-#   - a hand-set value (differs from the lock's last kit-injected value, and
-#     the overrides file has no value for that field yet) is MIGRATED: written
-#     to the overrides file and reported — the user's choice becomes an explicit
-#     override, and no longer counts as frozen customization;
+#   - a hand-set value (differs from the lock's last kit-injected value AND
+#     from models.json's own default, and the overrides file has no value for
+#     that field yet) is MIGRATED: written to the overrides file and reported —
+#     the user's choice becomes an explicit override, and no longer counts as
+#     frozen customization. A value equal to the kit default only heals the
+#     stale lock record;
 #   - the file is reconciled to the effective value whenever they differ
 #     (override > models.json default), reported with its reason; an emptied
 #     kit variant removes the variant line. The lock records what the file now
@@ -1188,10 +1215,12 @@ update_agent_model() {
     warnings+=("$rel: model/variant not reconciled — the overrides file is unreadable (see the warning above)")
     return
   fi
-  # Migration: a hand-set value with no override yet becomes one.
+  # Migration: a hand-set value with no override yet becomes one. A value
+  # equal to models.json's own default is not a choice that conflicts with
+  # the kit — it only means the lock's record is stale — so it is not pinned.
   for field in model variant; do
     if [[ $field == model ]]; then cur="$target_model"; lk="$lock_model"; else cur="$target_variant"; lk="$lock_variant"; fi
-    if [[ -n "$cur" && "$cur" != "$lk" ]] && ! _override_has "$agent" "$field"; then
+    if [[ -n "$cur" && "$cur" != "$lk" && "$cur" != "$(_kit_value "$agent" "$field")" ]] && ! _override_has "$agent" "$field"; then
       if _override_set "$agent" "$field" "$cur"; then
         migrated+=("$rel: hand-set $field '$cur' moved to $(basename "$OVERRIDES_FILE") — it now wins over models.json")
       else
@@ -1554,6 +1583,145 @@ update_orphans() {
     lock_del "$key"
   done
 }
+
+# run_doctor : --doctor, the read-only drift report. Writes nothing — no lock
+# init, no config-directory creation, no file touched. For every tracked file
+# (the lock's agent/, skill/ and rules/convention keys, plus each kit agent of
+# this mode) it checks: the file is present; a lock baseline exists; the body
+# equals the kit body (injected keys stripped); the model:/variant:/family
+# lines equal the effective value (overrides > models.json); no pending
+# .dev-workflow-kit-new or -prev sibling; no orphan key. Project mode also
+# reports a parked pre-commit.dev-workflow-kit. A hand-set line the overrides
+# file already covers is INFO only. Exit 0 when clean, 1 on any drift — so a
+# later step can gate on it.
+_doc_drift() { DOCTOR_DRIFT+=("$1"); }
+_doc_info() { DOCTOR_INFO+=("$1"); }
+run_doctor() {
+  local rel name src dst kit_hash dep_hash lock_hash sfx
+  local em ev dm dv fam cur hooks hook_alt summary
+  local -a keys=()
+  if ! command -v jq >/dev/null 2>&1 || ! command -v shasum >/dev/null 2>&1; then
+    echo "init: --doctor requires jq and shasum." >&2
+    return 2
+  fi
+  if [[ $OVERRIDES_OK -eq 0 ]]; then
+    _doc_drift "overrides file ${OVERRIDES_FILE#$TARGET/} is not a JSON object — no override applies until it is fixed"
+  fi
+  if [[ ! -f "$LOCK_FILE" ]]; then
+    _doc_drift "no lock file ${LOCK_FILE#$TARGET/} — no baseline for any file (never installed, or a pre-lock install)"
+  elif ! jq -e 'type == "object" and (.files | type == "object")' "$LOCK_FILE" >/dev/null 2>&1; then
+    _doc_drift "lock file ${LOCK_FILE#$TARGET/} is not valid JSON — no baseline can be read"
+  else
+    while IFS= read -r rel; do
+      [[ -n "$rel" ]] && keys+=("$rel")
+    done < <(jq -r '.files | keys[]' "$LOCK_FILE" 2>/dev/null || true)
+    local lock_kv
+    lock_kv="$(jq -r '.kit_version // ""' "$LOCK_FILE" 2>/dev/null || true)"
+    if [[ -n "$lock_kv" && -n "$KIT_VERSION" && "$lock_kv" != "$KIT_VERSION" ]]; then
+      _doc_info "lock records kit v$lock_kv, this kit is v$KIT_VERSION — a --update is due"
+    fi
+  fi
+  # Kit agents of this mode, even when the lock has no key for them (not deployed).
+  for src in "$AGENT_SRC_DIR"/*.md; do
+    [[ -e "$src" ]] || continue
+    rel="agent/$(basename "$src")"
+    [[ " ${keys[*]} " == *" $rel "* ]] || keys+=("$rel")
+  done
+
+  local checked=0
+  for rel in "${keys[@]}"; do
+    checked=$((checked + 1))
+    case "$rel" in
+      agent/*.md)
+        src="$AGENT_SRC_DIR/${rel#agent/}"; dst="$AGENT_DST_DIR/${rel#agent/}" ;;
+      skill/pr-review/*)
+        src="$KIT_DIR/workflow/skill/${rel#skill/}"; dst="$TARGET/.opencode/$rel" ;;
+      skill/*)
+        src="$KIT_DIR/workflow/skill/${rel#skill/}"; dst="$TARGET/.opencode/$rel" ;;
+      CONVENTIONS*|RULES*)
+        src="$KIT_DIR/workflow/templates/$rel"; dst="$TARGET/$rel"
+        if [[ ! -f "$src" ]]; then _doc_drift "$rel: orphan lock key — the kit no longer ships it"; continue; fi
+        if [[ ! -f "$dst" ]]; then _doc_drift "$rel: tracked file missing (--update restores it when already tracked)"; continue; fi
+        if grep -q -E "$_RULES_MARKER" "$src" && grep -q -E "$_RULES_MARKER" "$dst"; then
+          kit_hash="$(_rules_prefix_hash "$src")"; dep_hash="$(_rules_prefix_hash "$dst")"
+        else
+          kit_hash="$(_raw_hash "$src")"; dep_hash="$(_raw_hash "$dst")"
+        fi
+        [[ "$dep_hash" == "$kit_hash" ]] || _doc_drift "$rel: kit-authored part differs from the kit (customized, or a stale kit version)"
+        [[ -n "$(lock_get "$rel" body_sha256)" ]] || _doc_drift "$rel: no lock baseline"
+        for sfx in dev-workflow-kit-new dev-workflow-kit-prev; do
+          [[ -e "$dst.$sfx" ]] && _doc_drift "$rel: sibling $rel.$sfx present (pending manual merge or backup)"
+        done
+        continue ;;
+      *) _doc_drift "$rel: unrecognized lock key"; continue ;;
+    esac
+    if [[ ! -f "$src" ]]; then _doc_drift "$rel: orphan lock key — the kit no longer ships it (--update removes it)"; continue; fi
+    if [[ ! -f "$dst" ]]; then
+      if [[ -n "$(lock_get "$rel" body_sha256)" ]]; then
+        _doc_drift "$rel: tracked file missing (--update restores it)"
+      else
+        _doc_drift "$rel: not deployed (the kit ships it — --update installs it)"
+      fi
+      continue
+    fi
+    lock_hash="$(lock_get "$rel" body_sha256)"
+    [[ -n "$lock_hash" ]] || _doc_drift "$rel: no lock baseline (--update would park a diverged body without a verdict of origin)"
+    kit_hash="$(_body_hash "$src")"; dep_hash="$(_body_hash "$dst")"
+    [[ "$dep_hash" == "$kit_hash" ]] || _doc_drift "$rel: body differs from the kit (locally customized, or a stale kit version)"
+    for sfx in dev-workflow-kit-new dev-workflow-kit-prev; do
+      [[ -e "$dst.$sfx" ]] && _doc_drift "$rel: sibling $(basename "$dst").$sfx present (pending manual merge or backup)"
+    done
+    if [[ "$rel" == agent/*.md && -f "$MODELS_JSON" ]]; then
+      name="${rel#agent/}"; name="${name%.md}"
+      em="$(models_json "$name" model)"; ev="$(models_json "$name" variant)"
+      dm="$(_fm_value "$dst" model)"; dv="$(_fm_value "$dst" variant)"
+      if [[ -n "$em" ]]; then
+        if [[ "$dm" != "$em" || "$dv" != "$ev" ]]; then
+          _doc_drift "$rel: deployed model '${dm:-<none>}'${dv:+ variant '$dv'} != effective '$em'${ev:+ variant '$ev'} (hand-set or stale — --update reconciles it)"
+        elif [[ "$(lock_get "$rel" model)" != "$dm" ]]; then
+          _doc_info "$rel: hand-set model/variant, matches the effective value (override)"
+        fi
+        fam="$(_family_for_model "$em")"
+        cur="$(_fm_value "$dst" "# Model family")"
+        [[ "$cur" == "${fam:+$fam.}" ]] || _doc_drift "$rel: '# Model family' line is '${cur:-<none>}', expected '${fam:-<none>}'"
+      fi
+    fi
+  done
+
+  # Project mode: a parked pre-commit hook the kit installed beside a foreign one.
+  if [[ $GLOBAL_MODE -eq 0 ]] && git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
+    hooks="$(git -C "$TARGET" rev-parse --git-path hooks)"
+    [[ "$hooks" = /* ]] || hooks="$TARGET/$hooks"
+    hook_alt="$hooks/pre-commit.dev-workflow-kit"
+    if [[ -e "$hook_alt" ]]; then
+      if cmp -s "$KIT_DIR/workflow/hooks/pre-commit.sh" "$hook_alt"; then
+        summary="identical to the kit hook"
+      else
+        summary="$(_diff_summary "$KIT_DIR/workflow/hooks/pre-commit.sh" "$hook_alt")"
+      fi
+      _doc_drift "parked hook ${hook_alt#$TARGET/} ($summary) — Git does NOT run it; merge it by hand, then delete it"
+    fi
+  fi
+
+  echo "=== dev-workflow-kit: doctor for $TARGET ==="
+  echo "Checked: $checked tracked/kit file(s) (lock: ${LOCK_FILE#$TARGET/})"
+  local d
+  for d in "${DOCTOR_DRIFT[@]}"; do printf '  DRIFT %s\n' "$d"; done
+  for d in "${DOCTOR_INFO[@]}"; do printf '  info  %s\n' "$d"; done
+  if [[ ${#DOCTOR_DRIFT[@]} -eq 0 ]]; then
+    echo "Clean: no drift."
+    return 0
+  fi
+  local upd="./init.sh --update"
+  [[ $GLOBAL_MODE -eq 1 ]] && upd+=" --global"
+  echo "Drift: ${#DOCTOR_DRIFT[@]} item(s) — run '$upd' to reconcile what --update covers; see the lines above for the rest."
+  return 1
+}
+
+if [[ $DOCTOR -eq 1 ]]; then
+  run_doctor
+  exit $?
+fi
 
 if [[ $UPDATE -eq 1 ]]; then
   # Which components does this --update sync? Priority: --only wins (used to
