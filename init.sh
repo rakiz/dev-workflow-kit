@@ -221,8 +221,8 @@ EOF
 #      install/update paths name, the pre-commit hook, models.json, VERSION;
 #   2. every REL key init.sh writes into a lock file stays within the lock's
 #      project-side namespace ^(agent|skill|CONVENTIONS|RULES). The keys are
-#      read from the explicit manifest (a here-doc in self_check), not parsed
-#      out of this script: a new lock key must be added to the manifest, and
+#      read from LOCK_KEY_MANIFEST (hand-maintained), not parsed out of this
+#      script: a new lock key shape must be added to the manifest, and
 #      a key outside the namespace fails the check, so it can never silently
 #      corrupt the lock schema.
 # Lists every failure and exits 1; prints OK and exits 0 otherwise.
@@ -263,24 +263,11 @@ self_check() {
   _mds=("$KIT_DIR/roster/global-agent/"*.md)
   [[ -e "${_mds[0]}" ]] || missing+=("$KIT_DIR/roster/global-agent/*.md (no .md file)")
 
-  # 2. REL lock-key namespace check (see function header). The keys come
-  # from the explicit manifest below — the list of lock REL keys init.sh
-  # writes — not from parsing this script's own text. A new lock key must be
-  # added here, and a key outside the namespace fails the check.
-  while IFS= read -r tok; do
-    [[ -n "$tok" ]] || continue
+  # 2. REL lock-key namespace check (see function header): every shape in
+  # LOCK_KEY_MANIFEST must stay inside the lock's namespace.
+  for tok in "${LOCK_KEY_MANIFEST[@]}"; do
     [[ "$tok" =~ ^(agent|skill|CONVENTIONS|RULES) ]] || bad_keys+=("$tok")
-  done <<'MANIFEST'
-agent/<name>.md
-skill/dev-workflow/SKILL.md
-skill/pr-review/<file>
-CONVENTIONS.md
-RULES.md
-CONVENTIONS.cpp.md
-CONVENTIONS.cpp23.md
-CONVENTIONS.python.md
-CONVENTIONS.go.md
-MANIFEST
+  done
 
   if [[ ${#missing[@]} -gt 0 || ${#bad_keys[@]} -gt 0 ]]; then
     echo "init --self-check: FAILED" >&2
@@ -300,11 +287,21 @@ KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # variable so the layout moves stay single-site.
 MODELS_JSON="$KIT_DIR/roster/models.json"
 
+# RULES_KEYS : the kit-authored rule/convention lock keys. update_rules_conventions
+# iterates it, and LOCK_KEY_MANIFEST (below) lists it for --self-check.
+RULES_KEYS=(CONVENTIONS.md RULES.md CONVENTIONS.cpp.md CONVENTIONS.cpp23.md CONVENTIONS.python.md CONVENTIONS.go.md)
+# LOCK_KEY_MANIFEST : every lock REL key shape init.sh writes. --self-check
+# checks each against the lock namespace. It is maintained by hand: a new
+# lock key shape must be added here. The install paths that write agent/ and
+# skill/ keys build them from the same shapes (agent/<name>.md, skill/...).
+LOCK_KEY_MANIFEST=("agent/<name>.md" "skill/dev-workflow/SKILL.md" "skill/pr-review/<file>" "${RULES_KEYS[@]}")
+
 # INJECTED_KEYS : the frontmatter keys and comment lines init.sh injects from
-# models.json (set_agent_model, _reconcile_agent_family). This is the ONE list
-# every kit-vs-target normalization strips — _bodies_equal, _body_hash and the
-# --doctor body check — so a future injected key is added here and nowhere
-# else. _INJECTED_LINE_RE is its anchored ERE form for grep -vE.
+# models.json. The STRIP side is derived from this list: _INJECTED_LINE_RE
+# (its anchored ERE form) drives _bodies_equal, _body_hash and the --doctor
+# body check. The INJECTOR (set_agent_model, _reconcile_agent_family, the
+# install step-A calls) names the same keys as literals, because bash
+# upsert calls read better inline — when a key is added, update both.
 INJECTED_KEYS=("model:" "variant:" "# Model family:")
 _INJECTED_LINE_RE=""
 for _ik in "${INJECTED_KEYS[@]}"; do
@@ -371,7 +368,7 @@ fi
 # target, no other flags) — see self_check above.
 if [[ $SELF_CHECK -eq 1 ]]; then
   if [[ ${#positionals[@]} -gt 0 || $WITH_RULES -ne 0 || $UPDATE -ne 0 \
-        || $GLOBAL_MODE -ne 0 || $ONLY_GIVEN -ne 0 || -n "$COMPANIONS_FLAG" ]]; then
+        || $GLOBAL_MODE -ne 0 || $ONLY_GIVEN -ne 0 || $DOCTOR -ne 0 || -n "$COMPANIONS_FLAG" ]]; then
     echo "init: --self-check runs alone — no other flags, no target." >&2
     exit 1
   fi
@@ -1291,7 +1288,7 @@ _diff_summary() {
 # baseline. Origin is unknown, so it is never called "customized": it is
 # parked with the diff size against the kit, for a manual decision.
 _bootstrap_reason() {
-  echo "diverged, origin unknown — no lock baseline (install from before --update?): $1 vs the kit body"
+  echo "diverged, origin unknown — no lock baseline: $1 vs the kit body (install from before --update?)"
 }
 
 # update_body_3way SRC DST REL HASH_CMD : the lock-driven three-way body
@@ -1504,7 +1501,7 @@ update_convention_whole() {
 # never creates any of them.
 update_rules_conventions() {
   local rel src dst
-  for rel in CONVENTIONS.md RULES.md CONVENTIONS.cpp.md CONVENTIONS.cpp23.md CONVENTIONS.python.md CONVENTIONS.go.md; do
+  for rel in "${RULES_KEYS[@]}"; do
     src="$KIT_DIR/workflow/templates/$rel"
     dst="$TARGET/$rel"
     [[ -f "$dst" && -f "$src" ]] || continue
@@ -1536,6 +1533,52 @@ update_pr_review() {
   done < <(find "$KIT_DIR/workflow/skill/pr-review" -type f -print0 2>/dev/null)
 }
 
+# _lock_key_kind KEY : classify a lock key before ANY path is built from it.
+# Prints agent | skill | rules | none. Only a strict shape is a path:
+#   agent/<name>.md          name = [A-Za-z0-9._-]+, no slash
+#   skill/<dir>/.../<file>   segments = [A-Za-z0-9._-]+, at least two
+#   CONVENTIONS*.md / RULES*.md  (kit-authored files at the target root)
+# "..", a leading "/", empty or extra separators, anything else -> none. A
+# "none" key is never a path: --update prunes it from the lock, touches no file.
+_lock_key_kind() {
+  local k="$1"
+  [[ "$k" == *..* || "$k" == /* ]] && { echo none; return; }
+  if [[ "$k" =~ ^agent/[A-Za-z0-9._-]+\.md$ ]]; then echo agent
+  elif [[ "$k" =~ ^skill/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+$ ]]; then echo skill
+  elif [[ "$k" =~ ^(CONVENTIONS|RULES)[A-Za-z0-9._-]*\.md$ ]]; then echo rules
+  else echo none
+  fi
+}
+
+# _under_dir PATH DIR : true only when PATH is a strict descendant of DIR
+# (belt and suspenders on top of _lock_key_kind: nothing resolves outside).
+_under_dir() {
+  [[ "$1" == "$2"/* && "$1" != *..* ]]
+}
+
+# _ensure_backup_dir : create the timestamped backup dir on first use (one
+# per run, under the lock's directory). Non-zero when it cannot be created.
+_ensure_backup_dir() {
+  if [[ -z "$BACKUP_DIR" ]]; then
+    BACKUP_DIR="$(dirname "$LOCK_FILE")/dev-workflow-kit-backup/$(date -u +%Y%m%dT%H%M%SZ)"
+  fi
+  mkdir -p "$BACKUP_DIR" 2>/dev/null || { BACKUP_DIR=""; return 1; }
+}
+
+# _prune_key KEY : drop KEY from the lock, its entry kept in the backup dir.
+# Never touches a file. Non-zero (and a warning) when the key cannot be dropped.
+_prune_key() {
+  # The archived entry is best-effort: an unwritable backup dir must not keep
+  # an orphan the user cannot clear, so the prune itself never depends on it.
+  if _ensure_backup_dir; then
+    jq -c --arg k "$1" '{key: $k, entry: .files[$k]}' "$LOCK_FILE" >> "$BACKUP_DIR/lock-entries.jsonl" 2>/dev/null \
+      || warnings+=("could not archive the lock entry of $1")
+  else
+    warnings+=("could not create the backup dir — the lock entry of $1 is not archived (the key is still pruned)")
+  fi
+  lock_del "$1"
+}
+
 # update_orphans : --update step for files the kit no longer ships. Walks the
 # lock's agent/ and skill/ keys whose components this run syncs and looks for
 # a kit source. The lock entry is the only proof of kit origin, so nothing
@@ -1547,46 +1590,48 @@ update_pr_review() {
 #     its lock entry is kept in the backup dir as lock-entries.jsonl.
 # pr-review keys are left alone when this kit version does not ship the skill.
 update_orphans() {
-  local key src dst
+  local key kind src dst base
   local -a keys=()
   [[ $LOCK_OK -eq 1 ]] || return 0
   while IFS= read -r key; do
     [[ -n "$key" ]] && keys+=("$key")
   done < <(jq -r '.files | keys[]' "$LOCK_FILE" 2>/dev/null || true)
   for key in "${keys[@]}"; do
-    case "$key" in
-      agent/*.md)
+    kind="$(_lock_key_kind "$key")"
+    case "$kind" in
+      rules) continue ;;   # kit-authored rule files: update_rules_conventions owns them
+      none)
+        _prune_key "$key" && pruned_keys+=("$key — out-of-pattern lock key (not a kit path); no file touched")
+        continue ;;
+      agent)
         [[ $U_WF -eq 1 || ($GLOBAL_MODE -eq 1 && $U_ROSTER -eq 1) ]] || continue
-        src="$AGENT_SRC_DIR/${key#agent/}"
-        dst="$AGENT_DST_DIR/${key#agent/}"
-        ;;
-      skill/pr-review/*)
-        [[ $U_PR -eq 1 && -d "$KIT_DIR/workflow/skill/pr-review" ]] || continue
-        src="$KIT_DIR/workflow/skill/${key#skill/}"
-        dst="$TARGET/.opencode/$key"
-        ;;
-      skill/*)
-        [[ $U_WF -eq 1 && $GLOBAL_MODE -eq 0 ]] || continue
-        src="$KIT_DIR/workflow/skill/${key#skill/}"
-        dst="$TARGET/.opencode/$key"
-        ;;
-      *) continue ;;
+        src="$AGENT_SRC_DIR/${key#agent/}"; base="$AGENT_DST_DIR"; dst="$base/${key#agent/}" ;;
+      skill)
+        if [[ "$key" == skill/pr-review/* ]]; then
+          [[ $U_PR -eq 1 && -d "$KIT_DIR/workflow/skill/pr-review" ]] || continue
+        else
+          [[ $U_WF -eq 1 && $GLOBAL_MODE -eq 0 ]] || continue
+        fi
+        src="$KIT_DIR/workflow/skill/${key#skill/}"; base="$TARGET/.opencode"; dst="$base/$key" ;;
     esac
     [[ -e "$src" ]] && continue
-    if [[ -z "$BACKUP_DIR" ]]; then
-      BACKUP_DIR="$(dirname "$LOCK_FILE")/dev-workflow-kit-backup/$(date -u +%Y%m%dT%H%M%SZ)"
-      mkdir -p "$BACKUP_DIR" || { warnings+=("could not create the backup dir $BACKUP_DIR — no orphan removed"); return 0; }
+    if ! _under_dir "$dst" "$base"; then
+      _prune_key "$key" && pruned_keys+=("$key — path escapes its directory; no file touched")
+      continue
     fi
-    if [[ -e "$dst" ]]; then
-      mkdir -p "$BACKUP_DIR/$(dirname "$key")" && cp "$dst" "$BACKUP_DIR/$key" \
-        || { warnings+=("could not back up $key — orphan left in place"); continue; }
-      rm -f "$dst" || { warnings+=("could not delete $key — orphan left in place"); continue; }
-      removed_orphans+=("$key")
+    if [[ ! -e "$dst" ]]; then
+      _prune_key "$key" && pruned_keys+=("$key — kit no longer ships it, no deployed file")
+      continue
+    fi
+    # Deployed orphan: copy to the backup first; remove the file only when the
+    # copy succeeded. A failed backup keeps the file and still drops the key,
+    # so no orphan is left that --update cannot clear.
+    if _ensure_backup_dir && mkdir -p "$BACKUP_DIR/$(dirname "$key")" 2>/dev/null \
+        && cp "$dst" "$BACKUP_DIR/$key" 2>/dev/null && rm -f "$dst"; then
+      _prune_key "$key" && removed_orphans+=("$key")
     else
-      pruned_keys+=("$key")
+      _prune_key "$key" && warnings+=("$key: backup failed — deployed file LEFT IN PLACE, no longer tracked (remove it by hand)")
     fi
-    jq -c --arg k "$key" '{key: $k, entry: .files[$k]}' "$LOCK_FILE" >> "$BACKUP_DIR/lock-entries.jsonl" 2>/dev/null
-    lock_del "$key"
   done
 }
 
@@ -1603,7 +1648,7 @@ update_orphans() {
 _doc_drift() { DOCTOR_DRIFT+=("$1"); }
 _doc_info() { DOCTOR_INFO+=("$1"); }
 run_doctor() {
-  local rel name src dst kit_hash dep_hash lock_hash sfx
+  local rel name src dst base kind fix why kit_hash dep_hash lock_hash sfx
   local em ev dm dv fam cur hooks hook_alt summary
   local -a keys=()
   if ! command -v jq >/dev/null 2>&1 || ! command -v shasum >/dev/null 2>&1; then
@@ -1637,31 +1682,42 @@ run_doctor() {
   local checked=0
   for rel in "${keys[@]}"; do
     checked=$((checked + 1))
-    case "$rel" in
-      agent/*.md)
-        src="$AGENT_SRC_DIR/${rel#agent/}"; dst="$AGENT_DST_DIR/${rel#agent/}" ;;
-      skill/pr-review/*)
-        src="$KIT_DIR/workflow/skill/${rel#skill/}"; dst="$TARGET/.opencode/$rel" ;;
-      skill/*)
-        src="$KIT_DIR/workflow/skill/${rel#skill/}"; dst="$TARGET/.opencode/$rel" ;;
-      CONVENTIONS*|RULES*)
-        src="$KIT_DIR/workflow/templates/$rel"; dst="$TARGET/$rel"
-        if [[ ! -f "$src" ]]; then _doc_drift "$rel: orphan lock key — the kit no longer ships it"; continue; fi
-        if [[ ! -f "$dst" ]]; then _doc_drift "$rel: tracked file missing (--update restores it when already tracked)"; continue; fi
-        if grep -q -E "$_RULES_MARKER" "$src" && grep -q -E "$_RULES_MARKER" "$dst"; then
-          kit_hash="$(_rules_prefix_hash "$src")"; dep_hash="$(_rules_prefix_hash "$dst")"
-        else
-          kit_hash="$(_raw_hash "$src")"; dep_hash="$(_raw_hash "$dst")"
-        fi
-        [[ "$dep_hash" == "$kit_hash" ]] || _doc_drift "$rel: kit-authored part differs from the kit (customized, or a stale kit version)"
-        [[ -n "$(lock_get "$rel" body_sha256)" ]] || _doc_drift "$rel: no lock baseline"
-        for sfx in dev-workflow-kit-new dev-workflow-kit-prev; do
-          [[ -e "$dst.$sfx" ]] && _doc_drift "$rel: sibling $rel.$sfx present (pending manual merge or backup)"
-        done
-        continue ;;
-      *) _doc_drift "$rel: unrecognized lock key"; continue ;;
-    esac
-    if [[ ! -f "$src" ]]; then _doc_drift "$rel: orphan lock key — the kit no longer ships it (--update removes it)"; continue; fi
+    kind="$(_lock_key_kind "$rel")"
+    # Classify BEFORE any path is built: an out-of-pattern key is reported and
+    # never read from disk; --update clears it by pruning the key.
+    if [[ "$kind" == none ]]; then
+      _doc_drift "$rel: out-of-pattern lock key (not a kit path) — --update prunes the key; no file is read or touched"
+      continue
+    fi
+    if [[ "$kind" == rules ]]; then
+      src="$KIT_DIR/workflow/templates/$rel"; dst="$TARGET/$rel"
+      if [[ ! -f "$src" ]]; then _doc_drift "$rel: orphan lock key — the kit no longer ships it"; continue; fi
+      if [[ ! -f "$dst" ]]; then _doc_drift "$rel: tracked file missing (--update restores it)"; continue; fi
+      if grep -q -E "$_RULES_MARKER" "$src" && grep -q -E "$_RULES_MARKER" "$dst"; then
+        kit_hash="$(_rules_prefix_hash "$src")"; dep_hash="$(_rules_prefix_hash "$dst")"
+      else
+        kit_hash="$(_raw_hash "$src")"; dep_hash="$(_raw_hash "$dst")"
+      fi
+      [[ "$dep_hash" == "$kit_hash" ]] || _doc_drift "$rel: kit-authored part differs from the kit (customized, or a stale kit version)"
+      [[ -n "$(lock_get "$rel" body_sha256)" ]] || _doc_drift "$rel: no lock baseline"
+      for sfx in dev-workflow-kit-new dev-workflow-kit-prev; do
+        [[ -e "$dst.$sfx" ]] && _doc_drift "$rel: sibling $rel.$sfx present (pending manual merge or backup)"
+      done
+      continue
+    fi
+    if [[ "$kind" == agent ]]; then
+      src="$AGENT_SRC_DIR/${rel#agent/}"; base="$AGENT_DST_DIR"; dst="$base/${rel#agent/}"
+    else
+      src="$KIT_DIR/workflow/skill/${rel#skill/}"; base="$TARGET/.opencode"; dst="$base/$rel"
+    fi
+    if [[ ! -f "$src" ]]; then
+      _doc_drift "$rel: orphan lock key — --update drops the key; a deployed file is removed only after a successful backup"
+      continue
+    fi
+    if ! _under_dir "$dst" "$base"; then
+      _doc_drift "$rel: path escapes its directory — --update prunes the key; no file is read"
+      continue
+    fi
     if [[ ! -f "$dst" ]]; then
       if [[ -n "$(lock_get "$rel" body_sha256)" ]]; then
         _doc_drift "$rel: tracked file missing (--update restores it)"
@@ -1677,15 +1733,21 @@ run_doctor() {
     for sfx in dev-workflow-kit-new dev-workflow-kit-prev; do
       [[ -e "$dst.$sfx" ]] && _doc_drift "$rel: sibling $(basename "$dst").$sfx present (pending manual merge or backup)"
     done
-    if [[ "$rel" == agent/*.md && -f "$MODELS_JSON" ]]; then
+    if [[ "$kind" == agent && -f "$MODELS_JSON" ]]; then
       name="${rel#agent/}"; name="${name%.md}"
       em="$(models_json "$name" model)"; ev="$(models_json "$name" variant)"
       dm="$(_fm_value "$dst" model)"; dv="$(_fm_value "$dst" variant)"
       if [[ -n "$em" ]]; then
         if [[ "$dm" != "$em" || "$dv" != "$ev" ]]; then
-          _doc_drift "$rel: deployed model '${dm:-<none>}'${dv:+ variant '$dv'} != effective '$em'${ev:+ variant '$ev'} (hand-set or stale — --update reconciles it)"
+          fix="--update reconciles it"
+          [[ $OVERRIDES_OK -eq 1 ]] || fix="--update cannot reconcile it: the overrides file is unreadable"
+          _doc_drift "$rel: deployed model '${dm:-<none>}'${dv:+ variant '$dv'} != effective '$em'${ev:+ variant '$ev'} (hand-set or stale — $fix)"
         elif [[ "$(lock_get "$rel" model)" != "$dm" ]]; then
-          _doc_info "$rel: hand-set model/variant, matches the effective value (override)"
+          why="stale lock record — the value equals the models.json default"
+          if _override_has "$name" model || _override_has "$name" variant; then
+            why="the overrides file pins it"
+          fi
+          _doc_info "$rel: hand-set model/variant, matches the effective value ($why)"
         fi
         fam="$(_family_for_model "$em")"
         cur="$(_fm_value "$dst" "# Model family")"
@@ -1853,7 +1915,7 @@ if [[ $UPDATE -eq 1 ]]; then
     printf '  - %s\n' "${removed_orphans[@]}"
   fi
   if [[ ${#pruned_keys[@]} -gt 0 ]]; then
-    echo "Pruned (lock keys with no kit source and no file; entries kept in $BACKUP_DIR/lock-entries.jsonl):"
+    echo "Pruned from the lock (entries kept in $BACKUP_DIR/lock-entries.jsonl):"
     printf '  - %s\n' "${pruned_keys[@]}"
   fi
   if [[ ${#manual_merge[@]} -gt 0 ]]; then
