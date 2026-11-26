@@ -10,6 +10,43 @@ Use this page as the yardstick when a configured model becomes unavailable and
 a replacement must be chosen: same role, comparable cost per MTok, and for
 `review` must be a different model lineage than `impl`.
 
+## Effective roster (generated)
+
+<!-- BEGIN GENERATED: roster -->
+The block below is generated from `roster/models.json` by `roster/build.sh` — do not edit it by hand.
+
+**Project seats** (`.opencode/agent/`, `init.sh` project mode):
+
+| Seat | Model | Variant | Family |
+|---|---|---|---|
+| `impl` | `github-copilot/claude-haiku-5.5` | default | claude |
+| `review` | `fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash` | medium | minimax |
+| `explore` | `ai-gateway-misc/fw-deepseek-v4.1-flash` | — | deepseek |
+| `design-review` | `fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash` | medium | minimax |
+| `deep` | `github-copilot/claude-opus-5.5` | — | claude |
+
+**Global roster** (`roster/global-agent/*.md`, `init.sh --global`):
+
+| Agent | Model | Variant | Family |
+|---|---|---|---|
+| `cheap-code` | `github-copilot/claude-haiku-5.5` | default | claude |
+| `cheap-design-review` | `fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash` | medium | minimax |
+| `cheap-design` | `github-copilot/claude-haiku-5.5` | medium | claude |
+| `cheap-mech` | `ai-gateway-misc/fw-deepseek-v4.1-flash` | — | deepseek |
+| `cheap-review` | `fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash` | xhigh | minimax |
+| `strong-code-alternative` | `github-copilot/claude-haiku-5.5` | high | claude |
+| `strong-code-alternative2` | `github-copilot/claude-opus-5.5` | — | claude |
+| `strong-code` | `fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash` | xhigh | minimax |
+| `strong-design-alternative` | `github-copilot/claude-sonnet-5.5` | high | claude |
+| `strong-design-alternative2` | `github-copilot/claude-opus-5.5` | — | claude |
+| `strong-design-review-alternative` | `github-copilot/gemini-4-argon` | high | gemini |
+| `strong-design-review` | `fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash` | xhigh | minimax |
+| `strong-design` | `fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017` | high | deepseek |
+| `strong-review-alternative` | `fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017` | high | deepseek |
+| `strong-review-alternative2` | `fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b` | xhigh | qwen |
+| `strong-review` | `github-copilot/claude-sonnet-5.5` | medium | claude |
+<!-- END GENERATED: roster -->
+
 ## Two scopes
 
 `models.json` models two independent rosters:

@@ -214,21 +214,48 @@ MORE: README.md (usage, global roster) and roster/MODELS.md (roster rationale, 4
 EOF
 }
 
+# _lock_key_kind KEY : classify a lock key before ANY path is built from it.
+# Prints agent | skill | rules | none. Only a strict shape is a path:
+#   agent/<name>.md          name = [A-Za-z0-9._-]+, no slash
+#   skill/<dir>/.../<file>   segments = [A-Za-z0-9._-]+, at least two
+#   CONVENTIONS*.md / RULES*.md  (kit-authored files at the target root)
+# "..", a leading "/", empty or extra separators, anything else -> none. A
+# "none" key is never a path: --update prunes it from the lock, touches no file.
+# Defined above self_check: the --self-check dispatch runs before the rest of
+# the script is read top-down (bash has no hoisting).
+_lock_key_kind() {
+  local k="$1"
+  [[ "$k" == *..* || "$k" == /* ]] && { echo none; return; }
+  if [[ "$k" =~ ^agent/[A-Za-z0-9._-]+\.md$ ]]; then echo agent
+  elif [[ "$k" =~ ^skill/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+$ ]]; then echo skill
+  elif [[ "$k" =~ ^(CONVENTIONS|RULES)[A-Za-z0-9._-]*\.md$ ]]; then echo rules
+  else echo none
+  fi
+}
+
+# roster_build_check : run roster/build.sh --check (the generated roster
+# artifacts match models.json). Output on stdout+stderr; non-zero on drift.
+roster_build_check() {
+  "$KIT_DIR/roster/build.sh" --check
+}
+
 # self_check : read-only integrity audit of the kit's own sources (--self-check
 # flag). No install, no target, no writes, no jq/shasum requirement. Asserts:
 #   1. every kit-side source path this script references exists — the pipeline
 #      agents, the session roster, the dev-workflow skill, every template the
-#      install/update paths name, the pre-commit hook, models.json, VERSION;
-#   2. every REL key init.sh writes into a lock file stays within the lock's
-#      project-side namespace ^(agent|skill|CONVENTIONS|RULES). The keys are
-#      read from LOCK_KEY_MANIFEST (hand-maintained), not parsed out of this
-#      script: a new lock key shape must be added to the manifest, and
-#      a key outside the namespace fails the check, so it can never silently
-#      corrupt the lock schema.
+#      install/update paths name, the pre-commit hook, models.json, VERSION,
+#      the roster generator;
+#   2. every lock key shape in LOCK_KEY_MANIFEST (hand-maintained) stays inside
+#      the lock namespace ^(agent|skill|CONVENTIONS|RULES). A new key shape
+#      must be added to the manifest; an unlisted shape is NOT detected here;
+#   3. every lock key DERIVED from the kit tree (one per kit-shipped agent,
+#      skill and rules file) classifies as a strict path via _lock_key_kind,
+#      so a shipped file name the lock would refuse fails the check;
+#   4. the generated roster artifacts match models.json (build.sh --check).
 # Lists every failure and exits 1; prints OK and exits 0 otherwise.
 self_check() {
-  local p tok errors=0
-  local -a missing=() bad_keys=()
+  local p tok errors=0 f rel
+  local -a missing=() bad_keys=() kit_bad=() derived=()
 
   # 1. kit-side source paths
   local -a required=(
@@ -250,6 +277,7 @@ self_check() {
     "$KIT_DIR/workflow/templates/CONVENTIONS.go.md"
     "$KIT_DIR/workflow/hooks/pre-commit.sh"
     "$KIT_DIR/roster/models.json"
+    "$KIT_DIR/roster/build.sh"
     "$KIT_DIR/VERSION"
   )
   for p in "${required[@]}"; do
@@ -269,15 +297,41 @@ self_check() {
     [[ "$tok" =~ ^(agent|skill|CONVENTIONS|RULES) ]] || bad_keys+=("$tok")
   done
 
-  if [[ ${#missing[@]} -gt 0 || ${#bad_keys[@]} -gt 0 ]]; then
+  # 3. source-derived lock keys: every key the kit tree would produce must be a
+  # strict path shape (the same classifier the update and doctor paths use).
+  for f in "$KIT_DIR/roster/global-agent/"*.md "$KIT_DIR/workflow/agent/"*.md; do
+    [[ -e "$f" ]] && derived+=("agent/$(basename "$f")")
+  done
+  derived+=("skill/dev-workflow/SKILL.md")
+  if [[ -d "$KIT_DIR/workflow/skill/pr-review" ]]; then
+    while IFS= read -r rel; do
+      derived+=("skill/pr-review/${rel#./}")
+    done < <(cd "$KIT_DIR/workflow/skill/pr-review" && find . -type f)
+  fi
+  derived+=("${RULES_KEYS[@]}")
+  for rel in "${derived[@]}"; do
+    [[ "$(_lock_key_kind "$rel")" == none ]] && kit_bad+=("$rel")
+  done
+
+  # 4. the generated roster artifacts match models.json (fail-closed deploy
+  # gate, §3.3): drift here would ship stale roster output.
+  local roster_msg=""
+  if ! roster_msg="$(roster_build_check 2>&1)"; then
+    kit_bad+=("roster/build.sh --check: generated roster artifacts differ from models.json (run roster/build.sh)")
+  fi
+
+  if [[ ${#missing[@]} -gt 0 || ${#bad_keys[@]} -gt 0 || ${#kit_bad[@]} -gt 0 ]]; then
     echo "init --self-check: FAILED" >&2
     for p in "${missing[@]}"; do echo "  missing kit source: $p" >&2; done
     for tok in "${bad_keys[@]}"; do
       echo "  lock REL key outside ^(agent|skill|CONVENTIONS|RULES): $tok" >&2
     done
+    for tok in "${kit_bad[@]}"; do
+      echo "  $tok" >&2
+    done
     return 1
   fi
-  echo "init --self-check: OK — every kit source path present, every lock REL key within ^(agent|skill|CONVENTIONS|RULES)"
+  echo "init --self-check: OK — every kit source path present; every lock key shape within ^(agent|skill|CONVENTIONS|RULES); every kit-derived lock key a strict path; roster artifacts in sync with models.json"
   return 0
 }
 
@@ -392,6 +446,17 @@ if [[ $GLOBAL_MODE -eq 1 && ${#positionals[@]} -gt 0 ]]; then
   exit 1
 fi
 
+# --global deploys the roster: refuse while the generated roster artifacts are
+# stale against roster/models.json (fail-closed, §3.3). --doctor reports the
+# same drift instead of refusing.
+if [[ $GLOBAL_MODE -eq 1 && $DOCTOR -eq 0 && $SELF_CHECK -eq 0 ]]; then
+  if ! _roster_msg="$(roster_build_check 2>&1)"; then
+    printf '%s\n' "$_roster_msg" >&2
+    echo "init: --global refused — the roster output is stale against roster/models.json. Fix: run roster/build.sh, commit the result, then re-run this command." >&2
+    exit 1
+  fi
+fi
+
 # Component selection vs mode: workflow and pr-review are project-mode
 # components, roster is the global-mode component. Deduplicate the list so
 # the lock's components array stays clean.
@@ -465,6 +530,7 @@ DOCTOR_DRIFT=()
 DOCTOR_INFO=()
 removed_orphans=()
 pruned_keys=()
+pruned_siblings=()
 BACKUP_DIR=""
 
 # Kit version: the VERSION file at the kit root is the single source of truth
@@ -811,7 +877,7 @@ _override_set() {
 # family line is removed and a warning says the family is unknown.
 _family_for_model() {
   jq -r --arg m "$1" '
-    ([to_entries[] | select(.key != "global") | .value] + [.global[]?])
+    ([to_entries[] | select(.key != "global" and .key != "prices") | .value] + [.global[]?])
     | map(select(.model == $m))[0].family_hint // ""' \
     "$MODELS_JSON" 2>/dev/null || true
 }
@@ -843,7 +909,9 @@ _reconcile_agent_family() {
   family="$(_family_for_model "$model")"
   current="$(_fm_value "$dst" "# Model family")"
   if [[ -z "$family" ]]; then
-    warnings+=("$rel: model '${model:-<none>}' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
+    # No model line at all (a fresh body copy, before the model refresh
+    # re-injects it) is not an unknown family: drop the stale header silently.
+    [[ -n "$model" ]] && warnings+=("$rel: model '$model' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
     if [[ -n "$current" ]]; then
       _remove_fm_line "$dst" "# Model family" || warnings+=("could not remove the family line of $rel")
     fi
@@ -1310,39 +1378,77 @@ update_body_3way() {
   BODY_UPDATED=0
   BODY_CURRENT=0
 
-  if [[ -n "$lock_hash" ]]; then
-    if [[ "$target_hash" == "$lock_hash" && "$kit_hash" == "$target_hash" ]]; then
-      # Body untouched since the last sync AND the kit hasn't changed either.
-      BODY_CURRENT=1
-    elif [[ "$target_hash" == "$lock_hash" ]]; then
-      # Body untouched since the last sync, kit changed: safe to adopt the
-      # kit's current content. The caller restores the file's own
-      # model:/variant: frontmatter after the copy (the kit source carries
-      # none); the model refresh may then upsert the new default over it.
-      if ! cp "$src" "$dst"; then
-        warnings+=("could not update $rel")
-        return
-      fi
-      BODY_UPDATED=1
-      lock_set "$rel" body_sha256 "$kit_hash"
-    else
-      # Body differs from the lock baseline: locally customized since the
-      # last sync — never overwritten, no baseline update (still diverged,
-      # nothing new to record).
-      _park_sibling "$src" "$sibling" "$rel" "was locally customized"
+  if [[ "$target_hash" == "$kit_hash" ]]; then
+    # The body already equals the kit's current content (whatever the lock
+    # says): nothing to write. A parked sibling from an earlier divergence is
+    # stale now and goes (§3.4 item 4); the lock baseline is brought current.
+    BODY_CURRENT=1
+    [[ "$lock_hash" == "$kit_hash" ]] || lock_set "$rel" body_sha256 "$kit_hash"
+    _prune_stale_sibling "$sibling" "$rel"
+  elif [[ -n "$lock_hash" && "$target_hash" == "$lock_hash" ]]; then
+    # Body untouched since the last sync, kit changed: safe to adopt the
+    # kit's current content. The caller restores the file's own
+    # model:/variant: frontmatter after the copy (the kit source carries
+    # none); the model refresh may then upsert the new default over it.
+    if ! cp "$src" "$dst"; then
+      warnings+=("could not update $rel")
+      return
     fi
+    BODY_UPDATED=1
+    lock_set "$rel" body_sha256 "$kit_hash"
+    _prune_stale_sibling "$sibling" "$rel"
+  elif [[ $GLOBAL_MODE -eq 1 ]]; then
+    # Global mode: body customization is unsupported (§3.4 item 2). A
+    # diverged body is overwritten with the kit's current content; the
+    # previous file is kept once as <file>.dev-workflow-kit-prev, with a
+    # warning. Covers both a lock-proven customization and a bootstrap
+    # divergence (origin unknown).
+    _overwrite_with_prev "$src" "$dst" "$rel" "$kit_hash"
+  elif [[ -n "$lock_hash" ]]; then
+    # Body differs from the lock baseline: locally customized since the
+    # last sync — never overwritten, no baseline update (still diverged,
+    # nothing new to record).
+    _park_sibling "$src" "$sibling" "$rel" "was locally customized"
   else
     # Bootstrap: no recorded baseline (pre---update-era install).
-    # Conservative: a body already matching the kit is baselined; a diverged
-    # body is left alone with a .dev-workflow-kit-new sibling — never
-    # silently clobbered.
-    if [[ "$target_hash" == "$kit_hash" ]]; then
-      BODY_CURRENT=1
-      lock_set "$rel" body_sha256 "$kit_hash"
-    else
-      _park_sibling "$src" "$sibling" "$rel" "$(_bootstrap_reason "$(_diff_summary "$src" "$dst")")"
-    fi
+    # Conservative: a diverged body is left alone with a
+    # .dev-workflow-kit-new sibling — never silently clobbered.
+    _park_sibling "$src" "$sibling" "$rel" "$(_bootstrap_reason "$(_diff_summary "$src" "$dst")")"
   fi
+}
+
+# _prune_stale_sibling SIBLING REL : the target body equals the kit body
+# again, so a parked .dev-workflow-kit-new sibling no longer holds anything
+# new — remove it and report it (§3.4 item 4).
+_prune_stale_sibling() {
+  local sib="$1" rel="$2"
+  [[ -e "$sib" ]] || return 0
+  if rm -f "$sib"; then
+    pruned_siblings+=("$rel — body matches the kit again; parked ${sib##*/} removed")
+  else
+    warnings+=("could not remove the stale ${sib#$TARGET/} (its body now matches the kit)")
+  fi
+}
+
+# _overwrite_with_prev SRC DST REL KIT_HASH : global-mode replacement of a
+# diverged body (§3.4 item 2). The previous file is kept as DST.dev-workflow-
+# kit-prev (one copy: a previous -prev is replaced), the kit's content is
+# adopted, the baseline is recorded. If the backup cannot be written the file
+# is left untouched and the kit version is parked for a manual merge instead.
+_overwrite_with_prev() {
+  local src="$1" dst="$2" rel="$3" kit_hash="$4" prev="$2.dev-workflow-kit-prev"
+  if ! cp "$dst" "$prev" 2>/dev/null; then
+    warnings+=("$rel: could not keep the previous copy as ${prev#$TARGET/} — left in place; kit version parked for a manual merge")
+    _park_sibling "$src" "$dst.dev-workflow-kit-new" "$rel" "was locally customized (backup failed)"
+    return
+  fi
+  if ! cp "$src" "$dst"; then
+    warnings+=("could not update $rel")
+    return
+  fi
+  BODY_UPDATED=1
+  lock_set "$rel" body_sha256 "$kit_hash"
+  warnings+=("$rel: body differs from the kit — overwritten by the kit (global mode does not support body edits); the previous file is kept as ${prev#$TARGET/}")
 }
 
 # update_sync_managed SRC DST REL HAS_MODEL AGENT : one kit-managed file
@@ -1533,25 +1639,11 @@ update_pr_review() {
   done < <(find "$KIT_DIR/workflow/skill/pr-review" -type f -print0 2>/dev/null)
 }
 
-# _lock_key_kind KEY : classify a lock key before ANY path is built from it.
-# Prints agent | skill | rules | none. Only a strict shape is a path:
-#   agent/<name>.md          name = [A-Za-z0-9._-]+, no slash
-#   skill/<dir>/.../<file>   segments = [A-Za-z0-9._-]+, at least two
-#   CONVENTIONS*.md / RULES*.md  (kit-authored files at the target root)
-# "..", a leading "/", empty or extra separators, anything else -> none. A
-# "none" key is never a path: --update prunes it from the lock, touches no file.
-_lock_key_kind() {
-  local k="$1"
-  [[ "$k" == *..* || "$k" == /* ]] && { echo none; return; }
-  if [[ "$k" =~ ^agent/[A-Za-z0-9._-]+\.md$ ]]; then echo agent
-  elif [[ "$k" =~ ^skill/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+$ ]]; then echo skill
-  elif [[ "$k" =~ ^(CONVENTIONS|RULES)[A-Za-z0-9._-]*\.md$ ]]; then echo rules
-  else echo none
-  fi
-}
-
-# _under_dir PATH DIR : true only when PATH is a strict descendant of DIR
-# (belt and suspenders on top of _lock_key_kind: nothing resolves outside).
+# _under_dir PATH DIR : a plain textual prefix test — PATH must start with
+# DIR and continue with "/" (so a sibling like DIR-evil is refused), and no
+# ".." may appear in PATH. It works on the strings as built, not on
+# canonicalized paths (no realpath): it is a second guard on top of
+# _lock_key_kind, which already rejects every key that could escape.
 _under_dir() {
   [[ "$1" == "$2"/* && "$1" != *..* ]]
 }
@@ -1593,9 +1685,10 @@ update_orphans() {
   local key kind src dst base
   local -a keys=()
   [[ $LOCK_OK -eq 1 ]] || return 0
-  while IFS= read -r key; do
+  # NUL-separated: a key may contain a newline, which line-based reads would split.
+  while IFS= read -r -d '' key; do
     [[ -n "$key" ]] && keys+=("$key")
-  done < <(jq -r '.files | keys[]' "$LOCK_FILE" 2>/dev/null || true)
+  done < <(jq -j '.files | keys[] | ., "\u0000"' "$LOCK_FILE" 2>/dev/null || true)
   for key in "${keys[@]}"; do
     kind="$(_lock_key_kind "$key")"
     case "$kind" in
@@ -1663,9 +1756,10 @@ run_doctor() {
   elif ! jq -e 'type == "object" and (.files | type == "object")' "$LOCK_FILE" >/dev/null 2>&1; then
     _doc_drift "lock file ${LOCK_FILE#$TARGET/} is not valid JSON — no baseline can be read"
   else
-    while IFS= read -r rel; do
+    # NUL-separated (see _update_orphans): newline-bearing keys stay whole.
+    while IFS= read -r -d '' rel; do
       [[ -n "$rel" ]] && keys+=("$rel")
-    done < <(jq -r '.files | keys[]' "$LOCK_FILE" 2>/dev/null || true)
+    done < <(jq -j '.files | keys[] | ., "\u0000"' "$LOCK_FILE" 2>/dev/null || true)
     local lock_kv
     lock_kv="$(jq -r '.kit_version // ""' "$LOCK_FILE" 2>/dev/null || true)"
     if [[ -n "$lock_kv" && -n "$KIT_VERSION" && "$lock_kv" != "$KIT_VERSION" ]]; then
@@ -1747,7 +1841,7 @@ run_doctor() {
           if _override_has "$name" model || _override_has "$name" variant; then
             why="the overrides file pins it"
           fi
-          _doc_info "$rel: hand-set model/variant, matches the effective value ($why)"
+          _doc_info "$rel: model/variant matches the effective value ($why)"
         fi
         fam="$(_family_for_model "$em")"
         cur="$(_fm_value "$dst" "# Model family")"
@@ -1755,6 +1849,12 @@ run_doctor() {
       fi
     fi
   done
+
+  # Global mode: the generated roster artifacts must match models.json (the
+  # same check the --global deploy gate runs; read-only here).
+  if [[ $GLOBAL_MODE -eq 1 ]] && ! roster_build_check >/dev/null 2>&1; then
+    _doc_drift "roster: generated roster artifacts differ from models.json — run roster/build.sh (the --global deploy refuses until then)"
+  fi
 
   # Project mode: a parked pre-commit hook the kit installed beside a foreign one.
   if [[ $GLOBAL_MODE -eq 0 ]] && git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
@@ -1910,12 +2010,20 @@ if [[ $UPDATE -eq 1 ]]; then
     echo "Migrated (hand-set model/variant moved to $(basename "$OVERRIDES_FILE")):"
     printf '  > %s\n' "${migrated[@]}"
   fi
+  if [[ ${#pruned_siblings[@]} -gt 0 ]]; then
+    echo "Removed stale sibling (kit body matches again):"
+    printf '  - %s\n' "${pruned_siblings[@]}"
+  fi
   if [[ ${#removed_orphans[@]} -gt 0 ]]; then
     echo "Removed (kit no longer ships them; origin proven by the lock; copies in $BACKUP_DIR):"
     printf '  - %s\n' "${removed_orphans[@]}"
   fi
   if [[ ${#pruned_keys[@]} -gt 0 ]]; then
-    echo "Pruned from the lock (entries kept in $BACKUP_DIR/lock-entries.jsonl):"
+    if [[ -n "$BACKUP_DIR" ]]; then
+      echo "Pruned from the lock (entries kept in $BACKUP_DIR/lock-entries.jsonl):"
+    else
+      echo "Pruned from the lock (entries not archived — no backup dir could be created):"
+    fi
     printf '  - %s\n' "${pruned_keys[@]}"
   fi
   if [[ ${#manual_merge[@]} -gt 0 ]]; then
@@ -1930,7 +2038,7 @@ if [[ $UPDATE -eq 1 ]]; then
   # rewrote the lock (baselines, model records, bootstrap creation);
   # "already at" otherwise.
   if [[ -n "$KIT_VERSION" ]]; then
-    if [[ ${#updated_body[@]} -gt 0 || ${#updated_model[@]} -gt 0 || ${#copied[@]} -gt 0 || ${#removed_orphans[@]} -gt 0 || ${#migrated[@]} -gt 0 || $LOCK_WRITTEN -eq 1 ]]; then
+    if [[ ${#updated_body[@]} -gt 0 || ${#updated_model[@]} -gt 0 || ${#copied[@]} -gt 0 || ${#removed_orphans[@]} -gt 0 || ${#migrated[@]} -gt 0 || ${#pruned_siblings[@]} -gt 0 || $LOCK_WRITTEN -eq 1 ]]; then
       echo "now at v$KIT_VERSION"
     else
       echo "already at v$KIT_VERSION"

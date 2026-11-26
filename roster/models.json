@@ -100,5 +100,80 @@
       "family_hint": "gemini",
       "variant": "high"
     }
+  },
+  "prices": {
+    "_note": "Public list prices, USD per 1M tokens. NOT YET SOURCED: rates stay null until filled by the owner or a catchup run; checked = date of the last check. The usage recorder prints $? for a null rate, never a silent 0. Refresh at each catchup (newest evals/<date>/).",
+    "github-copilot/claude-haiku-5.5": {
+      "in": null,
+      "out": null,
+      "cache_read": null,
+      "cache_write": null,
+      "unit": "USD/1M tokens",
+      "source": "unverified",
+      "checked": "2026-11-26"
+    },
+    "github-copilot/claude-opus-5.5": {
+      "in": null,
+      "out": null,
+      "cache_read": null,
+      "cache_write": null,
+      "unit": "USD/1M tokens",
+      "source": "unverified",
+      "checked": "2026-11-26"
+    },
+    "github-copilot/claude-sonnet-5.5": {
+      "in": null,
+      "out": null,
+      "cache_read": null,
+      "cache_write": null,
+      "unit": "USD/1M tokens",
+      "source": "unverified",
+      "checked": "2026-11-26"
+    },
+    "github-copilot/gemini-4-argon": {
+      "in": null,
+      "out": null,
+      "cache_read": null,
+      "cache_write": null,
+      "unit": "USD/1M tokens",
+      "source": "unverified",
+      "checked": "2026-11-26"
+    },
+    "fireworks-ai/accounts/fireworks/models/minimax-m3p1-flash": {
+      "in": null,
+      "out": null,
+      "cache_read": null,
+      "cache_write": null,
+      "unit": "USD/1M tokens",
+      "source": "unverified",
+      "checked": "2026-11-26"
+    },
+    "fireworks-ai/accounts/fireworks/models/deepseek-v4p1-flash-1017": {
+      "in": null,
+      "out": null,
+      "cache_read": null,
+      "cache_write": null,
+      "unit": "USD/1M tokens",
+      "source": "unverified",
+      "checked": "2026-11-26"
+    },
+    "fireworks-ai/accounts/fireworks/models/qwen3p8-2p4t-a95b": {
+      "in": null,
+      "out": null,
+      "cache_read": null,
+      "cache_write": null,
+      "unit": "USD/1M tokens",
+      "source": "unverified",
+      "checked": "2026-11-26"
+    },
+    "ai-gateway-misc/fw-deepseek-v4.1-flash": {
+      "in": null,
+      "out": null,
+      "cache_read": null,
+      "cache_write": null,
+      "unit": "USD/1M tokens",
+      "source": "unverified",
+      "checked": "2026-11-26"
+    }
   }
 }
