@@ -77,7 +77,7 @@ so the checkbox state can lie.
    (`git log --oneline -5` + `git status`), and a stale note must never
    redirect the session.
 
-   Field evidence for this clause (masora phase-7 closure, 2026-10-07): an
+   Field evidence for this clause (a private tooling project's phase-7 closure, 2026-10-07): an
    INPROGRESS "uncommitted" note persisted after the wave was committed and
    released; an agent trusted the note over git and misdirected the session.
    This incident is the concrete motivating case for the whole reconciliation
