@@ -94,15 +94,15 @@ The mandatory re-reader of impl's work. Deliberately a **different model
 lineage than impl**: models from the same family tend to share blind spots —
 the same misreadings, the same confident mistakes. A reviewer of a different
 lineage catches what the implementer's family systematically misses. Keep that
-property when replacing either side — never within the glm family while impl
-runs glm.
+property when replacing either side: the rule is family-agnostic (reviewer
+family ≠ producer family). Current pairing, per `models.json`: impl
+`claude-haiku-5.5` (claude) → review `minimax-m3p1-flash` `medium` (minimax);
+claude → minimax satisfies it.
 
-The 2026-10-07 eval (`evals/2026-10-07-haiku-5.5/` if present, see `EVALS.md`)
-gave haiku `default` the review role: 3/3 seeded defects at $0.0063 per
-4-task run — far below the previous review rung's cost. Given the
-price-over-speed priority, haiku `default` is the default review rung; step
-up to `claude-sonnet-5.5` `medium` for a sensitive diff, then
-`claude-opus-5.5`.
+History: the 2026-10-07 eval (`evals/2026-10-07-haiku-5.5/` if present, see
+`EVALS.md`) measured haiku `default` in the review role — 3/3 seeded defects at
+$0.0063 per 4-task run. Haiku is no longer the review model; the cost and
+recall numbers above are that eval's, not the current seat's.
 
 ### explore — `ai-gateway-misc/fw-deepseek-v4.1-flash` (family: deepseek)
 
@@ -116,11 +116,13 @@ Critiques an approach before code is written. Runs rarely. Rostered 10-23 after
 the full grid (`evals/2026-10-23/RESULTS.md`) showed M3 stable across 3
 confirmation runs at 10/10 avg @ $0.0082, replacing the old deepseek flash
 (9/10 @ $0.0076 — ~+8%, +1 flaw category, no delegation at `medium`).
-Minimax is a lineage distinct from impl's glm and review's claude — keep that
-property when replacing either side. For a high-stakes design, escalate the
-critique: `strong-design-review` rung (`deepseek-v4p1-flash-1017` `medium`,
-then `gemini-4-argon` `high`, `deepseek-v4-pro` `high` — reported re-availability
-probed UNAVAILABLE 11-16: 404 both providers) or straight to `claude-opus-5.5`.
+Minimax is a lineage distinct from impl's claude (`claude-haiku-5.5`), so the
+design critique does not share impl's family; it shares minimax with the review
+seat, which is fine for this comparison. For a high-stakes design, escalate the
+critique: `strong-design-review` (`minimax-m3p1-flash` `xhigh`) → alternative
+`gemini-4-argon` `high` (`strong-design-review-alternative`), then the human —
+the terminal `strong-design-review-alternative2` rung was deleted in P0, so the
+ladder stops at the human. Or straight to `claude-opus-5.5`.
 
 ### deep — `github-copilot/claude-opus-5.5` (family: claude)
 
@@ -217,8 +219,8 @@ unchanged: **impl and review are never the same family**.
 
 **Project vs global — impl/review pairing.** The two rosters now pair
 different models, and that is intentional: the project
-roster keeps `impl` glm / `review` haiku (the 09-29/10-07 pairing, unchanged
-— project pipelines that already run it have no measured reason to flip);
+roster pairs `impl` claude-haiku-5.5 / `review` minimax-m3p1-flash (`models.json`
+"impl" / "review" — the pairing changed from the 09-29/10-07 glm/haiku pair);
 the global roster runs `cheap-code` haiku / `cheap-review` minimax `xhigh`
 (the final grid: haiku implements the bulk, minimax reviews claude-family
 impl at the floor with the best recall measured there — IR 4.33

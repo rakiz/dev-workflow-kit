@@ -10,7 +10,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `*.dev-workflow-kit-new` siblings and the vacated `strong-design-review-alternative2`
   rung (stale `grok-4.7` mapping) are removed from `~/.config/opencode/agent/`.
   Verification before deletion: 17/17 roster bodies identical (model/variant/family
-  lines stripped).
+  lines stripped) (owner-reported; per-file hashes not recorded — not re-auditable, see
+  docs/history/2026-11-26-p0-deletion-evidence.md).
 - Hygiene: `docs/` is tracked (`plans/`, `history/`); `scratch/` is gitignored for
   owner-private material. Archived `docs/history/2026-11-23-improvement-plan.md` and
   `docs/history/2026-11-25-workflow-v2-proposal.md` (verbatim). Active plan moved to

@@ -93,7 +93,7 @@
 #     fails (target not a git repo, never initialized, ...).
 #
 # --global behavior (session roster into the opencode config directory):
-#   - Installs the kit's global roster (roster/global-agent/*.md — the 17 session
+#   - Installs the kit's global roster (roster/global-agent/*.md — the 16 session
 #     agents, see roster/MODELS.md for the full 4-tier grid) into
 #     ${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/agent/ — the opencode
 #     user-level agent directory. NOTE: no `.opencode/` level here, unlike
