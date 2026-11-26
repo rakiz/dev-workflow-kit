@@ -951,7 +951,7 @@ lock, `--update`, commit; `git revert` the pair) applies. Global dir: revert + `
 global skill precedence (P3 precondition 1 settles it before anything ships); a global
 `explore` colliding with opencode's built-in subagent; whether `init.sh` has a removal path
 (P1 task 1); which branch produced the 11-23 siblings; the owner-reported $3.34 / ~$0.10 /
-17-of-18 G13 figures (not in the repo); whether any class has an expensive enough unguided
+17-of-18 G13 figures (not verifiable from the repo); whether any class has an expensive enough unguided
 path for J1 to ever fire (P4 step 1); the plugin runtime facts A1-A5 (§3.8, closed by the P1 probe).
 
 ---

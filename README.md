@@ -120,7 +120,7 @@ dev-workflow-kit/
 ├── roster/                  # THE MODEL ROSTER PRODUCT (who runs what)
 │   ├── models.json          # default model (+ reasoning variant) per agent — single source of truth
 │   ├── MODELS.md            # why each default model was chosen + replacement guide
-│   └── global-agent/        # 17 session-roster agents → ~/.config/opencode/agent/ via --global (see "Global roster")
+│   └── global-agent/        # 16 session-roster agents → ~/.config/opencode/agent/ via --global (see "Global roster")
 │       ├── cheap-code.md                        #   default cheap implementer, large-context work
 │       ├── cheap-design.md                      #   cheap design producer — approach doc before code
 │       ├── cheap-design-review.md               #   read-only design critique before code
@@ -134,7 +134,6 @@ dev-workflow-kit/
 │       ├── strong-design-alternative2.md        #   terminal design rung, before human
 │       ├── strong-design-review.md              #   read-only cross-lineage critique of strong-design
 │       ├── strong-design-review-alternative.md  #   cross-vendor design-review escalation
-│       ├── strong-design-review-alternative2.md #   terminal read-only design audit
 │       ├── strong-review.md                     #   read-only cross-lineage review of strong-code
 │       ├── strong-review-alternative.md         #   reviews strong-code-alternative output from a different lineage, deeper re-review
 │       └── strong-review-alternative2.md        #   terminal read-only audit (fresh family)
@@ -187,7 +186,7 @@ The script locates the kit by its own location (`dirname "$0"`); the target is t
 
 ## Global roster
 
-`./init.sh --global` installs the kit's **session roster** — seventeen general-purpose agents (`cheap-code`, `cheap-design`, `cheap-design-review`, `cheap-mech`, `cheap-review`, `strong-code`, `strong-code-alternative`, `strong-code-alternative2`, `strong-design`, `strong-design-alternative`, `strong-design-alternative2`, `strong-design-review`, `strong-design-review-alternative`, `strong-design-review-alternative2`, `strong-review`, `strong-review-alternative`, `strong-review-alternative2`) — into your opencode **user-level** config directory, so they are available in every session, in every project. Their roles and cost rationale are documented in [MODELS.md](roster/MODELS.md) ("Two scopes" and the global-roster section).
+`./init.sh --global` installs the kit's **session roster** — sixteen general-purpose agents (`cheap-code`, `cheap-design`, `cheap-design-review`, `cheap-mech`, `cheap-review`, `strong-code`, `strong-code-alternative`, `strong-code-alternative2`, `strong-design`, `strong-design-alternative`, `strong-design-alternative2`, `strong-design-review`, `strong-design-review-alternative`, `strong-review`, `strong-review-alternative`, `strong-review-alternative2`) — into your opencode **user-level** config directory, so they are available in every session, in every project. Their roles and cost rationale are documented in [MODELS.md](roster/MODELS.md) ("Two scopes" and the global-roster section).
 
 - **Destination**: `${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/agent/`. There is no `.opencode/` level here, unlike project mode — the config directory's `agent/` subdirectory *is* the agent directory. Set `OPENCODE_CONFIG_DIR` to target another config directory (created if absent); it is honored by `--global` only.
 - **Models** come from the `"global"` section of the kit's [models.json](roster/models.json), through the same injection and availability-menu machinery as project mode. The lock file is `${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/.dev-workflow-kit-lock.json` — a separate file from any project's lock, same schema, so the two scopes sync independently with `--update --global`.

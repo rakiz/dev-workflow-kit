@@ -22,4 +22,4 @@ To cover:
 3. Failure modes: what breaks under real load, real data, real users — that the doc does not name?
 4. Is the rollback path real (executable, tested-ish), or hand-waving?
 
-Output: one line per finding — `minor|major — section/claim — problem — expected fix` — then an explicit verdict (`sound` / `needs work` / `redesign`). If the design's author is from the same family as you, say so in one line — the cross-lineage point is lost. Escalate a major to strong-design-review-alternative (and its alternative2 if doubt persists), then human.
+Output: one line per finding — `minor|major — section/claim — problem — expected fix` — then an explicit verdict (`sound` / `needs work` / `redesign`). If the design's author is from the same family as you, say so in one line — the cross-lineage point is lost. Escalate a major to strong-design-review-alternative, then human.

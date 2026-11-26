@@ -8,3 +8,6 @@ scratch/
 # Kit-local, untracked (owner-only command files)
 evals/*.poller.hb
 .opencode/
+
+# Owner journal: disposition is P3 (split, remainder to scratch/); never publish
+/AUTONOMOUS-RUN.md
