@@ -6,7 +6,7 @@
 2. **A model roster** ([roster/models.json](roster/models.json) + [roster/MODELS.md](roster/MODELS.md)). It assigns a model (and reasoning variant) to every seat: orchestration, cheap and strong code, design, and their review gates. Each seat holds the best model for its price on the kit's own benches. Routing rules say who reviews whom; reviews are always cross-family. Each seat has documented fallbacks. The seat-by-seat rationale is in [MODELS.md](roster/MODELS.md). Cheap models do the bulk of the work, expensive models only escalate, and quality is recovered through cross-lineage review.
 3. **The model-evaluation machinery** ([evals/](evals/)). Five decision benches: orchestration (/8), code review (/3 + bonus), design review (/14), implementation (/14), design writing (/11). They are scored by a multi-family panel; no family scores its own runs. Limitation: the benches measure verification discipline on small fixtures, not long-horizon generative ability, which is too expensive to bench (see the "What these benches measure" section of the HTML leaderboard linked below).
 
-- **Rendered leaderboard (roster + charts + rationale):** https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html
+- **Rendered leaderboard (roster + charts + rationale):** https://rakiz.github.io/dev-workflow-kit/evals/LEADERBOARD.html
 - **Bench methodology:** [evals/PROTOCOL.md](evals/PROTOCOL.md) (the contract) + [evals/BENCH-V3-DESIGN.md](evals/BENCH-V3-DESIGN.md) (the bench specs)
 - **The numbers:** [evals/2026-11-16/grid2-scores.csv](evals/2026-11-16/grid2-scores.csv) (per-cell official panel means) → [grid2-run-scores.tsv](evals/2026-11-16/grid2-run-scores.tsv) (per-run) → [runs/](evals/2026-11-16/runs/) (deliverables)
 
@@ -139,7 +139,7 @@ dev-workflow-kit/
 │       ├── strong-review-alternative.md         #   reviews strong-code-alternative output from a different lineage, deeper re-review
 │       └── strong-review-alternative2.md        #   terminal read-only audit (fresh family)
 ├── EVALS.md                 # eval summary — all models ever tested, one table
-├── evals/LEADERBOARD.html   # the roster + charts, rendered: https://htmlpreview.github.io/?https://github.com/rakiz/dev-workflow-kit/blob/main/evals/LEADERBOARD.html
+├── evals/LEADERBOARD.html   # the roster + charts, rendered: https://rakiz.github.io/dev-workflow-kit/evals/LEADERBOARD.html
 ├── VERSION                  # kit version (single line)
 ├── evals/                   # model-eval protocol, results and raw outputs — see evals/README.md
 │   ├── README.md            #   protocol, the 5 benches, scoring checklist
