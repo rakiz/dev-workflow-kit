@@ -6,18 +6,26 @@
 #   - Check with empty "cmd" and no "builtin" -> silently skipped.
 #
 # BUILTIN CONTRACT — this header is the single statement of the builtin names
-# and their semantics (SKILL.md and the README refer here, they do not restate
-# the list). Each builtin is a check entry {"name", "builtin", "extensions"}.
+# and their semantics (SKILL.md and the README point here, neither of them
+# restates them). Each builtin is a check entry {"name", "builtin",
+# "extensions"}.
 #   companion_md_exists  ENABLED by the shipped template (dev-workflow.json,
-#     companions.enabled). Enforced: each staged file whose extension is listed
-#     must have its same-named .md companion STAGED in the same commit (on disk
-#     but unstaged = missing). The creation/update rules themselves (companion
-#     created with a new source file; updated when one is significantly
-#     modified) are the skill's, not the hook's.
+#     companions.enabled). Enforced: each staged file that is not a deletion
+#     and whose extension is listed must have its same-named .md companion
+#     STAGED in the same commit (on disk but unstaged = missing). The
+#     creation/update rules themselves (companion created with a new source
+#     file; updated when one is significantly modified) are the skill's, not
+#     the hook's.
 #   no_history_comments  NOT enabled by the shipped template (opt-in). Enforced:
-#     an ADDED line of a listed file must not narrate history outside
-#     CHANGELOG ("previously", "used to be", "changed from", ...). Heuristic,
-#     see the README's Builtins section for its limits.
+#     an ADDED line of a listed file must not narrate history OUTSIDE the
+#     changelog ("previously", "used to be", "changed from", ...). The
+#     changelog itself is EXEMPT — it is where history belongs (its file name
+#     is "workflow.changelog", default CHANGELOG.md); staged deletions are
+#     ignored. Heuristic on raw added lines: comment syntax is NOT parsed, so
+#     any added line containing a marker matches (string literals, prose too).
+#     "no longer" and "previously" are the noisiest markers (a runtime
+#     lifecycle rather than code history), "now does" is generic. Hard block,
+#     like every other check: the hook has no warn-only mode.
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [[ -z "$ROOT" ]]; then
@@ -43,6 +51,13 @@ fi
 
 # NB: '.enabled // true' would be wrong for enabled=false (jq // treats false as null)
 COMPANIONS_ENABLED="$(jq -r '.companions.enabled? != false' "$CONFIG")"
+
+# Changelog file name: the history-narrating check exempts it (CONVENTIONS.md
+# rule 2 — "Outside CHANGELOG.md, code comments never narrate evolution").
+# The name comes from "workflow.changelog" when present, CHANGELOG.md otherwise.
+CHANGELOG_FILE="$(jq -r 'if (.workflow.changelog? | type) == "string" then .workflow.changelog else "CHANGELOG.md" end' "$CONFIG" 2>/dev/null)"
+[[ -z "$CHANGELOG_FILE" ]] && CHANGELOG_FILE="CHANGELOG.md"
+CHANGELOG_BASENAME="${CHANGELOG_FILE##*/}"
 
 failures=0
 failed_names=""
@@ -115,6 +130,8 @@ run_companion_check() {
 # lines: comment syntax is NOT parsed, so any added line containing a marker
 # matches (string literals, prose) — this is why the check is opt-in. Blocks
 # like every other check (the hook has no warn-only mode).
+# The changelog is exempt: history belongs there (CONVENTIONS.md rule 2), so a
+# staged file whose basename is the changelog's is skipped.
 run_no_history_comments() {
   local check_json="$1"
   local exts file marker hit lineno content
@@ -128,6 +145,8 @@ run_no_history_comments() {
   local -a hits=()
   while IFS= read -r -d '' file; do
     ext_allowed "$exts" "$file" || continue
+    # The changelog is where history belongs: exempt it (CONVENTIONS.md rule 2).
+    [[ "${file##*/}" == "$CHANGELOG_BASENAME" ]] && continue
     # Added lines with their new-file line number: each -U0 hunk header's
     # third field ("+12,3") gives the new side's start line; removed lines
     # ('-') do not advance it.

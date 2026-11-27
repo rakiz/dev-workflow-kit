@@ -281,16 +281,7 @@ An entry with an empty `cmd` and no `builtin` is silently skipped (that is how t
 
 ### Builtins
 
-Builtin checks are implemented inside [hooks/pre-commit.sh](workflow/hooks/pre-commit.sh) itself — adding a **new builtin** means editing that file (and upstreaming it to the kit if you want it shared). Currently implemented:
-
-- **`companion_md_exists`** — for each staged source file whose extension is in `extensions`, the same-named `.md` (same folder) must be **staged** in the commit. Present on disk but not staged = missing (the commit would not include it).
-- **`no_history_comments`** — optional, **not enabled by default**: blocks the commit if an ADDED line of a staged file (same `extensions` filter) contains a history-narrating marker, case-insensitive, on whole words (so `unchanged from` does not match `changed from`): `previously`, `used to be`, `changed from`, `now does`, `no longer`, `old behavior`, `old version`, `before this change`. This is the enforcement counterpart of CONVENTIONS.md's rule 2. Enable it by adding an entry:
-
-  ```json
-  { "name": "no_history_comments", "builtin": "no_history_comments", "extensions": ["cpp", "h", "ts", "tsx"] }
-  ```
-
-  **Limitations, so you opt in with eyes open:** this is a heuristic, imperfect by nature — never a perfect guard. It runs on raw added lines — it does not parse comment syntax, so any added line containing a marker matches, including string literals or legitimate prose (a user-facing message saying "previously" will block). Markers describing a runtime lifecycle rather than code history are the most likely to produce occasional false positives: `no longer` and `previously` are the two worst offenders (e.g. `// when no longer needed, free it`, `// discard previously allocated buffer`), and `now does` is generic though less ambiguous in practice — the team enabling the check should evaluate these three and keep it off if the noise outweighs the signal. Like every other check, it is a hard block: the hook has no warn-only mode.
+Builtin checks are implemented inside [hooks/pre-commit.sh](workflow/hooks/pre-commit.sh) itself — adding a **new builtin** means editing that file (and upstreaming it to the kit if you want it shared). Their names and their semantics are the contract in that file's header: that header is the single place to read them, and the single place to change them — this section deliberately does not restate them.
 
 ## Pre-commit hook
 
