@@ -8,7 +8,11 @@
      within the same unreleased version is not mentioned — edit the
      [Unreleased] entry to the net effect. Only a revert of something
      already released is mentioned, in the new version's entry.
-     Revert rules in full: dev-workflow skill (§1, step 1). -->
+     Revert rules in full: dev-workflow skill (§1, step 1).
+     The version number is decided at DELIVERY, never during development:
+     at release, judge the accumulated batch — breaking → next major,
+     features → next minor, fixes → next patch. An undelivered version
+     number is meaningless. -->
 
 ## [Unreleased]
 

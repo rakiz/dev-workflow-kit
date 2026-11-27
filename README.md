@@ -33,7 +33,7 @@ What the install actually puts in the project:
 - `.opencode/skill/dev-workflow/SKILL.md` — the skill driving the TODO → INPROGRESS → CHANGELOG cycle, the companions and the commit checks;
 - `.git/hooks/pre-commit` — the hook running the `dev-workflow.json` checks on every commit;
 - `dev-workflow.json` (project root) — your config: pre-commit checks + paths of the workflow files;
-- `TODO.md`, `INPROGRESS.md`, `CHANGELOG.md`, `SPEC.md`, `DESIGNS.md`, `CONVENTIONS.md` (project root) — starter skeletons, to fill in;
+- `TODO.md`, `INPROGRESS.md`, `CHANGELOG.md`, `SPEC.md`, `DESIGNS.md`, `CONVENTIONS.md` (project root) — starter skeletons, to fill in (`CHANGELOG.md`: entries accumulate under `[Unreleased]`; versions are decided at delivery);
 - `RULES.md` (project root) — **opt-in** safety/robustness rules skeleton (JPL's Power of 10-inspired), not installed by default: pass `--with-rules` or answer the interactive y/N prompt (see the Installation table);
 - `.opencode/.dev-workflow-kit-lock.json` — sync baseline (kit body hashes + injected models/variants, plus the rule/convention prefix hashes) used by `init.sh --update`; it also records `kit_version`, the kit release last synced — compare it to the kit's [VERSION](VERSION) file to tell whether an update is needed: `jq .kit_version .opencode/.dev-workflow-kit-lock.json`. Commit it (see "Updating").
 
