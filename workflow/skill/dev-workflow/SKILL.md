@@ -9,6 +9,7 @@ File formats live in the template headers (`workflow/templates/*.md`, copied at 
 
 ## 1. TODO/INPROGRESS → CHANGELOG cycle
 
+- **Design decisions**: SPEC absent or not configured → durable design decisions live in DESIGNS entries plus `TODO.md`'s "Context" notes.
 - **At task start**
   - **Resume = reconciliation, not trust**: read the active task in `INPROGRESS.md` (plus `TODO.md` and `SPEC.md` if configured), then verify against git before trusting any checkbox.
     - **Verify**: `git status`/`git diff` show only UNCOMMITTED state — also read the latest recorded commit (`git log --oneline -5`). Not every dirty file is this task's work — ask when ambiguous.

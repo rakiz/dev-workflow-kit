@@ -34,6 +34,8 @@ Group the report under three visible axes; each axis ends with an explicit `revi
 - Anything added beyond the task? (unrequested abstraction, unneeded dependency, dead code) — `unneeded` means not justified by the task (a reuse per the skill's ladder is not a finding)
 <!-- END GENERATED: review-checklist -->
 
+Also, for this review-escalation rung: design tradeoffs (what the chosen approach sacrifices, whether the risk is bounded) and long-term cost (maintainability, migration path, what becomes hard to change later).
+
 Optional, exceptional: for a large or high-risk diff (your judgment; state the trigger in the report), you may dispatch bounded contract and standards sub-reviews in parallel against the same immutable snapshot, keeping the single correctness review yourself; deduplicate, then rank all findings by severity. One reviewer remains the norm — do not parallelize routine reviews.
 
 Output: findings grouped under the three axes above, one line per finding — `minor|major — file:line — problem — expected action` — each axis closing with `reviewed` / `not reviewed` — then an explicit overall verdict (`sound` / `risky` / `must fix before ship`). If there is nothing to report, say so explicitly. On a re-review, close each prior finding by `file:line` and review the fix delta as new code.
