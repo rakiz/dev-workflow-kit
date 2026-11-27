@@ -57,8 +57,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `_lock_key_kind` table with newline keys, the R1 scenarios, and the usage component.
 - `scripts/release.sh` (`778be3f`, `334b848`): runs `--self-check`, `build.sh --check`
   and smoke, and prints the release steps. It writes no release files and never pushes.
+- Usage recorder stores `start_ts` (message start) next to `ts` (completion); `dwk stats` shows a `tok/s` column per group, and `--by task` attributes messages through the project ledger's `task_id=` lines.
 
 ### Changed
+- Reviewer checklist single-sourced: `roster/fragments/review-checklist.md` is spliced into the review rung prompts between generated markers by `roster/build.sh` (checked by `--check`).
 - Dev-workflow skill rewritten to the v2.1 text, condensed to about 95 lines. It adds the rule that nothing is true without proof, the commit and push authorization profile, a bound of two review rounds (a fresh second round, no third; an agreed major moves to the next implementer rung, a contested one goes to arbitration or to the user), escalation only on demonstrated failure, resume-or-fresh by phase, a context cap of about 100K tokens per agent session, and status questions answered with status only. The periodic review is condensed to a proposal-only retro with at most two changes.
 - File formats moved out of the skill into the template headers: TODO is the roadmap only, CHANGELOG carries the net-change, undo, revert and versioning rules (VERSION and tag decided together at release), DESIGNS is a non-normative archive, and the companion format and enforcement scope are in the README.
 - Coding conventions: the three baseline rules are an always-apply block at the top of the CONVENTIONS template; the skill points at it.
