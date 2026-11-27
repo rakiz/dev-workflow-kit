@@ -9,6 +9,16 @@
 // is > 0. A 0 cost is estimated from tokens x the models.json "prices" rates and
 // labelled "est."; a model with no rate prints "$?" — never a silent 0.
 // --prune deletes monthly files older than 13 months (UTC), nothing else.
+//
+// tok/s = generated tokens (out + reasoning) / span seconds, where span =
+// ts (completed) - start_ts (created), summed over the group's messages.
+// Messages without start_ts (older records) or with span <= 0 are left out of
+// tok/s only; they still count everywhere else.
+//
+// --by task attributes a message to a task through the project ledger: the
+// session's project_root -> its INPROGRESS.md (workflow.inprogress from
+// dev-workflow.json when set) -> the dispatch line whose task_id= equals the
+// message's session id -> that line's task/step field. Unmatched: "-".
 import { readFileSync, readdirSync, statSync, unlinkSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname, resolve } from "node:path";
@@ -69,6 +79,40 @@ function readRecords() {
   return { msgs, sessions, bad };
 }
 
+// ---- task attribution (ledger join) ----------------------------------------
+// Dispatch line: `- <attempt> | <task/step> | <role> | ... | task_id=<id> | ...`
+// Returns Map(child session id -> task/step label). Fail-open: any read or
+// parse problem yields an empty map (the usage view must never stop on it).
+const ledgerCache = new Map();
+function ledgerOf(root) {
+  if (ledgerCache.has(root)) return ledgerCache.get(root);
+  const map = new Map();
+  try {
+    let name = "INPROGRESS.md";
+    const cfg = join(root, "dev-workflow.json");
+    if (existsSync(cfg)) {
+      const inprogress = JSON.parse(readFileSync(cfg, "utf8"))?.workflow?.inprogress;
+      if (typeof inprogress === "string" && inprogress) name = inprogress;
+    }
+    for (const line of readFileSync(join(root, name), "utf8").split("\n")) {
+      if (!line.startsWith("- ")) continue;
+      const fields = line.slice(2).split("|").map((f) => f.trim());
+      const idField = fields.find((f) => /^task_id=\S+$/.test(f));
+      if (!idField || !fields[1]) continue;
+      map.set(idField.slice("task_id=".length), fields[1]);
+    }
+  } catch { /* missing or unreadable ledger: fail open */ }
+  ledgerCache.set(root, map);
+  return map;
+}
+
+function attributeTasks(msgs) {
+  for (const m of msgs) {
+    if (!m.project_root) { m.task = null; continue; }
+    m.task = ledgerOf(m.project_root).get(m.session) || null;
+  }
+}
+
 // ---- cost ------------------------------------------------------------------
 function loadPrices() {
   try { return JSON.parse(readFileSync(MODELS_PATH, "utf8")).prices || {}; } catch { return {}; }
@@ -121,7 +165,7 @@ function window(kind) {
 // ---- render ----------------------------------------------------------------
 function keyOf(m, by) {
   if (by === "agent") return m.agent || "-";
-  if (by === "task") return m.task || "-"; // no task attribution yet: '-' (see plan §3.8)
+  if (by === "task") return m.task || "-"; // ledger join, see attributeTasks
   return `${m.provider}/${m.model}`;
 }
 
@@ -138,13 +182,19 @@ function render() {
     if (project && !(m.project_root || "").startsWith(resolve(project))) return false;
     return true;
   });
+  if (by === "task") attributeTasks(pick);
   const groups = new Map();
-  let total = 0, unpriced = 0, est = 0;
+  let total = 0, unpriced = 0, est = 0, noStart = 0, unattributed = 0;
   for (const m of pick) {
     const k = keyOf(m, by);
-    const g = groups.get(k) || { n: 0, tin: 0, tout: 0, tcache: 0, usd: 0, estimated: false, unknown: false };
+    const g = groups.get(k) || { n: 0, tin: 0, tout: 0, tcache: 0, gen: 0, span: 0, usd: 0, estimated: false, unknown: false };
     const c = costOf(m, prices);
     g.n++; g.tin += m.tokens?.in || 0; g.tout += m.tokens?.out || 0;
+    const startMs = m.start_ts ? Date.parse(m.start_ts) : NaN;
+    const spanS = (Date.parse(m.ts) - startMs) / 1000;
+    if (Number.isFinite(spanS) && spanS > 0) { g.gen += (m.tokens?.out || 0) + (m.tokens?.reasoning || 0); g.span += spanS; }
+    else noStart++;
+    if (by === "task" && !m.task) unattributed++;
     g.tcache += (m.tokens?.cache_read || 0) + (m.tokens?.cache_write || 0);
     if (c.usd == null) { g.unknown = true; unpriced++; } else { g.usd += c.usd; total += c.usd; }
     if (c.est) { g.estimated = true; est++; }
@@ -155,11 +205,14 @@ function render() {
   if (bad) console.log(`note: ${bad} unreadable line(s) skipped`);
   if (!pick.length) { console.log("no completed assistant messages in this window"); return; }
   console.log(`${pick.length} message(s), ${sessCount} session(s)`);
-  console.log(`${"group".padEnd(44)} ${"msgs".padStart(5)} ${"in".padStart(9)} ${"out".padStart(8)} ${"cache".padStart(9)}  cost`);
+  console.log(`${"group".padEnd(44)} ${"msgs".padStart(5)} ${"in".padStart(9)} ${"out".padStart(8)} ${"cache".padStart(9)}  ${"cost".padEnd(24)} ${"tok/s".padStart(8)}`);
   for (const [k, g] of [...groups.entries()].sort((a, b) => b[1].usd - a[1].usd)) {
     const cost = g.unknown && g.usd === 0 ? "$?" : (g.unknown ? `${g.estimated ? "est. " : ""}$${g.usd.toFixed(4)} + $?` : fmtCost({ usd: g.usd, est: g.estimated }));
-    console.log(`${k.slice(0, 44).padEnd(44)} ${String(g.n).padStart(5)} ${String(g.tin).padStart(9)} ${String(g.tout).padStart(8)} ${String(g.tcache).padStart(9)}  ${cost}`);
+    const tps = g.span > 0 ? (g.gen / g.span).toFixed(1) : "-";
+    console.log(`${k.slice(0, 44).padEnd(44)} ${String(g.n).padStart(5)} ${String(g.tin).padStart(9)} ${String(g.tout).padStart(8)} ${String(g.tcache).padStart(9)}  ${cost.padEnd(24)} ${tps.padStart(8)}`);
   }
+  if (noStart) console.log(`note: ${noStart} message(s) left out of tok/s (no start_ts in the record, or non-positive span)`);
+  if (unattributed) console.log(`note: ${unattributed} message(s) unattributed — no ledger line with task_id=<session id>`);
   console.log(`total: ${total > 0 ? "$" + total.toFixed(4) : "$?"}${est && total > 0 ? "  (includes est. values)" : ""}${unpriced ? `  (${unpriced} message(s) with $? — no price in models.json)` : ""}`);
 }
 

@@ -10,6 +10,15 @@
 // message.updated writes for the same id are ignored (verified A3: the event
 // fires several times per message). Cost 0 (subscription providers) is kept as
 // the provider's value and flagged; the estimate is computed by stats, not here.
+//
+// Record shapes (append-only JSONL, one object per line):
+//   {t:"msg", ts, start_ts, msg_id, session, parent_session, agent, provider,
+//    model, variant, tokens:{in,out,reasoning,cache_read,cache_write}, cost, finish}
+//     ts        = time.completed (ISO, the end of the message; back-compat key)
+//     start_ts  = time.created (ISO, the start of the message), or null when the
+//                 host did not report it (records written before this field)
+//     span      = ts - start_ts (computed by stats, not stored)
+//   {t:"session", ts, session, parent_session, project_root, title}
 import { appendFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -53,6 +62,7 @@ function onMessage(info) {
   write({
     t: "msg",
     ts: new Date(info.time.completed).toISOString(),
+    start_ts: info.time.created ? new Date(info.time.created).toISOString() : null,
     msg_id: info.id,
     session: info.sessionID,
     parent_session: null, // filled from the session record (see onSession)
