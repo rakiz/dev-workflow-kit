@@ -195,6 +195,17 @@ The script locates the kit by its own location (`dirname "$0"`); the target is t
 
 Nothing project-specific is touched by `--global`: no skill, no pre-commit hook, no `dev-workflow.json`, no rule/convention files — and no git repo is required (the config directory is not one). `--with-rules` and `--companions` have no effect with `--global` (a warning says so).
 
+### Usage recorder and `/dwk` (opt-in, global)
+
+`--global` also offers a **usage component**: an opencode plugin that records token use and cost per completed assistant message, plus a `/dwk` command that reports it. It is on by default; a TTY install asks first, and `--no-usage` skips it.
+
+- **Install**: `./init.sh --global` (TTY: a yes/no question, default yes). `./init.sh --global --no-usage` skips it. The choice is recorded in the lock (`usage_enabled`).
+- **Files** (under the config directory): `plugin/dwk-usage.js` (the recorder), `command/dwk.md` (the `/dwk` command, with the kit path written in), `dwk/stats.mjs` (the report script). `--update --global` keeps them in step; `--update --global --no-usage` removes them and records `false`. `--doctor --global` checks them.
+- **Data**: `${XDG_DATA_HOME:-~/.local/share}/dev-workflow-kit/usage/YYYY-MM.jsonl`, append-only, one record per completed message and per session, outside any repo. Errors go to `usage/errors.log`; the recorder never blocks or fails a session.
+- **Usage**: `/dwk` (this month, by model), `/dwk today|week|month|range YYYY-MM-DD YYYY-MM-DD`, with `--project PATH` and `--by model|agent|task`; `/dwk live` re-renders every 5 s. `node dwk/stats.mjs --prune` deletes usage files older than 13 months.
+- **Cost**: the provider's reported cost is used when it is above zero. A zero cost is estimated from the token counts and the `prices` section of [models.json](roster/models.json) and labelled `est.`. A model with no rate prints `$?` — an unknown cost, never a silent zero. The `prices` rates ship **null** (unsourced); they are filled at the next catchup, so until then the costs print as `$?`.
+
+
 ## Default models
 
 The kit ships default models per agent role in [models.json](roster/models.json) (impl runs a cheap bulk model, review runs a different model lineage than impl to avoid shared blind spots, deep gets the expensive reasoning model). [init.sh](init.sh) injects these into freshly copied agents — [models.json](roster/models.json) is the single source of truth, edit it to change the defaults. Several roles also pin a reasoning-effort `variant` (some pin `none`, others `low`/`high`/`medium`) — see [MODELS.md](roster/MODELS.md).

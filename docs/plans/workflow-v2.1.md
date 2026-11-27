@@ -692,7 +692,7 @@ D-A14) `EVALS.md`. `init.sh --self-check` lists root `*.md` and fails on any oth
 | `docs/BACKLOG-external-ideas.md` | → `scratch/`, private until triaged (D-A13, ruled) | P0 |
 | `docs/*.pdf`, `docs/*.gif` | → `scratch/` | P0 |
 | `status.sh`, `status-tui.sh`, `session-detail.sh` | → dotfiles (§5A.1) | P0 |
-| `CHANGELOG.md` (new) | Keep-a-Changelog, written by the release script (§8 P1) | P0 |
+| `CHANGELOG.md` (new) | Keep-a-Changelog. **Deviation (shipped, R2):** `scripts/release.sh` prints the release steps and runs the gates; it does NOT write CHANGELOG.md or VERSION itself (the maintainer edits them, then tags) | P0 |
 | `roster/methods/` (new) | §2.4 | P4 |
 | `workflow/templates/*.md` (12) | location unchanged; headers own formats | P2 |
 
@@ -965,7 +965,7 @@ remains open is verification, not decision:
 
 | Open item | Kind | Resolves where |
 |---|---|---|
-| A1-A5 plugin runtime facts (cost populated, `mode` = agent, completion event once, gen/ vs v2 shape, command shell injection) | `[ASSUMPTION]` | P1 item 7 probe; failure → recorder to P5, manual ledger `spent` for Δ |
+| A1-A5 plugin runtime facts | **CLOSED (P1 probe, 2026-11-27, `evals/usage-probe-2026-11-27/VERDICT.md`):** A1 holds (copilot and ai-gateway report real cost); A2 holds; A3 does NOT hold in strict form (message.updated fires 3x per message) → dedupe by id, implemented; A4 fields match gen/ (v2 not compared); A5 does NOT hold (a command runs a model turn) → status.md pattern fallback | P1 item 7: GO |
 | Arbiter per-ruling price (the `$0.50` cap) and gemini-argon fit | `[ASSUMPTION]`, provisional seat | first catchup campaign (D-A20 rule) |
 | Price-table freshness rule ("catchup date" = newest `evals/<date>/`) | `[ASSUMPTION]` | P1 item 7, with `--doctor` |
 | opencode `skills/` loading and project-vs-global precedence | unverifiable here | P3 precondition 1 (decision table already fixed) |

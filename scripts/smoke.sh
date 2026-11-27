@@ -147,6 +147,28 @@ check "r1: --update (baseline stale)" bash -c "OPENCODE_CONFIG_DIR='$R' '$INIT' 
 base="$(jq -r '.files["agent/cheap-mech.md"].body_sha256' "$L")"
 [[ "$base" != "0" ]] && ok "r1: stale baseline refreshed" || bad "r1: baseline still 0"
 
+
+echo "== 6. usage component (global, opt-in)"
+U1="$TMP_ROOT/config-usage-on"; U0="$TMP_ROOT/config-usage-off"
+mkdir -p "$U1" "$U0"
+check "usage: install default" bash -c "OPENCODE_CONFIG_DIR='$U1' '$INIT' --global </dev/null"
+check "usage: install --no-usage" bash -c "OPENCODE_CONFIG_DIR='$U0' '$INIT' --global --no-usage </dev/null"
+[[ "$(jq -c .usage_enabled "$U1/.dev-workflow-kit-lock.json")" == true ]] && ok "usage: default records true" || bad "usage: default not recorded as true"
+[[ "$(jq -c .usage_enabled "$U0/.dev-workflow-kit-lock.json")" == false ]] && ok "usage: --no-usage records false" || bad "usage: --no-usage not recorded as false"
+[[ -f "$U1/plugin/dwk-usage.js" && -f "$U1/command/dwk.md" && -f "$U1/dwk/stats.mjs" ]] && ok "usage: three files installed when on" || bad "usage: files missing when on"
+[[ ! -e "$U0/plugin/dwk-usage.js" ]] && ok "usage: no files when off" || bad "usage: files present when off"
+check "usage: --update --global --no-usage removes it" bash -c "OPENCODE_CONFIG_DIR='$U1' '$INIT' --update --global --no-usage </dev/null"
+[[ ! -e "$U1/plugin/dwk-usage.js" && "$(jq -c .usage_enabled "$U1/.dev-workflow-kit-lock.json")" == false ]] && ok "usage: removed + recorded false" || bad "usage: removal not applied"
+check "usage: doctor clean (usage off)" bash -c "OPENCODE_CONFIG_DIR='$U1' '$INIT' --doctor --global </dev/null"
+
+# the stats script: prune and a render over a fixture JSONL
+STATS="$KIT_DIR/dwk/stats.mjs"
+F="$TMP_ROOT/usage"; mkdir -p "$F"
+echo "{\"t\":\"msg\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"msg_id\":\"m1\",\"session\":\"s1\",\"agent\":\"build\",\"provider\":\"p\",\"model\":\"m\",\"tokens\":{\"in\":1,\"out\":1,\"reasoning\":0,\"cache_read\":0,\"cache_write\":0},\"cost\":0.5}" > "$F/$(date -u +%Y-%m).jsonl"
+echo "{\"t\":\"msg\"}" > "$F/2024-01.jsonl"
+check "usage: stats renders a fixture" bash -c "node '$STATS' month --data '$F' | grep -q '\$0.5000'"
+check "usage: prune removes a 2024 file" bash -c "node '$STATS' --prune --data '$F' | grep -q 'pruned 2024-01' && test ! -e '$F/2024-01.jsonl'"
+
 echo ""
 echo "smoke: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
