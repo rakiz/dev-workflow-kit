@@ -17,6 +17,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   read whole and cannot dodge pruning.
 
 ### Added
+- Budget and decision log in the INPROGRESS template: a budget line (cap, per-child and max-children, placeholders until the owner rules) with a running spent line, and a decision log with the shapes of the deep-gate and arbitration entries.
+- Delegation ledger dispatch lines carry the child session id as task_id=, so the usage recorder can join per-task cost.
+- Self-check fails on a retired name in shipped text (skill, templates, agent prompts, global roster prompts, pre-commit hook), with a whitelist for legal mentions (empty today).
+- Self-check fails on any root-level markdown file outside README, CHANGELOG, EVALS and (until the next phase) AUTONOMOUS-RUN.
+- README doc map: a table of who each documentation file is for and whether it is tracked in git.
+- README permission rails state the push rule: one authorization covers exactly one push.
 - `init.sh --doctor` (`819cc32`): read-only drift report for `--global` or a target.
   Exit 0 clean, 1 drift, 2 precondition failed. It checks baselines, body vs kit,
   model/variant/family vs the effective value, pending `-new`/`-prev` siblings, orphan
@@ -53,6 +59,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and smoke, and prints the release steps. It writes no release files and never pushes.
 
 ### Changed
+- Dev-workflow skill rewritten to the v2.1 text, condensed to about 95 lines. It adds the rule that nothing is true without proof, the commit and push authorization profile, a bound of two review rounds (a fresh second round, no third; an agreed major moves to the next implementer rung, a contested one goes to arbitration or to the user), escalation only on demonstrated failure, resume-or-fresh by phase, a context cap of about 100K tokens per agent session, and status questions answered with status only. The periodic review is condensed to a proposal-only retro with at most two changes.
+- File formats moved out of the skill into the template headers: TODO is the roadmap only, CHANGELOG carries the net-change, undo, revert and versioning rules (VERSION and tag decided together at release), DESIGNS is a non-normative archive, and the companion format and enforcement scope are in the README.
+- Coding conventions: the three baseline rules are an always-apply block at the top of the CONVENTIONS template; the skill points at it.
+- Pre-commit hook header is the single statement of the builtin names and their semantics. The shipped template enables only the companion builtin.
+- Shipped dev-workflow.json template: the companion check is labelled companion_md_exists (was companions_exist). New installs only; an existing config is never touched.
 - Hand-set `model:`/`variant:` lines migrate (`1a7f268`). The first `--update` moves a
   hand-set value into the overrides file, reports it under "Migrated", and the overrides
   file wins over `models.json`. The former "kept as-is" behaviour no longer exists.
