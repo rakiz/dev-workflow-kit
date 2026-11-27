@@ -37,7 +37,7 @@ Group the report under three visible axes; each axis ends with an explicit `revi
 
 Sort each finding:
 
-- **minor**: localized mistake, obvious fix — send back to the implementer with the expected fix.
+- **minor**: localized mistake, obvious fix — send back to the implementer with the expected fix. A number restated outside its home artifact is a minor finding: replace the copy by a reference — not a request to re-sync the copies.
 - **major**: risk of breakage beyond the change, security flaw, architecture problem — escalate to strong-review-alternative (and its alternative2 if doubt persists).
 
 Optional, exceptional: for a large or high-risk diff (your judgment; state the trigger in the report), you may dispatch bounded contract and standards sub-reviews in parallel against the same immutable snapshot, keeping the single correctness review yourself; deduplicate, then rank all findings by severity. One reviewer remains the norm — do not parallelize routine reviews.

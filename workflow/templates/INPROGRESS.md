@@ -38,8 +38,11 @@ spent: $0 (from the usage ledger; orchestrator-updated)
      usage recorder joins it for per-task cost. Corrections keep the logical
      id and increment the attempt (7, then 7.2). Rules (late-writer guard,
      return persistence): dev-workflow skill (§1, "Ownership & delegation
-     ledger"). -->
+     ledger"). A wave opens its ledger with a header line
+     `wave <n> | lane fast|rigorous | budget <k> dispatches` — the skill's
+     Lanes & budget alarm reads that wave's lines against <k>. -->
 
+- `wave <n> | lane fast|rigorous | budget <k> dispatches`
 - `7 | <task/step> | <role> | <allowed files/resources> | <starting artifact identity> | task_id=<id> | <status> | <return location>`
 
 ## Decision log

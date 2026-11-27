@@ -3,6 +3,40 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.1] - 2026-11-27
+
+### Added
+- The human is right by default (skill §1): what the human states about their intent,
+  project, layout or history is the working premise — act on it first, never silently
+  override it; acting against one requires proof and a concrete example plus their
+  confirmation; on a human-vs-artifact collision, show it and ask (the artifact may be
+  the stale side).
+- Wave lanes and budget (dev-workflow skill §1): each wave is tagged `fast`/`rigorous`
+  at the design step — mechanical/standard ⇒ fast unless the wave introduces a contract,
+  measured numbers or fail-closed gates ⇒ rigorous; rigorous core units route to the
+  strong implementation rung at design time (explicit exception to after-failure
+  escalation; an architectural task still passes its design gate); per-wave dispatch
+  budget (fast = impl + 1 review; rigorous = impl + review + fix + delta re-review)
+  with a hard stop past +2 dispatches; after the §7 recovery check, one stalled return
+  on a rigorous unit escalates the rung — scope-halving is not a substitute.
+- Wave sizing (skill §1): a wave spans at most about two unrelated deliverables —
+  beyond that, split into separate waves with separate commit proposals.
+- One home per number (skill §3 baseline): a measured or derived result value lives in
+  the artifact that produced it; other documents reference it by path/name and never
+  restate it as current truth (dated snapshots with reference allowed in CHANGELOG and
+  commit messages; a project `workflow.rules` restatement convention wins; otherwise
+  restatements only in DESIGNS.md history).
+- Review agents (`review`, `cheap-review`): a number restated outside its home artifact
+  is a minor finding — replace the copy by a reference, not a re-sync.
+- INPROGRESS template: a wave opens its ledger with a
+  `wave <n> | lane fast|rigorous | budget <k> dispatches` header line.
+
+Evidence: a real 12-dispatch wave (5 deliverables under one review, 2 pure stalls cured
+by scope-halving instead of rung escalation, 5 of 9 major findings stale or duplicated
+numbers, +3,187 lines) replays at ~5 dispatches under these rules at equal quality.
+Source: the 2026-11-27 retro, recorded in the AmstradCPC/Pete project ledger
+(session artifact, unpublished).
+
 ## [0.9.0] - 2026-11-27
 
 ### Security
