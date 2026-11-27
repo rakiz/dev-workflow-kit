@@ -107,6 +107,9 @@ author would have chosen otherwise (noted once, complied with).
   of D-A1..D-A10, D-A12..D-A15, D-A20, D-A21 as recommended. V2 carry-overs re-checked:
   D11's adoption closed (its concordance-threshold sub-item stays); D3/D7/D9/D10 remain,
   each with a named resolution point (§10).
+- **Owner rulings 2026-11-27 (versioning collapse):** nothing was ever pushed — the first
+  DELIVERED version is 0.9.0 (P0+P1+P2 folded in); no 0.8.1, no 0.10.0-for-P2. The local
+  tags v0.8.1/v0.9.0 are dropped; the tag lands on the release commit when P2 closes.
 
 ---
 
@@ -833,7 +836,7 @@ lines in the 17 deployed bodies" — there are none, §3.1.)
    once it exists. No precondition: bodies are already identical (item 1).
 6. Hygiene (§5A.2): un-ignore `docs/`, add `scratch/`; archive V2 and (after D-A12)
    IMPROVEMENT_PLAN; commit this plan as `docs/plans/workflow-v2.1.md`; BACKLOG/PDF/gif →
-   `scratch/`; root `.sh` → dotfiles (D-A11). Release `0.8.1`.
+   `scratch/`; root `.sh` → dotfiles (D-A11). (folded — see versioning collapse).
 
 **P1 — Drift cannot come back; roster generated.** Value: stale injection and false
 "customized" verdicts die; one table drives the roster.
@@ -865,7 +868,8 @@ retro trigger + kit-proposal block. De-dup pass; shared reviewer checklist fragm
 the same builtin names once (hook header = contract). **Recorder durability: store
 per-message start/completed timestamps in the msg record; `/dwk stats` gains a tok/s view
 (tokens ÷ span) per model and per task (owner request 2026-11-27; the join already exists —
-the probe events carry the time fields).** Release `0.10.0`.
+the probe events carry the time fields).** Release `0.9.0` (owner ruling 2026-11-27:
+nothing shipped before it; P0+P1+P2 deliver as one version).
 
 **P3 — Global-first install + rename.** Value: one install, one name set.
 Preconditions: P1 shipped (orphan removal, generator); §3.6 precondition 1 verified and its

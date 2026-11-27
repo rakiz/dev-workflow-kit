@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.9.0] - 2026-11-27
+## [0.9.0] — Unreleased
 
 ### Security
 - Lock-key sanitization (`f768f7b`): every lock key is classified before any path is
@@ -66,29 +66,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `model:` line is no longer reported as an unknown family.
 - Planning and docs (`89012b1`): README "Updating" and the `init.sh` header describe the
   shipped behaviour, including the `--doctor` exit codes.
-
-### Verified (A1-A5 plugin probe, 2026-11-27, opencode 1.19.6)
-The raw evidence is in [docs/history/2026-11-27-usage-probe/](docs/history/2026-11-27-usage-probe/VERDICT.md)
-(moved from `evals/` in this release; it is a kit verification record, not an eval).
-- A1 cost populated: holds on `github-copilot` and `ai-gateway-misc`. No estimate needed.
-- A2 `mode` equals the agent name: holds.
-- A3 completion fires once: does **not** hold. `message.updated` fires about three times
-  per message, so the recorder dedupes by message id.
-- A4 `gen/` types match the runtime fields used: holds for those fields. The v2 types were
-  not compared.
-- A5 a command runs a script without an LLM turn: does **not** hold. `/dwk` routes
-  through `cheap-mech`, the fallback the plan named.
-
-### Known limits
-- `prices` are unsourced (null). `$?` is shown until a catchup fills them.
-- `/dwk stats --by task` shows `-`: there is no task attribution until P2 adds `task_id=`.
-- `scripts/release.sh` prints the release steps. It does not write CHANGELOG.md or VERSION
-  itself; the maintainer does, then tags (plan §5A.2 deviation).
-- Module split of `init.sh` (plan §5A.4) is still pending (P6).
-
-## [0.8.1] - 2026-11-26
-
-### Changed
 - Cleanup: deployed roster reconciled with the kit. The 17 parked
   `*.dev-workflow-kit-new` siblings and the vacated `strong-design-review-alternative2`
   rung (stale `grok-4.7` mapping) are removed from `~/.config/opencode/agent/`.
@@ -116,3 +93,22 @@ The raw evidence is in [docs/history/2026-11-27-usage-probe/](docs/history/2026-
 
 ### Removed
 - `roster/global-agent/strong-design-review-alternative2.md` (rung vacated).
+
+### Verified (A1-A5 plugin probe, 2026-11-27, opencode 1.19.6)
+The raw evidence is in [docs/history/2026-11-27-usage-probe/](docs/history/2026-11-27-usage-probe/VERDICT.md)
+(moved from `evals/` in this release; it is a kit verification record, not an eval).
+- A1 cost populated: holds on `github-copilot` and `ai-gateway-misc`. No estimate needed.
+- A2 `mode` equals the agent name: holds.
+- A3 completion fires once: does **not** hold. `message.updated` fires about three times
+  per message, so the recorder dedupes by message id.
+- A4 `gen/` types match the runtime fields used: holds for those fields. The v2 types were
+  not compared.
+- A5 a command runs a script without an LLM turn: does **not** hold. `/dwk` routes
+  through `cheap-mech`, the fallback the plan named.
+
+### Known limits
+- `prices` are unsourced (null). `$?` is shown until a catchup fills them.
+- `/dwk stats --by task` shows `-`: there is no task attribution until P2 adds `task_id=`.
+- `scripts/release.sh` prints the release steps. It does not write CHANGELOG.md or VERSION
+  itself; the maintainer does, then tags (plan §5A.2 deviation).
+- Module split of `init.sh` (plan §5A.4) is still pending (P6).
