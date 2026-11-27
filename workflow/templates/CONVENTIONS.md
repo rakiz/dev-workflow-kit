@@ -13,21 +13,27 @@
      before writing or editing code (path: workflow.conventions in
      dev-workflow.json). -->
 
-## 1. Comments describe intent, not code
+## Always-apply baseline (even without this file)
 
-A comment explains WHY the code does something — a decision, a constraint, a
-non-obvious tradeoff. It never restates WHAT the next line already says in
-code.
+1. **Comments describe intent, not code.** A comment explains WHY the code
+   does something (a decision, a constraint, a non-obvious tradeoff); it never
+   restates WHAT the next line already says.
+2. **Comments describe the current state, not its history.** Outside
+   `CHANGELOG.md`, code comments never narrate evolution ("previously", "used
+   to be", "changed from", "no longer needed but kept…"). A past decision that
+   matters belongs in `CHANGELOG.md` or a commit message. The enforcement
+   contract (the `no_history_comments` builtin) lives in the pre-commit hook
+   header.
+3. **Reuse before writing — the ladder.** Before writing anything new, stop at
+   the first rung that holds: (a) does it need to exist — is the requirement
+   itself wrong? (b) does the codebase already have it? (c) the standard
+   library? (d) the platform/runtime? (e) an installed dependency? (f) can it
+   be one line? A rung that holds means reuse — write nothing new. If none
+   holds, write the minimum that works, plus at least one small test if it
+   carries logic. Lazy about the solution, never about validation, error
+   handling or security.
 
-## 2. Comments describe the current state, not its history
-
-Outside `CHANGELOG.md`, code comments never narrate evolution: no "changed
-from X to Y", "previously did Z", "used to be", "old behavior was", "no
-longer needed but kept for compatibility" phrased as history. A past
-decision that matters belongs in `CHANGELOG.md` or a commit message — not in
-a comment describing what the code does today.
-
-## 3. Design patterns — simple and known
+## 1. Design patterns — simple and known
 
 When a problem matches a known pattern, use it in its standard form, under its
 usual name — a reader should recognize what they are looking at. Never
