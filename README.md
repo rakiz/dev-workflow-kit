@@ -98,7 +98,7 @@ Where each kind of documentation lives, who it is for, and whether it is tracked
 | Audience | Doc | Tracked |
 |---|---|---|
 | Kit user | README.md | yes |
-| Installer CLI reference | `init.sh --help` (README links, never restates flags) | yes |
+| Installer CLI reference | the usage header at the top of `init.sh` (the script has no `--help` flag; the Quick start keeps its examples) | yes |
 | Roster reader | roster/MODELS.md | yes |
 | Roster prompts | roster/global-agent/*.md | yes |
 | Workflow behavior | workflow/skill/*/SKILL.md | yes |
@@ -108,7 +108,7 @@ Where each kind of documentation lives, who it is for, and whether it is tracked
 | Active plan | docs/plans/<name>.md | yes |
 | Finished plans/proposals | docs/history/ (frozen) | yes |
 | Eval readers | evals/ | yes |
-| Owner journal/backlog | scratch/ (gitignored) | no |
+| Owner journal/backlog | AUTONOMOUS-RUN.md at the repo root (owner journal, gitignored, moves in P3); scratch/ (backlog, gitignored) | no |
 | Usage data | ~/.local/share/dev-workflow-kit/usage/ (data, outside every repo) | no |
 
 ## Structure
@@ -274,7 +274,7 @@ If `opencode` is not installed, the check is skipped with a warning — the mode
 
 - **add a check** — append an entry to `checks[]`:
   - `{ "name": "lint", "cmd": "npm run lint" }` — any shell command, run from the repo root on every commit; exit code 0 passes, any other exit code blocks the commit;
-  - `{ "name": "...", "builtin": "..." }` — a hook-native check (builtins listed below);
+  - `{ "name": "...", "builtin": "..." }` — a hook-native check (its builtin names are the contract in the hook header, see Builtins below);
 - **change or remove a check** — edit or delete its entry; the hook re-reads `checks[]` on every commit, there is nothing else to wire.
 
 An entry with an empty `cmd` and no `builtin` is silently skipped (that is how the template ships its `tests` check).

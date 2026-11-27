@@ -44,13 +44,18 @@ spent: $0 (from the usage ledger; orchestrator-updated)
 
 ## Decision log
 
-<!-- One entry per event below, appended as it happens. Shapes verbatim:
+<!-- Entries are appended BELOW this comment, one per event, as it happens.
+     The two shapes are the contract, verbatim here; copy a shape into a new
+     line and fill it — never keep the shape text itself as an entry.
 
      deep-gate — written at the design step, BEFORE any deep-tier consult spend:
      deep-gate: class=<key> | scope=<one line> | instances=[<id>, …] (n=<count>) | library=<hit:<key>|miss|diverged:<key>> | GT=<yes|no> | C=$<cap> | Δ=$<value> (measured: <ledger ref>) | verdict=<CONSULT|SKIP> (<reason>)
 
      arbitration — written when a contested major is arbitrated; counts toward the 2-per-task bound:
      arbitration: <task> | wave <w> | #<k of 2> | <stands|rejected|human> | $<spent>
+
+     Example rendering (illustrative, not a real event):
+     arbitration: parser refactor | wave 2 | #1 of 2 | rejected | $0.84
 -->
 
 ## Blockers

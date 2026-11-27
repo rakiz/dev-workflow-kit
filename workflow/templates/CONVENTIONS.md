@@ -45,7 +45,7 @@ it solves is a finding, not a contribution.
 ## Project rules
 
 <!-- Add your project's own rules here, one subsection per rule, same style
-     as the three above. Delete this comment as you fill them in. Suggested
+     as the always-apply baseline above. Delete this comment as you fill them in. Suggested
      optional rule — "docs describe the present": published reference docs
      describe supported current behavior; release changes live in
      CHANGELOG.md; necessary migration/decision history lives in its

@@ -61,6 +61,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - Reviewer checklist single-sourced: `roster/fragments/review-checklist.md` is spliced into the review rung prompts between generated markers by `roster/build.sh` (checked by `--check`).
+- Net effect of the checklist single-sourcing: the five code-review rungs (review, cheap-review, strong-review, and the two strong-review alternatives) share one checklist, the union of their lenses, and it is inlined as a generated region that `--check` enforces. The three design-review rungs keep their own rung-specific lenses by design: each is a different lens with no shared contract to single-source.
 - Dev-workflow skill rewritten to the v2.1 text, condensed to about 95 lines. It adds the rule that nothing is true without proof, the commit and push authorization profile, a bound of two review rounds (a fresh second round, no third; an agreed major moves to the next implementer rung, a contested one goes to arbitration or to the user), escalation only on demonstrated failure, resume-or-fresh by phase, a context cap of about 100K tokens per agent session, and status questions answered with status only. The periodic review is condensed to a proposal-only retro with at most two changes.
 - File formats moved out of the skill into the template headers: TODO is the roadmap only, CHANGELOG carries the net-change, undo, revert and versioning rules (VERSION and tag decided together at release), DESIGNS is a non-normative archive, and the companion format and enforcement scope are in the README.
 - Coding conventions: the three baseline rules are an always-apply block at the top of the CONVENTIONS template; the skill points at it.
@@ -105,6 +106,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `init.sh --global --update`.
 - `.gitignore`: `/AUTONOMOUS-RUN.md` ignored (its disposition is P3).
 - Evidence record: `docs/history/2026-11-26-p0-deletion-evidence.md`.
+
+### Fixed
+- The opt-in `no_history_comments` builtin blocked history-narrating lines in the changelog itself. The changelog (`workflow.changelog`, default CHANGELOG.md) is now exempt, as the convention rule always stated.
 
 ### Removed
 - `roster/global-agent/strong-design-review-alternative2.md` (rung vacated).
