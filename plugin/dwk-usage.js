@@ -16,7 +16,8 @@
 //    model, variant, tokens:{in,out,reasoning,cache_read,cache_write}, cost, finish}
 //     ts        = time.completed (ISO, the end of the message; back-compat key)
 //     start_ts  = time.created (ISO, the start of the message), or null when the
-//                 host did not report it (records written before this field)
+//                 host reported no time.created. Records written before the
+//                 start_ts field have NO start_ts key at all (not null).
 //     span      = ts - start_ts (computed by stats, not stored)
 //   {t:"session", ts, session, parent_session, project_root, title}
 import { appendFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";

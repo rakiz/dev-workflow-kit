@@ -81,20 +81,23 @@ function readRecords() {
 
 // ---- task attribution (ledger join) ----------------------------------------
 // Dispatch line: `- <attempt> | <task/step> | <role> | ... | task_id=<id> | ...`
-// Returns Map(child session id -> task/step label). Fail-open: any read or
-// parse problem yields an empty map (the usage view must never stop on it).
-const ledgerCache = new Map();
+// Returns Map(child session id -> task/step label). Read on every render (no
+// cache): live mode must see ledger edits on the next tick. Fail-open: a missing
+// or unreadable ledger yields an empty map; a malformed dev-workflow.json only
+// drops the rename and the default INPROGRESS.md name is used.
+function inprogressName(root) {
+  try {
+    const cfg = join(root, "dev-workflow.json");
+    if (!existsSync(cfg)) return "INPROGRESS.md";
+    const name = JSON.parse(readFileSync(cfg, "utf8"))?.workflow?.inprogress;
+    return typeof name === "string" && name ? name : "INPROGRESS.md";
+  } catch { return "INPROGRESS.md"; }
+}
+
 function ledgerOf(root) {
-  if (ledgerCache.has(root)) return ledgerCache.get(root);
   const map = new Map();
   try {
-    let name = "INPROGRESS.md";
-    const cfg = join(root, "dev-workflow.json");
-    if (existsSync(cfg)) {
-      const inprogress = JSON.parse(readFileSync(cfg, "utf8"))?.workflow?.inprogress;
-      if (typeof inprogress === "string" && inprogress) name = inprogress;
-    }
-    for (const line of readFileSync(join(root, name), "utf8").split("\n")) {
+    for (const line of readFileSync(join(root, inprogressName(root)), "utf8").split("\n")) {
       if (!line.startsWith("- ")) continue;
       const fields = line.slice(2).split("|").map((f) => f.trim());
       const idField = fields.find((f) => /^task_id=\S+$/.test(f));
@@ -102,14 +105,17 @@ function ledgerOf(root) {
       map.set(idField.slice("task_id=".length), fields[1]);
     }
   } catch { /* missing or unreadable ledger: fail open */ }
-  ledgerCache.set(root, map);
   return map;
 }
 
+// Sets m.task per message (null when no project root or no ledger line). One
+// ledger read per project per call.
 function attributeTasks(msgs) {
+  const ledgers = new Map();
   for (const m of msgs) {
     if (!m.project_root) { m.task = null; continue; }
-    m.task = ledgerOf(m.project_root).get(m.session) || null;
+    if (!ledgers.has(m.project_root)) ledgers.set(m.project_root, ledgerOf(m.project_root));
+    m.task = ledgers.get(m.project_root).get(m.session) || null;
   }
 }
 
@@ -170,8 +176,9 @@ function keyOf(m, by) {
 }
 
 function render() {
-  const cmd = args.find((a) => !a.startsWith("--") && a !== "range" && !/^\d{4}-\d{2}-\d{2}$/.test(a) && !a.endsWith(".mjs")) || "month";
-  const win = window(["today", "week", "month", "range"].includes(cmd) ? cmd : "month");
+  // The window keyword is the first known one; option values (e.g. --data DIR) never match.
+  const cmd = args.find((a) => ["today", "week", "month", "range"].includes(a)) || "month";
+  const win = window(cmd);
   const by = opt("--by", "model");
   const project = opt("--project", null);
   const { msgs, sessions, bad } = readRecords();
@@ -184,7 +191,7 @@ function render() {
   });
   if (by === "task") attributeTasks(pick);
   const groups = new Map();
-  let total = 0, unpriced = 0, est = 0, noStart = 0, unattributed = 0;
+  let total = 0, unpriced = 0, est = 0, noStart = 0, noRoot = 0, noLine = 0;
   for (const m of pick) {
     const k = keyOf(m, by);
     const g = groups.get(k) || { n: 0, tin: 0, tout: 0, tcache: 0, gen: 0, span: 0, usd: 0, estimated: false, unknown: false };
@@ -194,7 +201,7 @@ function render() {
     const spanS = (Date.parse(m.ts) - startMs) / 1000;
     if (Number.isFinite(spanS) && spanS > 0) { g.gen += (m.tokens?.out || 0) + (m.tokens?.reasoning || 0); g.span += spanS; }
     else noStart++;
-    if (by === "task" && !m.task) unattributed++;
+    if (by === "task" && !m.task) { if (m.project_root) noLine++; else noRoot++; }
     g.tcache += (m.tokens?.cache_read || 0) + (m.tokens?.cache_write || 0);
     if (c.usd == null) { g.unknown = true; unpriced++; } else { g.usd += c.usd; total += c.usd; }
     if (c.est) { g.estimated = true; est++; }
@@ -212,7 +219,12 @@ function render() {
     console.log(`${k.slice(0, 44).padEnd(44)} ${String(g.n).padStart(5)} ${String(g.tin).padStart(9)} ${String(g.tout).padStart(8)} ${String(g.tcache).padStart(9)}  ${cost.padEnd(24)} ${tps.padStart(8)}`);
   }
   if (noStart) console.log(`note: ${noStart} message(s) left out of tok/s (no start_ts in the record, or non-positive span)`);
-  if (unattributed) console.log(`note: ${unattributed} message(s) unattributed — no ledger line with task_id=<session id>`);
+  if (noRoot || noLine) {
+    const causes = [];
+    if (noRoot) causes.push(`${noRoot} without a session project root`);
+    if (noLine) causes.push(`${noLine} without a ledger line with task_id=<session id>`);
+    console.log(`note: ${noRoot + noLine} message(s) unattributed (${causes.join(", ")})`);
+  }
   console.log(`total: ${total > 0 ? "$" + total.toFixed(4) : "$?"}${est && total > 0 ? "  (includes est. values)" : ""}${unpriced ? `  (${unpriced} message(s) with $? — no price in models.json)` : ""}`);
 }
 

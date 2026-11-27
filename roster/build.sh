@@ -58,8 +58,8 @@ jq -e 'type == "object"' "$SRC_JSON" >/dev/null 2>&1 || die "$SRC_JSON is not a 
 check_markers() {
   local file="$1" b e
   [[ -f "$file" ]] || die "missing $file"
-  b="$(grep -cF "$2" "$file" 2>/dev/null || true)"
-  e="$(grep -cF "$3" "$file" 2>/dev/null || true)"
+  b="$(grep -cxF "$2" "$file" 2>/dev/null || true)"
+  e="$(grep -cxF "$3" "$file" 2>/dev/null || true)"
   [[ "$b" == 1 && "$e" == 1 ]] || die "$file must contain exactly one BEGIN and one END marker (found BEGIN=$b END=$e)"
 }
 check_markers "$MODELS_MD" "$BEGIN_MARK" "$END_MARK"

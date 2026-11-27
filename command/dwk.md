@@ -12,6 +12,6 @@ Arguments given: `$ARGUMENTS`
 
 `$DWK_HOME` is the kit checkout the roster was installed from; if unset, look for `dwk/stats.mjs` under `~/dev-workflow-kit`.
 
-Accepted forms: `today`, `week`, `month`, `range YYYY-MM-DD YYYY-MM-DD`, each with optional `--project PATH` and `--by model|agent|task`, and `--prune` (deletes usage files older than 13 months). Every group shows a `tok/s` column (generated tokens ÷ message span, from the recorded start and completion times; older records without a start are left out of it). `--by task` attributes each message through the project ledger: the `task_id=` lines of its `INPROGRESS.md`; unattributed messages print as `-`.
+Accepted forms: `today`, `week`, `month`, `range YYYY-MM-DD YYYY-MM-DD`, each with optional `--project PATH` and `--by model|agent|task`, and `--prune` (deletes usage files older than 13 months). Every group shows a `tok/s` column (generated tokens ÷ message span, from the recorded start and completion times; older records without a start are left out of it). `--by task` attributes each message through the project ledger: the `task_id=` lines of its `INPROGRESS.md` (or the file named by `workflow.inprogress` in its `dev-workflow.json`); unattributed messages print as `-`.
 
 Show the script's output unchanged. If it reports `$?`, say that a model has no price in models.json yet (the cost is unknown, not zero).
