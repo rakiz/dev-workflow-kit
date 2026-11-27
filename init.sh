@@ -266,7 +266,13 @@ roster_build_check() {
 #   3. every lock key DERIVED from the kit tree (one per kit-shipped agent,
 #      skill and rules file) classifies as a strict path via _lock_key_kind,
 #      so a shipped file name the lock would refuse fails the check;
-#   4. the generated roster artifacts match models.json (build.sh --check).
+#   4. the generated roster artifacts match models.json (build.sh --check);
+#   5. no retired name survives in the shipped text: RETIRED_NAME_PATTERNS is
+#      grep'd (-E) over workflow/skill/, workflow/templates/, workflow/agent/*.md,
+#      roster/global-agent/*.md and workflow/hooks/pre-commit.sh. A hit fails
+#      unless RETIRED_NAME_WHITELIST exempts it (`path:regex`, empty today);
+#   6. the kit root holds only the allowed *.md (README, CHANGELOG, EVALS, and
+#      AUTONOMOUS-RUN.md until P3 moves it).
 # Lists every failure and exits 1; prints OK and exits 0 otherwise.
 self_check() {
   local p tok errors=0 f rel
@@ -336,6 +342,47 @@ self_check() {
     while IFS= read -r _rl; do kit_bad+=("    $_rl"); done <<<"$roster_msg"
   fi
 
+  # 5. retired names. P3 generates this list from the models.json renamed/
+  # retired maps plus the generic §5A.3 tokens; seeded with the two names that
+  # shipped text still carried.
+  local -a RETIRED_NAME_PATTERNS=(
+    '\bstrong-design-review-alternative2\b'
+    '\bcompanions_exist\b'
+  )
+  # path:regex exemptions for legal mentions (path relative to the kit root).
+  local -a RETIRED_NAME_WHITELIST=()
+  local -a scan=()
+  local pat hitline exempt w wpath wre
+  while IFS= read -r f; do scan+=("$f"); done < <(find "$KIT_DIR/workflow/skill" "$KIT_DIR/workflow/templates" -type f 2>/dev/null)
+  for f in "$KIT_DIR/workflow/agent/"*.md "$KIT_DIR/roster/global-agent/"*.md "$KIT_DIR/workflow/hooks/pre-commit.sh"; do
+    [[ -e "$f" ]] && scan+=("$f")
+  done
+  for f in ${scan[@]+"${scan[@]}"}; do
+    rel="${f#"$KIT_DIR"/}"
+    for pat in "${RETIRED_NAME_PATTERNS[@]}"; do
+      while IFS= read -r hitline; do
+        [[ -z "$hitline" ]] && continue
+        exempt=0
+        for w in ${RETIRED_NAME_WHITELIST[@]+"${RETIRED_NAME_WHITELIST[@]}"}; do
+          wpath="${w%%:*}"; wre="${w#*:}"
+          if [[ "$wpath" == "$rel" ]] && grep -qE -- "$wre" <<<"${hitline#*:}"; then exempt=1; break; fi
+        done
+        [[ $exempt -eq 0 ]] && kit_bad+=("retired name matches /$pat/ at $rel:$hitline")
+      done < <(grep -nE -- "$pat" "$f" 2>/dev/null)
+    done
+  done
+
+  # 6. root-level *.md: the kit root keeps only its tracked docs.
+  # AUTONOMOUS-RUN.md is allowed only until P3 moves it.
+  local -a root_allowed=(README.md CHANGELOG.md EVALS.md AUTONOMOUS-RUN.md) # AUTONOMOUS-RUN.md (until P3)
+  for f in "$KIT_DIR/"*.md; do
+    [[ -e "$f" ]] || continue
+    rel="$(basename "$f")"
+    exempt=0
+    for w in "${root_allowed[@]}"; do [[ "$rel" == "$w" ]] && exempt=1; done
+    [[ $exempt -eq 1 ]] || kit_bad+=("root-level doc not allowed at the kit root: $rel (allowed: README.md, CHANGELOG.md, EVALS.md; AUTONOMOUS-RUN.md until P3)")
+  done
+
   if [[ ${#missing[@]} -gt 0 || ${#bad_keys[@]} -gt 0 || ${#kit_bad[@]} -gt 0 ]]; then
     echo "init --self-check: FAILED" >&2
     for p in "${missing[@]}"; do echo "  missing kit source: $p" >&2; done
@@ -347,7 +394,7 @@ self_check() {
     done
     return 1
   fi
-  echo "init --self-check: OK — every kit source path present; every lock key shape within ^(agent|skill|CONVENTIONS|RULES); every kit-derived lock key a strict path; roster artifacts in sync with models.json"
+  echo "init --self-check: OK — every kit source path present; every lock key shape within ^(agent|skill|CONVENTIONS|RULES); every kit-derived lock key a strict path; roster artifacts in sync with models.json; no retired name in shipped text; kit-root docs within the allowed set"
   return 0
 }
 
