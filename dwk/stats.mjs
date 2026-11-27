@@ -175,9 +175,24 @@ function keyOf(m, by) {
   return `${m.provider}/${m.model}`;
 }
 
+// The window keyword is the first non-option token; the token after a
+// value-taking flag (--data, --project, --models, --by) is that flag's value and
+// is skipped, so a directory named "range" or a project named "today" is never
+// read as a keyword. Anything else (or no token) means the month window.
+const VALUE_FLAGS = new Set(["--data", "--project", "--models", "--by"]);
+const WINDOW_KEYWORDS = ["today", "week", "month", "range"];
+function windowKeyword() {
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (VALUE_FLAGS.has(a)) { i++; continue; }
+    if (a.startsWith("--")) continue;
+    return WINDOW_KEYWORDS.includes(a) ? a : "month";
+  }
+  return "month";
+}
+
 function render() {
-  // The window keyword is the first known one; option values (e.g. --data DIR) never match.
-  const cmd = args.find((a) => ["today", "week", "month", "range"].includes(a)) || "month";
+  const cmd = windowKeyword();
   const win = window(cmd);
   const by = opt("--by", "model");
   const project = opt("--project", null);
