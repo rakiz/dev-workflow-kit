@@ -3,6 +3,89 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.0] - 2026-11-27
+
+### Security
+- Lock-key sanitization (`f768f7b`): every lock key is classified before any path is
+  built from it. Keys containing `..`, a leading `/`, a newline, or any shape outside
+  `agent/<name>.md`, `skill/...`, `CONVENTIONS*.md` and `RULES*.md` are pruned from the
+  lock with no file touched. A traversal key can no longer delete or overwrite a file
+  outside the managed directory.
+- Lock keys are iterated NUL-separated (`c78794b`), so a key containing a newline is
+  read whole and cannot dodge pruning.
+
+### Added
+- `init.sh --doctor` (`819cc32`): read-only drift report for `--global` or a target.
+  Exit 0 clean, 1 drift, 2 precondition failed. It checks baselines, body vs kit,
+  model/variant/family vs the effective value, pending `-new`/`-prev` siblings, orphan
+  and out-of-pattern keys, and (`--global`) the roster generator and the usage files.
+- Overrides file `dev-workflow-kit.overrides.json` (`1a7f268`): personal model/variant
+  choices per agent, applied over `models.json`.
+- Orphan removal with backups (`1a7f268`): a lock-proven agent the kit no longer ships
+  is copied to `dev-workflow-kit-backup/<UTC timestamp>/`, then removed. Its lock entry
+  is kept in `lock-entries.jsonl` (reported as "not archived" when no backup dir exists).
+- Global `-prev` overwrite (`c78794b`): with `--update --global`, a diverged roster body
+  is overwritten by the kit; the previous file is kept once as `<file>.dev-workflow-kit-prev`.
+- Stale sibling cleanup (`c78794b`, `334b848`): a `.dev-workflow-kit-new` whose body
+  equals the kit again is removed and reported.
+- Roster generator (`c78794b`, `334b848`): `roster/build.sh` writes the MODELS.md
+  generated region and `roster/injected-preview.md` from `models.json`. `--check` exits 1
+  on drift. Markers must appear exactly once, else it refuses.
+- Fail-closed deploy gate (`c78794b`): `init.sh --global` (install and `--update`)
+  refuses while `roster/build.sh --check` fails, and names the fix.
+- Self-check manifest (`c0812f8`, `c78794b`): lock key shapes are listed in
+  `LOCK_KEY_MANIFEST`, and every key the kit tree derives is asserted to be a strict path.
+  The roster check runs too.
+- Usage recorder and `/dwk` (`6275774`), opt-in for `--global`: `plugin/dwk-usage.js`
+  (append-only JSONL under `~/.local/share/dev-workflow-kit/usage/`, one record per
+  completed assistant message and per session), `command/dwk.md`, `dwk/stats.mjs`
+  (`today|week|month|range`, `--project`, `--by`, `live`, `--prune` at 13 months).
+  Install asks on a TTY (default yes); `--no-usage` skips it; the choice is recorded
+  in the lock (`usage_enabled`). `--update --global --no-usage` removes the files.
+- `models.json` `prices` section (`6275774`): reserved for the usage recorder. All eight
+  rates are **null** (unsourced); until a catchup fills them, costs print as `$?`.
+- `scripts/smoke.sh` (`778be3f`, `334b848`, `6275774`): sandbox end-to-end gate (global
+  and project install, update twice, doctor, zero stray siblings or backups), the
+  `_lock_key_kind` table with newline keys, the R1 scenarios, and the usage component.
+- `scripts/release.sh` (`778be3f`, `334b848`): runs `--self-check`, `build.sh --check`
+  and smoke, and prints the release steps. It writes no release files and never pushes.
+
+### Changed
+- Hand-set `model:`/`variant:` lines migrate (`1a7f268`). The first `--update` moves a
+  hand-set value into the overrides file, reports it under "Migrated", and the overrides
+  file wins over `models.json`. The former "kept as-is" behaviour no longer exists.
+  A value equal to the kit default is never pinned. When the kit default has no variant,
+  migrating the model removes the `variant:` line.
+- Variant override rule (`1a7f268`): a variant override applies only with its model. When
+  the override names a different model, the kit's variant does not carry over.
+- Bootstrap verdict (`c78794b`): a diverged body with no lock baseline is reported as
+  "diverged, origin unknown", never as "customized", with a `diff` size against the kit.
+- Body equal to the kit with a stale lock baseline counts as current, and the baseline is
+  refreshed (`c78794b`).
+- The family-unknown warning fires once per (file, model) per run (`334b848`). A missing
+  `model:` line is no longer reported as an unknown family.
+- Planning and docs (`89012b1`): README "Updating" and the `init.sh` header describe the
+  shipped behaviour, including the `--doctor` exit codes.
+
+### Verified (A1-A5 plugin probe, 2026-11-27, opencode 1.19.6)
+The raw evidence is in [docs/history/2026-11-27-usage-probe/](docs/history/2026-11-27-usage-probe/VERDICT.md)
+(moved from `evals/` in this release; it is a kit verification record, not an eval).
+- A1 cost populated: holds on `github-copilot` and `ai-gateway-misc`. No estimate needed.
+- A2 `mode` equals the agent name: holds.
+- A3 completion fires once: does **not** hold. `message.updated` fires about three times
+  per message, so the recorder dedupes by message id.
+- A4 `gen/` types match the runtime fields used: holds for those fields. The v2 types were
+  not compared.
+- A5 a command runs a script without an LLM turn: does **not** hold. `/dwk` routes
+  through `cheap-mech`, the fallback the plan named.
+
+### Known limits
+- `prices` are unsourced (null). `$?` is shown until a catchup fills them.
+- `/dwk stats --by task` shows `-`: there is no task attribution until P2 adds `task_id=`.
+- `scripts/release.sh` prints the release steps. It does not write CHANGELOG.md or VERSION
+  itself; the maintainer does, then tags (plan §5A.2 deviation).
+- Module split of `init.sh` (plan §5A.4) is still pending (P6).
+
 ## [0.8.1] - 2026-11-26
 
 ### Changed

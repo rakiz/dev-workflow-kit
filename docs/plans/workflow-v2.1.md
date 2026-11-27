@@ -965,7 +965,7 @@ remains open is verification, not decision:
 
 | Open item | Kind | Resolves where |
 |---|---|---|
-| A1-A5 plugin runtime facts | **CLOSED (P1 probe, 2026-11-27, `evals/usage-probe-2026-11-27/VERDICT.md`):** A1 holds (copilot and ai-gateway report real cost); A2 holds; A3 does NOT hold in strict form (message.updated fires 3x per message) → dedupe by id, implemented; A4 fields match gen/ (v2 not compared); A5 does NOT hold (a command runs a model turn) → status.md pattern fallback | P1 item 7: GO |
+| A1-A5 plugin runtime facts | **CLOSED (P1 probe, 2026-11-27, `docs/history/2026-11-27-usage-probe/VERDICT.md`):** A1 holds (copilot and ai-gateway report real cost); A2 holds; A3 does NOT hold in strict form (message.updated fires 3x per message) → dedupe by id, implemented; A4 fields match gen/ (v2 not compared); A5 does NOT hold (a command runs a model turn) → status.md pattern fallback | P1 item 7: GO |
 | Arbiter per-ruling price (the `$0.50` cap) and gemini-argon fit | `[ASSUMPTION]`, provisional seat | first catchup campaign (D-A20 rule) |
 | Price-table freshness rule ("catchup date" = newest `evals/<date>/`) | `[ASSUMPTION]` | P1 item 7, with `--doctor` |
 | opencode `skills/` loading and project-vs-global precedence | unverifiable here | P3 precondition 1 (decision table already fixed) |
