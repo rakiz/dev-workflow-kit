@@ -169,6 +169,29 @@ echo "{\"t\":\"msg\"}" > "$F/2024-01.jsonl"
 check "usage: stats renders a fixture" bash -c "node '$STATS' month --data '$F' | grep -q '\$0.5000'"
 check "usage: prune removes a 2024 file" bash -c "node '$STATS' --prune --data '$F' | grep -q 'pruned 2024-01' && test ! -e '$F/2024-01.jsonl'"
 
-echo ""
+# recorder + stats labelling: a zero-spend turn writes no msg record (its session
+# record is kept); a real cost never gets "est."; only the estimate path does.
+RU="$TMP_ROOT/recorder"
+mkdir -p "$RU"
+printf '%s\n' '{"prices":{"p/priced":{"in":1,"out":1,"cache_read":0,"cache_write":0},"p/m0":{"in":null,"out":null}}}' > "$RU/prices.json"
+cat > "$RU/feed.mjs" <<JS
+import { DwkUsage } from "$KIT_DIR/plugin/dwk-usage.js";
+const h = await DwkUsage();
+const ev = (info) => h.event({ event: { type: "message.updated", properties: { info } } });
+const base = { role: "assistant", sessionID: "ses_1", agent: "build", providerID: "p", time: { completed: Date.now() } };
+const tk = (i, o) => ({ input: i, output: o, reasoning: 0, cache: { read: 0, write: 0 } });
+await h.event({ event: { type: "session.created", properties: { info: { id: "ses_1", title: "t", directory: "/tmp/p" } } } });
+await ev({ ...base, id: "zero", modelID: "m0", cost: 0, tokens: tk(0, 0) });
+await ev({ ...base, id: "r1", modelID: "m0", cost: 0.5, tokens: tk(10, 5) });
+await ev({ ...base, id: "r2", modelID: "m0", cost: 0.25, tokens: tk(10, 5) });
+await ev({ ...base, id: "e1", modelID: "priced", cost: 0, tokens: tk(1000000, 0) });
+JS
+DWK_USAGE_DIR="$RU/usage" node "$RU/feed.mjs"
+if cat "$RU"/usage/*.jsonl | grep -q '"msg_id":"zero"'; then bad "rec: zero-spend message was recorded"; else ok "rec: zero-spend message skipped"; fi
+if cat "$RU"/usage/*.jsonl | grep -q '"t":"session"'; then ok "rec: session record kept"; else bad "rec: session record missing"; fi
+STATS_OUT="$(node "$KIT_DIR/dwk/stats.mjs" --data "$RU/usage" --models "$RU/prices.json" --by model)"
+if printf '%s\n' "$STATS_OUT" | grep '^p/m0 ' | grep -q 'est\.'; then bad "stats: real-cost group wrongly labelled est."; else ok "stats: real-cost group has no est."; fi
+if printf '%s\n' "$STATS_OUT" | grep '^p/priced ' | grep -q 'est\. \$1\.0000'; then ok "stats: cost-0-with-price labelled est."; else bad "stats: estimate label missing"; fi
+
 echo "smoke: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

@@ -80,7 +80,8 @@ function costOf(m, prices) {
   const key = `${m.provider}/${m.model}`;
   const p = prices[key] || prices[m.model];
   const t = m.tokens || {};
-  if (!p || p.in == null || p.out == null) return { usd: null, est: true }; // "$?"
+  // No price: unknown, shown as "$?". Not an estimate, so est stays false.
+  if (!p || p.in == null || p.out == null) return { usd: null, est: false };
   const cacheR = p.cache_read ?? 0, cacheW = p.cache_write ?? 0;
   const usd = ((t.in || 0) * p.in + (t.out || 0) * p.out + (t.reasoning || 0) * p.out
     + (t.cache_read || 0) * cacheR + (t.cache_write || 0) * cacheW) / 1e6;

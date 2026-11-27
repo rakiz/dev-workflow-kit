@@ -43,9 +43,13 @@ function onMessage(info) {
   if (!info.time || !info.time.completed) return; // not finished yet (A3)
   if (info.error) return; // a failed call is not spend (it returned no answer)
   if (recorded.has(info.id)) return;
-  recorded.add(info.id);
   const t = info.tokens || {};
   const c = t.cache || {};
+  // A completed turn with no tokens and no cost is routing noise (e.g. a command
+  // dispatch), not spend: skip the message. Its session record is still written.
+  const spent = (t.input || 0) + (t.output || 0) + (t.reasoning || 0) + (c.read || 0) + (c.write || 0);
+  if (spent === 0 && !(typeof info.cost === "number" && info.cost > 0)) return;
+  recorded.add(info.id);
   write({
     t: "msg",
     ts: new Date(info.time.completed).toISOString(),

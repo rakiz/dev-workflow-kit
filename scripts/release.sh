@@ -70,10 +70,10 @@ if [[ $FAILED -ne 0 ]]; then
   exit 1
 fi
 
-echo "== 3. release steps (not executed here)"
-echo "  current VERSION: $CUR"
+echo "== 3. remaining release steps (printed, not executed)"
+echo "  VERSION on disk: $CUR"
 if git rev-parse -q --verify "refs/tags/v$CUR" >/dev/null; then
-  echo "  note  tag v$CUR already exists — a new release needs a new VERSION"
+  echo "  note  tag v$CUR already exists"
 fi
 if [[ -n "$NEXT" ]]; then
   if git rev-parse -q --verify "refs/tags/v$NEXT" >/dev/null; then
@@ -82,20 +82,29 @@ if [[ -n "$NEXT" ]]; then
   fi
   target="$NEXT"
 else
-  target="X.Y.Z"
+  target="$CUR"
 fi
-cat <<EOF
-  1. VERSION: set it to $target (one line, no other change)
-  2. CHANGELOG.md: add a "## [$target] - <date>" section above the previous
-     release (Security / Added / Changed / Fixed as applicable)
-  3. commit the release: one commit with VERSION + CHANGELOG.md
-     (commit message: "release: v$target")
-  4. re-run this script on the committed tree (it must pass clean)
-  5. tag the release commit:  git tag -a v$target -m "dev-workflow-kit v$target"
-  6. push: MAINTAINER ONLY, with its own explicit authorization for that one push:
-     git push origin HEAD v$target
-  Rollback before the push: git tag -d v$target && git reset --soft HEAD~1 (never after a push).
+if [[ "$CUR" != "$target" ]]; then
+  echo "  1. VERSION is $CUR, not $target: set it, add the '## [$target]' CHANGELOG section,"
+  echo "     commit both (one commit), then re-run this script."
+  echo ""
+  echo "release.sh: gates passed; the release is not cut yet (see step 1)."
+  exit 0
+fi
+if grep -q "^## \[$target\]" CHANGELOG.md; then
+  echo "  ok    VERSION and CHANGELOG.md are at $target and the tree is committed"
+else
+  echo "  WARN  CHANGELOG.md has no '## [$target]' section — add it before tagging"
+fi
+cat <<STEPS
+  1. tag the release commit (annotated, local only):
+       git tag -a v$target -m "dev-workflow-kit v$target"
+  2. deploy the roster to the real config:
+       ./init.sh --global --update  &&  ./init.sh --doctor --global   (doctor must be clean)
+  3. push: MAINTAINER ONLY, with its own explicit authorization for that one push:
+       git push origin HEAD v$target
+  Rollback before the push: git tag -d v$target  (the commit can stay; never after a push).
 
-release.sh: all gates passed. Nothing was changed — the steps above are yours to run.
-EOF
+release.sh: gates passed. Nothing was changed; steps 1-3 are yours to run.
+STEPS
 exit 0
