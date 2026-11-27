@@ -13,10 +13,17 @@
 #                             touched.
 #   roster/injected-preview.md  per global agent: the model:/variant:/# Model
 #                             family: lines init.sh injects at install time.
+#   review rung prompts       the text between the markers
+#                             <!-- BEGIN GENERATED: review-checklist --> and
+#                             <!-- END GENERATED: review-checklist -->, spliced
+#                             with roster/fragments/review-checklist.md. Listed
+#                             in REVIEW_TARGETS below. The role-specific lines
+#                             (escalation targets, intro, verdict) stay outside
+#                             the markers and are hand-written.
 #
-# Single source: roster/models.json. Needs bash + jq (already required by
-# init.sh). This script never writes outside the kit and never calls the
-# network. init.sh --global refuses to deploy while --check fails.
+# Single source: roster/models.json and roster/fragments/. Needs bash + jq
+# (already required by init.sh). This script never writes outside the kit and
+# never calls the network. init.sh --global refuses to deploy while --check fails.
 
 set -euo pipefail
 
@@ -27,17 +34,36 @@ MODELS_MD="$ROOT/roster/MODELS.md"
 PREVIEW_MD="$ROOT/roster/injected-preview.md"
 BEGIN_MARK='<!-- BEGIN GENERATED: roster -->'
 END_MARK='<!-- END GENERATED: roster -->'
+FRAGMENT="$ROOT/roster/fragments/review-checklist.md"
+REV_BEGIN='<!-- BEGIN GENERATED: review-checklist -->'
+REV_END='<!-- END GENERATED: review-checklist -->'
+# Review rung prompts that carry the spliced reviewer checklist (repo-relative).
+REVIEW_TARGETS=(
+  "roster/global-agent/cheap-review.md"
+  "roster/global-agent/strong-review.md"
+  "roster/global-agent/strong-review-alternative.md"
+  "roster/global-agent/strong-review-alternative2.md"
+  "workflow/agent/review.md"
+)
 
 die() { echo "roster/build.sh: $*" >&2; exit 2; }
 
 command -v jq >/dev/null 2>&1 || die "jq is required"
 [[ -f "$SRC_JSON" ]] || die "missing $SRC_JSON"
 jq -e 'type == "object"' "$SRC_JSON" >/dev/null 2>&1 || die "$SRC_JSON is not a JSON object"
-# Exactly one BEGIN and one END marker: a missing or duplicated marker would make
-# the awk splice drop or duplicate the rest of the file. Fail closed.
-begin_n="$(grep -cF "$BEGIN_MARK" "$MODELS_MD" 2>/dev/null || true)"
-end_n="$(grep -cF "$END_MARK" "$MODELS_MD" 2>/dev/null || true)"
-[[ "$begin_n" == 1 && "$end_n" == 1 ]] || die "$MODELS_MD must contain exactly one BEGIN and one END marker (found BEGIN=$begin_n END=$end_n)"
+[[ -f "$FRAGMENT" ]] || die "missing $FRAGMENT"
+
+# Exactly one BEGIN and one END marker in a target file: a missing or duplicated
+# marker would make the awk splice drop or duplicate the rest of the file. Fail closed.
+check_markers() {
+  local file="$1" b e
+  [[ -f "$file" ]] || die "missing $file"
+  b="$(grep -cF "$2" "$file" 2>/dev/null || true)"
+  e="$(grep -cF "$3" "$file" 2>/dev/null || true)"
+  [[ "$b" == 1 && "$e" == 1 ]] || die "$file must contain exactly one BEGIN and one END marker (found BEGIN=$b END=$e)"
+}
+check_markers "$MODELS_MD" "$BEGIN_MARK" "$END_MARK"
+for t in "${REVIEW_TARGETS[@]}"; do check_markers "$ROOT/$t" "$REV_BEGIN" "$REV_END"; done
 
 # The roster names: every *.md in roster/global-agent (the files that install).
 # An agent with no models.json entry is rendered as "(no model entry)" — the
@@ -120,19 +146,41 @@ render_preview() {
   done < <(agent_names)
 }
 
-# generate OUT_DIR : write both artifacts into OUT_DIR (MODELS.md is rebuilt
-# from the committed copy, replacing only the region between the markers).
-generate() {
-  local out="$1" block
-  block="$(mktemp)"
-  render_models_block > "$block"
-  awk -v b="$BEGIN_MARK" -v e="$END_MARK" -v blk="$block" '
+# splice SRC BEGIN END BLOCK_FILE OUT : copy SRC to OUT with the text between
+# the markers replaced by the content of BLOCK_FILE (markers kept).
+splice() {
+  awk -v b="$2" -v e="$3" -v blk="$4" '
     $0 == b { print; while ((getline line < blk) > 0) print line; close(blk); skip = 1; next }
     $0 == e { skip = 0 }
     !skip { print }
-  ' "$MODELS_MD" > "$out/MODELS.md"
+  ' "$1" > "$5"
+}
+
+# generate OUT_DIR : write every generated artifact into OUT_DIR under the names
+# listed by artifact_pairs (MODELS.md is rebuilt from the committed copy,
+# replacing only the region between the markers).
+generate() {
+  local out="$1" block i=0 t
+  block="$(mktemp)"
+  render_models_block > "$block"
+  splice "$MODELS_MD" "$BEGIN_MARK" "$END_MARK" "$block" "$out/MODELS.md"
   rm -f "$block"
   render_preview > "$out/injected-preview.md"
+  for t in "${REVIEW_TARGETS[@]}"; do
+    splice "$ROOT/$t" "$REV_BEGIN" "$REV_END" "$FRAGMENT" "$out/review-$i.md"
+    i=$((i + 1))
+  done
+}
+
+# artifact_pairs : one "generated-name:committed-path" line per artifact.
+artifact_pairs() {
+  local i=0 t
+  echo "MODELS.md:$MODELS_MD"
+  echo "injected-preview.md:$PREVIEW_MD"
+  for t in "${REVIEW_TARGETS[@]}"; do
+    echo "review-$i.md:$ROOT/$t"
+    i=$((i + 1))
+  done
 }
 
 if [[ "${1:-}" == "--check" ]]; then
@@ -140,7 +188,7 @@ if [[ "${1:-}" == "--check" ]]; then
   trap 'rm -rf "$tmp"' EXIT
   generate "$tmp"
   drift=0
-  for pair in "MODELS.md:$MODELS_MD" "injected-preview.md:$PREVIEW_MD"; do
+  while IFS= read -r pair; do
     gen="$tmp/${pair%%:*}"; committed="${pair#*:}"
     if [[ ! -f "$committed" ]]; then
       echo "drift: ${committed#$ROOT/} is missing (run roster/build.sh)" >&2
@@ -151,7 +199,7 @@ if [[ "${1:-}" == "--check" ]]; then
       diff -u "$committed" "$gen" | head -40 >&2 || true
       drift=1
     fi
-  done
+  done < <(artifact_pairs)
   if [[ $drift -ne 0 ]]; then
     echo "roster/build.sh --check: FAILED — run roster/build.sh and commit the result." >&2
     exit 1
@@ -166,4 +214,9 @@ trap 'rm -rf "$tmp"' EXIT
 generate "$tmp"
 cp "$tmp/MODELS.md" "$MODELS_MD"
 cp "$tmp/injected-preview.md" "$PREVIEW_MD"
-echo "roster/build.sh: wrote ${MODELS_MD#$ROOT/} and ${PREVIEW_MD#$ROOT/}"
+i=0
+for t in "${REVIEW_TARGETS[@]}"; do
+  cp "$tmp/review-$i.md" "$ROOT/$t"
+  i=$((i + 1))
+done
+echo "roster/build.sh: wrote ${MODELS_MD#$ROOT/}, ${PREVIEW_MD#$ROOT/} and ${#REVIEW_TARGETS[@]} review prompt(s)"
