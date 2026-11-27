@@ -256,8 +256,8 @@ If `opencode` is not installed, the check is skipped with a warning — the mode
 ```
 
 - `precommit.checks[]`: the pre-commit checks — see [Extending pre-commit checks](#extending-pre-commit-checks) for the full contract (`cmd` entries and builtins).
-- `companions.enabled: false`: the `companion_md_exists` builtin is skipped entirely, even if listed, and the skill creates no companion — the recommended setting when working on a pre-existing codebase you don't want to pollute with companion `.md` files (companions are a greenfield tool).
-- Companion format and enforcement scope: a companion `.md` (same folder, same name as the source file) states the file's role, invariants and pitfalls. The hook enforces companions **only** for the extensions listed in the `companion_md_exists` check's `extensions` (default `["cpp", "h", "ts", "tsx"]`) — keep that list aligned with the project's languages; for any other extension the companion rule is the skill's, not the hook's. The creation/update rules are the skill's (SKILL.md §2).
+- `companions.enabled: false`: skips the companion builtin and the skill creates no companion — the recommended setting when working on a pre-existing codebase you don't want to pollute with companion `.md` files (companions are a greenfield tool).
+- Companion format: a companion `.md` (same folder, same name as the source file) states the file's role, invariants and pitfalls; the builtin's enforcement scope is in the hook header (see Builtins below). The creation/update rules are the skill's (SKILL.md §2).
 - Fresh install: the installer auto-detects existing sources and companions and sets `companions.enabled` accordingly — companions already in use stay enabled; an existing codebase without companions is prompted about (or auto-disabled without a TTY, with a notice telling how to re-enable). `--companions=on|off` overrides the detection; an existing `dev-workflow.json` is never touched.
 - `workflow`: paths of the files used by the `dev-workflow` skill. `workflow.conventions` points at the coding-conventions file the skill reads before writing or editing code (default `CONVENTIONS.md`). The optional `workflow.*` paths — `spec`, `designs`, `conventions`, `rules` — are conditional: the corresponding behavior is active only while the pointed-at file exists (delete the file or the key to turn that feature off); `todo`, `inprogress` and `changelog` are pure renames of the core cycle's files.
 - `workflow.spec`: points at the stable-specs file (default `SPEC.md`) the skill re-reads before any commit that could deviate from it — a necessary deviation is flagged to the user, never decided alone.
@@ -292,7 +292,7 @@ Behavior ([hooks/pre-commit.sh](workflow/hooks/pre-commit.sh) installed as `.git
 - `.precommit.checks` of an invalid type (e.g. a string) → clear message, commit **blocked**;
 - failing `cmd` check → the check's stdout/stderr is shown, commit **blocked**;
 - `.md` companions missing from the index (missing on disk, or present but not staged) → list shown, commit **blocked**;
-- history-narrating markers found in added lines (opt-in `no_history_comments` builtin) → `file:line` + matched marker listed, commit **blocked**;
+- history-narrating markers found in added lines (opt-in `no_history_comments` builtin; the changelog itself is exempt — `workflow.changelog`, default CHANGELOG.md; the hook header is the contract) → `file:line` + matched marker listed, commit **blocked**;
 - on failure: summary of failed checks + exit 1, otherwise exit 0.
 
 ## Updating: syncing kit changes into a project
