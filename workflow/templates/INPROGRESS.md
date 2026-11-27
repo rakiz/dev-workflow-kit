@@ -4,12 +4,22 @@
      progress updates (steps done, blockers) in their factual return, and the
      orchestrator transcribes them. On resume, reconcile every note against
      git before trusting it (committed work is invisible to `git status`) —
-     full contract: dev-workflow skill (§1). -->
+     full contract: dev-workflow skill (§1). Holds exactly ONE task. -->
 
 ## Current task
 
 <!-- Name + objective (reference to the matching section of TODO.md).
      Between two tasks: just a pointer to the next TODO.md task. -->
+
+## Budget
+
+<!-- Defaults are the owner's call: <X> <Y> <Z> stay placeholders until ruled.
+     V2 proposed $2 per child / 10 children — provisional, not ruled.
+     Stopping on cap = DNF, recorded as a blocker below.
+     The spent line is updated by the orchestrator from the usage ledger. -->
+
+budget: cap=$<X> | per-child=$<Y> | max-children=<Z>
+spent: $0 (from the usage ledger; orchestrator-updated)
 
 ## Steps
 
@@ -23,13 +33,25 @@
 
 ## Delegations
 
-<!-- One line per delegation, written BEFORE invoking the sub-agent (record
-     the returned task_id after). Corrections keep the logical id and
-     increment the attempt (7, then 7.2). Format and rules (late-writer
-     guard, return persistence): dev-workflow skill (§1, "Ownership &
-     delegation ledger"). -->
+<!-- One line per delegation, written BEFORE invoking the sub-agent; record
+     the returned task_id on it after. task_id is the child session id — the
+     usage recorder joins it for per-task cost. Corrections keep the logical
+     id and increment the attempt (7, then 7.2). Rules (late-writer guard,
+     return persistence): dev-workflow skill (§1, "Ownership & delegation
+     ledger"). -->
 
-- `7 | <task/step> | <role> | <allowed files/resources> | <starting artifact identity> | <task_id> | <status> | <return location>`
+- `7 | <task/step> | <role> | <allowed files/resources> | <starting artifact identity> | task_id=<id> | <status> | <return location>`
+
+## Decision log
+
+<!-- One entry per event below, appended as it happens. Shapes verbatim:
+
+     deep-gate — written at the design step, BEFORE any deep-tier consult spend:
+     deep-gate: class=<key> | scope=<one line> | instances=[<id>, …] (n=<count>) | library=<hit:<key>|miss|diverged:<key>> | GT=<yes|no> | C=$<cap> | Δ=$<value> (measured: <ledger ref>) | verdict=<CONSULT|SKIP> (<reason>)
+
+     arbitration — written when a contested major is arbitrated; counts toward the 2-per-task bound:
+     arbitration: <task> | wave <w> | #<k of 2> | <stands|rejected|human> | $<spent>
+-->
 
 ## Blockers
 
