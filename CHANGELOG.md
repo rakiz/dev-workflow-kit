@@ -3,9 +3,7 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
-
-*Working guess: 0.9.0 (new features, no breaking) — the number is decided at delivery.*
+## [0.9.0] - 2026-11-27
 
 ### Security
 - Lock-key sanitization (`f768f7b`): every lock key is classified before any path is
