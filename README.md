@@ -12,7 +12,7 @@
 
 ## Releasing (kit maintainers)
 
-Bump the root [VERSION](VERSION) file and the git tag together — [VERSION](VERSION) is the single source of truth for the kit version that installs announce and that the lock file's `kit_version` records (no git-describe fallback: the kit can be copied without `.git`).
+The version number is decided **at release time** (the push), never during development. Between releases the root [VERSION](VERSION) file stays at the **last delivered** version and [CHANGELOG.md](CHANGELOG.md) accumulates under `[Unreleased]`. At delivery, judge the whole unreleased batch and pick the bump: breaking → next major, features → next minor, fixes → next patch. Only then bump the root [VERSION](VERSION) file and the git tag together — [VERSION](VERSION) is the single source of truth for the kit version that installs announce and that the lock file's `kit_version` records (no git-describe fallback: the kit can be copied without `.git`).
 
 ## Quick start
 

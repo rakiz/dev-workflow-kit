@@ -110,6 +110,12 @@ author would have chosen otherwise (noted once, complied with).
 - **Owner rulings 2026-11-27 (versioning collapse):** nothing was ever pushed — the first
   DELIVERED version is 0.9.0 (P0+P1+P2 folded in); no 0.8.1, no 0.10.0-for-P2. The local
   tags v0.8.1/v0.9.0 are dropped; the tag lands on the release commit when P2 closes.
+- **Owner rulings 2026-11-27 (versioning policy):** the version number is decided at
+  DELIVERY, never during development. Between releases VERSION stays at the last
+  delivered version (reverted to 0.8.0 here) and CHANGELOG accumulates under
+  `[Unreleased]`; at release the bump kind is judged from the whole unreleased batch
+  (breaking → major, features → minor, fixes → patch). Deployed locks keep the
+  `kit_version` they were synced at (0.9.0) — a fact of the sync, not rewritten.
 
 ---
 
@@ -868,8 +874,9 @@ retro trigger + kit-proposal block. De-dup pass; shared reviewer checklist fragm
 the same builtin names once (hook header = contract). **Recorder durability: store
 per-message start/completed timestamps in the msg record; `/dwk stats` gains a tok/s view
 (tokens ÷ span) per model and per task (owner request 2026-11-27; the join already exists —
-the probe events carry the time fields).** Release `0.9.0` (owner ruling 2026-11-27:
-nothing shipped before it; P0+P1+P2 deliver as one version).
+the probe events carry the time fields).** At close: decide the bump from the unreleased
+batch (working guess 0.9.0 minor) — nothing shipped before it; P0+P1+P2 deliver as one
+version.
 
 **P3 — Global-first install + rename.** Value: one install, one name set.
 Preconditions: P1 shipped (orphan removal, generator); §3.6 precondition 1 verified and its

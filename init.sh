@@ -569,6 +569,32 @@ if [[ -f "$KIT_DIR/VERSION" ]]; then
 fi
 [[ -n "$KIT_VERSION" ]] || warnings+=("kit VERSION file missing, empty or malformed ($KIT_DIR/VERSION) — this run reports an unknown version")
 
+# _version_gt A B : true (exit 0) when A is a strictly greater dotted version
+# than B. Compares dot-separated numeric components (a non-numeric component
+# falls back to a string compare). Used to tell a lock recorded AHEAD of the
+# kit — the deployed config was synced to unreleased kit work stamped with a
+# higher number than the last delivered VERSION — from the ordinary
+# "kit ahead of the project" case, so the version line stays honest.
+_version_gt() {
+  local a="$1" b="$2"
+  [[ "$a" == "$b" ]] && return 1
+  local IFS='.'
+  local -a av bv
+  av=($a); bv=($b)
+  local i x y
+  for ((i = 0; i < ${#av[@]} || i < ${#bv[@]}; i++)); do
+    x="${av[i]:-0}"; y="${bv[i]:-0}"
+    if [[ "$x" =~ ^[0-9]+$ && "$y" =~ ^[0-9]+$ ]]; then
+      ((10#$x > 10#$y)) && return 0
+      ((10#$x < 10#$y)) && return 1
+    else
+      [[ "$x" > "$y" ]] && return 0
+      [[ "$x" < "$y" ]] && return 1
+    fi
+  done
+  return 1
+}
+
 # Agent source/destination and lock path per mode: in global mode the
 # destination IS the opencode config directory (agents land directly in
 # $TARGET/agent/, no .opencode/ level) and the lock file sits at its root;
@@ -2035,11 +2061,21 @@ if [[ $UPDATE -eq 1 ]]; then
   # kit_version is read BEFORE lock_init: on a bootstrap (no lock yet) the
   # file created below must not be mistaken for a previous sync's version.
   # A pre-versioning lock (no kit_version key) reads as "unknown", never an
-  # error.
+  # error. The version number is decided at delivery (owner ruling
+  # 2026-11-27): VERSION holds the last DELIVERED version while the CHANGELOG
+  # accumulates under [Unreleased], so a deployed lock may legitimately record
+  # a HIGHER number than VERSION — the config was synced to unreleased kit
+  # work. That case is reported as such, never as a downgrade.
   LOCK_KIT_VERSION=""
+  LOCK_AHEAD=0
   [[ -f "$LOCK_FILE" ]] && LOCK_KIT_VERSION="$(jq -r '.kit_version // ""' "$LOCK_FILE" 2>/dev/null || true)"
   if [[ -n "$KIT_VERSION" && -n "$LOCK_KIT_VERSION" ]]; then
-    echo "kit v$KIT_VERSION — project last synced at v$LOCK_KIT_VERSION"
+    if _version_gt "$LOCK_KIT_VERSION" "$KIT_VERSION"; then
+      LOCK_AHEAD=1
+      echo "project synced to unreleased kit work — last delivered v$KIT_VERSION (lock records v$LOCK_KIT_VERSION)"
+    else
+      echo "kit v$KIT_VERSION — project last synced at v$LOCK_KIT_VERSION"
+    fi
   elif [[ -n "$KIT_VERSION" ]]; then
     echo "kit v$KIT_VERSION — pre-versioning lock: last sync unknown"
   elif [[ -n "$LOCK_KIT_VERSION" ]]; then
@@ -2146,7 +2182,12 @@ if [[ $UPDATE -eq 1 ]]; then
   # rewrote the lock (baselines, model records, bootstrap creation);
   # "already at" otherwise.
   if [[ -n "$KIT_VERSION" ]]; then
-    if [[ ${#updated_body[@]} -gt 0 || ${#updated_model[@]} -gt 0 || ${#copied[@]} -gt 0 || ${#removed_orphans[@]} -gt 0 || ${#migrated[@]} -gt 0 || ${#pruned_siblings[@]} -gt 0 || $LOCK_WRITTEN -eq 1 ]]; then
+    if [[ $LOCK_AHEAD -eq 1 ]]; then
+      # The lock recorded unreleased kit work ahead of this (last delivered)
+      # VERSION: the sync ran at v$KIT_VERSION, but the config was already at
+      # a higher unreleased number — say so, never claim a downgrade.
+      echo "at v$KIT_VERSION (last delivered) — lock records unreleased v$LOCK_KIT_VERSION"
+    elif [[ ${#updated_body[@]} -gt 0 || ${#updated_model[@]} -gt 0 || ${#copied[@]} -gt 0 || ${#removed_orphans[@]} -gt 0 || ${#migrated[@]} -gt 0 || ${#pruned_siblings[@]} -gt 0 || $LOCK_WRITTEN -eq 1 ]]; then
       echo "now at v$KIT_VERSION"
     else
       echo "already at v$KIT_VERSION"
