@@ -4,8 +4,20 @@
 # Config: dev-workflow.json at the repo root.
 #   - Missing config   -> warning, commit accepted.
 #   - Check with empty "cmd" and no "builtin" -> silently skipped.
-# Builtins implemented here: companion_md_exists, no_history_comments (opt-in,
-# not enabled by the shipped template — see the kit's README).
+#
+# BUILTIN CONTRACT — this header is the single statement of the builtin names
+# and their semantics (SKILL.md and the README refer here, they do not restate
+# the list). Each builtin is a check entry {"name", "builtin", "extensions"}.
+#   companion_md_exists  ENABLED by the shipped template (dev-workflow.json,
+#     companions.enabled). Enforced: each staged file whose extension is listed
+#     must have its same-named .md companion STAGED in the same commit (on disk
+#     but unstaged = missing). The creation/update rules themselves (companion
+#     created with a new source file; updated when one is significantly
+#     modified) are the skill's, not the hook's.
+#   no_history_comments  NOT enabled by the shipped template (opt-in). Enforced:
+#     an ADDED line of a listed file must not narrate history outside
+#     CHANGELOG ("previously", "used to be", "changed from", ...). Heuristic,
+#     see the README's Builtins section for its limits.
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [[ -z "$ROOT" ]]; then
