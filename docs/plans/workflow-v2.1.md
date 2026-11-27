@@ -862,7 +862,10 @@ conventions" (`:55-64`) → link to `CONVENTIONS.md`; every file-format sentence
 template header (de-dup); §9 "Periodic coherence review" (`:112-123`) condensed to the
 retro trigger + kit-proposal block. De-dup pass; shared reviewer checklist fragment
 (§5A.3); README doc map + root-`.md` self-check; skill §6 item 1 and the hook header state
-the same builtin names once (hook header = contract). Release `0.10.0`.
+the same builtin names once (hook header = contract). **Recorder durability: store
+per-message start/completed timestamps in the msg record; `/dwk stats` gains a tok/s view
+(tokens ÷ span) per model and per task (owner request 2026-11-27; the join already exists —
+the probe events carry the time fields).** Release `0.10.0`.
 
 **P3 — Global-first install + rename.** Value: one install, one name set.
 Preconditions: P1 shipped (orphan removal, generator); §3.6 precondition 1 verified and its

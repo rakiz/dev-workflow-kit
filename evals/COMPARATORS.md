@@ -273,3 +273,33 @@ total, not $/task; efforts are vendor-recommended, not ours — e.g. GLM rows at
 - Seat-holders the board cannot see: minimax m3p1-flash (4 rungs here) has no
   usable TB row — only minimax-m3 on mini-swe-agent (#47, 7.6%), different model
   and harness; our review rungs are exactly where TB's construct is blind.
+
+### 2026-11-25 — vendor deprecation watch: deepseek-v4p1-flash (non-1017)
+
+- **Owner report (2026-11-25): upstream deprecation of the non-1017 DeepSeek V4.1
+  Flash build.** Unverified from here — but the catalog lists it ACTIVE the same
+  day (1-token probe ok, fireworks direct; gateway alias
+  `ai-gateway-misc/fw-deepseek-v4.1-flash` also live), so nothing is broken yet.
+- **Exposure: 2 live roles map the gateway alias** — `explore` and `cheap-mech`
+  (`roster/models.json`). Not the dead v4-pro id (11-16) and not the maxfill
+  campaign (1017 only).
+- **Plan (owner 2026-11-25): watch only.** Run the replacement grid the day the
+  id actually dies (1-token probe before any campaign, the v4-pro lesson).
+  Natural successor: 1017 (same family, ~1.5–2x per-task cost); alternate:
+  `hy4-flash` (listed on fireworks, unbenched).
+
+### 2026-11-26 — vendor availability watch: inkling-2
+
+- **inkling-2** (fireworks-ai, first exposure 2026-11-26): the gateway lists
+  `inkling-2-mini` and `inkling-2-small` (+ `-priority` variants of each); the full/base
+  model is NOT listed yet.
+- **ACTION (watch item): run the catchup campaign on inkling-2 (owner-requested
+  2026-11-26) when a gateway exposes the full model — or earlier on mini/small if a seat
+  gap or a price point justifies it. Check pricing and variant/effort semantics at launch
+  (the DS/GLM effort-semantics lesson); no seat target yet.
+
+### 2026-11-27 — vendor billing correction erratum: GPT-6.2 Sol
+
+- **OpenAI admitted (2026-11-26, thsottiaux) a billing mistake at the GPT-6.2 launch**: 6.2 Astra and 6.2 Sol usage was under-counted against plan allowances (fixed same day; no retro-charge). Effective same-work cost: ~40% higher on 6.2 Astra, ~25% on 6.2 Sol than measured during the discounted window.
+- **Exposure in our data: ONE non-seat cell** — grid2 `gpt-6.2-sol,high` cost_per_task_est 0.10-0.60 (measured 2026-11-16, inside the discounted window) is under-counted by up to ~25%. No gpt-6.2 arm holds a seat ("challenges nothing"); scores, tokens and latency are unaffected. The gpt-6/6.1 arms (Sol, Terra) are out of scope of the error.
+- **ACTION (erratum, no re-run): annotate the leaderboard cost cell at the next gen-charts pass (±25% band or a "billing-window" footnote); re-measure only if 6.2 Sol ever becomes a seat contender. Fold the lesson into PRICE-FRESHNESS: vendor billing corrections are a drift source the catchup price check should watch.**
