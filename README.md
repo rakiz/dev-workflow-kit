@@ -82,12 +82,34 @@ The kit's git-write protection is two-layered, and the layers are intentionally 
 
 `deny` hard-blocks an action with no prompt; `ask` surfaces an approval you grant per call. Use `ask` at the orchestrator level, `deny` on the subagents. Edit the block by hand — kit installs and `--update` runs never touch it.
 
+The push rule is one authorization per push: a push approval covers exactly one push. Commits may be batched under one authorization within the same task; each push needs its own explicit approval, never inferred from a commit approval or an earlier push.
+
 
 ## Prerequisites
 
 - `git`
 - `jq` — required by the pre-commit hook, **no fallback without jq**: `brew install jq` / `apt install jq`
 - `opencode` (optional) — enables the model availability check at install time (see below)
+
+## Doc map
+
+Where each kind of documentation lives, who it is for, and whether it is tracked in git:
+
+| Audience | Doc | Tracked |
+|---|---|---|
+| Kit user | README.md | yes |
+| Installer CLI reference | `init.sh --help` (README links, never restates flags) | yes |
+| Roster reader | roster/MODELS.md | yes |
+| Roster prompts | roster/global-agent/*.md | yes |
+| Workflow behavior | workflow/skill/*/SKILL.md | yes |
+| File formats | workflow/templates/*.md headers | yes |
+| Project-agent prompts | workflow/agent/*.md until P3 | yes |
+| Release history | CHANGELOG.md | yes |
+| Active plan | docs/plans/<name>.md | yes |
+| Finished plans/proposals | docs/history/ (frozen) | yes |
+| Eval readers | evals/ | yes |
+| Owner journal/backlog | scratch/ (gitignored) | no |
+| Usage data | ~/.local/share/dev-workflow-kit/usage/ (data, outside every repo) | no |
 
 ## Structure
 
@@ -225,7 +247,7 @@ If `opencode` is not installed, the check is skipped with a warning — the mode
   "precommit": {
     "checks": [
       { "name": "tests", "cmd": "" },
-      { "name": "companions_exist", "builtin": "companion_md_exists", "extensions": ["cpp", "h", "ts", "tsx"] }
+      { "name": "companion_md_exists", "builtin": "companion_md_exists", "extensions": ["cpp", "h", "ts", "tsx"] }
     ]
   },
   "workflow": { "todo": "TODO.md", "inprogress": "INPROGRESS.md", "changelog": "CHANGELOG.md", "spec": "SPEC.md", "designs": "DESIGNS.md", "conventions": "CONVENTIONS.md", "rules": "RULES.md" },
@@ -235,6 +257,7 @@ If `opencode` is not installed, the check is skipped with a warning — the mode
 
 - `precommit.checks[]`: the pre-commit checks — see [Extending pre-commit checks](#extending-pre-commit-checks) for the full contract (`cmd` entries and builtins).
 - `companions.enabled: false`: the `companion_md_exists` builtin is skipped entirely, even if listed, and the skill creates no companion — the recommended setting when working on a pre-existing codebase you don't want to pollute with companion `.md` files (companions are a greenfield tool).
+- Companion format and enforcement scope: a companion `.md` (same folder, same name as the source file) states the file's role, invariants and pitfalls. The hook enforces companions **only** for the extensions listed in the `companion_md_exists` check's `extensions` (default `["cpp", "h", "ts", "tsx"]`) — keep that list aligned with the project's languages; for any other extension the companion rule is the skill's, not the hook's. The creation/update rules are the skill's (SKILL.md §2).
 - Fresh install: the installer auto-detects existing sources and companions and sets `companions.enabled` accordingly — companions already in use stay enabled; an existing codebase without companions is prompted about (or auto-disabled without a TTY, with a notice telling how to re-enable). `--companions=on|off` overrides the detection; an existing `dev-workflow.json` is never touched.
 - `workflow`: paths of the files used by the `dev-workflow` skill. `workflow.conventions` points at the coding-conventions file the skill reads before writing or editing code (default `CONVENTIONS.md`). The optional `workflow.*` paths — `spec`, `designs`, `conventions`, `rules` — are conditional: the corresponding behavior is active only while the pointed-at file exists (delete the file or the key to turn that feature off); `todo`, `inprogress` and `changelog` are pure renames of the core cycle's files.
 - `workflow.spec`: points at the stable-specs file (default `SPEC.md`) the skill re-reads before any commit that could deviate from it — a necessary deviation is flagged to the user, never decided alone.
