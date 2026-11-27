@@ -102,7 +102,7 @@
     }
   },
   "prices": {
-    "_note": "Public list prices, USD per 1M tokens. NOT YET SOURCED: rates stay null until filled by the owner or a catchup run; checked = date of the last check. The usage recorder prints $? for a null rate, never a silent 0. Refresh at each catchup (newest evals/<date>/).",
+    "_note": "reserved — consumed by the usage recorder (P1 item 7): dwk/stats.mjs reads the per-model rates below for est. cost. Rates are null until the owner or a catchup run fills them; a null rate prints $?, never a silent 0. checked = date of the last check; refresh at each catchup (newest evals/<date>/).",
     "github-copilot/claude-haiku-5.5": {
       "in": null,
       "out": null,

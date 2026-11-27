@@ -33,7 +33,11 @@ die() { echo "roster/build.sh: $*" >&2; exit 2; }
 command -v jq >/dev/null 2>&1 || die "jq is required"
 [[ -f "$SRC_JSON" ]] || die "missing $SRC_JSON"
 jq -e 'type == "object"' "$SRC_JSON" >/dev/null 2>&1 || die "$SRC_JSON is not a JSON object"
-grep -qF "$BEGIN_MARK" "$MODELS_MD" 2>/dev/null || die "$MODELS_MD has no generated-region marker ($BEGIN_MARK)"
+# Exactly one BEGIN and one END marker: a missing or duplicated marker would make
+# the awk splice drop or duplicate the rest of the file. Fail closed.
+begin_n="$(grep -cF "$BEGIN_MARK" "$MODELS_MD" 2>/dev/null || true)"
+end_n="$(grep -cF "$END_MARK" "$MODELS_MD" 2>/dev/null || true)"
+[[ "$begin_n" == 1 && "$end_n" == 1 ]] || die "$MODELS_MD must contain exactly one BEGIN and one END marker (found BEGIN=$begin_n END=$end_n)"
 
 # The roster names: every *.md in roster/global-agent (the files that install).
 # An agent with no models.json entry is rendered as "(no model entry)" — the

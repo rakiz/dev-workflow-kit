@@ -333,6 +333,7 @@ self_check() {
   local roster_msg=""
   if ! roster_msg="$(roster_build_check 2>&1)"; then
     kit_bad+=("roster/build.sh --check: generated roster artifacts differ from models.json (run roster/build.sh)")
+    while IFS= read -r _rl; do kit_bad+=("    $_rl"); done <<<"$roster_msg"
   fi
 
   if [[ ${#missing[@]} -gt 0 || ${#bad_keys[@]} -gt 0 || ${#kit_bad[@]} -gt 0 ]]; then
@@ -387,6 +388,7 @@ fi
 WITH_RULES=0
 UPDATE=0
 GLOBAL_MODE=0
+NO_USAGE=0
 SELF_CHECK=0
 DOCTOR=0
 COMPANIONS_FLAG=""
@@ -400,6 +402,7 @@ for arg in "$@"; do
     --global) GLOBAL_MODE=1 ;;
     --self-check) SELF_CHECK=1 ;;
     --doctor) DOCTOR=1 ;;
+    --no-usage) NO_USAGE=1 ;;
     --companions=on) COMPANIONS_FLAG=on ;;
     --companions=off) COMPANIONS_FLAG=off ;;
     --companions=*)
@@ -779,6 +782,55 @@ set_agent_model() {
   fi
 }
 
+# --- Usage component (global mode, opt-in) -----------------------------------
+# The recorder plugin, the /dwk command and the stats script (plan §3.8). Not
+# lock keys: their own files under the config directory, a `usage_enabled`
+# flag in the lock, and the path shapes are fixed here, not derived from input.
+# USAGE_FILES: "source-relative|destination-relative under the config dir".
+USAGE_FILES=(
+  "plugin/dwk-usage.js|plugin/dwk-usage.js"
+  "command/dwk.md|command/dwk.md"
+  "dwk/stats.mjs|dwk/stats.mjs"
+)
+
+# usage_lock_flag VALUE : record usage_enabled (true|false) in the lock.
+usage_lock_flag() {
+  [[ $LOCK_OK -eq 1 && -f "$LOCK_FILE" ]] || return 0
+  local tmp; tmp="$(mktemp)" || return 0
+  if jq --argjson v "$1" '.usage_enabled = $v' "$LOCK_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$LOCK_FILE"; then
+    LOCK_WRITTEN=1
+  else
+    rm -f "$tmp"; warnings+=("could not record the usage choice in the lock file")
+  fi
+}
+
+# usage_install : copy the usage files into the config directory (install and
+# --update). The /dwk command gets the kit's absolute stats path written in, so
+# it does not depend on an environment variable.
+usage_install() {
+  local pair src rel dst
+  for pair in "${USAGE_FILES[@]}"; do
+    src="$KIT_DIR/${pair%%|*}"; rel="${pair#*|}"; dst="$TARGET/$rel"
+    [[ -f "$src" ]] || { warnings+=("usage: kit file ${pair%%|*} is missing"); return 1; }
+    mkdir -p "$(dirname "$dst")"
+    if [[ "$rel" == command/dwk.md ]]; then
+      sed "s|\$DWK_HOME|$KIT_DIR|g" "$src" > "$dst" || { warnings+=("could not write $rel"); return 1; }
+    else
+      cp "$src" "$dst" || { warnings+=("could not write $rel"); return 1; }
+    fi
+    copied+=("$rel (usage component)")
+  done
+}
+
+# usage_remove : delete the usage component files (--update --no-usage).
+usage_remove() {
+  local pair rel dst
+  for pair in "${USAGE_FILES[@]}"; do
+    rel="${pair#*|}"; dst="$TARGET/$rel"
+    if [[ -f "$dst" ]] && rm -f "$dst"; then removed_orphans+=("$rel (usage component removed)"); fi
+  done
+}
+
 # --- Hash units (which unit covers which files) ------------------------------
 # Every lock body_sha256 and every --update comparison uses exactly one of
 # these units; the unit is chosen by the file's kind, not by the caller:
@@ -881,6 +933,18 @@ _override_set() {
   fi && mv "$tmp" "$OVERRIDES_FILE" || { rm -f "$tmp"; return 1; }
 }
 
+# _family_unknown_warn REL MODEL ACTION : one warning per (file, model) per run.
+# _reconcile_agent_family and update_agent_model both report the same fact for
+# a file in one run; the second report would only repeat the first.
+_FAMILY_WARNED=""
+_family_unknown_warn() {
+  local key="$1|$2"
+  [[ -n "$2" ]] || return 0
+  case "$_FAMILY_WARNED" in *"[$key]"*) return 0 ;; esac
+  _FAMILY_WARNED+="[$key]"
+  warnings+=("$1: model '$2' has no family_hint mapping in models.json — '# Model family' line $3 (family unknown)")
+}
+
 # _family_for_model MODEL : the family_hint of the models.json entry whose
 # `model` equals MODEL — searching every top-level agent AND every "global"
 # roster agent, so a model id is resolved to its family regardless of which
@@ -926,7 +990,7 @@ _reconcile_agent_family() {
   if [[ -z "$family" ]]; then
     # No model line at all (a fresh body copy, before the model refresh
     # re-injects it) is not an unknown family: drop the stale header silently.
-    [[ -n "$model" ]] && warnings+=("$rel: model '$model' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
+    _family_unknown_warn "$rel" "$model" "removed"
     if [[ -n "$current" ]]; then
       _remove_fm_line "$dst" "# Model family" || warnings+=("could not remove the family line of $rel")
     fi
@@ -1331,7 +1395,7 @@ update_agent_model() {
   _override_has "$agent" model && reason="override"
   _override_has "$agent" variant && reason="override"
   desired_family="$(_family_for_model "$desired_model")"
-  [[ -n "$desired_family" ]] || warnings+=("$rel: model '$desired_model' has no family_hint mapping in models.json — '# Model family' line removed (family unknown)")
+  [[ -n "$desired_family" ]] || _family_unknown_warn "$rel" "$desired_model" "removed"
   if set_agent_model "$dst" "$desired_model" "$desired_variant" "$desired_family"; then
     [[ -n "$desired_variant" ]] || _remove_fm_line "$dst" variant
     lock_set "$rel" model "$desired_model"
@@ -1463,6 +1527,7 @@ _overwrite_with_prev() {
   fi
   BODY_UPDATED=1
   lock_set "$rel" body_sha256 "$kit_hash"
+  _prune_stale_sibling "$dst.dev-workflow-kit-new" "$rel"
   warnings+=("$rel: body differs from the kit — overwritten by the kit (global mode does not support body edits); the previous file is kept as ${prev#$TARGET/}")
 }
 
@@ -1865,10 +1930,27 @@ run_doctor() {
     fi
   done
 
+  # Usage component (global, §3.8): when the lock says enabled, each of its
+  # files must be present and equal the kit copy (the /dwk command is compared
+  # after the kit path is substituted, as usage_install writes it).
+  if [[ $GLOBAL_MODE -eq 1 && -f "$LOCK_FILE" ]] && [[ "$(jq -r 'if has("usage_enabled") then (.usage_enabled|tostring) else "" end' "$LOCK_FILE" 2>/dev/null)" == "true" ]]; then
+    for _pair in "${USAGE_FILES[@]}"; do
+      _src="$KIT_DIR/${_pair%%|*}"; _rel="${_pair#*|}"; _dst="$TARGET/$_rel"
+      if [[ ! -f "$_dst" ]]; then
+        _doc_drift "$_rel: usage component file missing (--update restores it)"
+      elif [[ "$_rel" == command/dwk.md ]]; then
+        cmp -s <(sed "s|\$DWK_HOME|$KIT_DIR|g" "$_src") "$_dst" || _doc_drift "$_rel: differs from the kit (--update reconciles it)"
+      else
+        cmp -s "$_src" "$_dst" || _doc_drift "$_rel: differs from the kit (--update reconciles it)"
+      fi
+    done
+  fi
+
   # Global mode: the generated roster artifacts must match models.json (the
   # same check the --global deploy gate runs; read-only here).
-  if [[ $GLOBAL_MODE -eq 1 ]] && ! roster_build_check >/dev/null 2>&1; then
-    _doc_drift "roster: generated roster artifacts differ from models.json — run roster/build.sh (the --global deploy refuses until then)"
+  local _rmsg=""
+  if [[ $GLOBAL_MODE -eq 1 ]] && ! _rmsg="$(roster_build_check 2>&1)"; then
+    _doc_drift "roster: generated roster artifacts differ from models.json — run roster/build.sh (the --global deploy refuses until then): ${_rmsg%%$'\n'*}"
   fi
 
   # Project mode: a parked pre-commit hook the kit installed beside a foreign one.
@@ -1998,6 +2080,17 @@ if [[ $UPDATE -eq 1 ]]; then
     fi
     if [[ $U_PR -eq 1 ]]; then
       update_pr_review
+    fi
+  fi
+  # Usage component (global --update): follow the lock's recorded choice.
+  # --no-usage removes it and records false; a lock with usage_enabled=true is
+  # re-synced; an absent flag (a pre-usage install) is left alone.
+  if [[ $GLOBAL_MODE -eq 1 ]]; then
+    _uflag="$(jq -r 'if has("usage_enabled") then (.usage_enabled|tostring) else "" end' "$LOCK_FILE" 2>/dev/null || true)"
+    if [[ $NO_USAGE -eq 1 ]]; then
+      usage_remove && usage_lock_flag false
+    elif [[ "$_uflag" == "true" ]]; then
+      usage_install
     fi
   fi
   update_orphans
@@ -2265,7 +2358,6 @@ fi
 if [[ $GLOBAL_MODE -eq 1 ]]; then
   warn_shadowed_agents
 fi
-
 # Lock file: record the sync baseline for every kit-managed file whose target
 # body matches the kit (freshly copied or still identical) — the reference
 # point a future --update compares against. Soft-requires jq + shasum (the
@@ -2315,6 +2407,25 @@ if command -v jq >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
 else
   warnings+=("jq or shasum unavailable — the lock file was not written; a future --update will bootstrap conservatively")
 fi
+
+# Usage component (global install, opt-in, §3.8): TTY question, default YES;
+# --no-usage skips it. The choice is recorded in the lock (usage_enabled).
+if [[ $GLOBAL_MODE -eq 1 && $UPDATE -eq 0 && $DOCTOR -eq 0 ]]; then
+  _usage_on=1
+  if [[ $NO_USAGE -eq 1 ]]; then
+    _usage_on=0
+  elif [[ -t 0 ]]; then
+    read -r -p "Install the usage recorder + /dwk command (writes usage data under ~/.local/share/dev-workflow-kit/usage/)? [Y/n] " _ans
+    [[ "$_ans" =~ ^[Nn] ]] && _usage_on=0
+  fi
+  if [[ $_usage_on -eq 1 ]]; then
+    usage_install && usage_lock_flag true
+  else
+    usage_lock_flag false
+    echo "usage recorder skipped (--no-usage or declined); re-run without it to install."
+  fi
+fi
+
 
 echo ""
 if [[ $GLOBAL_MODE -eq 1 ]]; then

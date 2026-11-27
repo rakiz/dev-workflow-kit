@@ -119,7 +119,33 @@ after="$(tree_hash)"
 [[ "$before" == "$after" ]] && ok "nl: no agent file changed" || bad "nl: agent files changed"
 # a prune legitimately archives the entry: expect lock-entries.jsonl, no siblings
 if find "$N" -name "*.dev-workflow-kit-new" -o -name "*.dev-workflow-kit-prev" | grep -q .; then bad "nl: stray siblings"; else ok "nl: zero siblings"; fi
-if find "$N" -name lock-entries.jsonl | grep -q .; then ok "nl: pruned entry archived (lock-entries.jsonl)"; else bad "nl: pruned entry not archived"; fi
+# the archive must hold the planted key itself, not just some entry
+arch="$(find "$N" -name lock-entries.jsonl | head -1)"
+if [[ -n "$arch" ]] && jq -e --arg k $'agent/zz
+../../escape.md' 'select(.key == $k)' "$arch" >/dev/null 2>&1; then ok "nl: archive holds the planted key"; else bad "nl: archive lacks the planted key"; fi
+
+
+echo "== 5. R1 global-mode scenarios (-prev overwrite, stale sibling, baseline refresh)"
+R="$TMP_ROOT/config-r1"
+mkdir -p "$R"
+check "r1: install" bash -c "OPENCODE_CONFIG_DIR='$R' '$INIT' --global </dev/null"
+# (a) diverged body: exactly one -prev kept, body = kit, prev holds the edit
+echo "# local edit" >> "$R/agent/cheap-code.md"
+check "r1: --update overwrites diverged body" bash -c "OPENCODE_CONFIG_DIR='$R' '$INIT' --update --global </dev/null"
+n_prev="$(find "$R" -name "cheap-code.md.dev-workflow-kit-prev" | wc -l | tr -d " ")"
+[[ "$n_prev" == 1 ]] && ok "r1: exactly one -prev kept" || bad "r1: -prev count is $n_prev (want 1)"
+grep -q "# local edit" "$R/agent/cheap-code.md.dev-workflow-kit-prev" && ok "r1: -prev holds the local edit" || bad "r1: -prev lacks the local edit"
+grep -q "# local edit" "$R/agent/cheap-code.md" && bad "r1: body still holds the local edit" || ok "r1: body no longer holds the local edit"
+# (b) stale sibling: a parked -new whose body now equals the kit is removed
+echo "stale" > "$R/agent/cheap-review.md.dev-workflow-kit-new"
+check "r1: --update prunes stale sibling" bash -c "OPENCODE_CONFIG_DIR='$R' '$INIT' --update --global </dev/null"
+[[ ! -e "$R/agent/cheap-review.md.dev-workflow-kit-new" ]] && ok "r1: stale -new sibling removed" || bad "r1: stale -new sibling survived"
+# (c) baseline refresh: body equals kit, lock baseline is wrong -> counts as current, baseline fixed
+L="$R/.dev-workflow-kit-lock.json"
+jq '.files["agent/cheap-mech.md"].body_sha256 = "0"' "$L" > "$TMP_ROOT/l.json" && mv "$TMP_ROOT/l.json" "$L"
+check "r1: --update (baseline stale)" bash -c "OPENCODE_CONFIG_DIR='$R' '$INIT' --update --global </dev/null"
+base="$(jq -r '.files["agent/cheap-mech.md"].body_sha256' "$L")"
+[[ "$base" != "0" ]] && ok "r1: stale baseline refreshed" || bad "r1: baseline still 0"
 
 echo ""
 echo "smoke: $PASS passed, $FAIL failed"
