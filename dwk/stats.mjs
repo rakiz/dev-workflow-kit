@@ -2,7 +2,7 @@
 // dwk/stats.mjs — reads the dwk-usage JSONL and renders usage summaries.
 //
 //   node stats.mjs [today|week|month|range FROM TO] [--project PATH]
-//                  [--by model|agent|task] [--prune] [--models PATH] [--data DIR]
+//                  [--by model|agent|task] [--context] [--prune] [--models PATH] [--data DIR]
 //   node stats.mjs live            (re-renders the month table every 5 s)
 //
 // Cost rule (plan §3.8, D-A22): the provider's reported cost is used when it
@@ -14,6 +14,12 @@
 // ts (completed) - start_ts (created), summed over the group's messages.
 // Messages without start_ts (older records) or with span <= 0 are left out of
 // tok/s only; they still count everywhere else.
+//
+// --context adds the child-context columns (peak ctx tokens, compactions,
+// threshold crossings) from the msg records' ctx_* fields, and notes parent
+// sessions whose child count in the window reaches usage.dispatch_threshold.
+// Records written before those fields are counted as "-". Without the flag the
+// output is unchanged.
 //
 // --by task attributes a message to a task through the project ledger: the
 // session's project_root -> its INPROGRESS.md (workflow.inprogress from
@@ -119,6 +125,15 @@ function attributeTasks(msgs) {
   }
 }
 
+// usage.dispatch_threshold of a project (default 10); fail-open like inprogressName.
+function dispatchThreshold(root) {
+  const dflt = 10;
+  try {
+    const v = JSON.parse(readFileSync(join(root, "dev-workflow.json"), "utf8"))?.usage?.dispatch_threshold;
+    return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : dflt;
+  } catch { return dflt; }
+}
+
 // ---- cost ------------------------------------------------------------------
 function loadPrices() {
   try { return JSON.parse(readFileSync(MODELS_PATH, "utf8")).prices || {}; } catch { return {}; }
@@ -212,10 +227,11 @@ function render() {
   });
   if (by === "task") attributeTasks(pick);
   const groups = new Map();
+  const withCtx = flag("--context");
   let total = 0, unpriced = 0, est = 0, noStart = 0, noRoot = 0, noLine = 0;
   for (const m of pick) {
     const k = keyOf(m, by);
-    const g = groups.get(k) || { n: 0, tin: 0, tout: 0, tcache: 0, gen: 0, span: 0, usd: 0, estimated: false, unknown: false };
+    const g = groups.get(k) || { n: 0, tin: 0, tout: 0, tcache: 0, gen: 0, span: 0, usd: 0, estimated: false, unknown: false, hasCtx: false, peak: 0, sess: new Map() };
     const c = costOf(m, prices);
     g.n++; g.tin += m.tokens?.in || 0; g.tout += m.tokens?.out || 0;
     const startMs = m.start_ts ? Date.parse(m.start_ts) : NaN;
@@ -226,6 +242,15 @@ function render() {
     g.tcache += (m.tokens?.cache_read || 0) + (m.tokens?.cache_write || 0);
     if (c.usd == null) { g.unknown = true; unpriced++; } else { g.usd += c.usd; total += c.usd; }
     if (c.est) { g.estimated = true; est++; }
+    if (withCtx && m.ctx_peak != null) {
+      g.hasCtx = true;
+      g.peak = Math.max(g.peak, m.ctx_peak);
+      // running values: the largest seen per session is its total
+      const s = g.sess.get(m.session) || { comp: 0, cross: 0 };
+      s.comp = Math.max(s.comp, m.ctx_compacted || 0);
+      s.cross = Math.max(s.cross, m.ctx_crossings || 0);
+      g.sess.set(m.session, s);
+    }
     groups.set(k, g);
   }
   const sessCount = new Set(pick.map((m) => m.session)).size;
@@ -233,11 +258,24 @@ function render() {
   if (bad) console.log(`note: ${bad} unreadable line(s) skipped`);
   if (!pick.length) { console.log("no completed assistant messages in this window"); return; }
   console.log(`${pick.length} message(s), ${sessCount} session(s)`);
-  console.log(`${"group".padEnd(44)} ${"msgs".padStart(5)} ${"in".padStart(9)} ${"out".padStart(8)} ${"cache".padStart(9)}  ${"cost".padEnd(24)} ${"tok/s".padStart(8)}`);
+  const ctxHead = withCtx ? ` ${"peak".padStart(9)} ${"compact".padStart(8)} ${"cross".padStart(6)}` : "";
+  console.log(`${"group".padEnd(44)} ${"msgs".padStart(5)} ${"in".padStart(9)} ${"out".padStart(8)} ${"cache".padStart(9)}  ${"cost".padEnd(24)} ${"tok/s".padStart(8)}${ctxHead}`);
   for (const [k, g] of [...groups.entries()].sort((a, b) => b[1].usd - a[1].usd)) {
     const cost = g.unknown && g.usd === 0 ? "$?" : (g.unknown ? `${g.estimated ? "est. " : ""}$${g.usd.toFixed(4)} + $?` : fmtCost({ usd: g.usd, est: g.estimated }));
     const tps = g.span > 0 ? (g.gen / g.span).toFixed(1) : "-";
-    console.log(`${k.slice(0, 44).padEnd(44)} ${String(g.n).padStart(5)} ${String(g.tin).padStart(9)} ${String(g.tout).padStart(8)} ${String(g.tcache).padStart(9)}  ${cost.padEnd(24)} ${tps.padStart(8)}`);
+    let ctxCols = "";
+    if (withCtx) {
+      const comp = [...g.sess.values()].reduce((a, s) => a + s.comp, 0);
+      const cross = [...g.sess.values()].reduce((a, s) => a + s.cross, 0);
+      ctxCols = g.hasCtx
+        ? ` ${String(g.peak).padStart(9)} ${String(comp).padStart(8)} ${String(cross).padStart(6)}`
+        : ` ${"-".padStart(9)} ${"-".padStart(8)} ${"-".padStart(6)}`;
+    }
+    console.log(`${k.slice(0, 44).padEnd(44)} ${String(g.n).padStart(5)} ${String(g.tin).padStart(9)} ${String(g.tout).padStart(8)} ${String(g.tcache).padStart(9)}  ${cost.padEnd(24)} ${tps.padStart(8)}${ctxCols}`);
+  }
+  if (withCtx) {
+    if (![...groups.values()].some((g) => g.hasCtx)) console.log("note: no context fields in this window (records predate the context telemetry, or no child sessions)");
+    dispatchNotes(pick, sessions);
   }
   if (noStart) console.log(`note: ${noStart} message(s) left out of tok/s (no start_ts in the record, or non-positive span)`);
   if (noRoot || noLine) {
@@ -247,6 +285,23 @@ function render() {
     console.log(`note: ${noRoot + noLine} message(s) unattributed (${causes.join(", ")})`);
   }
   console.log(`total: ${total > 0 ? "$" + total.toFixed(4) : "$?"}${est && total > 0 ? "  (includes est. values)" : ""}${unpriced ? `  (${unpriced} message(s) with $? — no price in models.json)` : ""}`);
+}
+
+// Parent sessions whose child-session count in the window reaches the project's
+// usage.dispatch_threshold. Children are the session records with parent_session.
+function dispatchNotes(pick, sessions) {
+  const byParent = new Map();
+  for (const sid of new Set(pick.map((m) => m.session))) {
+    const s = sessions.get(sid);
+    if (!s || !s.parent_session) continue;
+    const e = byParent.get(s.parent_session) || { n: 0, root: s.project_root };
+    e.n++;
+    byParent.set(s.parent_session, e);
+  }
+  for (const [parent, e] of byParent) {
+    const thr = e.root ? dispatchThreshold(e.root) : 10;
+    if (e.n >= thr) console.log(`note: parent session ${parent} dispatched ${e.n} child session(s) in this window (usage.dispatch_threshold ${thr})`);
+  }
 }
 
 // ---- main ------------------------------------------------------------------

@@ -183,6 +183,7 @@ echo "{\"t\":\"msg\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"msg_id\":\"m1\"
 echo "{\"t\":\"msg\"}" > "$F/2024-01.jsonl"
 check "usage: stats renders a fixture" bash -c "node '$STATS' month --data '$F' | grep -q '\$0.5000'"
 check "usage: prune removes a 2024 file" bash -c "node '$STATS' --prune --data '$F' | grep -q 'pruned 2024-01' && test ! -e '$F/2024-01.jsonl'"
+check "usage: context telemetry selftest" node "$KIT_DIR/dwk/usage-selftest.mjs"
 
 # recorder + stats labelling: a zero-spend turn writes no msg record (its session
 # record is kept); a real cost never gets "est."; only the estimate path does.

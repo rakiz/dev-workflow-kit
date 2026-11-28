@@ -35,7 +35,12 @@ spent: $0 (from the usage ledger; orchestrator-updated)
 
 <!-- One line per delegation, written BEFORE invoking the sub-agent; record
      the returned task_id on it after. task_id is the child session id — the
-     usage recorder joins it for per-task cost. Corrections keep the logical
+     usage recorder joins it for per-task cost. On return, record a DIGEST,
+     not the verbatim return, inline after the pipe fields: attempt-id echo,
+     status, the full file list, numbers with their artifact path, finding
+     ids with file:line, task_id (a return of ≤3 lines is its own digest).
+     One ledger line per delegation; the digest is inline — no report file.
+     Corrections keep the logical
      id and increment the attempt (7, then 7.2). Rules (late-writer guard,
      return persistence): dev-workflow skill (§1, "Ownership & delegation
      ledger"). A wave opens its ledger with a header line
@@ -43,7 +48,7 @@ spent: $0 (from the usage ledger; orchestrator-updated)
      Lanes & budget alarm reads that wave's lines against <k>. -->
 
 - `wave <n> | lane fast|rigorous | budget <k> dispatches`
-- `7 | <task/step> | <role> | <allowed files/resources> | <starting artifact identity> | task_id=<id> | <status> | <return location>`
+- `7 | <task/step> | <role> | <allowed files/resources> | <starting artifact identity> | task_id=<id> | <status> | <return location> | digest: <attempt-id echo>, <status>, <full file list>, <numbers + artifact path>, <finding ids file:line>`
 
 ## Decision log
 

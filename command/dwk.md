@@ -11,7 +11,8 @@ Accept only these forms, each token passed as its own double-quoted argument:
 - empty (this month, by model), or `today`, `week`, `month`, `live`
 - `range YYYY-MM-DD YYYY-MM-DD`
 - `--project PATH` (PATH is one double-quoted argument)
-- `--by model|agent|task`
+- `--by model|agent|task` (`--by task` is the per-task view)
+- `--context` (child-context columns: peak, compactions, crossings; combines with `--by`)
 - `--prune`
 
 If the arguments contain anything else, do NOT run the script. Tell the user the accepted forms above instead.

@@ -33,6 +33,12 @@ Group the report under three visible axes; each axis ends with an explicit `revi
 **Conventions / scope**:
 - Are the project's conventions respected (style, structure, .md companions if enabled)?
 - Anything added beyond the task? (unrequested abstraction, unneeded dependency, dead code) — `unneeded` means not justified by the task (a reuse per the skill's ladder is not a finding)
+
+**Verification bound** (the skill's §7 "Reviews" clause, reviewer side) — re-verification is bounded, not rebuilt:
+
+- Re-run each claimed total ONCE against the commit, with the output redirected to a file; read only the summary and the failures, never the full output in context.
+- Read the diff, the files it touches and the contract. Anything outside that scope (a mutant run, a design or source re-read) needs a stated suspicion, named in the finding.
+- You check the claims; you do not rebuild the context. The pre-commit hook owns the full gate run.
 <!-- END GENERATED: review-checklist -->
 
 Sort each finding:

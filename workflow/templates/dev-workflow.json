@@ -6,5 +6,6 @@
     ]
   },
   "workflow": { "todo": "TODO.md", "inprogress": "INPROGRESS.md", "changelog": "CHANGELOG.md", "spec": "SPEC.md", "designs": "DESIGNS.md", "conventions": "CONVENTIONS.md", "rules": "RULES.md" },
-  "companions": { "enabled": true }
+  "companions": { "enabled": true },
+  "usage": { "child_context_cap": 100000, "dispatch_threshold": 10 }
 }

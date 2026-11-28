@@ -3,6 +3,39 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+- Dev-workflow skill and review prompts: review briefs bound re-verification — each claimed
+  total is re-run once against the commit with output redirected to a file, reading stays in
+  the diff scope, extra checks need a stated suspicion, and the hook owns the full gate run.
+  A return from a session flagged compacted or over the context cap is suspect: its verdict
+  is not accepted, and it is re-dispatched fresh with a narrower brief, never resumed. The
+  reviewer checklist fragment carries the same bound into the five spliced review rungs.
+- Orchestrator compaction: `/compact` is suggested only at a closed boundary (a wave or phase
+  committed, or a different subject starting), never with a dispatch in flight, an unpersisted
+  return or a fix round open; the configured dispatch threshold (dev-workflow.json, usage
+  section) moves the compact forward to the next closed boundary. The orchestrator cap uses
+  decidable signals (committed wave or phase, the ledger's dispatch count), not token counts,
+  and any compaction, yours or the harness's, is treated as a resume: re-read the ledger,
+  reconcile against git, confirm open attempts before the next dispatch.
+- Dev-workflow skill and INPROGRESS template: every subagent return is persisted when it
+  arrives, and the ledger holds a digest (attempt-id echo, status, file list, numbers with
+  their artifact path, finding ids with `file:line`), not the verbatim return; the `task_id`
+  stays in its own pipe field.
+- Long command outputs land in a file referenced by path (the reviewer fragment and the §1
+  execution-first brief); context reads the tail or a grep, never the full output.
+- Usage recorder: a `usage` section in `dev-workflow.json` (`child_context_cap` default
+  100000, `dispatch_threshold` default 10); the plugin records per-child peak context,
+  compactions (host `session.compacted` event, or a context drop: previous context above the
+  cap and new under half of the previous, same session, never double-counted with the event)
+  and cap crossings;
+  `dwk stats --context` (also `/dwk --context`) reports them with the dispatch-threshold
+  note; `dwk/usage-selftest.mjs` covers them and runs in `scripts/smoke.sh`.
+- Evidence: one fresh review dispatch filled a 1M window to 98% through unbounded
+  re-verification and was silently auto-compacted mid-mission; its return did not mention it
+  (adopter-reported, 2026-11-28; archived in `docs/history/2026-11-28-orchestrator-context/`).
+
 ## [0.9.3] - 2026-11-28
 
 ### Changed
