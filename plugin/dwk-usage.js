@@ -20,7 +20,8 @@
 //                 start_ts field have NO start_ts key at all (not null).
 //     span      = ts - start_ts (computed by stats, not stored)
 //   {t:"session", ts, session, parent_session, project_root, title}
-import { appendFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
+// Dedup state (not a record): usage/recorded-ids.txt, the ids of recorded msgs.
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -43,8 +44,20 @@ function write(record) {
   appendFileSync(join(USAGE_DIR, `${month}.jsonl`), JSON.stringify(record) + "\n");
 }
 
-// Ids already recorded in this process: a completion event can repeat.
-const recorded = new Set();
+// Ids already recorded, persisted in usage/recorded-ids.txt (one id per line,
+// capped at SEEN_CAP): a completion event can repeat, also after a restart.
+const SEEN_FILE = join(USAGE_DIR, "recorded-ids.txt");
+const SEEN_CAP = 10000;
+function loadRecorded() {
+  let ids;
+  try { ids = readFileSync(SEEN_FILE, "utf8").split("\n").filter(Boolean); } catch (_) { return new Set(); }
+  if (ids.length > SEEN_CAP) {
+    ids = ids.slice(-SEEN_CAP);
+    try { writeFileSync(SEEN_FILE, ids.join("\n") + "\n"); } catch (_) { /* cap is best effort */ }
+  }
+  return new Set(ids);
+}
+const recorded = loadRecorded();
 // Sessions already recorded in this process.
 const sessionsSeen = new Set();
 
@@ -75,6 +88,7 @@ function onMessage(info) {
     cost: typeof info.cost === "number" ? info.cost : null,
     finish: info.finish || null,
   });
+  appendFileSync(SEEN_FILE, `${info.id}\n`);
 }
 
 function onSession(s) {

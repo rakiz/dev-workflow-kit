@@ -5,6 +5,7 @@ description: "Handles small, mechanical, well-scoped edits such as straightforwa
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

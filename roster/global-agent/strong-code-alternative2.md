@@ -5,6 +5,7 @@ description: "Terminal implementation rung: the task both strong-code and strong
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

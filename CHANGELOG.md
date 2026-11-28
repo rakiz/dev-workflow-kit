@@ -3,6 +3,43 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+- Agent permission denies widened: `git -C . push` and `git  push` (double space) are
+  now caught too, and the read-only rungs (explore, review, design-review) state
+  explicitly that bash must not write.
+- `/dwk` rejects arguments outside its accepted forms instead of passing them raw to
+  the shell.
+- The 16 global roster rungs get the same widened `*git*push*` deny as the project
+  agents; the seven read-only rungs also state explicitly that bash must not write.
+
+### Fixed
+- `--update` now upgrades a kit-installed pre-commit hook: the lock records a
+  `hook/pre-commit` baseline and `--update` overwrites a kit-version hook (legacy
+  installs detected via the kit's git history). A user-authored hook is still kept, with
+  the kit hook parked as an inactive sibling.
+- Symlinked directories are refused fail-closed with a warning across every lock-derived
+  and usage install path (a committed symlinked dir inside a cloned repo could redirect
+  writes or removals outside the project); orphan keys are pruned, and the git hooks path
+  (incl. `core.hooksPath`) is guarded too.
+- A symlinked `.opencode` in the target project now makes install/`--update` refuse with
+  a non-zero exit instead of half-installing and writing the lock outside the project.
+- The pre-commit hook no longer silently skips a check entry with an unknown `builtin`
+  name or fails open on non-object entries — both now block the commit (fail-closed,
+  matching the hook's stated contract).
+- The pre-commit hook's CHANGELOG exemption now matches only the configured root
+  changelog path, not any `*/CHANGELOG.md` in the tree.
+- `/dwk` runs the installed stats script instead of the kit checkout (the installed copy
+  was dead, so moving the checkout broke `/dwk`); the models.json path is baked in at
+  install via a new `--models` flag, and the sed substitution behind it escapes `|`, `&`
+  and `\`.
+- `/dwk --project` no longer matches sibling directories by string prefix.
+- `/dwk live` renders once and exits on a non-TTY instead of hanging non-interactive
+  callers (an agent's shell tool waited for a forever-interval).
+- The usage recorder plugin persists (capped) message ids across restarts, so a restart
+  can no longer double-count replayed events.
+
 ## [0.9.1] - 2026-11-27
 
 ### Added
@@ -33,9 +70,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Evidence: a real 12-dispatch wave (5 deliverables under one review, 2 pure stalls cured
 by scope-halving instead of rung escalation, 5 of 9 major findings stale or duplicated
-numbers, +3,187 lines) replays at ~5 dispatches under these rules at equal quality.
-Source: the 2026-11-27 retro, recorded in the AmstradCPC/Pete project ledger
-(session artifact, unpublished).
+numbers, +3,187 lines) replays at ~5 dispatches under these rules at equal quality (owner-reported, 2026-11-27 retro).
 
 ## [0.9.0] - 2026-11-27
 

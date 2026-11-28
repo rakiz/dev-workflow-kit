@@ -181,14 +181,18 @@ function keyOf(m, by) {
 // read as a keyword. Anything else (or no token) means the month window.
 const VALUE_FLAGS = new Set(["--data", "--project", "--models", "--by"]);
 const WINDOW_KEYWORDS = ["today", "week", "month", "range"];
-function windowKeyword() {
+function firstPositional() {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (VALUE_FLAGS.has(a)) { i++; continue; }
     if (a.startsWith("--")) continue;
-    return WINDOW_KEYWORDS.includes(a) ? a : "month";
+    return a;
   }
-  return "month";
+  return null;
+}
+function windowKeyword() {
+  const p = firstPositional();
+  return WINDOW_KEYWORDS.includes(p) ? p : "month";
 }
 
 function render() {
@@ -196,12 +200,14 @@ function render() {
   const win = window(cmd);
   const by = opt("--by", "model");
   const project = opt("--project", null);
+  const projectAbs = project ? resolve(project) : null;
+  const projectPrefix = projectAbs && !projectAbs.endsWith("/") ? projectAbs + "/" : projectAbs;
   const { msgs, sessions, bad } = readRecords();
   const prices = loadPrices();
   const pick = msgs.filter((m) => {
     const d = new Date(m.ts);
     if (win && (d < win[0] || d >= win[1])) return false;
-    if (project && !(m.project_root || "").startsWith(resolve(project))) return false;
+    if (project && !(m.project_root === projectAbs || (m.project_root || "").startsWith(projectPrefix))) return false;
     return true;
   });
   if (by === "task") attributeTasks(pick);
@@ -245,9 +251,14 @@ function render() {
 
 // ---- main ------------------------------------------------------------------
 if (flag("--prune")) { prune(); process.exit(0); }
-if (args[0] === "live") {
-  const tick = () => { process.stdout.write("\x1b[2J\x1b[H"); render(); console.log("\n(live: month view, Ctrl-C to stop)"); };
-  tick(); setInterval(tick, 5000);
+if (firstPositional() === "live") {
+  // Non-TTY (piped, agent bash): render once and exit, no interval.
+  if (process.stdout.isTTY) {
+    const tick = () => { process.stdout.write("\x1b[2J\x1b[H"); render(); console.log("\n(live: month view, Ctrl-C to stop)"); };
+    tick(); setInterval(tick, 5000);
+  } else {
+    render();
+  }
 } else {
   render();
 }

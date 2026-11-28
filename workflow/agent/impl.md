@@ -5,6 +5,7 @@ description: "Default implementer for ordinary code tasks. Always followed by a 
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

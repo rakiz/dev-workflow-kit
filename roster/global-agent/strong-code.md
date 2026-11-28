@@ -5,6 +5,7 @@ description: "Strong implementation rung (minimax, xhigh): work cheap-code demon
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

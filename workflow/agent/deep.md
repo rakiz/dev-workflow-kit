@@ -5,6 +5,7 @@ description: "Deep reasoning for a subtle bug or a major finding escalated from 
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

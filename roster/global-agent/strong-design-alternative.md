@@ -5,6 +5,7 @@ description: "Fresh-family design escalation: picked up only after strong-design
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

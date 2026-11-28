@@ -6,10 +6,12 @@ permission:
   edit: deny
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 
 You explore a codebase in read-only. You modify nothing, you create nothing.
+Bash must not modify files or repo state: no output-redirection writes, no git state changes. You are read-only.
 
 Typical goals:
 

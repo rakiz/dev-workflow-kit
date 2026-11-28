@@ -57,7 +57,7 @@ COMPANIONS_ENABLED="$(jq -r '.companions.enabled? != false' "$CONFIG")"
 # The name comes from "workflow.changelog" when present, CHANGELOG.md otherwise.
 CHANGELOG_FILE="$(jq -r 'if (.workflow.changelog? | type) == "string" then .workflow.changelog else "CHANGELOG.md" end' "$CONFIG" 2>/dev/null)"
 [[ -z "$CHANGELOG_FILE" ]] && CHANGELOG_FILE="CHANGELOG.md"
-CHANGELOG_BASENAME="${CHANGELOG_FILE##*/}"
+CHANGELOG_PATH="${CHANGELOG_FILE#./}"
 
 failures=0
 failed_names=""
@@ -130,8 +130,8 @@ run_companion_check() {
 # lines: comment syntax is NOT parsed, so any added line containing a marker
 # matches (string literals, prose) — this is why the check is opt-in. Blocks
 # like every other check (the hook has no warn-only mode).
-# The changelog is exempt: history belongs there (CONVENTIONS.md rule 2), so a
-# staged file whose basename is the changelog's is skipped.
+# The changelog is exempt: history belongs there (CONVENTIONS.md rule 2), so the
+# staged file at the configured changelog path (repo-relative) is skipped.
 run_no_history_comments() {
   local check_json="$1"
   local exts file marker hit lineno content
@@ -146,7 +146,7 @@ run_no_history_comments() {
   while IFS= read -r -d '' file; do
     ext_allowed "$exts" "$file" || continue
     # The changelog is where history belongs: exempt it (CONVENTIONS.md rule 2).
-    [[ "${file##*/}" == "$CHANGELOG_BASENAME" ]] && continue
+    [[ "$file" == "$CHANGELOG_PATH" ]] && continue
     # Added lines with their new-file line number: each -U0 hunk header's
     # third field ("+12,3") gives the new side's start line; removed lines
     # ('-') do not advance it.
@@ -185,6 +185,10 @@ if ! CHECKS="$(jq -c '.precommit.checks // [] | .[]' "$CONFIG" 2>/dev/null)"; th
   echo "[dev-workflow-kit] dev-workflow.json: '.precommit.checks' is invalid (array of objects expected) — commit blocked." >&2
   exit 1
 fi
+if ! jq -e '(.precommit.checks // []) | type == "array" and all(.[]; type == "object")' "$CONFIG" >/dev/null 2>&1; then
+  echo "[dev-workflow-kit] malformed dev-workflow.json checks: every entry of '.precommit.checks' must be an object — commit blocked." >&2
+  exit 1
+fi
 
 while IFS= read -r check; do
   [[ -z "$check" ]] && continue
@@ -204,6 +208,9 @@ while IFS= read -r check; do
     if ! run_no_history_comments "$check"; then
       record_failure "$name"
     fi
+  elif [[ -n "$builtin" ]]; then
+    echo "[dev-workflow-kit] check '$name': unknown builtin '$builtin' — commit blocked (fail-closed)"
+    record_failure "$name"
   elif [[ -n "$cmd" ]]; then
     echo "[dev-workflow-kit] check '$name': running..."
     out="$(cd "$ROOT" && sh -c "$cmd" 2>&1)"

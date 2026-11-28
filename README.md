@@ -65,7 +65,7 @@ Known limitation: the skill does mandate a review-agent pass before any commit (
 
 The kit's git-write protection is two-layered, and the layers are intentionally different:
 
-1. **Subagents (the 22 kit-shipped agent files) hard-`deny` push**: every `workflow/agent/*.md` and `roster/global-agent/*.md` carries `"*git push*": "deny"` (and `"*git commit*": "ask"`) in its frontmatter. A subagent never pushes — `deny` is a hard block, so an unattended background agent fails fast instead of popping an approval prompt nobody is there to answer.
+1. **Subagents (the 21 kit-shipped agent files) hard-`deny` push**: every `workflow/agent/*.md` and `roster/global-agent/*.md` carries `"*git push*": "deny"` (and `"*git commit*": "ask"`) in its frontmatter. A subagent never pushes — `deny` is a hard block, so an unattended background agent fails fast instead of popping an approval prompt nobody is there to answer.
 2. **The orchestrator (your session) asks**: the push/commit approval lives in YOUR opencode config — the kit never writes `opencode.json(c)`. Recommended global block (the subagent denies above only protect the pipeline; without this block the top-level session is unrestricted):
 
 ```jsonc

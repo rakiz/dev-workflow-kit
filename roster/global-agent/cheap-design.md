@@ -5,6 +5,7 @@ description: "Cheap design producer: writes the approach/design doc for a featur
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

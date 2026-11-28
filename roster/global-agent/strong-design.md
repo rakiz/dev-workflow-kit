@@ -5,6 +5,7 @@ description: "Strong design rung (escalation tier): the design work cheap-design
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

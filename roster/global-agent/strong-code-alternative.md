@@ -5,6 +5,7 @@ description: "Handles complex debugging, cross-system reasoning, and driving the
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

@@ -5,6 +5,7 @@ description: "Default cheap implementer for ordinary coding tasks, and for large
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

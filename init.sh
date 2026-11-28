@@ -230,10 +230,11 @@ EOF
 }
 
 # _lock_key_kind KEY : classify a lock key before ANY path is built from it.
-# Prints agent | skill | rules | none. Only a strict shape is a path:
+# Prints agent | skill | rules | hook | none. Only a strict shape is a path:
 #   agent/<name>.md          name = [A-Za-z0-9._-]+, no slash
 #   skill/<dir>/.../<file>   segments = [A-Za-z0-9._-]+, at least two
 #   CONVENTIONS*.md / RULES*.md  (kit-authored files at the target root)
+#   hook/pre-commit          the git hook baseline — NOT a path under .opencode/
 # "..", a leading "/", empty or extra separators, anything else -> none. A
 # "none" key is never a path: --update prunes it from the lock, touches no file.
 # Defined above self_check: the --self-check dispatch runs before the rest of
@@ -244,6 +245,7 @@ _lock_key_kind() {
   if [[ "$k" =~ ^agent/[A-Za-z0-9._-]+\.md$ ]]; then echo agent
   elif [[ "$k" =~ ^skill/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+$ ]]; then echo skill
   elif [[ "$k" =~ ^(CONVENTIONS|RULES)[A-Za-z0-9._-]*\.md$ ]]; then echo rules
+  elif [[ "$k" == hook/pre-commit ]]; then echo hook
   else echo none
   fi
 }
@@ -315,7 +317,7 @@ self_check() {
   # 2. REL lock-key namespace check (see function header): every shape in
   # LOCK_KEY_MANIFEST must stay inside the lock's namespace.
   for tok in "${LOCK_KEY_MANIFEST[@]}"; do
-    [[ "$tok" =~ ^(agent|skill|CONVENTIONS|RULES) ]] || bad_keys+=("$tok")
+    [[ "$tok" =~ ^(agent|skill|CONVENTIONS|RULES) || "$tok" == hook/pre-commit ]] || bad_keys+=("$tok")
   done
 
   # 3. source-derived lock keys: every key the kit tree would produce must be a
@@ -387,14 +389,14 @@ self_check() {
     echo "init --self-check: FAILED" >&2
     for p in "${missing[@]}"; do echo "  missing kit source: $p" >&2; done
     for tok in "${bad_keys[@]}"; do
-      echo "  lock REL key outside ^(agent|skill|CONVENTIONS|RULES): $tok" >&2
+      echo "  lock REL key outside ^(agent|skill|CONVENTIONS|RULES) or hook/pre-commit: $tok" >&2
     done
     for tok in "${kit_bad[@]}"; do
       echo "  $tok" >&2
     done
     return 1
   fi
-  echo "init --self-check: OK — every kit source path present; every lock key shape within ^(agent|skill|CONVENTIONS|RULES); every kit-derived lock key a strict path; roster artifacts in sync with models.json; no retired name in shipped text; kit-root docs within the allowed set"
+  echo "init --self-check: OK — every kit source path present; every lock key shape within ^(agent|skill|CONVENTIONS|RULES) or hook/pre-commit; every kit-derived lock key a strict path; roster artifacts in sync with models.json; no retired name in shipped text; kit-root docs within the allowed set"
   return 0
 }
 
@@ -411,7 +413,7 @@ RULES_KEYS=(CONVENTIONS.md RULES.md CONVENTIONS.cpp.md CONVENTIONS.cpp23.md CONV
 # checks each against the lock namespace. It is maintained by hand: a new
 # lock key shape must be added here. The install paths that write agent/ and
 # skill/ keys build them from the same shapes (agent/<name>.md, skill/...).
-LOCK_KEY_MANIFEST=("agent/<name>.md" "skill/dev-workflow/SKILL.md" "skill/pr-review/<file>" "${RULES_KEYS[@]}")
+LOCK_KEY_MANIFEST=("agent/<name>.md" "skill/dev-workflow/SKILL.md" "skill/pr-review/<file>" "hook/pre-commit" "${RULES_KEYS[@]}")
 
 # INJECTED_KEYS : the frontmatter keys and comment lines init.sh injects from
 # models.json. The STRIP side is derived from this list: _INJECTED_LINE_RE
@@ -659,6 +661,13 @@ fi
 # drops to 0 when the file exists but is not a JSON object — then nothing is
 # read, migrated, written or reconciled until it is fixed.
 OVERRIDES_FILE="$(dirname "$LOCK_FILE")/dev-workflow-kit.overrides.json"
+# A symlinked .opencode would send every write and the lock through the link,
+# outside the project: refuse the whole run before anything is touched. Doctor
+# only reads, so it is not refused.
+if [[ $GLOBAL_MODE -eq 0 && $DOCTOR -eq 0 && -L "$TARGET/.opencode" ]]; then
+  echo "init: refusing to install/update: $TARGET/.opencode is a symlink — remove it or make it a real directory" >&2
+  exit 1
+fi
 OVERRIDES_OK=1
 if [[ -f "$OVERRIDES_FILE" ]] && command -v jq >/dev/null 2>&1 \
    && ! jq -e 'type == "object"' "$OVERRIDES_FILE" >/dev/null 2>&1; then
@@ -709,6 +718,10 @@ copy_sync() {
   elif [[ -f "$dst" ]]; then
     skipped+=("$label (identical)")
   else
+    if _path_has_symlink "$TARGET" "$dst"; then
+      warnings+=("$label: path traverses a symlink; not written, no file touched")
+      return
+    fi
     mkdir -p "$(dirname "$dst")"
     cp "$src" "$dst"
     copied+=("$label")
@@ -721,6 +734,10 @@ copy_if_absent() {
   if [[ -f "$dst" ]]; then
     skipped+=("$label (already exists, kept)")
   else
+    if _path_has_symlink "$TARGET" "$dst"; then
+      warnings+=("$label: path traverses a symlink; not written, no file touched")
+      return
+    fi
     mkdir -p "$(dirname "$dst")"
     cp "$src" "$dst"
     copied+=("$label")
@@ -877,17 +894,38 @@ usage_lock_flag() {
   fi
 }
 
+# _sed_escape_repl TEXT : print TEXT escaped for use as the replacement part of
+# a `s|...|...|` sed command — backslash, the `|` delimiter and `&` (the
+# matched text) are backslash-escaped, so a path containing them stays literal.
+_sed_escape_repl() {
+  printf '%s' "$1" | sed -e 's/[\\|&]/\\&/g'
+}
+
+# _dwk_render SRC : print the /dwk command file SRC with its two placeholders
+# filled in: $DWK_STATS -> the INSTALLED stats copy, $DWK_MODELS -> the kit's
+# models.json. Shared by usage_install (writes the result) and run_doctor
+# (compares it), so both sides render identically. Values go through
+# _sed_escape_repl.
+_dwk_render() {
+  sed -e "s|\\\$DWK_STATS|$(_sed_escape_repl "$TARGET/dwk/stats.mjs")|g" \
+      -e "s|\\\$DWK_MODELS|$(_sed_escape_repl "$KIT_DIR/roster/models.json")|g" "$1"
+}
+
 # usage_install : copy the usage files into the config directory (install and
-# --update). The /dwk command gets the kit's absolute stats path written in, so
-# it does not depend on an environment variable.
+# --update). The /dwk command gets the installed stats path and the kit's
+# models.json path written in (see _dwk_render), so it does not depend on an
+# environment variable.
 usage_install() {
   local pair src rel dst
   for pair in "${USAGE_FILES[@]}"; do
     src="$KIT_DIR/${pair%%|*}"; rel="${pair#*|}"; dst="$TARGET/$rel"
     [[ -f "$src" ]] || { warnings+=("usage: kit file ${pair%%|*} is missing"); return 1; }
+    if _path_has_symlink "$TARGET" "$dst"; then
+      warnings+=("$rel: path traverses a symlink; not written, no file touched"); return 1
+    fi
     mkdir -p "$(dirname "$dst")"
     if [[ "$rel" == command/dwk.md ]]; then
-      sed "s|\$DWK_HOME|$KIT_DIR|g" "$src" > "$dst" || { warnings+=("could not write $rel"); return 1; }
+      _dwk_render "$src" > "$dst" || { warnings+=("could not write $rel"); return 1; }
     else
       cp "$src" "$dst" || { warnings+=("could not write $rel"); return 1; }
     fi
@@ -918,8 +956,8 @@ usage_remove() {
 #   _rules_prefix_hash CONVENTIONS.md, RULES.md               kit prefix up to and incl.
 #                                                             `## Project rules`; the
 #                                                             project's suffix is never hashed
-#   (no hash: cmp)     pre-commit hook                        no lock entry at all; sync_hook
-#                                                             compares the files directly
+#   _raw_hash          pre-commit hook (hook/pre-commit)      whole file; sync_hook uses it
+#                                                             as the baseline of a deployed hook
 # A new file kind must pick its unit here first; the lock records only the
 # hash of the KIT source content (see the lock schema header).
 
@@ -1171,10 +1209,17 @@ warn_shadowed_agents() {
 # body_sha256 = hash of the KIT'S SOURCE content that was last synced (not
 # of the target): _body_hash (model:/variant: lines stripped) for agents and
 # the skill, raw prefix/file bytes for the six rule/convention files.
-# The pre-commit hook has NO entry: sync_hook detects its drift by comparing
-# the files directly, so a recorded hash would be dead metadata nothing
-# reads. model/variant = what the kit last injected for that agent (recorded
-# "" when none; "" is also what a missing entry reads as, which is exactly
+# The pre-commit hook is the one non-agent entry: "hook/pre-commit" with
+# body_sha256 = raw hash of the kit hook. Recorded by install and --update
+# whenever the deployed hook is identical to the kit hook
+# (lock_record_hook_if_synced); sync_hook reads it to tell a previous kit
+# version's hook from a user's own hook.
+# Forward-compat: the lock version stays 1 although "hook/pre-commit" is a new
+# key shape. An OLDER kit's --update prunes that key (out-of-pattern) and its
+# --doctor reports drift; the next new-kit --update re-derives the baseline
+# (_hook_is_past_kit).
+# model/variant = what the kit last injected for that agent (recorded ""
+# when none; "" is also what a missing entry reads as, which is exactly
 # the conservative bootstrap signal for --update: a missing lock, a missing
 # entry or a recorded-empty model all mean "cannot prove the user untouched
 # it — never overwrite, record the current state as the new baseline"). A
@@ -1360,14 +1405,65 @@ lock_record_rules_if_synced() {
   lock_set "$rel" body_sha256 "$kit_hash"
 }
 
+# _hook_is_past_kit HASH : true (exit 0) when HASH — the raw sha256 of some
+# deployed hook — equals the pre-commit hook at a PAST kit commit (every commit
+# in the kit's git history that touched workflow/hooks/pre-commit.sh). This
+# identifies a hook a previous kit version deployed, for a lock with no hook
+# baseline. A tarball kit has no git history: this then returns false.
+_hook_is_past_kit() {
+  local sha rev prefix
+  # `git log` paths are relative to KIT_DIR, but `rev:path` needs the path from
+  # the repository root: --show-prefix bridges a kit checked out as a subdirectory.
+  prefix="$(git -C "$KIT_DIR" rev-parse --show-prefix 2>/dev/null)" || return 1
+  while IFS= read -r sha; do
+    rev="$sha:${prefix}workflow/hooks/pre-commit.sh"
+    git -C "$KIT_DIR" cat-file -e "$rev" 2>/dev/null || continue
+    [[ "$(git -C "$KIT_DIR" show "$rev" | shasum -a 256 | awk '{print $1}')" == "$1" ]] && return 0
+  done < <(git -C "$KIT_DIR" log --format=%H -- workflow/hooks/pre-commit.sh 2>/dev/null)
+  return 1
+}
+
+# lock_record_hook_if_synced : record the hook/pre-commit baseline when the
+# deployed hook is identical to the kit hook (the same "matches the kit, then
+# baseline" rule as the other lock_record_* helpers). A user's own hook, or a
+# parked one, gets no baseline. No-op without a lock (lock_set is then a no-op),
+# so it is called both at the end of sync_hook (--update, where the lock already
+# exists) and from the install lock block, which runs after lock_init.
+lock_record_hook_if_synced() {
+  local hooks
+  hooks="$(git -C "$TARGET" rev-parse --git-path hooks 2>/dev/null)" || return 0
+  [[ "$hooks" = /* ]] || hooks="$TARGET/$hooks"
+  cmp -s "$KIT_DIR/workflow/hooks/pre-commit.sh" "$hooks/pre-commit" 2>/dev/null || return 0
+  lock_set hook/pre-commit body_sha256 "$(_raw_hash "$KIT_DIR/workflow/hooks/pre-commit.sh")"
+}
+
 # sync_hook : pre-commit hook install/sync — shared by install and --update.
-# The alt-file mechanism is deliberately NOT lock-tracked. Fills the shared
+# The hook's baseline is the lock key hook/pre-commit (body_sha256 = raw hash
+# of the kit hook at last sync). The deployed hook is classified:
+#   - absent                         -> copied, baseline recorded;
+#   - identical to the kit hook      -> up to date, baseline refreshed;
+#   - equal to the baseline          -> a previous kit version's hook, untouched
+#                                       since the last sync: overwritten, baseline
+#                                       refreshed (reported as an update);
+#   - no baseline, bytes equal to a  -> a legacy kit hook (pre-baseline install):
+#     hook at a past kit commit         overwritten the same way;
+#   - anything else                  -> a user's own hook: kept, the kit's hook
+#                                       parked as pre-commit.dev-workflow-kit.
+# The alt file itself is deliberately NOT lock-tracked. Fills the shared
 # report arrays.
 sync_hook() {
+  local dep_hash base_hash
   HOOKS_DIR="$(git -C "$TARGET" rev-parse --git-path hooks)"
   [[ "$HOOKS_DIR" = /* ]] || HOOKS_DIR="$TARGET/$HOOKS_DIR"
   HOOK_DST="$HOOKS_DIR/pre-commit"
   HOOK_SRC="$KIT_DIR/workflow/hooks/pre-commit.sh"
+  # core.hooksPath can put the hooks dir in repo content (or a symlink): refuse
+  # before any write. The walk starts at the hooks dir's parent, so an absolute
+  # hooks path outside the repo is not refused for being outside TARGET.
+  if _path_has_symlink "$(dirname "$HOOKS_DIR")" "$HOOK_DST"; then
+    warnings+=("pre-commit hook: path traverses a symlink; not written, no file touched")
+    return
+  fi
 
   if [[ ! -e "$HOOK_DST" ]]; then
     mkdir -p "$HOOKS_DIR"
@@ -1380,14 +1476,26 @@ sync_hook() {
       skipped+=("$(git -C "$TARGET" rev-parse --git-dir)/hooks/pre-commit (identical)")
     fi
   else
-    HOOK_ALT="$HOOKS_DIR/pre-commit.dev-workflow-kit"
-    if [[ -e "$HOOK_ALT" ]]; then
-      warnings+=("a different pre-commit hook exists AND ${HOOK_ALT#$TARGET/} also exists — manual merge required, nothing copied; the kit's hook is NOT active until the merge is done")
+    dep_hash="$(_raw_hash "$HOOK_DST")"
+    base_hash="$(lock_get hook/pre-commit body_sha256)"
+    if [[ -n "$base_hash" && "$dep_hash" == "$base_hash" ]] || { [[ -z "$base_hash" ]] && _hook_is_past_kit "$dep_hash"; }; then
+      # A kit-owned hook of a previous version: upgrade it in place.
+      if cp "$HOOK_SRC" "$HOOK_DST" && chmod +x "$HOOK_DST"; then
+        updated_body+=("$(git -C "$TARGET" rev-parse --git-dir)/hooks/pre-commit (kit hook upgraded from a previous kit version)")
+      else
+        warnings+=("could not upgrade the pre-commit hook from a previous kit version")
+      fi
     else
-      cp "$HOOK_SRC" "$HOOK_ALT" && chmod +x "$HOOK_ALT"
-      warnings+=("existing pre-commit hook kept; kit's hook installed as ${HOOK_ALT#$TARGET/} — Git does NOT execute this file (only .git/hooks/pre-commit is executed): the kit's hook stays INACTIVE until you merge the two by hand")
+      HOOK_ALT="$HOOKS_DIR/pre-commit.dev-workflow-kit"
+      if [[ -e "$HOOK_ALT" ]]; then
+        warnings+=("a different pre-commit hook exists AND ${HOOK_ALT#$TARGET/} also exists — manual merge required, nothing copied; the kit's hook is NOT active until the merge is done")
+      else
+        cp "$HOOK_SRC" "$HOOK_ALT" && chmod +x "$HOOK_ALT"
+        warnings+=("existing pre-commit hook kept; kit's hook installed as ${HOOK_ALT#$TARGET/} — Git does NOT execute this file (only .git/hooks/pre-commit is executed): the kit's hook stays INACTIVE until you merge the two by hand")
+      fi
     fi
   fi
+  lock_record_hook_if_synced
 }
 
 # --- --update mode -----------------------------------------------------------
@@ -1523,12 +1631,16 @@ _bootstrap_reason() {
 update_body_3way() {
   local src="$1" dst="$2" rel="$3" hash_cmd="$4"
   local kit_hash target_hash lock_hash sibling
+  BODY_UPDATED=0
+  BODY_CURRENT=0
+  if _path_has_symlink "$TARGET" "$dst"; then
+    warnings+=("$rel: path traverses a symlink; not written, no file touched")
+    return
+  fi
   kit_hash="$("$hash_cmd" "$src")"
   target_hash="$("$hash_cmd" "$dst")"
   lock_hash="$(lock_get "$rel" body_sha256)"
   sibling="$dst.dev-workflow-kit-new"
-  BODY_UPDATED=0
-  BODY_CURRENT=0
 
   if [[ "$target_hash" == "$kit_hash" ]]; then
     # The body already equals the kit's current content (whatever the lock
@@ -1609,6 +1721,10 @@ _overwrite_with_prev() {
 # model/variant refresh. Never overwrites a customized body, never prompts.
 update_sync_managed() {
   local src="$1" dst="$2" rel="$3" has_model="$4" agent="$5"
+  if _path_has_symlink "$TARGET" "$dst"; then
+    warnings+=("$rel: path traverses a symlink; not written, no file touched")
+    return
+  fi
 
   if [[ ! -f "$dst" ]]; then
     # New kit file since the project's last install: plain copy + baseline
@@ -1694,6 +1810,10 @@ update_sync_managed() {
 update_convention_split() {
   local src="$1" dst="$2" rel="$3"
   local kit_hash target_hash lock_hash sibling n_src n_dst tmp
+  if _path_has_symlink "$TARGET" "$dst"; then
+    warnings+=("$rel: path traverses a symlink; not written, no file touched")
+    return
+  fi
   kit_hash="$(_rules_prefix_hash "$src")"
   target_hash="$(_rules_prefix_hash "$dst")"
   lock_hash="$(lock_get "$rel" body_sha256)"
@@ -1801,6 +1921,32 @@ _under_dir() {
   [[ "$1" == "$2"/* && "$1" != *..* ]]
 }
 
+# _path_has_symlink BASE DST : true (exit 0) when DST lies under BASE and any
+# existing component below BASE — each directory on the way down, and DST
+# itself — is a symlink. cp/mv/rm follow such a link, so a lock-derived path
+# through one could act on a file outside the project: every mutating use of
+# a lock-derived path is guarded by this, and a refusal touches nothing. DST
+# outside BASE also counts as refused. BASE itself is the trust root and is
+# not inspected (a project may sit behind a symlinked directory). A pure
+# string walk over the components, no realpath.
+# Decision: a symlinked $TARGET/.opencode is NOT a per-path refusal. Project
+# install and --update exit non-zero before any write when it is one (the
+# check after the LOCK_FILE setup), so the lock is never written through it.
+# The walk below .opencode stays as described above.
+_path_has_symlink() {
+  local base="$1" dst="$2" p rest part
+  [[ "$dst" == "$base"/* ]] || return 0
+  p="$base"; rest="${dst#"$base"/}"
+  while [[ -n "$rest" ]]; do
+    part="${rest%%/*}"
+    p="$p/$part"
+    [[ -L "$p" ]] && return 0
+    [[ "$rest" == */* ]] || break
+    rest="${rest#*/}"
+  done
+  return 1
+}
+
 # _ensure_backup_dir : create the timestamped backup dir on first use (one
 # per run, under the lock's directory). Non-zero when it cannot be created.
 _ensure_backup_dir() {
@@ -1846,6 +1992,7 @@ update_orphans() {
     kind="$(_lock_key_kind "$key")"
     case "$kind" in
       rules) continue ;;   # kit-authored rule files: update_rules_conventions owns them
+      hook) continue ;;    # the git hook is not under .opencode/: sync_hook owns it, never removed here
       none)
         _prune_key "$key" && pruned_keys+=("$key — out-of-pattern lock key (not a kit path); no file touched")
         continue ;;
@@ -1863,6 +2010,10 @@ update_orphans() {
     [[ -e "$src" ]] && continue
     if ! _under_dir "$dst" "$base"; then
       _prune_key "$key" && pruned_keys+=("$key — path escapes its directory; no file touched")
+      continue
+    fi
+    if _path_has_symlink "$TARGET" "$dst"; then
+      _prune_key "$key" && pruned_keys+=("$key — path traverses a symlink; no file touched")
       continue
     fi
     if [[ ! -e "$dst" ]]; then
@@ -1936,6 +2087,8 @@ run_doctor() {
       _doc_drift "$rel: out-of-pattern lock key (not a kit path) — --update prunes the key; no file is read or touched"
       continue
     fi
+    # The git hook is checked by the hook section below, not as a tracked file.
+    [[ "$kind" == hook ]] && continue
     if [[ "$kind" == rules ]]; then
       src="$KIT_DIR/workflow/templates/$rel"; dst="$TARGET/$rel"
       if [[ ! -f "$src" ]]; then _doc_drift "$rel: orphan lock key — the kit no longer ships it"; continue; fi
@@ -1963,6 +2116,10 @@ run_doctor() {
     fi
     if ! _under_dir "$dst" "$base"; then
       _doc_drift "$rel: path escapes its directory — --update prunes the key; no file is read"
+      continue
+    fi
+    if _path_has_symlink "$TARGET" "$dst"; then
+      _doc_drift "$rel: path traverses a symlink — --update leaves it alone; no file is read"
       continue
     fi
     if [[ ! -f "$dst" ]]; then
@@ -2012,7 +2169,7 @@ run_doctor() {
       if [[ ! -f "$_dst" ]]; then
         _doc_drift "$_rel: usage component file missing (--update restores it)"
       elif [[ "$_rel" == command/dwk.md ]]; then
-        cmp -s <(sed "s|\$DWK_HOME|$KIT_DIR|g" "$_src") "$_dst" || _doc_drift "$_rel: differs from the kit (--update reconciles it)"
+        cmp -s <(_dwk_render "$_src") "$_dst" || _doc_drift "$_rel: differs from the kit (--update reconciles it)"
       else
         cmp -s "$_src" "$_dst" || _doc_drift "$_rel: differs from the kit (--update reconciles it)"
       fi
@@ -2451,8 +2608,8 @@ fi
 # point a future --update compares against. Soft-requires jq + shasum (the
 # same tools --update hard-requires); without them, degrade with a warning:
 # the next --update will simply bootstrap conservatively. Files preserved as
-# local customizations get no entry (nothing was synced), and the hook gets
-# no entry either (sync_hook detects its drift by file comparison).
+# local customizations get no entry (nothing was synced); the pre-commit hook
+# gets hook/pre-commit only while it is identical to the kit hook.
 if command -v jq >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
   if lock_init; then
     # Record the run's component selection, UNIONED into any existing array
@@ -2472,6 +2629,7 @@ if command -v jq >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
     fi
     if [[ $GLOBAL_MODE -eq 0 ]]; then
       if [[ $HAS_WF -eq 1 ]]; then
+        lock_record_hook_if_synced
         lock_record_if_synced "$KIT_DIR/workflow/skill/dev-workflow/SKILL.md" "$TARGET/.opencode/skill/dev-workflow/SKILL.md" "skill/dev-workflow/SKILL.md" 0
         # CONVENTIONS.md and RULES.md: baseline the kit-managed prefix (the
         # `## Project rules` split) when the freshly copied (or still identical)

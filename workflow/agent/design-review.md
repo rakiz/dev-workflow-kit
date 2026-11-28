@@ -6,10 +6,12 @@ permission:
   edit: deny
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 
 You critique an approach or a design BEFORE any code is written. Read-only.
+Bash must not modify files or repo state: no output-redirection writes, no git state changes. You are read-only.
 
 To cover:
 

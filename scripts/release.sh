@@ -49,7 +49,7 @@ else
 fi
 
 echo "== 2. gates"
-if bash -c "'$KIT_DIR/init.sh' --self-check" >"$TMP/self.out" 2>&1; then
+if "$KIT_DIR/init.sh" --self-check >"$TMP/self.out" 2>&1; then
   echo "  ok    init.sh --self-check"
 else
   echo "  FAIL  init.sh --self-check" >&2; sed 's/^/        /' "$TMP/self.out" >&2; FAILED=1

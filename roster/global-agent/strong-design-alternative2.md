@@ -5,6 +5,7 @@ description: "Terminal design rung: the design problem both strong-design and st
 permission:
   bash:
     "*git push*": deny
+    "*git*push*": deny
     "*git commit*": ask
 ---
 

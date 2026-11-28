@@ -7,11 +7,17 @@ Run the usage script and print its output exactly, without commentary.
 
 Arguments given: `$ARGUMENTS`
 
-- If the arguments start with `live`, run `node "$DWK_HOME/dwk/stats.mjs" live` and tell the user to stop it with Ctrl-C.
-- Otherwise run `node "$DWK_HOME/dwk/stats.mjs" $ARGUMENTS` (empty arguments = this month, by model).
+Accept only these forms, each token passed as its own double-quoted argument:
+- empty (this month, by model), or `today`, `week`, `month`, `live`
+- `range YYYY-MM-DD YYYY-MM-DD`
+- `--project PATH` (PATH is one double-quoted argument)
+- `--by model|agent|task`
+- `--prune`
 
-`$DWK_HOME` is the kit checkout the roster was installed from; if unset, look for `dwk/stats.mjs` under `~/dev-workflow-kit`.
+If the arguments contain anything else, do NOT run the script. Tell the user the accepted forms above instead.
 
-Accepted forms: `today`, `week`, `month`, `range YYYY-MM-DD YYYY-MM-DD`, each with optional `--project PATH` and `--by model|agent|task`, and `--prune` (deletes usage files older than 13 months). Every group shows a `tok/s` column (generated tokens ÷ message span, from the recorded start and completion times; older records without a start are left out of it). `--by task` attributes each message through the project ledger: the `task_id=` lines of its `INPROGRESS.md` (or the file named by `workflow.inprogress` in its `dev-workflow.json`); unattributed messages print as `-`.
+Run: `node "$DWK_STATS" --models "$DWK_MODELS" <accepted arguments>`
+
+`live` re-renders every 5 s in an interactive terminal (stop with Ctrl-C); when stdout is not a TTY it renders once and exits.
 
 Show the script's output unchanged. If it reports `$?`, say that a model has no price in models.json yet (the cost is unknown, not zero).
