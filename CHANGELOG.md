@@ -3,6 +3,30 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+- Dev-workflow skill: implementation briefs are execution-first (§1) — settled facts are
+  inlined, open verification moves to the design step or a verify-only dispatch, writes
+  are ordered and verified by execution, and rescue briefs shrink instead of growing. The
+  §7 empty-return rule becomes a recovery table: worktree inspection, at most one
+  resume-for-facts, a verified design rerouted down the ladder to the standard implementer
+  (lane guards kept: rigorous review budget, reviewer family distinct from the new
+  producer), otherwise escalation; the same brief shape is never re-dispatched unchanged.
+- Agent prompts gain the attempt-id prefix (`attempt <id>:`), a never-empty-final-message
+  rule, and a checkpoint stop after about 15 tool calls without a write: implementers
+  `impl`, `cheap-code`, `cheap-mech`, `strong-code`, `strong-code-alternative` and
+  `strong-code-alternative2`; consult rung `deep` (checkpoint without a conclusion, no
+  write). The four global code rungs (cheap-code, strong-code and both alternatives) also
+  stop re-deriving brief-settled facts: reading is narrowed to the files the brief names,
+  and proof of the change comes after the write.
+- Evidence: 5 dead sessions (completed, empty payload, zero writes) before the change vs
+  6/6 healthy dispatches after it (adopter-reported, 2026-11-28; archived in
+  `docs/history/2026-11-28-empty-returns/`). Open question: the evidence does not separate
+  brief shape from reasoning effort (`variant`) as the exhaustion mechanism; the
+  distinguishing experiment is a same-brief re-run at a lower variant, with telemetry
+  (tool-call count and reasoning tokens per turn).
+
 ## [0.9.2] - 2026-11-28
 
 ### Changed

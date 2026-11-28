@@ -20,4 +20,6 @@ Method:
 5. Never run any git write (commit/push/stash/checkout/reset) — route through the orchestrator, and only inside your launch repo.
 6. If a `workflow.rules` file (e.g. `RULES.md`) exists and a rule could not be respected, mark `RULE-DEVIATION: Rn - reason` inline and list it in the final report.
 
-Final report (short): files changed, one line per file on what changed, and anything that did not match the expected pattern. Your output is meant to be followed by cheap-review: list facts, no justification. `INPROGRESS.md` is orchestrator-owned — NEVER edit it; return progress updates (steps done, blockers) in this report. If the brief assigned a delegation attempt id, echo it (`Attempt: 7.2`).
+Final report (short): files changed, one line per file on what changed, and anything that did not match the expected pattern. Your output is meant to be followed by cheap-review: list facts, no justification. `INPROGRESS.md` is orchestrator-owned — NEVER edit it; return progress updates (steps done, blockers) in this report. If the brief assigned a delegation attempt id, begin your final message with `attempt <id>:` (e.g. `attempt 7.2:`).
+
+Never end silently: an empty final message is forbidden. If budget is running out, emit the partial report now (what was established, what was not, where it stopped). After about 15 tool calls without a write, stop and return a factual report of what was established: a design that never reaches a file cannot be handed over.
