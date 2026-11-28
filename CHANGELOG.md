@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.9.3] - 2026-11-28
 
 ### Changed
 - Dev-workflow skill: implementation briefs are execution-first (§1) — settled facts are
